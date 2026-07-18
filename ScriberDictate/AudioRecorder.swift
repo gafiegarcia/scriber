@@ -25,6 +25,12 @@ enum AudioRecorderError: LocalizedError {
     }
 }
 
+enum MicrophonePermissionState: Equatable {
+    case notDetermined
+    case allowed
+    case denied
+}
+
 struct CompletedRecording: Sendable {
     let id: UUID
     let url: URL
@@ -47,6 +53,17 @@ final class AudioRecorder {
 
     static var microphoneAuthorized: Bool {
         microphoneAuthorizationStatus == .authorized
+    }
+
+    static var microphonePermissionState: MicrophonePermissionState {
+        switch microphoneAuthorizationStatus {
+        case .authorized:
+            .allowed
+        case .notDetermined:
+            .notDetermined
+        default:
+            .denied
+        }
     }
 
     static func requestMicrophoneAccess() async -> Bool {

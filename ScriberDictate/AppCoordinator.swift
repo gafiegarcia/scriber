@@ -1,4 +1,5 @@
 import AppKit
+@preconcurrency import AVFoundation
 import Combine
 import Foundation
 import SwiftData
@@ -17,6 +18,10 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var phase: AppPhase = .idle
     @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
     @Published private(set) var microphoneGranted = AudioRecorder.microphoneAuthorized
+    @Published private(set) var microphonePermissionState = AudioRecorder.microphonePermissionState
+    @Published private(set) var audioInputDevices = AudioRecorder.availableInputDevices()
+    @Published private(set) var microphoneTestLevel: Float = -160
+    @Published private(set) var microphoneTestError: String?
     @Published private(set) var shortcutMonitorAvailable = false
 
     let preferences: Preferences
@@ -30,6 +35,7 @@ final class AppCoordinator: ObservableObject {
     private let pill = PillController()
     private let shortcuts: GlobalShortcutService
     private var meterTask: Task<Void, Never>?
+    private var microphoneTestTask: Task<Void, Never>?
     private var currentRecord: DictationRecord?
     private var currentRecording: CompletedRecording?
     private var cancellables = Set<AnyCancellable>()
@@ -49,6 +55,21 @@ final class AppCoordinator: ObservableObject {
         Publishers.CombineLatest(preferences.$holdShortcut, preferences.$toggleShortcut)
             .sink { [weak self] hold, toggle in self?.shortcuts.update(hold: hold, toggle: toggle) }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.refreshPermissions(promptForAccessibility: false) }
+            }
+            .store(in: &cancellables)
+
+        Publishers.Merge(
+            NotificationCenter.default.publisher(for: AVCaptureDevice.wasConnectedNotification),
+            NotificationCenter.default.publisher(for: AVCaptureDevice.wasDisconnectedNotification)
+        )
+        .sink { [weak self] _ in
+            Task { @MainActor in self?.refreshAudioInputDevices() }
+        }
+        .store(in: &cancellables)
 
         recoverInterruptedRecords()
         refreshPermissions(promptForAccessibility: false)
@@ -76,11 +97,53 @@ final class AppCoordinator: ObservableObject {
         if promptForAccessibility { shortcuts.requestAccessibility() }
         accessibilityGranted = AXIsProcessTrusted()
         microphoneGranted = AudioRecorder.microphoneAuthorized
+        microphonePermissionState = AudioRecorder.microphonePermissionState
+        refreshAudioInputDevices()
         if accessibilityGranted { shortcuts.start() }
     }
 
     func requestMicrophone() async {
         microphoneGranted = await AudioRecorder.requestMicrophoneAccess()
+        microphonePermissionState = AudioRecorder.microphonePermissionState
+        refreshAudioInputDevices()
+    }
+
+    func openMicrophoneSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func startMicrophoneTest() {
+        guard microphoneGranted, !phase.isBusy else { return }
+        stopMicrophoneTest()
+        do {
+            try recorder.startMonitoring(selection: preferences.audioInputSelection)
+            microphoneTestError = nil
+            microphoneTestLevel = -160
+            microphoneTestTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    guard let self else { return }
+                    microphoneTestLevel = recorder.updateMeter()
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+            }
+        } catch {
+            microphoneTestError = error.localizedDescription
+            microphoneTestLevel = -160
+        }
+    }
+
+    func stopMicrophoneTest() {
+        microphoneTestTask?.cancel()
+        microphoneTestTask = nil
+        recorder.stopMonitoring()
+        microphoneTestLevel = -160
+    }
+
+    func refreshAudioInputDevices() {
+        let shouldRestartTest = microphoneTestTask != nil
+        audioInputDevices = AudioRecorder.availableInputDevices()
+        if shouldRestartTest { startMicrophoneTest() }
     }
 
     func saveAPIKey(_ value: String) throws {
@@ -204,6 +267,7 @@ final class AppCoordinator: ObservableObject {
             return
         }
         do {
+            stopMicrophoneTest()
             pill.setPreferredScreen(paste.captureTarget())
             try recorder.start(selection: preferences.audioInputSelection)
             shortcuts.setMode(mode == .held ? .held : .locked)

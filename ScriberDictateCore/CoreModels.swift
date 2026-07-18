@@ -69,7 +69,7 @@ public enum RecordingMode: Equatable, Sendable {
     case locked
 }
 
-public struct AudioInputDeviceDescriptor: Identifiable, Codable, Equatable, Sendable {
+public struct AudioInputDeviceDescriptor: Identifiable, Codable, Equatable, Hashable, Sendable {
     public let id: String
     public let name: String
     public let isBuiltIn: Bool
@@ -81,7 +81,7 @@ public struct AudioInputDeviceDescriptor: Identifiable, Codable, Equatable, Send
     }
 }
 
-public enum AudioInputSelection: Codable, Equatable, Sendable {
+public enum AudioInputSelection: Codable, Equatable, Hashable, Sendable {
     case automatic
     case device(id: String, name: String)
 

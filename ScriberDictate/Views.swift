@@ -328,12 +328,23 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Permissions and Startup") {
-                LabeledContent("Microphone", value: runtime.coordinator.microphoneGranted ? "Allowed" : "Required")
-                LabeledContent("Accessibility", value: runtime.coordinator.accessibilityGranted ? "Allowed" : "Required")
-                HStack {
-                    Button("Request Microphone") { Task { await runtime.coordinator.requestMicrophone() } }
-                    Button("Open Accessibility Prompt") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
-                    Button("Check Again") { runtime.coordinator.refreshPermissions(promptForAccessibility: false) }
+                PermissionStatusRow(
+                    title: "Microphone",
+                    systemImage: "mic",
+                    allowed: runtime.coordinator.microphoneGranted
+                ) {
+                    microphonePermissionButton
+                }
+                MicrophonePicker()
+
+                PermissionStatusRow(
+                    title: "Accessibility",
+                    systemImage: "keyboard",
+                    allowed: runtime.coordinator.accessibilityGranted
+                ) {
+                    if !runtime.coordinator.accessibilityGranted {
+                        Button("Allow") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
+                    }
                 }
                 Toggle("Launch at Login", isOn: Binding(
                     get: { runtime.preferences.launchAtLoginRequested },
@@ -348,7 +359,10 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .navigationTitle("Settings")
         .padding()
-        .onAppear { apiKey = runtime.coordinator.loadAPIKey() }
+        .onAppear {
+            apiKey = runtime.coordinator.loadAPIKey()
+            runtime.coordinator.refreshPermissions(promptForAccessibility: false)
+        }
         .onChange(of: apiKey) { _, _ in keyFeedback = nil }
     }
 
@@ -372,6 +386,19 @@ struct SettingsView: View {
 
     private func removeKeyterm(_ term: String) {
         runtime.preferences.keyterms.removeAll { $0 == term }
+    }
+
+    @ViewBuilder private var microphonePermissionButton: some View {
+        if !runtime.coordinator.microphoneGranted {
+            switch runtime.coordinator.microphonePermissionState {
+            case .notDetermined:
+                Button("Allow") { Task { await runtime.coordinator.requestMicrophone() } }
+            case .denied:
+                Button("Open Settings") { runtime.coordinator.openMicrophoneSettings() }
+            case .allowed:
+                EmptyView()
+            }
+        }
     }
 }
 
@@ -415,18 +442,65 @@ struct OnboardingView: View {
                         .foregroundStyle(keyFeedback.color)
                 }
             }
-            GroupBox("2. Permissions") {
+            GroupBox("2. Microphone") {
                 HStack {
-                    Label(runtime.coordinator.microphoneGranted ? "Microphone allowed" : "Microphone required", systemImage: runtime.coordinator.microphoneGranted ? "checkmark.circle.fill" : "mic")
+                    PermissionLabel(
+                        title: "Microphone",
+                        systemImage: "mic",
+                        allowed: runtime.coordinator.microphoneGranted
+                    )
                     Spacer()
-                    Button("Allow") { Task { await runtime.coordinator.requestMicrophone() } }
+                    microphonePermissionButton
                 }
+
+                MicrophonePicker()
+
+                if runtime.coordinator.microphoneGranted {
+                    VStack(alignment: .leading, spacing: 8) {
+                        AudioLevelWaveform(level: runtime.coordinator.microphoneTestLevel)
+                            .frame(height: 42)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                        Label(
+                            AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
+                                ? "Audio signal detected"
+                                : "Speak to test your microphone",
+                            systemImage: AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
+                                ? "waveform.badge.mic"
+                                : "waveform"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(
+                            AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
+                                ? Color.green
+                                : Color.secondary
+                        )
+                    }
+                }
+
+                if let microphoneTestError = runtime.coordinator.microphoneTestError {
+                    Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+            GroupBox("3. Accessibility") {
                 HStack {
-                    Label(runtime.coordinator.accessibilityGranted ? "Accessibility allowed" : "Accessibility required", systemImage: runtime.coordinator.accessibilityGranted ? "checkmark.circle.fill" : "keyboard")
+                    PermissionLabel(
+                        title: "Accessibility",
+                        systemImage: "keyboard",
+                        allowed: runtime.coordinator.accessibilityGranted
+                    )
                     Spacer()
-                    Button("Allow") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
-                    Button("Check Again") { runtime.coordinator.refreshPermissions(promptForAccessibility: false) }
+                    if !runtime.coordinator.accessibilityGranted {
+                        Button("Allow") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
+                    }
                 }
+                Text("Accessibility lets Scriber Dictate watch global shortcuts and insert text into the app you were using.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Toggle("Launch Scriber Dictate when I log in", isOn: $runtime.preferences.launchAtLoginRequested)
             Text("Defaults: Hold \(runtime.preferences.holdShortcut.displayName) · Toggle \(runtime.preferences.toggleShortcut.displayName)")
@@ -440,17 +514,100 @@ struct OnboardingView: View {
             }
         }
         .padding(28)
-        .frame(width: 560)
-        .onAppear { apiKey = runtime.coordinator.loadAPIKey() }
+        .frame(width: 600)
+        .onAppear {
+            apiKey = runtime.coordinator.loadAPIKey()
+            runtime.coordinator.refreshPermissions(promptForAccessibility: false)
+            if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
+        }
+        .onDisappear { runtime.coordinator.stopMicrophoneTest() }
+        .onChange(of: runtime.coordinator.microphoneGranted) { _, allowed in
+            if allowed {
+                runtime.coordinator.startMicrophoneTest()
+            } else {
+                runtime.coordinator.stopMicrophoneTest()
+            }
+        }
+        .onChange(of: runtime.preferences.audioInputSelection) { _, _ in
+            if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
+        }
         .onChange(of: apiKey) { _, _ in keyFeedback = nil }
     }
 
     private func finish() {
+        runtime.coordinator.stopMicrophoneTest()
         if runtime.preferences.launchAtLoginRequested {
             do { try runtime.coordinator.setLaunchAtLogin(true) }
             catch { self.error = "Setup finished, but Launch at Login could not be enabled: \(error.localizedDescription)" }
         }
         runtime.preferences.onboardingComplete = true
         runtime.coordinator.startServices()
+    }
+
+    @ViewBuilder private var microphonePermissionButton: some View {
+        if !runtime.coordinator.microphoneGranted {
+            switch runtime.coordinator.microphonePermissionState {
+            case .notDetermined:
+                Button("Allow") { Task { await runtime.coordinator.requestMicrophone() } }
+            case .denied:
+                Button("Open Settings") { runtime.coordinator.openMicrophoneSettings() }
+            case .allowed:
+                EmptyView()
+            }
+        }
+    }
+}
+
+private struct PermissionLabel: View {
+    let title: String
+    let systemImage: String
+    let allowed: Bool
+
+    var body: some View {
+        Label(
+            allowed ? "\(title) allowed" : "\(title) required",
+            systemImage: allowed ? "checkmark.circle.fill" : systemImage
+        )
+        .foregroundStyle(allowed ? Color.green : Color.primary)
+    }
+}
+
+private struct PermissionStatusRow<Actions: View>: View {
+    let title: String
+    let systemImage: String
+    let allowed: Bool
+    @ViewBuilder let actions: Actions
+
+    var body: some View {
+        HStack {
+            PermissionLabel(title: title, systemImage: systemImage, allowed: allowed)
+            Spacer()
+            actions
+        }
+    }
+}
+
+private struct MicrophonePicker: View {
+    @EnvironmentObject private var runtime: AppRuntime
+
+    var body: some View {
+        Picker("Input", selection: $runtime.preferences.audioInputSelection) {
+            Text("Automatic (System Default)")
+                .tag(AudioInputSelection.automatic)
+            ForEach(runtime.coordinator.audioInputDevices) { device in
+                Text(device.isBuiltIn ? "\(device.name) (Built-in)" : device.name)
+                    .tag(AudioInputSelection.device(id: device.id, name: device.name))
+            }
+            if let unavailableSelection {
+                Text("\(unavailableSelection.name) (Unavailable)")
+                    .tag(AudioInputSelection.device(id: unavailableSelection.id, name: unavailableSelection.name))
+            }
+        }
+    }
+
+    private var unavailableSelection: (id: String, name: String)? {
+        guard case .device(let id, let name) = runtime.preferences.audioInputSelection,
+              !runtime.coordinator.audioInputDevices.contains(where: { $0.id == id }) else { return nil }
+        return (id, name)
     }
 }
