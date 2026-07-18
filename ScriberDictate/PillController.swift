@@ -23,7 +23,7 @@ final class PillController {
 
     init() {
         panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 72),
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 62),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -42,6 +42,7 @@ final class PillController {
     func update(_ phase: AppPhase) {
         hideTask?.cancel()
         model.phase = phase
+        panel.setContentSize(panelSize(for: phase))
         switch phase {
         case .idle:
             panel.orderOut(nil)
@@ -59,6 +60,15 @@ final class PillController {
 
     func setPreferredScreen(_ screen: NSScreen?) {
         preferredScreen = screen
+    }
+
+    private func panelSize(for phase: AppPhase) -> NSSize {
+        switch phase {
+        case .pasteFailed, .transcriptionFailed:
+            NSSize(width: 430, height: 72)
+        default:
+            NSSize(width: 300, height: 62)
+        }
     }
 
     private func show() {
@@ -89,10 +99,10 @@ private struct PillView: View {
             Spacer(minLength: 8)
             actions
         }
-        .padding(.horizontal, 16)
-        .frame(width: 380, height: 72)
-        .background(.regularMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(.white.opacity(0.12)))
+        .padding(.horizontal, 22)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .glassEffect(.regular, in: Capsule())
     }
 
     @ViewBuilder private var symbol: some View {
@@ -114,7 +124,9 @@ private struct PillView: View {
         switch model.phase {
         case .idle: "Ready"
         case .recording(let mode, let elapsed, _): mode == .held ? "Recording · \(elapsed.formattedTimer)" : "Hands-free · \(elapsed.formattedTimer)"
-        case .transcribing(let attempt, let delay): delay == nil ? "Transcribing · attempt \(attempt)/3" : "Retrying in \(Int(delay!))s"
+        case .transcribing(let attempt, let delay):
+            if attempt == 1, delay == nil { "Transcribing…" }
+            else { "Retrying \(min(attempt + (delay == nil ? 0 : 1), 3))/3…" }
         case .pasted: "Pasted"
         case .pasteFailed: "Couldn't paste automatically"
         case .transcriptionFailed: "Transcription failed"
@@ -124,6 +136,8 @@ private struct PillView: View {
 
     private var subtitle: String? {
         switch model.phase {
+        case .transcribing(_, let delay):
+            delay.map { "Trying again in \(Int($0)) seconds" }
         case .pasteFailed(let message), .transcriptionFailed(let message): message
         default: nil
         }
