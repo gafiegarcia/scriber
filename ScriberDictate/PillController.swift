@@ -38,6 +38,7 @@ struct DismissalCountdown: Equatable {
 @MainActor
 final class PillModel: ObservableObject {
     @Published var phase: AppPhase = .idle
+    @Published var isPresented = false
     @Published var dismissalCountdown: DismissalCountdown?
     var onCopy: (() -> Void)?
     var onOpen: (() -> Void)?
@@ -52,13 +53,14 @@ final class PillModel: ObservableObject {
 final class PillController {
     let model = PillModel()
     private let panel: NSPanel
-    private let glassView: NSGlassEffectView
-    private var hideTask: Task<Void, Never>?
+    private var autoDismissTask: Task<Void, Never>?
+    private var presentationTask: Task<Void, Never>?
     private var preferredScreen: NSScreen?
     private var currentPanelSize = NSSize(width: 300, height: 62)
     private var dismissalCountdown: DismissalCountdown?
     private var isHovering = false
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
+    private let presentationDuration: TimeInterval = 0.18
 
     init() {
         panel = NSPanel(
@@ -67,7 +69,6 @@ final class PillController {
             backing: .buffered,
             defer: false
         )
-        glassView = NSGlassEffectView(frame: NSRect(x: 0, y: 0, width: 300, height: 62))
         panel.level = .statusBar
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = false
@@ -77,36 +78,29 @@ final class PillController {
         panel.isOpaque = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
-        let hostingView = NSHostingView(rootView: PillView(model: model))
-        hostingView.frame = glassView.bounds
+        let hostingView = NSHostingView(rootView: PillPresentationView(model: model))
+        hostingView.frame = NSRect(x: 0, y: 0, width: 300, height: 62)
         hostingView.autoresizingMask = [.width, .height]
-        glassView.autoresizingMask = [.width, .height]
-        glassView.style = .regular
-        glassView.cornerRadius = 31
-        glassView.tintColor = nil
-        glassView.effectIsInteractive = true
-        glassView.contentView = hostingView
-        panel.contentView = glassView
+        panel.contentView = hostingView
         model.onHoverChanged = { [weak self] isHovering in self?.setHovering(isHovering) }
     }
 
     func update(_ phase: AppPhase) {
         clearAutoDismissal()
+        guard phase != .idle else {
+            isHovering = false
+            hide(clearPhaseWhenFinished: true)
+            return
+        }
+
         let desiredSize = panelSize(for: phase)
         if desiredSize != currentPanelSize {
             panel.setContentSize(desiredSize)
             currentPanelSize = desiredSize
         }
-        glassView.cornerRadius = glassCornerRadius(for: phase, size: desiredSize)
         model.phase = phase
-        switch phase {
-        case .idle:
-            isHovering = false
-            panel.orderOut(nil)
-        default:
-            show()
-            if let delay = dismissalDelay(for: phase) { startAutoDismissal(after: delay) }
-        }
+        show()
+        if let delay = dismissalDelay(for: phase) { startAutoDismissal(after: delay) }
     }
 
     func setPreferredScreen(_ screen: NSScreen?) {
@@ -132,8 +126,8 @@ final class PillController {
     }
 
     private func pauseAutoDismissal() {
-        hideTask?.cancel()
-        hideTask = nil
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
         guard let dismissalCountdown else { return }
         let paused = dismissalCountdown.paused(at: .now)
         self.dismissalCountdown = paused
@@ -149,15 +143,15 @@ final class PillController {
     }
 
     private func clearAutoDismissal() {
-        hideTask?.cancel()
-        hideTask = nil
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
         dismissalCountdown = nil
         model.dismissalCountdown = nil
     }
 
     private func scheduleAutoDismissal(after delay: TimeInterval) {
-        hideTask?.cancel()
-        hideTask = Task { [weak self] in
+        autoDismissTask?.cancel()
+        autoDismissTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled else { return }
             self?.finishAutoDismissal()
@@ -167,7 +161,7 @@ final class PillController {
     private func finishAutoDismissal() {
         clearAutoDismissal()
         isHovering = false
-        panel.orderOut(nil)
+        hide(clearPhaseWhenFinished: false)
     }
 
     private func dismissalDelay(for phase: AppPhase) -> TimeInterval? {
@@ -198,14 +192,54 @@ final class PillController {
         }
     }
 
-    private func glassCornerRadius(for phase: AppPhase, size: NSSize) -> CGFloat {
-        if case .dictationCopied = phase { return 24 }
-        return size.height / 2
-    }
-
     private func show() {
+        presentationTask?.cancel()
+        presentationTask = nil
         positionPanel()
         panel.orderFrontRegardless()
+        guard !model.isPresented else { return }
+
+        guard !shouldReduceMotion else {
+            model.isPresented = true
+            return
+        }
+
+        presentationTask = Task { [weak self] in
+            await Task.yield()
+            guard let self, !Task.isCancelled else { return }
+            withAnimation(.smooth(duration: presentationDuration)) {
+                model.isPresented = true
+            }
+            presentationTask = nil
+        }
+    }
+
+    private func hide(clearPhaseWhenFinished: Bool) {
+        presentationTask?.cancel()
+        presentationTask = nil
+
+        guard model.isPresented, !shouldReduceMotion else {
+            model.isPresented = false
+            panel.orderOut(nil)
+            if clearPhaseWhenFinished { model.phase = .idle }
+            return
+        }
+
+        withAnimation(.smooth(duration: presentationDuration)) {
+            model.isPresented = false
+        }
+        let duration = presentationDuration
+        presentationTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(duration))
+            guard let self, !Task.isCancelled else { return }
+            panel.orderOut(nil)
+            if clearPhaseWhenFinished { model.phase = .idle }
+            presentationTask = nil
+        }
+    }
+
+    private var shouldReduceMotion: Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 
     private func positionPanel() {
@@ -218,21 +252,30 @@ final class PillController {
     }
 }
 
+private struct PillPresentationView: View {
+    @ObservedObject var model: PillModel
+    @Namespace private var glassNamespace
+
+    var body: some View {
+        GlassEffectContainer(spacing: 0) {
+            if model.isPresented {
+                PillView(model: model)
+                    .glassEffect(.regular.interactive(), in: pillShape(for: model.phase))
+                    .glassEffectID("dictationPill", in: glassNamespace)
+                    .glassEffectTransition(.materialize)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 private struct PillView: View {
     @ObservedObject var model: PillModel
-
-    private var containerShape: AnyShape {
-        if case .dictationCopied = model.phase {
-            AnyShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        } else {
-            AnyShape(Capsule())
-        }
-    }
 
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(containerShape)
+            .contentShape(pillShape(for: model.phase))
             .onHover { model.onHoverChanged?($0) }
     }
 
@@ -384,6 +427,14 @@ private struct PillView: View {
             .buttonStyle(.plain)
             .frame(width: 26, height: 26)
             .contentShape(Rectangle())
+    }
+}
+
+private func pillShape(for phase: AppPhase) -> AnyShape {
+    if case .dictationCopied = phase {
+        AnyShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    } else {
+        AnyShape(Capsule())
     }
 }
 
