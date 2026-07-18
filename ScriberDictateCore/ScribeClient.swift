@@ -33,6 +33,7 @@ public struct ScribeRequest: Sendable {
 public enum ScribeError: LocalizedError, Sendable {
     case invalidKeyterm(String)
     case authentication
+    case authorization(String)
     case invalidRequest(String)
     case rateLimited
     case serviceUnavailable
@@ -43,11 +44,19 @@ public enum ScribeError: LocalizedError, Sendable {
         switch self {
         case .invalidKeyterm(let term): "Invalid keyterm: \(term)"
         case .authentication: "ElevenLabs rejected this API key. Check that it is correct and enabled."
+        case .authorization(let message): message
         case .invalidRequest(let message): message
         case .rateLimited: "ElevenLabs rate limit exceeded."
         case .serviceUnavailable: "ElevenLabs is temporarily unavailable."
         case .http(_, let message): message
         case .network(let message): message
+        }
+    }
+
+    public var invalidatesAPIKey: Bool {
+        switch self {
+        case .authentication, .authorization: true
+        default: false
         }
     }
 
@@ -106,7 +115,7 @@ public struct ScribeClient: Sendable {
         case 401:
             return .authentication
         case 403:
-            return .invalidRequest(
+            return .authorization(
                 "ElevenLabs denied this key’s access. Check its endpoint scope and IP allowlist."
             )
         case 429:

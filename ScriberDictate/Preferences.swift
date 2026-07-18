@@ -8,6 +8,7 @@ import ScriberDictateCore
 final class Preferences: ObservableObject {
     private enum Keys {
         static let apiKeyConfigured = "apiKeyConfigured"
+        static let apiKeyValidity = "apiKeyValidity"
         static let holdShortcut = "holdShortcut"
         static let toggleShortcut = "toggleShortcut"
         static let languageCode = "languageCode"
@@ -23,6 +24,7 @@ final class Preferences: ObservableObject {
     private let decoder = JSONDecoder()
 
     @Published var apiKeyConfigured: Bool { didSet { defaults.set(apiKeyConfigured, forKey: Keys.apiKeyConfigured) } }
+    @Published var apiKeyValidity: APIKeyValidity { didSet { defaults.set(apiKeyValidity.rawValue, forKey: Keys.apiKeyValidity) } }
     @Published var holdShortcut: ShortcutChord { didSet { save(holdShortcut, key: Keys.holdShortcut) } }
     @Published var toggleShortcut: ShortcutChord { didSet { save(toggleShortcut, key: Keys.toggleShortcut) } }
     @Published var languageCode: String { didSet { defaults.set(languageCode, forKey: Keys.languageCode) } }
@@ -38,6 +40,7 @@ final class Preferences: ObservableObject {
     ) {
         self.defaults = defaults
         apiKeyConfigured = defaults.bool(forKey: Keys.apiKeyConfigured)
+        apiKeyValidity = defaults.string(forKey: Keys.apiKeyValidity).flatMap(APIKeyValidity.init(rawValue:)) ?? .unchecked
         holdShortcut = Self.decode(ShortcutChord.self, key: Keys.holdShortcut, defaults: defaults) ?? .defaultHold
         toggleShortcut = Self.decode(ShortcutChord.self, key: Keys.toggleShortcut, defaults: defaults) ?? .defaultToggle
         languageCode = defaults.string(forKey: Keys.languageCode) ?? "auto"

@@ -39,6 +39,8 @@ final class AppCoordinator: ObservableObject {
     private var microphoneTestTask: Task<Void, Never>?
     private var currentRecord: DictationRecord?
     private var currentRecording: CompletedRecording?
+    private var checkedStoredAPIKeyThisLaunch = false
+    private var isCheckingStoredAPIKey = false
     private var cancellables = Set<AnyCancellable>()
 
     init(preferences: Preferences, modelContext: ModelContext) {
@@ -50,6 +52,7 @@ final class AppCoordinator: ObservableObject {
         shortcuts.onAvailabilityChanged = { [weak self] value in self?.shortcutMonitorAvailable = value }
         pill.model.onCopy = { [weak self] in self?.copyCurrentResult() }
         pill.model.onOpen = { [weak self] in self?.openMainWindow() }
+        pill.model.onOpenAPIKeySettings = { [weak self] in self?.openAPIKeySettings() }
         pill.model.onRetry = { [weak self] in self?.retryCurrentFailure() }
         pill.model.onDismiss = { [weak self] in self?.returnToIdle() }
 
@@ -84,6 +87,7 @@ final class AppCoordinator: ObservableObject {
         case .transcribing: "Transcribing"
         case .pasted: "Pasted"
         case .dictationCopied: "Copied"
+        case .apiKeyInvalid: "API key invalid"
         case .pasteFailed: "Paste failed"
         case .transcriptionFailed: "Transcription failed"
         case .message(let value): value
@@ -97,6 +101,7 @@ final class AppCoordinator: ObservableObject {
             shortcutMonitorAvailable = false
             return
         }
+        validateStoredAPIKeyOnce()
         shortcuts.start()
     }
 
@@ -162,10 +167,35 @@ final class AppCoordinator: ObservableObject {
         try await scribe.validateAPIKey(value)
         try keychain.saveAPIKey(value)
         preferences.apiKeyConfigured = !(try keychain.readAPIKey() ?? "").isEmpty
+        preferences.apiKeyValidity = .valid
     }
 
     func loadAPIKey() -> String {
         (try? keychain.readAPIKey()) ?? ""
+    }
+
+    private func validateStoredAPIKeyOnce() {
+        guard !checkedStoredAPIKeyThisLaunch else { return }
+        checkedStoredAPIKeyThisLaunch = true
+        isCheckingStoredAPIKey = true
+        Task { [weak self] in
+            guard let self else { return }
+            defer { isCheckingStoredAPIKey = false }
+            do {
+                guard let apiKey = try keychain.readAPIKey(), !apiKey.isEmpty else {
+                    preferences.apiKeyConfigured = false
+                    preferences.apiKeyValidity = .unchecked
+                    return
+                }
+                preferences.apiKeyConfigured = true
+                try await scribe.validateAPIKey(apiKey)
+                preferences.apiKeyValidity = .valid
+            } catch let error as ScribeError where error.invalidatesAPIKey {
+                preferences.apiKeyValidity = .invalid
+            } catch {
+                // Keep the last definitive result when validation cannot reach the service.
+            }
+        }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) throws {
@@ -178,7 +208,7 @@ final class AppCoordinator: ObservableObject {
         switch action {
         case .holdPressed:
             switch phase {
-            case .idle, .message, .pasted, .dictationCopied, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .held)
             case .recording(let mode, _, _) where mode == .locked:
                 stopAndTranscribe()
@@ -191,7 +221,7 @@ final class AppCoordinator: ObservableObject {
             if case .recording(let mode, _, _) = phase, mode == .held { stopAndTranscribe() }
         case .togglePressed:
             switch phase {
-            case .idle, .message, .pasted, .dictationCopied, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .locked)
             case .recording(let mode, let elapsed, let level) where mode == .held:
                 shortcuts.setMode(.locked)
@@ -211,7 +241,7 @@ final class AppCoordinator: ObservableObject {
     func startHandsFreeFromMenu() {
         guard preferences.onboardingComplete else { return }
         switch phase {
-        case .idle, .message, .pasted, .dictationCopied, .pasteFailed, .transcriptionFailed:
+        case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .pasteFailed, .transcriptionFailed:
             startRecording(mode: .locked)
         case .recording:
             stopAndTranscribe()
@@ -222,6 +252,7 @@ final class AppCoordinator: ObservableObject {
 
     func retry(_ record: DictationRecord) {
         guard preferences.onboardingComplete else { return }
+        guard canUseConfiguredAPIKey() else { return }
         guard !phase.isBusy else {
             showTransientMessage("Already transcribing")
             return
@@ -280,18 +311,20 @@ final class AppCoordinator: ObservableObject {
         NotificationCenter.default.post(name: .showScriberDictateHistory, object: nil)
     }
 
+    func openAPIKeySettings() {
+        NotificationCenter.default.post(name: .openScriberDictateMainWindow, object: nil)
+        NotificationCenter.default.post(name: .showScriberDictateSettings, object: nil)
+    }
+
     private func startRecording(mode: RecordingMode) {
         guard preferences.onboardingComplete else { return }
+        guard canUseConfiguredAPIKey() else { return }
         guard accessibilityGranted else {
             showFailure("Accessibility permission is required.", transcription: false)
             return
         }
         guard microphoneGranted else {
             showFailure("Microphone permission is required.", transcription: true)
-            return
-        }
-        guard preferences.apiKeyConfigured else {
-            showFailure("Add an ElevenLabs API key in Settings.", transcription: true)
             return
         }
         do {
@@ -432,7 +465,12 @@ final class AppCoordinator: ObservableObject {
             record.transcriptionState = .failed
             record.errorMessage = error.localizedDescription
             try? modelContext.save()
-            setPhase(.transcriptionFailed(error.localizedDescription))
+            if let scribeError = error as? ScribeError, scribeError.invalidatesAPIKey {
+                preferences.apiKeyValidity = .invalid
+                setPhase(.apiKeyInvalid)
+            } else {
+                setPhase(.transcriptionFailed(error.localizedDescription))
+            }
         }
     }
 
@@ -457,6 +495,22 @@ final class AppCoordinator: ObservableObject {
     private func retryCurrentFailure() {
         guard let currentRecord else { return }
         retry(currentRecord)
+    }
+
+    private func canUseConfiguredAPIKey() -> Bool {
+        guard preferences.apiKeyConfigured else {
+            setPhase(.apiKeyInvalid)
+            return false
+        }
+        guard preferences.apiKeyValidity != .invalid else {
+            setPhase(.apiKeyInvalid)
+            return false
+        }
+        guard !isCheckingStoredAPIKey else {
+            showMessage("Checking API key…")
+            return false
+        }
+        return true
     }
 
     private func copyCurrentResult() {

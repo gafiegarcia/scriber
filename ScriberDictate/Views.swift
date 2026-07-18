@@ -335,7 +335,7 @@ struct SettingsView: View {
                     }
                         .buttonStyle(.borderedProminent)
                         .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCheckingAPIKey)
-                    if runtime.preferences.apiKeyConfigured { Label("Stored in Keychain", systemImage: "checkmark.shield") }
+                    apiKeyStatusLabel
                 }
                 if let keyFeedback {
                     Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
@@ -417,6 +417,19 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder private var apiKeyStatusLabel: some View {
+        if runtime.preferences.apiKeyConfigured {
+            switch runtime.preferences.apiKeyValidity {
+            case .valid:
+                Label("Verified", systemImage: "checkmark.shield.fill").foregroundStyle(.green)
+            case .invalid:
+                Label("Invalid", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+            case .unchecked:
+                Label("Stored in Keychain", systemImage: "shield")
+            }
+        }
+    }
+
     private func addKeyterm() {
         do {
             let validated = try ScribeClient.validateKeyterms(runtime.preferences.keyterms + [newKeyterm])
@@ -481,8 +494,17 @@ struct OnboardingView: View {
                         .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCheckingAPIKey)
 
                         if runtime.preferences.apiKeyConfigured {
-                            Label("Stored in Keychain", systemImage: "checkmark.shield")
-                                .foregroundStyle(.secondary)
+                            switch runtime.preferences.apiKeyValidity {
+                            case .valid:
+                                Label("Verified", systemImage: "checkmark.shield.fill")
+                                    .foregroundStyle(.green)
+                            case .invalid:
+                                Label("Invalid", systemImage: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.red)
+                            case .unchecked:
+                                Label("Stored in Keychain", systemImage: "shield")
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     if let keyFeedback {
@@ -581,6 +603,7 @@ struct OnboardingView: View {
                     .disabled(
                         isCheckingAPIKey
                             || !runtime.preferences.apiKeyConfigured
+                            || runtime.preferences.apiKeyValidity != .valid
                             || !runtime.coordinator.microphoneGranted
                             || !runtime.coordinator.accessibilityGranted
                     )

@@ -50,6 +50,9 @@ struct ScribeValidationTests {
         #expect(ScribeError.serviceUnavailable.retryable)
         #expect(ScribeError.network("offline").retryable)
         #expect(!ScribeError.authentication.retryable)
+        #expect(ScribeError.authentication.invalidatesAPIKey)
+        #expect(ScribeError.authorization("restricted").invalidatesAPIKey)
+        #expect(!ScribeError.network("offline").invalidatesAPIKey)
         #expect(!ScribeError.invalidRequest("bad input").retryable)
     }
 
@@ -70,6 +73,7 @@ struct ScribeValidationTests {
 
         let forbidden = ScribeClient.apiKeyValidationError(statusCode: 403, data: Data())
         #expect(forbidden?.errorDescription?.contains("scope") == true)
+        #expect(forbidden?.invalidatesAPIKey == true)
 
         let unavailable = ScribeClient.apiKeyValidationError(statusCode: 503, data: Data())
         #expect(unavailable?.retryable == true)

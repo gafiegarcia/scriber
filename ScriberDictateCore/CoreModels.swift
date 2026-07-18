@@ -111,12 +111,19 @@ public enum AudioSignal {
     }
 }
 
+public enum APIKeyValidity: String, Codable, Sendable {
+    case unchecked
+    case valid
+    case invalid
+}
+
 public enum AppPhase: Equatable, Sendable {
     case idle
     case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)
     case transcribing(attempt: Int, retryDelay: TimeInterval?)
     case pasted
     case dictationCopied(text: String, message: String)
+    case apiKeyInvalid
     case pasteFailed(String)
     case transcriptionFailed(String)
     case message(String)
