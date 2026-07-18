@@ -57,6 +57,7 @@ struct ScriberDictateApp: App {
         switch runtime.coordinator.phase {
         case .recording: "waveform.circle.fill"
         case .transcribing: "ellipsis.circle"
+        case .dictationCopied: "checkmark.circle"
         case .pasteFailed, .transcriptionFailed: "exclamationmark.circle"
         default: "waveform.circle"
         }

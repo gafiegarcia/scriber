@@ -74,6 +74,7 @@ public enum AppPhase: Equatable, Sendable {
     case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)
     case transcribing(attempt: Int, retryDelay: TimeInterval?)
     case pasted
+    case dictationCopied(text: String, message: String)
     case pasteFailed(String)
     case transcriptionFailed(String)
     case message(String)

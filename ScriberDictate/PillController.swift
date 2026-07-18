@@ -46,13 +46,6 @@ final class PillModel: ObservableObject {
     var onHoverChanged: ((Bool) -> Void)?
 }
 
-private extension AppPhase {
-    var isNoEditableTargetPasteFailure: Bool {
-        if case .pasteFailed(let message) = self, message == PasteResult.noEditableTargetMessage { return true }
-        return false
-    }
-}
-
 @MainActor
 final class PillController {
     let model = PillModel()
@@ -168,8 +161,8 @@ final class PillController {
             1
         case .message:
             1.5
-        case .pasteFailed where phase.isNoEditableTargetPasteFailure:
-            3
+        case .dictationCopied:
+            5
         case .pasteFailed, .transcriptionFailed:
             6
         default:
@@ -179,8 +172,8 @@ final class PillController {
 
     private func panelSize(for phase: AppPhase) -> NSSize {
         switch phase {
-        case .pasteFailed where phase.isNoEditableTargetPasteFailure:
-            NSSize(width: 360, height: 62)
+        case .dictationCopied:
+            NSSize(width: 560, height: 230)
         case .pasteFailed, .transcriptionFailed:
             NSSize(width: 430, height: 72)
         default:
@@ -207,6 +200,23 @@ private struct PillView: View {
     @ObservedObject var model: PillModel
 
     var body: some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Capsule())
+            .onHover { model.onHoverChanged?($0) }
+            .glassEffect(.regular, in: Capsule())
+    }
+
+    @ViewBuilder private var content: some View {
+        switch model.phase {
+        case .dictationCopied(let text, let message):
+            copiedResult(text: text, message: message)
+        default:
+            compactStatus
+        }
+    }
+
+    private var compactStatus: some View {
         HStack(spacing: 12) {
             symbol
             VStack(alignment: .leading, spacing: 2) {
@@ -214,17 +224,51 @@ private struct PillView: View {
                 if let subtitle { Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
             }
             Spacer(minLength: 8)
-            if let dismissalCountdown = model.dismissalCountdown {
-                DismissalCountdownView(countdown: dismissalCountdown)
-            }
+            countdown
             actions
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .contentShape(Capsule())
-        .onHover { model.onHoverChanged?($0) }
-        .glassEffect(.regular, in: Capsule())
+    }
+
+    private func copiedResult(text: String, message: String) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text("Copied")
+                    .font(.system(size: 14, weight: .semibold))
+                Spacer(minLength: 8)
+                countdown
+                dismissButton
+            }
+
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            Text(text)
+                .font(.system(size: 15))
+                .foregroundStyle(.primary)
+                .lineLimit(4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+
+            HStack {
+                Spacer()
+                Button("Open") { model.onOpen?() }
+                    .controlSize(.regular)
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 18)
+    }
+
+    @ViewBuilder private var countdown: some View {
+        if let dismissalCountdown = model.dismissalCountdown {
+            DismissalCountdownView(countdown: dismissalCountdown)
+        }
     }
 
     @ViewBuilder private var symbol: some View {
@@ -233,9 +277,7 @@ private struct PillView: View {
             Circle().fill(.red).frame(width: 12, height: 12).scaleEffect(1 + CGFloat(max(0, level + 60)) / 160)
         case .transcribing:
             ProgressView().controlSize(.small)
-        case .pasted:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case .pasteFailed where model.phase.isNoEditableTargetPasteFailure:
+        case .pasted, .dictationCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
         case .pasteFailed, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -252,7 +294,7 @@ private struct PillView: View {
             if attempt == 1, delay == nil { "Transcribing…" }
             else { "Retrying \(min(attempt + (delay == nil ? 0 : 1), 3))/3…" }
         case .pasted: "Pasted"
-        case .pasteFailed where model.phase.isNoEditableTargetPasteFailure: "Dictation copied"
+        case .dictationCopied: "Copied"
         case .pasteFailed: "Couldn't paste automatically"
         case .transcriptionFailed: "Transcription failed"
         case .message(let value): value
@@ -263,16 +305,13 @@ private struct PillView: View {
         switch model.phase {
         case .transcribing(_, let delay):
             delay.map { "Trying again in \(Int($0)) seconds" }
-        case .pasteFailed(let message), .transcriptionFailed(let message): message
+        case .dictationCopied(_, let message), .pasteFailed(let message), .transcriptionFailed(let message): message
         default: nil
         }
     }
 
     @ViewBuilder private var actions: some View {
         switch model.phase {
-        case .pasteFailed where model.phase.isNoEditableTargetPasteFailure:
-            Button("Open") { model.onOpen?() }.controlSize(.small)
-            dismissButton
         case .pasteFailed:
             Button("Copy") { model.onCopy?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("Open") { model.onOpen?() }.controlSize(.small)

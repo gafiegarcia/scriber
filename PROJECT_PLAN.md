@@ -82,6 +82,7 @@ Product direction:
 - When no editable text box was focused at dictation start, the transcript is now copied to the clipboard immediately, stored as a copied delivery, and shown in a smaller pill as “Dictation copied” with “No editable text box was focused” below it. The redundant Copy action is omitted for that case, while Open remains available. The Xcode Debug build passes after this change.
 - All terminal pill states now auto-dismiss: success after 1 second, transient messages after 1.5 seconds, copied/no-target fallback after 3 seconds, and actionable paste/transcription failures after 6 seconds. The Xcode Debug build passes after this change.
 - Added a small countdown ring for auto-dismiss timing. Hovering the pill pauses the countdown and cancels the active dismissal task; moving the pointer out resumes from the remaining time with a 1.25-second minimum grace period. The dismiss button hit area is also larger. The Xcode Debug build passes after this change.
+- Reworked the no-editable-textbox fallback into a taller copied-result pill: successful transcription still copies immediately, then the pill shows a “Copied” indicator, the reason, a four-line transcript preview, Open, dismiss, and the countdown ring. This uses a dedicated `dictationCopied` app phase instead of presenting the copied fallback as a paste failure. The Xcode Debug build and all eight credit-free package tests pass after this change.
 
 ## Verification Notes
 

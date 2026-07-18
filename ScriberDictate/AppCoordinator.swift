@@ -60,6 +60,7 @@ final class AppCoordinator: ObservableObject {
         case .recording: "Recording"
         case .transcribing: "Transcribing"
         case .pasted: "Pasted"
+        case .dictationCopied: "Copied"
         case .pasteFailed: "Paste failed"
         case .transcriptionFailed: "Transcription failed"
         case .message(let value): value
@@ -100,7 +101,7 @@ final class AppCoordinator: ObservableObject {
         switch action {
         case .holdPressed:
             switch phase {
-            case .idle, .message, .pasted, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .pasted, .dictationCopied, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .held)
             case .recording(let mode, _, _) where mode == .locked:
                 stopAndTranscribe()
@@ -113,7 +114,7 @@ final class AppCoordinator: ObservableObject {
             if case .recording(let mode, _, _) = phase, mode == .held { stopAndTranscribe() }
         case .togglePressed:
             switch phase {
-            case .idle, .message, .pasted, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .pasted, .dictationCopied, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .locked)
             case .recording(let mode, let elapsed, let level) where mode == .held:
                 shortcuts.setMode(.locked)
@@ -132,7 +133,7 @@ final class AppCoordinator: ObservableObject {
 
     func startHandsFreeFromMenu() {
         switch phase {
-        case .idle, .message, .pasted, .pasteFailed, .transcriptionFailed:
+        case .idle, .message, .pasted, .dictationCopied, .pasteFailed, .transcriptionFailed:
             startRecording(mode: .locked)
         case .recording:
             stopAndTranscribe()
@@ -301,7 +302,7 @@ final class AppCoordinator: ObservableObject {
                     copy(record)
                     record.errorMessage = message
                     try modelContext.save()
-                    setPhase(.pasteFailed(message))
+                    setPhase(.dictationCopied(text: transcript, message: message))
                 case .failed(let message):
                     record.deliveryState = .pasteFailed
                     record.errorMessage = message
