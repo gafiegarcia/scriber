@@ -124,6 +124,7 @@ public enum AppPhase: Equatable, Sendable {
     case pasted
     case dictationCopied(text: String, message: String)
     case apiKeyInvalid
+    case apiCreditsExhausted
     case pasteFailed(String)
     case transcriptionFailed(String)
     case message(String)

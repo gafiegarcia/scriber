@@ -30,10 +30,88 @@ public struct ScribeRequest: Sendable {
     }
 }
 
+public struct ElevenLabsSubscriptionUsage: Codable, Equatable, Sendable {
+    public let tier: String
+    public let usedCredits: Int
+    public let totalCredits: Int
+    public let canExtendCredits: Bool
+    public let resetAt: Date?
+    public let fetchedAt: Date
+
+    public var remainingCredits: Int { max(0, totalCredits - usedCredits) }
+    public var usedFraction: Double {
+        guard totalCredits > 0 else { return 1 }
+        return min(1, max(0, Double(usedCredits) / Double(totalCredits)))
+    }
+    public var shouldBlockDictation: Bool {
+        remainingCredits == 0 && !canExtendCredits
+    }
+
+    public init(
+        tier: String,
+        usedCredits: Int,
+        totalCredits: Int,
+        canExtendCredits: Bool,
+        resetAt: Date?,
+        fetchedAt: Date = .now
+    ) {
+        self.tier = tier
+        self.usedCredits = usedCredits
+        self.totalCredits = totalCredits
+        self.canExtendCredits = canExtendCredits
+        self.resetAt = resetAt
+        self.fetchedAt = fetchedAt
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case tier
+        case usedCredits = "character_count"
+        case totalCredits = "character_limit"
+        case canExtendCharacterLimit = "can_extend_character_limit"
+        case maxCreditLimitExtension = "max_credit_limit_extension"
+        case resetAt = "next_character_count_reset_unix"
+        case fetchedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        tier = try container.decode(String.self, forKey: .tier)
+        usedCredits = try container.decode(Int.self, forKey: .usedCredits)
+        totalCredits = try container.decode(Int.self, forKey: .totalCredits)
+        let legacyCanExtend = try container.decodeIfPresent(Bool.self, forKey: .canExtendCharacterLimit) ?? false
+        let extensionAmount = try? container.decode(Int.self, forKey: .maxCreditLimitExtension)
+        let extensionLabel = try? container.decode(String.self, forKey: .maxCreditLimitExtension)
+        canExtendCredits = legacyCanExtend || (extensionAmount ?? 0) > 0 || extensionLabel == "unlimited"
+        if let timestamp = try container.decodeIfPresent(TimeInterval.self, forKey: .resetAt) {
+            resetAt = Date(timeIntervalSince1970: timestamp)
+        } else {
+            resetAt = nil
+        }
+        fetchedAt = try container.decodeIfPresent(Date.self, forKey: .fetchedAt) ?? .now
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(tier, forKey: .tier)
+        try container.encode(usedCredits, forKey: .usedCredits)
+        try container.encode(totalCredits, forKey: .totalCredits)
+        try container.encode(canExtendCredits, forKey: .canExtendCharacterLimit)
+        try container.encodeIfPresent(resetAt?.timeIntervalSince1970, forKey: .resetAt)
+        try container.encode(fetchedAt, forKey: .fetchedAt)
+    }
+}
+
+public struct APIKeyValidationResult: Sendable {
+    public let subscriptionUsage: ElevenLabsSubscriptionUsage?
+    public let subscriptionUsageUnavailable: Bool
+    public let subscriptionUsageAccessDenied: Bool
+}
+
 public enum ScribeError: LocalizedError, Sendable {
     case invalidKeyterm(String)
     case authentication
     case authorization(String)
+    case insufficientCredits
     case invalidRequest(String)
     case rateLimited
     case serviceUnavailable
@@ -45,6 +123,7 @@ public enum ScribeError: LocalizedError, Sendable {
         case .invalidKeyterm(let term): "Invalid keyterm: \(term)"
         case .authentication: "ElevenLabs rejected this API key. Check that it is correct and enabled."
         case .authorization(let message): message
+        case .insufficientCredits: "Your ElevenLabs credits are exhausted. Add credits or wait for your quota to reset."
         case .invalidRequest(let message): message
         case .rateLimited: "ElevenLabs rate limit exceeded."
         case .serviceUnavailable: "ElevenLabs is temporarily unavailable."
@@ -71,6 +150,7 @@ public enum ScribeError: LocalizedError, Sendable {
 
 public struct ScribeClient: Sendable {
     private let endpoint = URL(string: "https://api.elevenlabs.io/v1/speech-to-text")!
+    private let subscriptionEndpoint = URL(string: "https://api.elevenlabs.io/v1/user/subscription")!
     private let validationEndpoint = URL(
         string: "https://api.elevenlabs.io/v1/speech-to-text/transcripts/00000000-0000-0000-0000-000000000000"
     )!
@@ -94,9 +174,24 @@ public struct ScribeClient: Sendable {
         }
     }
 
-    public func validateAPIKey(_ apiKey: String) async throws {
+    public func validateAPIKey(_ apiKey: String) async throws -> APIKeyValidationResult {
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw ScribeError.authentication }
+
+        let subscriptionUsage: ElevenLabsSubscriptionUsage?
+        let subscriptionUsageAccessDenied: Bool
+        do {
+            subscriptionUsage = try await fetchSubscriptionUsage(trimmed)
+            subscriptionUsageAccessDenied = false
+        } catch let error as ScribeError {
+            subscriptionUsage = nil
+            subscriptionUsageAccessDenied = error.invalidatesAPIKey
+        } catch {
+            // User/subscription access has its own optional API-key scope. The STT
+            // check below remains authoritative for whether Scriber can dictate.
+            subscriptionUsage = nil
+            subscriptionUsageAccessDenied = false
+        }
 
         // Query a deliberately nonexistent transcript so validation exercises the
         // Speech-to-Text scope without uploading audio or consuming API credits.
@@ -111,6 +206,30 @@ public struct ScribeClient: Sendable {
         catch { throw ScribeError.network("Could not reach ElevenLabs: \(error.localizedDescription)") }
         guard let http = response as? HTTPURLResponse else { throw ScribeError.serviceUnavailable }
         if let error = Self.apiKeyValidationError(statusCode: http.statusCode, data: data) { throw error }
+        return APIKeyValidationResult(
+            subscriptionUsage: subscriptionUsage,
+            subscriptionUsageUnavailable: subscriptionUsage == nil,
+            subscriptionUsageAccessDenied: subscriptionUsageAccessDenied
+        )
+    }
+
+    public func fetchSubscriptionUsage(_ apiKey: String) async throws -> ElevenLabsSubscriptionUsage {
+        let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw ScribeError.authentication }
+        var request = URLRequest(url: subscriptionEndpoint, timeoutInterval: 20)
+        request.httpMethod = "GET"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue(trimmed, forHTTPHeaderField: "xi-api-key")
+
+        let data: Data
+        let response: URLResponse
+        do { (data, response) = try await URLSession.shared.data(for: request) }
+        catch { throw ScribeError.network("Could not reach ElevenLabs: \(error.localizedDescription)") }
+        guard let http = response as? HTTPURLResponse else { throw ScribeError.serviceUnavailable }
+        guard (200..<300).contains(http.statusCode) else {
+            throw Self.responseError(statusCode: http.statusCode, data: data, fallback: "Could not load credit usage")
+        }
+        return try Self.decodeSubscriptionUsage(data)
     }
 
     static func apiKeyValidationError(statusCode: Int, data: Data) -> ScribeError? {
@@ -200,6 +319,7 @@ public struct ScribeClient: Sendable {
             let message = Self.errorMessage(data: data) ?? "Transcription failed (\(http.statusCode))."
             switch http.statusCode {
             case 401, 403: throw ScribeError.authentication
+            case 402: throw ScribeError.insufficientCredits
             case 400, 413: throw ScribeError.invalidRequest(message)
             case 429: throw ScribeError.rateLimited
             case 500...599: throw ScribeError.serviceUnavailable
@@ -213,6 +333,10 @@ public struct ScribeClient: Sendable {
         try JSONDecoder().decode(ScribeResult.self, from: data)
     }
 
+    static func decodeSubscriptionUsage(_ data: Data) throws -> ElevenLabsSubscriptionUsage {
+        try JSONDecoder().decode(ElevenLabsSubscriptionUsage.self, from: data)
+    }
+
     private func isRetryableNetworkError(_ error: Error) -> Bool {
         guard let error = error as? URLError else { return false }
         return [.timedOut, .networkConnectionLost, .notConnectedToInternet, .cannotConnectToHost, .dnsLookupFailed].contains(error.code)
@@ -223,5 +347,18 @@ public struct ScribeClient: Sendable {
         if let detail = object["detail"] as? String { return detail }
         if let detail = object["detail"] as? [String: Any], let message = detail["message"] as? String { return message }
         return object["message"] as? String ?? object["error"] as? String
+    }
+
+    private static func responseError(statusCode: Int, data: Data, fallback: String) -> ScribeError {
+        switch statusCode {
+        case 401: .authentication
+        case 402: .insufficientCredits
+        case 403: .authorization(
+            Self.errorMessage(data: data) ?? "ElevenLabs denied access to this account information."
+        )
+        case 429: .rateLimited
+        case 500...599: .serviceUnavailable
+        default: .http(statusCode, Self.errorMessage(data: data) ?? "\(fallback) (\(statusCode)).")
+        }
     }
 }

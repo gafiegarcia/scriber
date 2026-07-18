@@ -77,7 +77,7 @@ struct ScriberDictateApp: App {
         case .recording: "waveform.circle.fill"
         case .transcribing: "ellipsis.circle"
         case .dictationCopied: "checkmark.circle"
-        case .apiKeyInvalid, .pasteFailed, .transcriptionFailed: "exclamationmark.circle"
+        case .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed: "exclamationmark.circle"
         default: "waveform.circle"
         }
     }

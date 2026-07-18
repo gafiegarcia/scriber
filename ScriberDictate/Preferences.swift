@@ -9,6 +9,8 @@ final class Preferences: ObservableObject {
     private enum Keys {
         static let apiKeyConfigured = "apiKeyConfigured"
         static let apiKeyValidity = "apiKeyValidity"
+        static let subscriptionUsage = "subscriptionUsage"
+        static let apiCreditsExhausted = "apiCreditsExhausted"
         static let holdShortcut = "holdShortcut"
         static let toggleShortcut = "toggleShortcut"
         static let languageCode = "languageCode"
@@ -25,6 +27,8 @@ final class Preferences: ObservableObject {
 
     @Published var apiKeyConfigured: Bool { didSet { defaults.set(apiKeyConfigured, forKey: Keys.apiKeyConfigured) } }
     @Published var apiKeyValidity: APIKeyValidity { didSet { defaults.set(apiKeyValidity.rawValue, forKey: Keys.apiKeyValidity) } }
+    @Published var subscriptionUsage: ElevenLabsSubscriptionUsage? { didSet { save(subscriptionUsage, key: Keys.subscriptionUsage) } }
+    @Published var apiCreditsExhausted: Bool { didSet { defaults.set(apiCreditsExhausted, forKey: Keys.apiCreditsExhausted) } }
     @Published var holdShortcut: ShortcutChord { didSet { save(holdShortcut, key: Keys.holdShortcut) } }
     @Published var toggleShortcut: ShortcutChord { didSet { save(toggleShortcut, key: Keys.toggleShortcut) } }
     @Published var languageCode: String { didSet { defaults.set(languageCode, forKey: Keys.languageCode) } }
@@ -41,6 +45,8 @@ final class Preferences: ObservableObject {
         self.defaults = defaults
         apiKeyConfigured = defaults.bool(forKey: Keys.apiKeyConfigured)
         apiKeyValidity = defaults.string(forKey: Keys.apiKeyValidity).flatMap(APIKeyValidity.init(rawValue:)) ?? .unchecked
+        subscriptionUsage = Self.decode(ElevenLabsSubscriptionUsage.self, key: Keys.subscriptionUsage, defaults: defaults)
+        apiCreditsExhausted = defaults.bool(forKey: Keys.apiCreditsExhausted)
         holdShortcut = Self.decode(ShortcutChord.self, key: Keys.holdShortcut, defaults: defaults) ?? .defaultHold
         toggleShortcut = Self.decode(ShortcutChord.self, key: Keys.toggleShortcut, defaults: defaults) ?? .defaultToggle
         languageCode = defaults.string(forKey: Keys.languageCode) ?? "auto"

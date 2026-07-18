@@ -24,6 +24,9 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var microphoneTestError: String?
     @Published private(set) var shortcutMonitorAvailable = false
     @Published private(set) var retryingRecordID: UUID?
+    @Published private(set) var subscriptionUsageUnavailable = false
+    @Published private(set) var isRefreshingSubscriptionUsage = false
+    @Published private(set) var subscriptionUsageError: String?
 
     let preferences: Preferences
     let modelContext: ModelContext
@@ -88,6 +91,7 @@ final class AppCoordinator: ObservableObject {
         case .pasted: "Pasted"
         case .dictationCopied: "Copied"
         case .apiKeyInvalid: "API key invalid"
+        case .apiCreditsExhausted: "Credits exhausted"
         case .pasteFailed: "Paste failed"
         case .transcriptionFailed: "Transcription failed"
         case .message(let value): value
@@ -164,10 +168,16 @@ final class AppCoordinator: ObservableObject {
     }
 
     func validateAndSaveAPIKey(_ value: String) async throws {
-        try await scribe.validateAPIKey(value)
+        let result = try await scribe.validateAPIKey(value)
         try keychain.saveAPIKey(value)
         preferences.apiKeyConfigured = !(try keychain.readAPIKey() ?? "").isEmpty
         preferences.apiKeyValidity = .valid
+        preferences.subscriptionUsage = result.subscriptionUsage
+        preferences.apiCreditsExhausted = result.subscriptionUsage?.shouldBlockDictation ?? false
+        subscriptionUsageUnavailable = result.subscriptionUsageUnavailable
+        subscriptionUsageError = result.subscriptionUsageUnavailable
+            ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
+            : nil
     }
 
     func loadAPIKey() -> String {
@@ -188,14 +198,54 @@ final class AppCoordinator: ObservableObject {
                     return
                 }
                 preferences.apiKeyConfigured = true
-                try await scribe.validateAPIKey(apiKey)
+                let result = try await scribe.validateAPIKey(apiKey)
                 preferences.apiKeyValidity = .valid
+                if let usage = result.subscriptionUsage {
+                    preferences.subscriptionUsage = usage
+                    preferences.apiCreditsExhausted = usage.shouldBlockDictation
+                }
+                subscriptionUsageUnavailable = result.subscriptionUsageUnavailable
+                subscriptionUsageError = result.subscriptionUsageUnavailable
+                    ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
+                    : nil
             } catch let error as ScribeError where error.invalidatesAPIKey {
                 preferences.apiKeyValidity = .invalid
             } catch {
                 // Keep the last definitive result when validation cannot reach the service.
             }
         }
+    }
+
+    func refreshSubscriptionUsage() async {
+        guard !isRefreshingSubscriptionUsage else { return }
+        guard let apiKey = try? keychain.readAPIKey(), !apiKey.isEmpty else { return }
+        isRefreshingSubscriptionUsage = true
+        defer { isRefreshingSubscriptionUsage = false }
+        do {
+            let result = try await scribe.validateAPIKey(apiKey)
+            preferences.apiKeyValidity = .valid
+            if let usage = result.subscriptionUsage {
+                preferences.subscriptionUsage = usage
+                preferences.apiCreditsExhausted = usage.shouldBlockDictation
+            }
+            subscriptionUsageUnavailable = result.subscriptionUsageUnavailable
+            subscriptionUsageError = result.subscriptionUsageUnavailable
+                ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
+                : nil
+        } catch let error as ScribeError where error.invalidatesAPIKey {
+            preferences.apiKeyValidity = .invalid
+            subscriptionUsageUnavailable = false
+            subscriptionUsageError = nil
+        } catch {
+            subscriptionUsageUnavailable = true
+            subscriptionUsageError = "Credit usage is temporarily unavailable. Try refreshing again."
+        }
+    }
+
+    private func subscriptionUsageUnavailableMessage(accessDenied: Bool) -> String {
+        accessDenied
+            ? "This key is scoped for Speech-to-Text but not account usage. Enable User → Read in ElevenLabs to show credits."
+            : "Credit usage is temporarily unavailable. Try refreshing again."
     }
 
     func setLaunchAtLogin(_ enabled: Bool) throws {
@@ -208,7 +258,7 @@ final class AppCoordinator: ObservableObject {
         switch action {
         case .holdPressed:
             switch phase {
-            case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .held)
             case .recording(let mode, _, _) where mode == .locked:
                 stopAndTranscribe()
@@ -221,7 +271,7 @@ final class AppCoordinator: ObservableObject {
             if case .recording(let mode, _, _) = phase, mode == .held { stopAndTranscribe() }
         case .togglePressed:
             switch phase {
-            case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .locked)
             case .recording(let mode, let elapsed, let level) where mode == .held:
                 shortcuts.setMode(.locked)
@@ -241,7 +291,7 @@ final class AppCoordinator: ObservableObject {
     func startHandsFreeFromMenu() {
         guard preferences.onboardingComplete else { return }
         switch phase {
-        case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .pasteFailed, .transcriptionFailed:
+        case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
             startRecording(mode: .locked)
         case .recording:
             stopAndTranscribe()
@@ -461,6 +511,8 @@ final class AppCoordinator: ObservableObject {
                 try modelContext.save()
                 setPhase(.message("Retry complete"))
             }
+            preferences.apiCreditsExhausted = false
+            Task { [weak self] in await self?.refreshSubscriptionUsage() }
         } catch {
             record.transcriptionState = .failed
             record.errorMessage = error.localizedDescription
@@ -468,6 +520,9 @@ final class AppCoordinator: ObservableObject {
             if let scribeError = error as? ScribeError, scribeError.invalidatesAPIKey {
                 preferences.apiKeyValidity = .invalid
                 setPhase(.apiKeyInvalid)
+            } else if case ScribeError.insufficientCredits = error {
+                preferences.apiCreditsExhausted = true
+                setPhase(.apiCreditsExhausted)
             } else {
                 setPhase(.transcriptionFailed(error.localizedDescription))
             }
@@ -502,12 +557,16 @@ final class AppCoordinator: ObservableObject {
             setPhase(.apiKeyInvalid)
             return false
         }
+        guard !isCheckingStoredAPIKey else {
+            showMessage("Checking API key…")
+            return false
+        }
         guard preferences.apiKeyValidity != .invalid else {
             setPhase(.apiKeyInvalid)
             return false
         }
-        guard !isCheckingStoredAPIKey else {
-            showMessage("Checking API key…")
+        guard !preferences.apiCreditsExhausted else {
+            setPhase(.apiCreditsExhausted)
             return false
         }
         return true

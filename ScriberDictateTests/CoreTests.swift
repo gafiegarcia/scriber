@@ -53,6 +53,8 @@ struct ScribeValidationTests {
         #expect(ScribeError.authentication.invalidatesAPIKey)
         #expect(ScribeError.authorization("restricted").invalidatesAPIKey)
         #expect(!ScribeError.network("offline").invalidatesAPIKey)
+        #expect(!ScribeError.insufficientCredits.invalidatesAPIKey)
+        #expect(!ScribeError.insufficientCredits.retryable)
         #expect(!ScribeError.invalidRequest("bad input").retryable)
     }
 
@@ -83,6 +85,48 @@ struct ScribeValidationTests {
 
         let unavailable = ScribeClient.apiKeyValidationError(statusCode: 503, data: Data())
         #expect(unavailable?.retryable == true)
+    }
+
+    @Test("Decodes subscription credit usage and extension policy")
+    func subscriptionUsage() throws {
+        let limited = try ScribeClient.decodeSubscriptionUsage(Data(#"""
+        {
+            "tier":"free",
+            "character_count":9800,
+            "character_limit":10000,
+            "max_credit_limit_extension":0,
+            "can_extend_character_limit":false,
+            "next_character_count_reset_unix":1780000000
+        }
+        """#.utf8))
+        #expect(limited.remainingCredits == 200)
+        #expect(!limited.shouldBlockDictation)
+        let restored = try JSONDecoder().decode(
+            ElevenLabsSubscriptionUsage.self,
+            from: JSONEncoder().encode(limited)
+        )
+        #expect(restored == limited)
+
+        let exhausted = ElevenLabsSubscriptionUsage(
+            tier: "free",
+            usedCredits: 10_000,
+            totalCredits: 10_000,
+            canExtendCredits: false,
+            resetAt: nil
+        )
+        #expect(exhausted.shouldBlockDictation)
+
+        let unlimited = try ScribeClient.decodeSubscriptionUsage(Data(#"""
+        {
+            "tier":"creator",
+            "character_count":10000,
+            "character_limit":10000,
+            "max_credit_limit_extension":"unlimited",
+            "can_extend_character_limit":false
+        }
+        """#.utf8))
+        #expect(unlimited.canExtendCredits)
+        #expect(!unlimited.shouldBlockDictation)
     }
 }
 

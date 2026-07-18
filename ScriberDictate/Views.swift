@@ -342,6 +342,7 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(keyFeedback.color)
                 }
+                subscriptionUsageView
                 Picker("Language", selection: $runtime.preferences.languageCode) {
                     Text("Automatic").tag("auto")
                     Text("English").tag("en")
@@ -426,6 +427,65 @@ struct SettingsView: View {
                 Label("Invalid", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
             case .unchecked:
                 Label("Stored in Keychain", systemImage: "shield")
+            }
+        }
+    }
+
+    @ViewBuilder private var subscriptionUsageView: some View {
+        if runtime.preferences.apiKeyValidity == .valid {
+            if let usage = runtime.preferences.subscriptionUsage {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Label("ElevenLabs credits", systemImage: "gauge.with.dots.needle.33percent")
+                        Spacer()
+                        Text("\(usage.remainingCredits.formatted()) of \(usage.totalCredits.formatted()) remaining")
+                            .monospacedDigit()
+                    }
+                    ProgressView(value: Double(usage.remainingCredits), total: Double(max(usage.totalCredits, 1)))
+                        .tint(usage.remainingCredits == 0 ? .orange : .accentColor)
+                    HStack {
+                        Text(usage.tier.capitalized + " plan")
+                        if let resetAt = usage.resetAt {
+                            Text("· Resets \(resetAt.formatted(date: .abbreviated, time: .shortened))")
+                        }
+                        Text("· Updated \(usage.fetchedAt.formatted(date: .abbreviated, time: .shortened))")
+                        Spacer()
+                        Button {
+                            Task { await runtime.coordinator.refreshSubscriptionUsage() }
+                        } label: {
+                            if runtime.coordinator.isRefreshingSubscriptionUsage {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Label("Refresh", systemImage: "arrow.clockwise")
+                            }
+                        }
+                        .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    if usage.remainingCredits == 0, usage.canExtendCredits {
+                        Text("Included credits are depleted, but ElevenLabs reports that extended usage is available.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
+            if runtime.coordinator.subscriptionUsageUnavailable {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Speech-to-Text access verified", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text(runtime.coordinator.subscriptionUsageError ?? "Credit usage is unavailable for this API key.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if runtime.preferences.subscriptionUsage == nil {
+                        Button("Retry Credit Usage") {
+                            Task { await runtime.coordinator.refreshSubscriptionUsage() }
+                        }
+                        .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
+                    }
+                }
             }
         }
     }

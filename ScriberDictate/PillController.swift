@@ -177,7 +177,7 @@ final class PillController {
             1.5
         case .dictationCopied:
             5
-        case .apiKeyInvalid, .pasteFailed, .transcriptionFailed:
+        case .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
             6
         default:
             nil
@@ -188,7 +188,7 @@ final class PillController {
         switch phase {
         case .dictationCopied:
             NSSize(width: 560, height: 230)
-        case .apiKeyInvalid:
+        case .apiKeyInvalid, .apiCreditsExhausted:
             NSSize(width: 470, height: 72)
         case .pasteFailed, .transcriptionFailed:
             NSSize(width: 430, height: 72)
@@ -318,7 +318,7 @@ private struct PillView: View {
             ProgressView().controlSize(.small)
         case .pasted, .dictationCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case .apiKeyInvalid, .pasteFailed, .transcriptionFailed:
+        case .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         default:
             Image(systemName: "waveform")
@@ -335,6 +335,7 @@ private struct PillView: View {
         case .pasted: "Pasted"
         case .dictationCopied: "Copied"
         case .apiKeyInvalid: "ElevenLabs API key is invalid"
+        case .apiCreditsExhausted: "ElevenLabs credits exhausted"
         case .pasteFailed: "Couldn't paste automatically"
         case .transcriptionFailed: "Transcription failed"
         case .message(let value): value
@@ -346,6 +347,7 @@ private struct PillView: View {
         case .transcribing(_, let delay):
             delay.map { "Trying again in \(Int($0)) seconds" }
         case .apiKeyInvalid: "Add or update the key in Settings"
+        case .apiCreditsExhausted: "Add credits or wait for your quota to reset"
         case .dictationCopied(_, let message), .pasteFailed(let message), .transcriptionFailed(let message): message
         default: nil
         }
@@ -355,6 +357,11 @@ private struct PillView: View {
         switch model.phase {
         case .apiKeyInvalid:
             Button("Update Key") { model.onOpenAPIKeySettings?() }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            dismissButton
+        case .apiCreditsExhausted:
+            Button("View Usage") { model.onOpenAPIKeySettings?() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
             dismissButton
