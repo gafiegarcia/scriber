@@ -421,112 +421,134 @@ struct OnboardingView: View {
     @State private var error: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Welcome to Scriber Dictate").font(.largeTitle.bold())
                 Text("Hold Fn to dictate. Your audio goes only to ElevenLabs, and your history stays on this Mac.")
                     .foregroundStyle(.secondary)
             }
             GroupBox("1. ElevenLabs API key") {
-                SecureField("xi-api-key", text: $apiKey)
-                    .textFieldStyle(.roundedBorder)
-                HStack {
-                    Button(runtime.preferences.apiKeyConfigured ? "Update Key" : "Save Key") {
-                        do {
-                            try runtime.coordinator.saveAPIKey(apiKey)
-                            keyFeedback = .saved
-                            error = nil
-                        } catch {
-                            keyFeedback = .failed(error.localizedDescription)
+                VStack(alignment: .leading, spacing: 12) {
+                    SecureField("xi-api-key", text: $apiKey)
+                        .textFieldStyle(.roundedBorder)
+                    HStack(spacing: 12) {
+                        Button(runtime.preferences.apiKeyConfigured ? "Update Key" : "Save Key") {
+                            do {
+                                try runtime.coordinator.saveAPIKey(apiKey)
+                                keyFeedback = .saved
+                                error = nil
+                            } catch {
+                                keyFeedback = .failed(error.localizedDescription)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                        if runtime.preferences.apiKeyConfigured {
+                            Label("Stored in Keychain", systemImage: "checkmark.shield")
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                    if runtime.preferences.apiKeyConfigured {
-                        Label("Stored in Keychain", systemImage: "checkmark.shield")
-                            .foregroundStyle(.secondary)
+                    if let keyFeedback {
+                        Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
+                            .font(.caption)
+                            .foregroundStyle(keyFeedback.color)
                     }
                 }
-                if let keyFeedback {
-                    Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
-                        .font(.caption)
-                        .foregroundStyle(keyFeedback.color)
-                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
             }
             GroupBox("2. Microphone") {
-                HStack {
-                    PermissionLabel(
-                        title: "Microphone",
-                        systemImage: "mic",
-                        allowed: runtime.coordinator.microphoneGranted
-                    )
-                    Spacer()
-                    microphonePermissionButton
-                }
-
-                MicrophonePicker()
-
-                if runtime.coordinator.microphoneGranted {
-                    VStack(alignment: .leading, spacing: 8) {
-                        AudioLevelWaveform(level: runtime.coordinator.microphoneTestLevel)
-                            .frame(height: 42)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-                        Label(
-                            AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
-                                ? "Audio signal detected"
-                                : "Speak to test your microphone",
-                            systemImage: AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
-                                ? "waveform.badge.mic"
-                                : "waveform"
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        PermissionLabel(
+                            title: "Microphone",
+                            systemImage: "mic",
+                            allowed: runtime.coordinator.microphoneGranted
                         )
-                        .font(.caption)
-                        .foregroundStyle(
-                            AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
-                                ? Color.green
-                                : Color.secondary
-                        )
+                        Spacer()
+                        microphonePermissionButton
+                    }
+
+                    MicrophonePicker()
+
+                    if runtime.coordinator.microphoneGranted {
+                        VStack(alignment: .leading, spacing: 10) {
+                            AudioLevelWaveform(level: runtime.coordinator.microphoneTestLevel)
+                                .frame(height: 42)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                            Label(
+                                AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
+                                    ? "Audio signal detected"
+                                    : "Speak to test your microphone",
+                                systemImage: AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
+                                    ? "waveform.badge.mic"
+                                    : "waveform"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(
+                                AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
+                                    ? Color.green
+                                    : Color.secondary
+                            )
+                        }
+                    }
+
+                    if let microphoneTestError = runtime.coordinator.microphoneTestError {
+                        Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.red)
                     }
                 }
-
-                if let microphoneTestError = runtime.coordinator.microphoneTestError {
-                    Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
             }
             GroupBox("3. Accessibility") {
-                HStack {
-                    PermissionLabel(
-                        title: "Accessibility",
-                        systemImage: "keyboard",
-                        allowed: runtime.coordinator.accessibilityGranted
-                    )
-                    Spacer()
-                    if !runtime.coordinator.accessibilityGranted {
-                        Button("Allow") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        PermissionLabel(
+                            title: "Accessibility",
+                            systemImage: "keyboard",
+                            allowed: runtime.coordinator.accessibilityGranted
+                        )
+                        Spacer()
+                        if !runtime.coordinator.accessibilityGranted {
+                            Button("Allow") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
+                        }
                     }
+                    Text("Accessibility lets Scriber Dictate watch global shortcuts and insert text into the app you were using.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                Text("Accessibility lets Scriber Dictate watch global shortcuts and insert text into the app you were using.")
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle("Launch Scriber Dictate when I log in", isOn: $runtime.preferences.launchAtLoginRequested)
+                Text("Defaults: Hold \(runtime.preferences.holdShortcut.displayName) · Toggle \(runtime.preferences.toggleShortcut.displayName)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Toggle("Launch Scriber Dictate when I log in", isOn: $runtime.preferences.launchAtLoginRequested)
-            Text("Defaults: Hold \(runtime.preferences.holdShortcut.displayName) · Toggle \(runtime.preferences.toggleShortcut.displayName)")
-                .font(.caption).foregroundStyle(.secondary)
-            if let error { Text(error).foregroundStyle(.red) }
+            .padding(.horizontal, 4)
+            if let error {
+                Text(error)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 4)
+            }
             HStack {
                 Spacer()
                 Button("Finish Setup") { finish() }
                     .buttonStyle(.borderedProminent)
                     .disabled(!runtime.preferences.apiKeyConfigured || !runtime.coordinator.microphoneGranted || !runtime.coordinator.accessibilityGranted)
             }
+            .padding(.horizontal, 4)
+            .padding(.top, 2)
         }
-        .padding(28)
-        .frame(width: 600)
+        .padding(32)
+        .frame(width: 640)
         .onAppear {
             apiKey = runtime.coordinator.loadAPIKey()
             runtime.coordinator.refreshPermissions(promptForAccessibility: false)
