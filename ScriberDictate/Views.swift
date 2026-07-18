@@ -139,6 +139,7 @@ struct HistoryView: View {
                     Image(systemName: "ellipsis.circle")
                 }
                 .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
                 .help("History actions")
             }
             .padding(.horizontal, 24)
@@ -229,6 +230,7 @@ private struct HistoryRow: View {
                 Image(systemName: "ellipsis")
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .frame(width: 24)
         }
         .padding(.vertical, 8)
