@@ -190,6 +190,7 @@ struct HistoryView: View {
                 .listStyle(.inset)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .navigationTitle("History")
         .searchable(text: $search, prompt: "Search dictations")
         .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
