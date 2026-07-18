@@ -50,10 +50,13 @@ struct MainWindowView: View {
             .navigationTitle("Scriber Dictate")
             .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
         } detail: {
-            switch section ?? .history {
-            case .history: HistoryView()
-            case .settings: SettingsView()
+            Group {
+                switch section ?? .history {
+                case .history: HistoryView()
+                case .settings: SettingsView()
+                }
             }
+            .navigationTitle(section == .settings ? "Settings" : "History")
         }
         .frame(minWidth: 760, minHeight: 520)
         .onAppear {
@@ -143,12 +146,9 @@ struct HistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("History").font(.largeTitle.bold())
-                    Text("\(records.count) \(records.count == 1 ? "dictation" : "dictations")")
-                        .foregroundStyle(.secondary)
-                }
+            HStack {
+                Text("\(records.count) \(records.count == 1 ? "dictation" : "dictations")")
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Menu {
                     Button("Clear History…", role: .destructive) { confirmClear = true }
@@ -161,7 +161,7 @@ struct HistoryView: View {
                 .help("History actions")
             }
             .padding(.horizontal, 24)
-            .padding(.vertical, 18)
+            .padding(.vertical, 14)
 
             Divider()
 
@@ -191,7 +191,6 @@ struct HistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .navigationTitle("History")
         .searchable(text: $search, prompt: "Search dictations")
         .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
             Button("Delete All", role: .destructive) { runtime.coordinator.clearHistory(records) }
@@ -421,7 +420,6 @@ struct SettingsView: View {
             if let message { Text(message).foregroundStyle(.secondary) }
             }
             .formStyle(.grouped)
-            .navigationTitle("Settings")
             .padding()
             .onAppear {
                 apiKey = ""
