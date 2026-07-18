@@ -117,6 +117,20 @@ public enum APIKeyValidity: String, Codable, Sendable {
     case invalid
 }
 
+struct CredentialRevision: Equatable, Sendable {
+    private(set) var current: UInt = 0
+
+    @discardableResult
+    mutating func advance() -> UInt {
+        current &+= 1
+        return current
+    }
+
+    func matches(_ candidate: UInt) -> Bool {
+        candidate == current
+    }
+}
+
 public enum AppPhase: Equatable, Sendable {
     case idle
     case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)
@@ -133,6 +147,22 @@ public enum AppPhase: Equatable, Sendable {
         switch self {
         case .recording, .transcribing: true
         default: false
+        }
+    }
+
+    func resolvingCredentialBlock(
+        apiKeyConfigured: Bool,
+        apiKeyValidity: APIKeyValidity,
+        apiCreditsExhausted: Bool
+    ) -> AppPhase {
+        switch self {
+        case .apiKeyInvalid where apiKeyConfigured && apiKeyValidity == .valid:
+            .idle
+        case .apiCreditsExhausted
+            where apiKeyConfigured && apiKeyValidity == .valid && !apiCreditsExhausted:
+            .idle
+        default:
+            self
         }
     }
 }

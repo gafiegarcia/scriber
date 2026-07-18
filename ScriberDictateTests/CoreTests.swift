@@ -130,6 +130,39 @@ struct ScribeValidationTests {
     }
 }
 
+@Suite("Credential state")
+struct CredentialStateTests {
+    @Test("Rejects validation results from an older credential revision")
+    func rejectsStaleValidationResults() {
+        var revision = CredentialRevision()
+        let launchValidationRevision = revision.current
+
+        #expect(revision.matches(launchValidationRevision))
+        revision.advance()
+        #expect(!revision.matches(launchValidationRevision))
+        #expect(revision.matches(revision.current))
+    }
+
+    @Test("Clears credential pills only after the replacement is configured and valid")
+    func resolvesCredentialPills() {
+        #expect(AppPhase.apiKeyInvalid.resolvingCredentialBlock(
+            apiKeyConfigured: true,
+            apiKeyValidity: .valid,
+            apiCreditsExhausted: false
+        ) == .idle)
+        #expect(AppPhase.apiKeyInvalid.resolvingCredentialBlock(
+            apiKeyConfigured: false,
+            apiKeyValidity: .valid,
+            apiCreditsExhausted: false
+        ) == .apiKeyInvalid)
+        #expect(AppPhase.apiCreditsExhausted.resolvingCredentialBlock(
+            apiKeyConfigured: true,
+            apiKeyValidity: .valid,
+            apiCreditsExhausted: false
+        ) == .idle)
+    }
+}
+
 @Suite("Transcript content")
 struct TranscriptContentTests {
     @Test("Rejects empty and punctuation-only results")

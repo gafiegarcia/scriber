@@ -4,6 +4,7 @@ import Security
 enum KeychainError: LocalizedError {
     case unexpectedStatus(OSStatus)
     case invalidData
+    case persistenceVerificationFailed
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +12,8 @@ enum KeychainError: LocalizedError {
             return SecCopyErrorMessageString(status, nil) as String? ?? "Keychain error \(status)"
         case .invalidData:
             return "The stored API key could not be read."
+        case .persistenceVerificationFailed:
+            return "The API key could not be verified after saving it to Keychain."
         }
     }
 }
@@ -28,7 +31,10 @@ struct KeychainStore: Sendable {
         guard let legacyValue = try readAPIKey(usingDataProtectionKeychain: false) else {
             return nil
         }
-        try saveAPIKey(legacyValue)
+        try writeDataProtectionAPIKey(legacyValue)
+        try verifyDataProtectionAPIKey(legacyValue)
+        try deleteLegacyAPIKey()
+        try restoreDataProtectionAPIKeyIfNeeded(legacyValue)
         return legacyValue
     }
 
@@ -40,9 +46,7 @@ struct KeychainStore: Sendable {
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
-        if usingDataProtectionKeychain {
-            query[kSecUseDataProtectionKeychain as String] = true
-        }
+        query[kSecUseDataProtectionKeychain as String] = usingDataProtectionKeychain
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         if status == errSecItemNotFound { return nil }
@@ -55,9 +59,22 @@ struct KeychainStore: Sendable {
 
     func saveAPIKey(_ value: String) throws {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let data = trimmed.data(using: .utf8), !trimmed.isEmpty else {
+        guard !trimmed.isEmpty else {
             try deleteAPIKey()
             return
+        }
+        let hasLegacyItem = try readAPIKey(usingDataProtectionKeychain: false) != nil
+        try writeDataProtectionAPIKey(trimmed)
+        try verifyDataProtectionAPIKey(trimmed)
+        if hasLegacyItem {
+            try deleteLegacyAPIKey()
+            try restoreDataProtectionAPIKeyIfNeeded(trimmed)
+        }
+    }
+
+    private func writeDataProtectionAPIKey(_ value: String) throws {
+        guard let data = value.data(using: .utf8), !value.isEmpty else {
+            throw KeychainError.invalidData
         }
         let match: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -80,7 +97,18 @@ struct KeychainStore: Sendable {
         } else if update != errSecSuccess {
             throw KeychainError.unexpectedStatus(update)
         }
-        try deleteLegacyAPIKey()
+    }
+
+    private func verifyDataProtectionAPIKey(_ expectedValue: String) throws {
+        guard try readAPIKey(usingDataProtectionKeychain: true) == expectedValue else {
+            throw KeychainError.persistenceVerificationFailed
+        }
+    }
+
+    private func restoreDataProtectionAPIKeyIfNeeded(_ expectedValue: String) throws {
+        guard try readAPIKey(usingDataProtectionKeychain: true) != expectedValue else { return }
+        try writeDataProtectionAPIKey(expectedValue)
+        try verifyDataProtectionAPIKey(expectedValue)
     }
 
     func deleteAPIKey() throws {
@@ -102,6 +130,7 @@ struct KeychainStore: Sendable {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.service,
             kSecAttrAccount as String: Self.account,
+            kSecUseDataProtectionKeychain as String: false,
         ]
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {

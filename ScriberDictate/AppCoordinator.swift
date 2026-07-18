@@ -55,6 +55,8 @@ final class AppCoordinator: ObservableObject {
     private var currentRecording: CompletedRecording?
     private var checkedStoredAPIKeyThisLaunch = false
     private var isCheckingStoredAPIKey = false
+    private var storedAPIKeyValidationTask: Task<Void, Never>?
+    private var credentialRevision = CredentialRevision()
     private var cancellables = Set<AnyCancellable>()
 
     init(preferences: Preferences, modelContext: ModelContext) {
@@ -181,8 +183,13 @@ final class AppCoordinator: ObservableObject {
 
     func validateAndSaveAPIKey(_ value: String) async throws {
         let result = try await scribe.validateAPIKey(value)
+        credentialRevision.advance()
+        storedAPIKeyValidationTask?.cancel()
+        storedAPIKeyValidationTask = nil
+        isCheckingStoredAPIKey = false
+        isRefreshingSubscriptionUsage = false
         try keychain.saveAPIKey(value)
-        preferences.apiKeyConfigured = !(try keychain.readAPIKey() ?? "").isEmpty
+        preferences.apiKeyConfigured = true
         preferences.apiKeyValidity = .valid
         preferences.subscriptionUsage = result.subscriptionUsage
         preferences.apiCreditsExhausted = result.subscriptionUsage?.shouldBlockDictation ?? false
@@ -196,18 +203,27 @@ final class AppCoordinator: ObservableObject {
     private func validateStoredAPIKeyOnce() {
         guard !checkedStoredAPIKeyThisLaunch else { return }
         checkedStoredAPIKeyThisLaunch = true
+        let validationRevision = credentialRevision.current
         isCheckingStoredAPIKey = true
-        Task { [weak self] in
+        storedAPIKeyValidationTask = Task { [weak self] in
             guard let self else { return }
-            defer { isCheckingStoredAPIKey = false }
+            defer {
+                if credentialRevision.matches(validationRevision) {
+                    isCheckingStoredAPIKey = false
+                    storedAPIKeyValidationTask = nil
+                }
+            }
             do {
                 guard let apiKey = try keychain.readAPIKey(), !apiKey.isEmpty else {
+                    guard !Task.isCancelled, credentialRevision.matches(validationRevision) else { return }
                     preferences.apiKeyConfigured = false
                     preferences.apiKeyValidity = .unchecked
                     return
                 }
+                guard !Task.isCancelled, credentialRevision.matches(validationRevision) else { return }
                 preferences.apiKeyConfigured = true
                 let result = try await scribe.validateAPIKey(apiKey)
+                guard !Task.isCancelled, credentialRevision.matches(validationRevision) else { return }
                 preferences.apiKeyValidity = .valid
                 if let usage = result.subscriptionUsage {
                     preferences.subscriptionUsage = usage
@@ -219,6 +235,7 @@ final class AppCoordinator: ObservableObject {
                     : nil
                 clearResolvedCredentialBlock()
             } catch let error as ScribeError where error.invalidatesAPIKey {
+                guard !Task.isCancelled, credentialRevision.matches(validationRevision) else { return }
                 preferences.apiKeyValidity = .invalid
             } catch {
                 // Keep the last definitive result when validation cannot reach the service.
@@ -229,21 +246,29 @@ final class AppCoordinator: ObservableObject {
     func refreshSubscriptionUsage() async {
         guard !isRefreshingSubscriptionUsage else { return }
         guard let apiKey = try? keychain.readAPIKey(), !apiKey.isEmpty else { return }
+        let refreshRevision = credentialRevision.current
         isRefreshingSubscriptionUsage = true
-        defer { isRefreshingSubscriptionUsage = false }
+        defer {
+            if credentialRevision.matches(refreshRevision) {
+                isRefreshingSubscriptionUsage = false
+            }
+        }
         do {
             let usage = try await scribe.fetchSubscriptionUsage(apiKey)
+            guard !Task.isCancelled, credentialRevision.matches(refreshRevision) else { return }
             preferences.subscriptionUsage = usage
             preferences.apiCreditsExhausted = usage.shouldBlockDictation
             subscriptionUsageUnavailable = false
             subscriptionUsageError = nil
             clearResolvedCredentialBlock()
         } catch let error as ScribeError where error.invalidatesAPIKey {
+            guard !Task.isCancelled, credentialRevision.matches(refreshRevision) else { return }
             // Subscription access has a separate optional scope. A rejection here
             // does not invalidate Speech-to-Text access that was already verified.
             subscriptionUsageUnavailable = true
             subscriptionUsageError = subscriptionUsageUnavailableMessage(accessDenied: true)
         } catch {
+            guard !Task.isCancelled, credentialRevision.matches(refreshRevision) else { return }
             subscriptionUsageUnavailable = true
             subscriptionUsageError = "Credit usage is temporarily unavailable. Try refreshing again."
         }
@@ -256,13 +281,13 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func clearResolvedCredentialBlock() {
-        switch phase {
-        case .apiKeyInvalid where preferences.apiKeyValidity == .valid:
+        let resolvedPhase = phase.resolvingCredentialBlock(
+            apiKeyConfigured: preferences.apiKeyConfigured,
+            apiKeyValidity: preferences.apiKeyValidity,
+            apiCreditsExhausted: preferences.apiCreditsExhausted
+        )
+        if resolvedPhase == .idle, phase != .idle {
             returnToIdle()
-        case .apiCreditsExhausted where !preferences.apiCreditsExhausted:
-            returnToIdle()
-        default:
-            break
         }
     }
 
