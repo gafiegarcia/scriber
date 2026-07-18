@@ -104,6 +104,7 @@ Product direction:
 ### 2026-07-19
 
 - Moved the floating pill from a SwiftUI content-level glass modifier to an AppKit `NSGlassEffectView` that embeds the entire hosted interface. The pill now uses untinted regular system glass, native interaction response, phase-appropriate native corner radii, and no duplicate generic panel shadow, bringing its backdrop sampling and edges closer to macOS-owned overlays. Parser validation, core type-checking, all 15 credit-free tests, and the unsigned Xcode 27 beta Debug build pass; the final appearance across light, dark, and varied desktop backgrounds remains a live visual check.
+- Fixed window activation from the non-activating pill. Update Key, View Usage, and the other pill actions that open Scriber Dictate now complete app activation on the next main-loop turn after restoring the regular activation policy, so the requested window comes to the foreground instead of opening behind the currently focused app. Parser validation, core type-checking, all 16 credit-free tests, and the unsigned Xcode 27 beta Debug build pass; foreground activation remains a live interaction check.
 
 ## Verification Notes
 
