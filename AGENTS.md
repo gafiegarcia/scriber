@@ -33,3 +33,10 @@ swift test
 ```
 
 Use Xcode 27 beta for Debug and Release builds and execute the hardware acceptance checklist in `PROJECT_PLAN.md` from a stable app path.
+
+## Git Workflow
+
+- Make incremental local commits throughout development.
+- Commit each coherent change set after its relevant build/tests pass and before starting the next change set.
+- Keep commit messages specific to the behavior changed.
+- Do not push or publish commits unless Gaf explicitly asks.
