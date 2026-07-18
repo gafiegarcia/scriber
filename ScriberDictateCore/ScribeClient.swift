@@ -197,7 +197,7 @@ public struct ScribeClient: Sendable {
         // Speech-to-Text scope without uploading audio or consuming API credits.
         var request = URLRequest(url: validationEndpoint, timeoutInterval: 20)
         request.httpMethod = "GET"
-        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         request.setValue(trimmed, forHTTPHeaderField: "xi-api-key")
 
         let data: Data
@@ -218,7 +218,7 @@ public struct ScribeClient: Sendable {
         guard !trimmed.isEmpty else { throw ScribeError.authentication }
         var request = URLRequest(url: subscriptionEndpoint, timeoutInterval: 20)
         request.httpMethod = "GET"
-        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         request.setValue(trimmed, forHTTPHeaderField: "xi-api-key")
 
         let data: Data

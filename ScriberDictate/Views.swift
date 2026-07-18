@@ -318,7 +318,12 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("ElevenLabs") {
-                SecureField("API key", text: $apiKey)
+                SecureField(
+                    runtime.preferences.apiKeyConfigured
+                        ? "Enter a new API key to replace the stored key"
+                        : "API key",
+                    text: $apiKey
+                )
                     .disabled(isCheckingAPIKey)
                 HStack {
                     Button {
@@ -330,17 +335,20 @@ struct SettingsView: View {
                                 Text("Checking…")
                             }
                         } else {
-                            Text(runtime.preferences.apiKeyConfigured ? "Update API Key" : "Save API Key")
+                            Text("Save API Key")
                         }
                     }
                         .buttonStyle(.borderedProminent)
                         .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCheckingAPIKey)
-                    apiKeyStatusLabel
-                }
-                if let keyFeedback {
-                    Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
-                        .font(.caption)
-                        .foregroundStyle(keyFeedback.color)
+                    if let keyFeedback {
+                        Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
+                            .font(.caption)
+                            .foregroundStyle(keyFeedback.color)
+                            .lineLimit(2)
+                    } else if apiKey.isEmpty {
+                        apiKeyStatusLabel
+                    }
+                    Spacer(minLength: 0)
                 }
                 subscriptionUsageView
                 Picker("Language", selection: $runtime.preferences.languageCode) {
@@ -400,10 +408,12 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .padding()
         .onAppear {
-            apiKey = runtime.coordinator.loadAPIKey()
+            apiKey = ""
             runtime.coordinator.refreshPermissions(promptForAccessibility: false)
         }
-        .onChange(of: apiKey) { _, _ in keyFeedback = nil }
+        .onChange(of: apiKey) { _, newValue in
+            if !newValue.isEmpty { keyFeedback = nil }
+        }
     }
 
     private func saveKey() async {
@@ -413,6 +423,7 @@ struct SettingsView: View {
         do {
             try await runtime.coordinator.validateAndSaveAPIKey(apiKey)
             keyFeedback = .saved
+            apiKey = ""
         } catch {
             keyFeedback = .failed(error.localizedDescription)
         }
@@ -479,12 +490,19 @@ struct SettingsView: View {
                     Text(runtime.coordinator.subscriptionUsageError ?? "Credit usage is unavailable for this API key.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    if runtime.preferences.subscriptionUsage == nil {
-                        Button("Retry Credit Usage") {
-                            Task { await runtime.coordinator.refreshSubscriptionUsage() }
+                    Button {
+                        Task { await runtime.coordinator.refreshSubscriptionUsage() }
+                    } label: {
+                        if runtime.coordinator.isRefreshingSubscriptionUsage {
+                            HStack(spacing: 6) {
+                                ProgressView().controlSize(.small)
+                                Text("Checking…")
+                            }
+                        } else {
+                            Text("Retry Credit Usage")
                         }
-                        .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
                     }
+                    .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
                 }
             }
         }
@@ -534,7 +552,12 @@ struct OnboardingView: View {
             }
             GroupBox("1. ElevenLabs API key") {
                 VStack(alignment: .leading, spacing: 12) {
-                    SecureField("xi-api-key", text: $apiKey)
+                    SecureField(
+                        runtime.preferences.apiKeyConfigured
+                            ? "Enter a new API key to replace the stored key"
+                            : "xi-api-key",
+                        text: $apiKey
+                    )
                         .textFieldStyle(.roundedBorder)
                         .disabled(isCheckingAPIKey)
                     HStack(spacing: 12) {
@@ -547,13 +570,18 @@ struct OnboardingView: View {
                                     Text("Checking…")
                                 }
                             } else {
-                                Text(runtime.preferences.apiKeyConfigured ? "Update Key" : "Save Key")
+                                Text("Save Key")
                             }
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCheckingAPIKey)
 
-                        if runtime.preferences.apiKeyConfigured {
+                        if let keyFeedback {
+                            Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
+                                .font(.caption)
+                                .foregroundStyle(keyFeedback.color)
+                                .lineLimit(2)
+                        } else if apiKey.isEmpty, runtime.preferences.apiKeyConfigured {
                             switch runtime.preferences.apiKeyValidity {
                             case .valid:
                                 Label("Verified", systemImage: "checkmark.shield.fill")
@@ -566,11 +594,7 @@ struct OnboardingView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                    }
-                    if let keyFeedback {
-                        Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
-                            .font(.caption)
-                            .foregroundStyle(keyFeedback.color)
+                        Spacer(minLength: 0)
                     }
                 }
                 .padding(.horizontal, 10)
@@ -678,7 +702,7 @@ struct OnboardingView: View {
                 dismissWindow(id: "onboarding")
                 return
             }
-            apiKey = runtime.coordinator.loadAPIKey()
+            apiKey = ""
             runtime.coordinator.refreshPermissions(promptForAccessibility: false)
             if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
         }
@@ -693,7 +717,9 @@ struct OnboardingView: View {
         .onChange(of: runtime.preferences.audioInputSelection) { _, _ in
             if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
         }
-        .onChange(of: apiKey) { _, _ in keyFeedback = nil }
+        .onChange(of: apiKey) { _, newValue in
+            if !newValue.isEmpty { keyFeedback = nil }
+        }
     }
 
     private func finish() {
@@ -714,6 +740,7 @@ struct OnboardingView: View {
         do {
             try await runtime.coordinator.validateAndSaveAPIKey(apiKey)
             keyFeedback = .saved
+            apiKey = ""
             error = nil
         } catch {
             keyFeedback = .failed(error.localizedDescription)

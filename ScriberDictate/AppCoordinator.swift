@@ -178,10 +178,7 @@ final class AppCoordinator: ObservableObject {
         subscriptionUsageError = result.subscriptionUsageUnavailable
             ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
             : nil
-    }
-
-    func loadAPIKey() -> String {
-        (try? keychain.readAPIKey()) ?? ""
+        clearResolvedCredentialBlock()
     }
 
     private func validateStoredAPIKeyOnce() {
@@ -208,6 +205,7 @@ final class AppCoordinator: ObservableObject {
                 subscriptionUsageError = result.subscriptionUsageUnavailable
                     ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
                     : nil
+                clearResolvedCredentialBlock()
             } catch let error as ScribeError where error.invalidatesAPIKey {
                 preferences.apiKeyValidity = .invalid
             } catch {
@@ -222,20 +220,17 @@ final class AppCoordinator: ObservableObject {
         isRefreshingSubscriptionUsage = true
         defer { isRefreshingSubscriptionUsage = false }
         do {
-            let result = try await scribe.validateAPIKey(apiKey)
-            preferences.apiKeyValidity = .valid
-            if let usage = result.subscriptionUsage {
-                preferences.subscriptionUsage = usage
-                preferences.apiCreditsExhausted = usage.shouldBlockDictation
-            }
-            subscriptionUsageUnavailable = result.subscriptionUsageUnavailable
-            subscriptionUsageError = result.subscriptionUsageUnavailable
-                ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
-                : nil
-        } catch let error as ScribeError where error.invalidatesAPIKey {
-            preferences.apiKeyValidity = .invalid
+            let usage = try await scribe.fetchSubscriptionUsage(apiKey)
+            preferences.subscriptionUsage = usage
+            preferences.apiCreditsExhausted = usage.shouldBlockDictation
             subscriptionUsageUnavailable = false
             subscriptionUsageError = nil
+            clearResolvedCredentialBlock()
+        } catch let error as ScribeError where error.invalidatesAPIKey {
+            // Subscription access has a separate optional scope. A rejection here
+            // does not invalidate Speech-to-Text access that was already verified.
+            subscriptionUsageUnavailable = true
+            subscriptionUsageError = subscriptionUsageUnavailableMessage(accessDenied: true)
         } catch {
             subscriptionUsageUnavailable = true
             subscriptionUsageError = "Credit usage is temporarily unavailable. Try refreshing again."
@@ -246,6 +241,17 @@ final class AppCoordinator: ObservableObject {
         accessDenied
             ? "This key is scoped for Speech-to-Text but not account usage. Enable User → Read in ElevenLabs to show credits."
             : "Credit usage is temporarily unavailable. Try refreshing again."
+    }
+
+    private func clearResolvedCredentialBlock() {
+        switch phase {
+        case .apiKeyInvalid where preferences.apiKeyValidity == .valid:
+            returnToIdle()
+        case .apiCreditsExhausted where !preferences.apiCreditsExhausted:
+            returnToIdle()
+        default:
+            break
+        }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) throws {
