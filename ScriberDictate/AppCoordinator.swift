@@ -23,6 +23,7 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var microphoneTestLevel: Float = -160
     @Published private(set) var microphoneTestError: String?
     @Published private(set) var shortcutMonitorAvailable = false
+    @Published private(set) var retryingRecordID: UUID?
 
     let preferences: Preferences
     let modelContext: ModelContext
@@ -206,12 +207,21 @@ final class AppCoordinator: ObservableObject {
     }
 
     func retry(_ record: DictationRecord) {
-        guard !phase.isBusy,
-              record.transcriptionState == .failed,
-              let relativePath = record.pendingAudioRelativePath,
-              let url = try? AudioRecorder.url(for: relativePath),
+        guard !phase.isBusy else {
+            showTransientMessage("Already transcribing")
+            return
+        }
+        guard record.transcriptionState == .failed,
+              let relativePath = record.pendingAudioRelativePath else {
+            showMessage("This dictation is no longer retryable")
+            return
+        }
+        guard let url = try? AudioRecorder.url(for: relativePath),
               FileManager.default.fileExists(atPath: url.path) else {
-            showMessage("No retryable recording")
+            record.pendingAudioRelativePath = nil
+            record.errorMessage = "The retained recording is no longer available."
+            try? modelContext.save()
+            showMessage("Recording unavailable")
             return
         }
         currentRecord = record
@@ -225,7 +235,9 @@ final class AppCoordinator: ObservableObject {
         record.transcriptionState = .transcribing
         record.errorMessage = nil
         try? modelContext.save()
+        retryingRecordID = record.id
         shortcuts.setMode(.busy)
+        setPhase(.transcribing(attempt: 1, retryDelay: nil))
         Task { await transcribeCurrentRecord(attemptDelivery: false) }
     }
 
@@ -346,6 +358,10 @@ final class AppCoordinator: ObservableObject {
 
     private func transcribeCurrentRecord(attemptDelivery: Bool) async {
         guard let record = currentRecord, let recording = currentRecording else { returnToIdle(); return }
+        defer {
+            retryingRecordID = nil
+            shortcuts.setMode(.idle)
+        }
         do {
             guard let apiKey = try keychain.readAPIKey(), !apiKey.isEmpty else { throw ScribeError.authentication }
             let request = ScribeRequest(
@@ -394,7 +410,7 @@ final class AppCoordinator: ObservableObject {
             } else {
                 record.deliveryState = .notAttempted
                 try modelContext.save()
-                setPhase(.message("Transcription ready in History"))
+                setPhase(.message("Retry complete"))
             }
         } catch {
             record.transcriptionState = .failed
@@ -402,7 +418,6 @@ final class AppCoordinator: ObservableObject {
             try? modelContext.save()
             setPhase(.transcriptionFailed(error.localizedDescription))
         }
-        shortcuts.setMode(.idle)
     }
 
     private func discardNoContent(record: DictationRecord, recording: CompletedRecording) {

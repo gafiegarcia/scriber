@@ -184,7 +184,11 @@ struct HistoryView: View {
 
 private struct HistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
-    let record: DictationRecord
+    @Bindable var record: DictationRecord
+
+    private var isRetrying: Bool {
+        runtime.coordinator.retryingRecordID == record.id
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
@@ -201,7 +205,10 @@ private struct HistoryRow: View {
                     Text(record.createdAt.formatted(date: .abbreviated, time: .omitted))
                     Text("·")
                     Text(record.durationSeconds.formatted(.number.precision(.fractionLength(1))) + "s")
-                    if record.transcriptionState == .failed {
+                    if isRetrying {
+                        Label("Retrying", systemImage: "arrow.clockwise")
+                            .foregroundStyle(.secondary)
+                    } else if record.transcriptionState == .failed {
                         Label("Failed", systemImage: "exclamationmark.circle.fill")
                             .foregroundStyle(.orange)
                     }
@@ -219,10 +226,15 @@ private struct HistoryRow: View {
                 .buttonStyle(.borderless)
                 .help("Copy transcription")
             }
-            if record.transcriptionState == .failed, record.pendingAudioRelativePath != nil {
+            if isRetrying {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(minWidth: 48)
+            } else if record.transcriptionState == .failed, record.pendingAudioRelativePath != nil {
                 Button("Retry") { runtime.coordinator.retry(record) }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .disabled(runtime.coordinator.phase.isBusy)
             }
             Menu {
                 Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
@@ -244,7 +256,7 @@ private struct HistoryRow: View {
 
 private struct DictationDetailView: View {
     @EnvironmentObject private var runtime: AppRuntime
-    let record: DictationRecord
+    @Bindable var record: DictationRecord
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
