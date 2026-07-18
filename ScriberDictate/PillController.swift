@@ -5,13 +5,45 @@ import SwiftUI
 import ScriberDictateCore
 #endif
 
+struct DismissalCountdown: Equatable {
+    let startedAt: Date?
+    let remainingAtStart: TimeInterval
+    let duration: TimeInterval
+
+    var isPaused: Bool { startedAt == nil }
+
+    func remaining(at date: Date) -> TimeInterval {
+        guard let startedAt else { return remainingAtStart }
+        return max(0, remainingAtStart - date.timeIntervalSince(startedAt))
+    }
+
+    func remainingFraction(at date: Date) -> Double {
+        guard duration > 0 else { return 0 }
+        return min(1, max(0, remaining(at: date) / duration))
+    }
+
+    func paused(at date: Date) -> DismissalCountdown {
+        DismissalCountdown(startedAt: nil, remainingAtStart: remaining(at: date), duration: duration)
+    }
+
+    func resumed(at date: Date, minimumRemaining: TimeInterval) -> DismissalCountdown {
+        DismissalCountdown(
+            startedAt: date,
+            remainingAtStart: max(remaining(at: date), minimumRemaining),
+            duration: duration
+        )
+    }
+}
+
 @MainActor
 final class PillModel: ObservableObject {
     @Published var phase: AppPhase = .idle
+    @Published var dismissalCountdown: DismissalCountdown?
     var onCopy: (() -> Void)?
     var onOpen: (() -> Void)?
     var onRetry: (() -> Void)?
     var onDismiss: (() -> Void)?
+    var onHoverChanged: ((Bool) -> Void)?
 }
 
 private extension AppPhase {
@@ -28,6 +60,9 @@ final class PillController {
     private var hideTask: Task<Void, Never>?
     private var preferredScreen: NSScreen?
     private var currentPanelSize = NSSize(width: 300, height: 62)
+    private var dismissalCountdown: DismissalCountdown?
+    private var isHovering = false
+    private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
 
     init() {
         panel = NSPanel(
@@ -45,10 +80,11 @@ final class PillController {
         panel.isOpaque = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.contentView = NSHostingView(rootView: PillView(model: model))
+        model.onHoverChanged = { [weak self] isHovering in self?.setHovering(isHovering) }
     }
 
     func update(_ phase: AppPhase) {
-        hideTask?.cancel()
+        clearAutoDismissal()
         let desiredSize = panelSize(for: phase)
         if desiredSize != currentPanelSize {
             panel.setContentSize(desiredSize)
@@ -57,16 +93,11 @@ final class PillController {
         model.phase = phase
         switch phase {
         case .idle:
+            isHovering = false
             panel.orderOut(nil)
         default:
             show()
-            if let delay = dismissalDelay(for: phase) {
-                hideTask = Task { [weak self] in
-                    try? await Task.sleep(for: delay)
-                    guard !Task.isCancelled else { return }
-                    self?.panel.orderOut(nil)
-                }
-            }
+            if let delay = dismissalDelay(for: phase) { startAutoDismissal(after: delay) }
         }
     }
 
@@ -74,16 +105,73 @@ final class PillController {
         preferredScreen = screen
     }
 
-    private func dismissalDelay(for phase: AppPhase) -> Duration? {
+    private func setHovering(_ hovering: Bool) {
+        guard hovering != isHovering else { return }
+        isHovering = hovering
+        guard dismissalCountdown != nil else { return }
+        hovering ? pauseAutoDismissal() : resumeAutoDismissal()
+    }
+
+    private func startAutoDismissal(after delay: TimeInterval) {
+        let countdown = DismissalCountdown(startedAt: .now, remainingAtStart: delay, duration: delay)
+        dismissalCountdown = countdown
+        model.dismissalCountdown = countdown
+        guard !isHovering else {
+            pauseAutoDismissal()
+            return
+        }
+        scheduleAutoDismissal(after: delay)
+    }
+
+    private func pauseAutoDismissal() {
+        hideTask?.cancel()
+        hideTask = nil
+        guard let dismissalCountdown else { return }
+        let paused = dismissalCountdown.paused(at: .now)
+        self.dismissalCountdown = paused
+        model.dismissalCountdown = paused
+    }
+
+    private func resumeAutoDismissal() {
+        guard let dismissalCountdown else { return }
+        let resumed = dismissalCountdown.resumed(at: .now, minimumRemaining: minimumHoverExitDismissalDelay)
+        self.dismissalCountdown = resumed
+        model.dismissalCountdown = resumed
+        scheduleAutoDismissal(after: resumed.remainingAtStart)
+    }
+
+    private func clearAutoDismissal() {
+        hideTask?.cancel()
+        hideTask = nil
+        dismissalCountdown = nil
+        model.dismissalCountdown = nil
+    }
+
+    private func scheduleAutoDismissal(after delay: TimeInterval) {
+        hideTask?.cancel()
+        hideTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            self?.finishAutoDismissal()
+        }
+    }
+
+    private func finishAutoDismissal() {
+        clearAutoDismissal()
+        isHovering = false
+        panel.orderOut(nil)
+    }
+
+    private func dismissalDelay(for phase: AppPhase) -> TimeInterval? {
         switch phase {
         case .pasted:
-            .seconds(1)
+            1
         case .message:
-            .seconds(1.5)
+            1.5
         case .pasteFailed where phase.isNoEditableTargetPasteFailure:
-            .seconds(3)
+            3
         case .pasteFailed, .transcriptionFailed:
-            .seconds(6)
+            6
         default:
             nil
         }
@@ -126,11 +214,16 @@ private struct PillView: View {
                 if let subtitle { Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
             }
             Spacer(minLength: 8)
+            if let dismissalCountdown = model.dismissalCountdown {
+                DismissalCountdownView(countdown: dismissalCountdown)
+            }
             actions
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Capsule())
+        .onHover { model.onHoverChanged?($0) }
         .glassEffect(.regular, in: Capsule())
     }
 
@@ -179,18 +272,46 @@ private struct PillView: View {
         switch model.phase {
         case .pasteFailed where model.phase.isNoEditableTargetPasteFailure:
             Button("Open") { model.onOpen?() }.controlSize(.small)
-            Button { model.onDismiss?() } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
+            dismissButton
         case .pasteFailed:
             Button("Copy") { model.onCopy?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("Open") { model.onOpen?() }.controlSize(.small)
-            Button { model.onDismiss?() } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
+            dismissButton
         case .transcriptionFailed:
             Button("Retry") { model.onRetry?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("Open") { model.onOpen?() }.controlSize(.small)
-            Button { model.onDismiss?() } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
+            dismissButton
         default:
             EmptyView()
         }
+    }
+
+    private var dismissButton: some View {
+        Button { model.onDismiss?() } label: { Image(systemName: "xmark") }
+            .buttonStyle(.plain)
+            .frame(width: 26, height: 26)
+            .contentShape(Rectangle())
+    }
+}
+
+private struct DismissalCountdownView: View {
+    let countdown: DismissalCountdown
+
+    var body: some View {
+        TimelineView(.animation) { context in
+            let fraction = countdown.remainingFraction(at: context.date)
+            ZStack {
+                Circle()
+                    .stroke(.secondary.opacity(0.25), lineWidth: 2)
+                Circle()
+                    .trim(from: 0, to: fraction)
+                    .stroke(.secondary, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .opacity(countdown.isPaused ? 0.55 : 1)
+        }
+        .frame(width: 16, height: 16)
+        .accessibilityHidden(true)
     }
 }
 
