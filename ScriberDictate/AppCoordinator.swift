@@ -297,6 +297,11 @@ final class AppCoordinator: ObservableObject {
                     record.deliveryState = .pasted
                     try modelContext.save()
                     setPhase(.pasted)
+                case .noEditableTarget(let message):
+                    copy(record)
+                    record.errorMessage = message
+                    try modelContext.save()
+                    setPhase(.pasteFailed(message))
                 case .failed(let message):
                     record.deliveryState = .pasteFailed
                     record.errorMessage = message

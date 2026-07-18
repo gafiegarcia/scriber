@@ -14,6 +14,13 @@ final class PillModel: ObservableObject {
     var onDismiss: (() -> Void)?
 }
 
+private extension AppPhase {
+    var isNoEditableTargetPasteFailure: Bool {
+        if case .pasteFailed(let message) = self, message == PasteResult.noEditableTargetMessage { return true }
+        return false
+    }
+}
+
 @MainActor
 final class PillController {
     let model = PillModel()
@@ -69,6 +76,8 @@ final class PillController {
 
     private func panelSize(for phase: AppPhase) -> NSSize {
         switch phase {
+        case .pasteFailed where phase.isNoEditableTargetPasteFailure:
+            NSSize(width: 360, height: 62)
         case .pasteFailed, .transcriptionFailed:
             NSSize(width: 430, height: 72)
         default:
@@ -118,6 +127,8 @@ private struct PillView: View {
             ProgressView().controlSize(.small)
         case .pasted:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+        case .pasteFailed where model.phase.isNoEditableTargetPasteFailure:
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
         case .pasteFailed, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         default:
@@ -133,6 +144,7 @@ private struct PillView: View {
             if attempt == 1, delay == nil { "Transcribing…" }
             else { "Retrying \(min(attempt + (delay == nil ? 0 : 1), 3))/3…" }
         case .pasted: "Pasted"
+        case .pasteFailed where model.phase.isNoEditableTargetPasteFailure: "Dictation copied"
         case .pasteFailed: "Couldn't paste automatically"
         case .transcriptionFailed: "Transcription failed"
         case .message(let value): value
@@ -150,6 +162,9 @@ private struct PillView: View {
 
     @ViewBuilder private var actions: some View {
         switch model.phase {
+        case .pasteFailed where model.phase.isNoEditableTargetPasteFailure:
+            Button("Open") { model.onOpen?() }.controlSize(.small)
+            Button { model.onDismiss?() } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
         case .pasteFailed:
             Button("Copy") { model.onCopy?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("Open") { model.onOpen?() }.controlSize(.small)

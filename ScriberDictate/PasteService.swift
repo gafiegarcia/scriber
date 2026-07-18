@@ -4,7 +4,10 @@ import CoreGraphics
 import Foundation
 
 enum PasteResult: Sendable {
+    static let noEditableTargetMessage = "No editable text box was focused"
+
     case inserted
+    case noEditableTarget(String)
     case failed(String)
 }
 
@@ -71,7 +74,7 @@ final class PasteService {
 
     func insert(_ text: String) async -> PasteResult {
         guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
-        guard let target else { return .failed("No editable text box was focused when dictation began.") }
+        guard let target else { return .noEditableTarget(PasteResult.noEditableTargetMessage) }
 
         var settable = DarwinBoolean(false)
         let settableStatus = AXUIElementIsAttributeSettable(target, kAXSelectedTextAttribute as CFString, &settable)
