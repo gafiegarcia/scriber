@@ -22,6 +22,7 @@
 		A1000000000000000000000D /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* Views.swift */; };
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
 		A1000000000000000000000F /* ../ScriberDictateCore/CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ../ScriberDictateCore/CoreModels.swift */; };
+		A10000000000000000000010 /* ../ScriberDictateCore/CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* ../ScriberDictateCore/CredentialStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,7 @@
 		B10000000000000000000010 /* ScriberDictate.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScriberDictate.entitlements; sourceTree = "<group>"; };
 		B10000000000000000000011 /* Scriber Dictate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Scriber Dictate.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000012 /* ../ScriberDictateCore/CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberDictateCore/CoreModels.swift; sourceTree = "<group>"; };
+		B10000000000000000000013 /* ../ScriberDictateCore/CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberDictateCore/CredentialStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +74,7 @@
 				B10000000000000000000002 /* AudioRecorder.swift */,
 				B10000000000000000000003 /* GlobalShortcutService.swift */,
 				B10000000000000000000012 /* ../ScriberDictateCore/CoreModels.swift */,
+				B10000000000000000000013 /* ../ScriberDictateCore/CredentialStore.swift */,
 				B10000000000000000000004 /* KeychainStore.swift */,
 				B10000000000000000000005 /* LaunchAtLoginService.swift */,
 				B10000000000000000000006 /* Models.swift */,
@@ -184,6 +187,7 @@
 				A1000000000000000000000C /* ShortcutRecorderView.swift in Sources */,
 				A1000000000000000000000D /* Views.swift in Sources */,
 				A1000000000000000000000F /* ../ScriberDictateCore/CoreModels.swift in Sources */,
+				A10000000000000000000010 /* ../ScriberDictateCore/CredentialStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

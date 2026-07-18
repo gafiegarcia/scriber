@@ -163,6 +163,129 @@ struct CredentialStateTests {
     }
 }
 
+@Suite("Credential persistence")
+struct CredentialPersistenceTests {
+    @Test("Saves, trims, and updates the protected credential")
+    func savesAndUpdatesProtectedCredential() throws {
+        let backend = FakeCredentialStorageBackend()
+        let store = VerifiedCredentialStore(backend: backend)
+
+        try store.save("  first-key \n")
+        #expect(backend.values[.dataProtection] == "first-key")
+        try store.save("second-key")
+        #expect(backend.values[.dataProtection] == "second-key")
+        #expect(backend.deleteCounts[.legacy, default: 0] == 0)
+    }
+
+    @Test("Rejects a save when protected readback is missing")
+    func rejectsMissingReadback() {
+        let backend = FakeCredentialStorageBackend()
+        backend.discardProtectedWrites = true
+        let store = VerifiedCredentialStore(backend: backend)
+
+        #expect(throws: CredentialStoreError.persistenceVerificationFailed) {
+            try store.save("valid-key")
+        }
+    }
+
+    @Test("Rejects a save when protected readback differs")
+    func rejectsMismatchedReadback() {
+        let backend = FakeCredentialStorageBackend()
+        backend.protectedWriteReplacement = "different-key"
+        let store = VerifiedCredentialStore(backend: backend)
+
+        #expect(throws: CredentialStoreError.persistenceVerificationFailed) {
+            try store.save("valid-key")
+        }
+    }
+
+    @Test("Migrates a legacy credential into protected storage")
+    func migratesLegacyCredential() throws {
+        let backend = FakeCredentialStorageBackend(values: [.legacy: "legacy-key"])
+        let store = VerifiedCredentialStore(backend: backend)
+
+        #expect(try store.read() == "legacy-key")
+        #expect(backend.values[.dataProtection] == "legacy-key")
+        #expect(backend.values[.legacy] == nil)
+        #expect(backend.deleteCounts[.legacy] == 1)
+    }
+
+    @Test("Restores protected storage if legacy cleanup removes it")
+    func restoresAfterDestructiveLegacyCleanup() throws {
+        let backend = FakeCredentialStorageBackend(values: [.legacy: "legacy-key"])
+        backend.legacyDeletionAlsoDeletesProtectedValue = true
+        let store = VerifiedCredentialStore(backend: backend)
+
+        #expect(try store.read() == "legacy-key")
+        #expect(backend.values[.dataProtection] == "legacy-key")
+        #expect(backend.values[.legacy] == nil)
+        #expect(backend.protectedWriteCount == 2)
+    }
+
+    @Test("A replacement supersedes and removes a stale legacy credential")
+    func replacementSupersedesLegacyCredential() throws {
+        let backend = FakeCredentialStorageBackend(values: [
+            .dataProtection: "old-protected-key",
+            .legacy: "stale-legacy-key",
+        ])
+        let store = VerifiedCredentialStore(backend: backend)
+
+        try store.save("replacement-key")
+        #expect(backend.values[.dataProtection] == "replacement-key")
+        #expect(backend.values[.legacy] == nil)
+        #expect(backend.deleteCounts[.legacy] == 1)
+    }
+
+    @Test("Deletes both storage domains for blank input")
+    func deletesBlankCredential() throws {
+        let backend = FakeCredentialStorageBackend(values: [
+            .dataProtection: "protected-key",
+            .legacy: "legacy-key",
+        ])
+        let store = VerifiedCredentialStore(backend: backend)
+
+        try store.save("  \n")
+        #expect(backend.values.isEmpty)
+        #expect(backend.deleteCounts[.dataProtection] == 1)
+        #expect(backend.deleteCounts[.legacy] == 1)
+    }
+}
+
+private final class FakeCredentialStorageBackend: CredentialStorageBackend, @unchecked Sendable {
+    var values: [CredentialStorageDomain: String]
+    var deleteCounts: [CredentialStorageDomain: Int] = [:]
+    var discardProtectedWrites = false
+    var protectedWriteReplacement: String?
+    var legacyDeletionAlsoDeletesProtectedValue = false
+    private(set) var protectedWriteCount = 0
+
+    init(values: [CredentialStorageDomain: String] = [:]) {
+        self.values = values
+    }
+
+    func read(from domain: CredentialStorageDomain) throws -> String? {
+        values[domain]
+    }
+
+    func write(_ value: String, to domain: CredentialStorageDomain) throws {
+        if domain == .dataProtection {
+            protectedWriteCount += 1
+            guard !discardProtectedWrites else { return }
+            values[domain] = protectedWriteReplacement ?? value
+        } else {
+            values[domain] = value
+        }
+    }
+
+    func delete(from domain: CredentialStorageDomain) throws {
+        deleteCounts[domain, default: 0] += 1
+        values[domain] = nil
+        if domain == .legacy, legacyDeletionAlsoDeletesProtectedValue {
+            values[.dataProtection] = nil
+        }
+    }
+}
+
 @Suite("Transcript content")
 struct TranscriptContentTests {
     @Test("Rejects empty and punctuation-only results")

@@ -4,7 +4,6 @@ import Security
 enum KeychainError: LocalizedError {
     case unexpectedStatus(OSStatus)
     case invalidData
-    case persistenceVerificationFailed
 
     var errorDescription: String? {
         switch self {
@@ -12,8 +11,6 @@ enum KeychainError: LocalizedError {
             return SecCopyErrorMessageString(status, nil) as String? ?? "Keychain error \(status)"
         case .invalidData:
             return "The stored API key could not be read."
-        case .persistenceVerificationFailed:
-            return "The API key could not be verified after saving it to Keychain."
         }
     }
 }
@@ -22,31 +19,38 @@ struct KeychainStore: Sendable {
     static let service = "com.gafiegarcia.scriber-dictate.elevenlabs-api-key"
     static let account = "default"
     private static let label = "Scriber Dictate ElevenLabs API key"
+    private let store: VerifiedCredentialStore<KeychainStorageBackend>
 
-    func readAPIKey() throws -> String? {
-        if let value = try readAPIKey(usingDataProtectionKeychain: true) {
-            return value
-        }
-
-        guard let legacyValue = try readAPIKey(usingDataProtectionKeychain: false) else {
-            return nil
-        }
-        try writeDataProtectionAPIKey(legacyValue)
-        try verifyDataProtectionAPIKey(legacyValue)
-        try deleteLegacyAPIKey()
-        try restoreDataProtectionAPIKeyIfNeeded(legacyValue)
-        return legacyValue
+    init() {
+        store = VerifiedCredentialStore(backend: KeychainStorageBackend(
+            service: Self.service,
+            account: Self.account,
+            label: Self.label
+        ))
     }
 
-    private func readAPIKey(usingDataProtectionKeychain: Bool) throws -> String? {
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.service,
-            kSecAttrAccount as String: Self.account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        query[kSecUseDataProtectionKeychain as String] = usingDataProtectionKeychain
+    func readAPIKey() throws -> String? {
+        try store.read()
+    }
+
+    func saveAPIKey(_ value: String) throws {
+        try store.save(value)
+    }
+
+    func deleteAPIKey() throws {
+        try store.delete()
+    }
+}
+
+private struct KeychainStorageBackend: CredentialStorageBackend {
+    let service: String
+    let account: String
+    let label: String
+
+    func read(from domain: CredentialStorageDomain) throws -> String? {
+        var query = baseQuery(for: domain)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         if status == errSecItemNotFound { return nil }
@@ -57,34 +61,16 @@ struct KeychainStore: Sendable {
         return value
     }
 
-    func saveAPIKey(_ value: String) throws {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            try deleteAPIKey()
-            return
-        }
-        let hasLegacyItem = try readAPIKey(usingDataProtectionKeychain: false) != nil
-        try writeDataProtectionAPIKey(trimmed)
-        try verifyDataProtectionAPIKey(trimmed)
-        if hasLegacyItem {
-            try deleteLegacyAPIKey()
-            try restoreDataProtectionAPIKeyIfNeeded(trimmed)
-        }
-    }
-
-    private func writeDataProtectionAPIKey(_ value: String) throws {
-        guard let data = value.data(using: .utf8), !value.isEmpty else {
+    func write(_ value: String, to domain: CredentialStorageDomain) throws {
+        guard domain == .dataProtection,
+              let data = value.data(using: .utf8),
+              !value.isEmpty else {
             throw KeychainError.invalidData
         }
-        let match: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.service,
-            kSecAttrAccount as String: Self.account,
-            kSecUseDataProtectionKeychain as String: true,
-        ]
+        let match = baseQuery(for: domain)
         let attributes: [String: Any] = [
             kSecValueData as String: data,
-            kSecAttrLabel as String: Self.label,
+            kSecAttrLabel as String: label,
             kSecAttrDescription as String: "Stored locally for Scribe v2 transcription",
         ]
         let update = SecItemUpdate(match as CFDictionary, attributes as CFDictionary)
@@ -99,42 +85,19 @@ struct KeychainStore: Sendable {
         }
     }
 
-    private func verifyDataProtectionAPIKey(_ expectedValue: String) throws {
-        guard try readAPIKey(usingDataProtectionKeychain: true) == expectedValue else {
-            throw KeychainError.persistenceVerificationFailed
-        }
-    }
-
-    private func restoreDataProtectionAPIKeyIfNeeded(_ expectedValue: String) throws {
-        guard try readAPIKey(usingDataProtectionKeychain: true) != expectedValue else { return }
-        try writeDataProtectionAPIKey(expectedValue)
-        try verifyDataProtectionAPIKey(expectedValue)
-    }
-
-    func deleteAPIKey() throws {
-        let dataProtectionQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.service,
-            kSecAttrAccount as String: Self.account,
-            kSecUseDataProtectionKeychain as String: true,
-        ]
-        let dataProtectionStatus = SecItemDelete(dataProtectionQuery as CFDictionary)
-        guard dataProtectionStatus == errSecSuccess || dataProtectionStatus == errSecItemNotFound else {
-            throw KeychainError.unexpectedStatus(dataProtectionStatus)
-        }
-        try deleteLegacyAPIKey()
-    }
-
-    private func deleteLegacyAPIKey() throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.service,
-            kSecAttrAccount as String: Self.account,
-            kSecUseDataProtectionKeychain as String: false,
-        ]
-        let status = SecItemDelete(query as CFDictionary)
+    func delete(from domain: CredentialStorageDomain) throws {
+        let status = SecItemDelete(baseQuery(for: domain) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.unexpectedStatus(status)
         }
+    }
+
+    private func baseQuery(for domain: CredentialStorageDomain) -> [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecUseDataProtectionKeychain as String: domain == .dataProtection,
+        ]
     }
 }
