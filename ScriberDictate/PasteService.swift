@@ -2,6 +2,9 @@
 import ApplicationServices
 import CoreGraphics
 import Foundation
+#if SWIFT_PACKAGE
+import ScriberDictateCore
+#endif
 
 enum PasteResult: Sendable {
     static let noEditableTargetMessage = "No editable text box was focused"
@@ -14,12 +17,14 @@ enum PasteResult: Sendable {
 @MainActor
 final class PasteService {
     private var target: AXUIElement?
+    private var focusAnchor: AXUIElement?
     private var targetPID: pid_t = 0
     private(set) var targetScreen: NSScreen?
 
     @discardableResult
     func captureTarget() -> NSScreen? {
         target = nil
+        focusAnchor = nil
         targetPID = 0
         targetScreen = nil
         let system = AXUIElementCreateSystemWide()
@@ -33,41 +38,90 @@ final class PasteService {
               let focusedValue,
               CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else { return nil }
         let focused = unsafeDowncast(focusedValue, to: AXUIElement.self)
-        var roleValue: CFTypeRef?
-        _ = AXUIElementCopyAttributeValue(focused, kAXRoleAttribute as CFString, &roleValue)
-        if let role = roleValue as? String, role == "AXSecureTextField" { return nil }
-        guard isEditableTextElement(focused, role: roleValue as? String) else { return nil }
+        guard let editableTarget = editableTextElement(startingAt: focused) else { return nil }
         var pid: pid_t = 0
         AXUIElementGetPid(application, &pid)
-        target = focused
+        target = editableTarget
+        focusAnchor = focused
         targetPID = pid
-        targetScreen = screen(containing: focused)
+        targetScreen = screen(containing: editableTarget)
         return targetScreen
     }
 
-    private func isEditableTextElement(_ element: AXUIElement, role: String?) -> Bool {
+    private func editableTextElement(startingAt focused: AXUIElement) -> AXUIElement? {
+        var ancestry = [focused]
+        var current = focused
+        for _ in 0..<8 {
+            guard let parent = elementAttribute(current, named: kAXParentAttribute),
+                  !ancestry.contains(where: { CFEqual($0, parent) }) else { break }
+            ancestry.append(parent)
+            current = parent
+        }
+
+        var candidates = ancestry
+        if let editableAncestor = elementAttribute(focused, named: "AXEditableAncestor"),
+           !candidates.contains(where: { CFEqual($0, editableAncestor) }) {
+            candidates.insert(editableAncestor, at: 1)
+        }
+
+        // Walk the whole short ancestry first so a child of a password field can
+        // never be accepted through a more generic text capability.
+        guard !candidates.contains(where: isSecureTextElement) else { return nil }
+        return candidates.first(where: isEditableTextElement)
+    }
+
+    private func isSecureTextElement(_ element: AXUIElement) -> Bool {
+        stringAttribute(element, named: kAXRoleAttribute) == "AXSecureTextField"
+            || stringAttribute(element, named: kAXSubroleAttribute) == "AXSecureTextField"
+    }
+
+    private func isEditableTextElement(_ element: AXUIElement) -> Bool {
+        let role = stringAttribute(element, named: kAXRoleAttribute)
+        let subrole = stringAttribute(element, named: kAXSubroleAttribute)
         var selectedTextSettable = DarwinBoolean(false)
-        if AXUIElementIsAttributeSettable(
+        let selectedTextStatus = AXUIElementIsAttributeSettable(
             element,
             kAXSelectedTextAttribute as CFString,
             &selectedTextSettable
-        ) == .success, selectedTextSettable.boolValue {
-            return true
-        }
-
-        guard let role, ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"].contains(role) else {
-            return false
-        }
-        var valueSettable = DarwinBoolean(false)
-        return AXUIElementIsAttributeSettable(
+        )
+        var characterCountValue: CFTypeRef?
+        let characterCountStatus = AXUIElementCopyAttributeValue(
             element,
-            kAXValueAttribute as CFString,
-            &valueSettable
-        ) == .success && valueSettable.boolValue
+            kAXNumberOfCharactersAttribute as CFString,
+            &characterCountValue
+        )
+        var enabledValue: CFTypeRef?
+        let enabledStatus = AXUIElementCopyAttributeValue(
+            element,
+            kAXEnabledAttribute as CFString,
+            &enabledValue
+        )
+        return TextInputTargetPolicy.accepts(
+            role: role,
+            subrole: subrole,
+            selectedTextSettable: selectedTextStatus == .success && selectedTextSettable.boolValue,
+            exposesCharacterCount: characterCountStatus == .success && characterCountValue != nil,
+            enabled: enabledStatus == .success ? enabledValue as? Bool : nil
+        )
+    }
+
+    private func elementAttribute(_ element: AXUIElement, named name: String) -> AXUIElement? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success,
+              let value,
+              CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+        return unsafeDowncast(value, to: AXUIElement.self)
+    }
+
+    private func stringAttribute(_ element: AXUIElement, named name: String) -> String? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        return value as? String
     }
 
     func clearTarget() {
         target = nil
+        focusAnchor = nil
         targetPID = 0
         targetScreen = nil
     }
@@ -84,7 +138,7 @@ final class PasteService {
         }
 
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier == targetPID,
-              focusedElementStillMatches(target) else {
+              focusedElementStillMatches(focusAnchor ?? target) else {
             return .failed("The original text box is no longer focused.")
         }
 
@@ -142,7 +196,20 @@ final class PasteService {
                 selectedRange = NSRange(location: range.location, length: range.length)
             }
         }
-        return TextElementState(value: value, selectedRange: selectedRange)
+
+        var characterCountReference: CFTypeRef?
+        let characterCount: Int?
+        if AXUIElementCopyAttributeValue(
+            element,
+            kAXNumberOfCharactersAttribute as CFString,
+            &characterCountReference
+        ) == .success,
+           let number = characterCountReference as? NSNumber {
+            characterCount = number.intValue
+        } else {
+            characterCount = nil
+        }
+        return TextElementState(value: value, selectedRange: selectedRange, characterCount: characterCount)
     }
 
     private func screen(containing element: AXUIElement) -> NSScreen? {
@@ -180,8 +247,9 @@ final class PasteService {
 private struct TextElementState: Equatable {
     let value: String?
     let selectedRange: NSRange?
+    let characterCount: Int?
 
-    var hasObservableValue: Bool { value != nil || selectedRange != nil }
+    var hasObservableValue: Bool { value != nil || selectedRange != nil || characterCount != nil }
 }
 
 private struct PasteboardSnapshot {

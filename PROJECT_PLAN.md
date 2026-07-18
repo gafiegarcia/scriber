@@ -89,11 +89,12 @@ Product direction:
 - Empty, whitespace-only, and punctuation-only text from a successful ElevenLabs response now follows one cleanup path: retained audio and the temporary recovery record are deleted, no Retry/Open controls appear, and the pill dismisses immediately. Genuine transcription failures continue to retain audio and History for retry.
 - Reworked onboarding permission feedback into separate Microphone and Accessibility steps. The microphone picker and automatic live test also appear during setup, the picker remains editable in Settings, granted permissions replace Allow controls with green allowed states, denied microphone access links to System Settings, and both permissions refresh when the app becomes active again.
 - Expanded the credit-free core suite to 11 tests covering built-in microphone preference, signal-threshold mapping, and successful empty-response parsing. Parser validation, core type-checking, property-list validation, package tests, and unsigned Xcode 27 beta Debug and Release builds all pass. Live microphone/device, permission, waveform, and API-empty-response acceptance checks remain manual.
+- Relaxed Accessibility target capture for terminals, launchers, and other custom controls that accept normal keyboard input without exposing writable text values. Standard text roles, the editable character-count capability, and editable ancestors are now recognized; secure/disabled fields remain excluded, and character-count changes strengthen post-paste confirmation. The credit-free suite now contains 14 tests and the unsigned Debug build passes. Live insertion checks in Ghostty and Raycast remain manual.
 
 ## Verification Notes
 
 - Automated tests must not consume ElevenLabs credits.
 - A real ElevenLabs smoke test is opt-in.
-- Hardware verification must cover `Fn`, `Fn-Space`, `Fn-Control-Option`, target capture, TextEdit, a browser text field, a code editor, full-screen apps, multiple Spaces, and Dock auto-hide.
+- Hardware verification must cover `Fn`, `Fn-Space`, `Fn-Control-Option`, target capture, TextEdit, Ghostty, Raycast, a browser text field, a code editor, full-screen apps, multiple Spaces, and Dock auto-hide.
 - Signing and Accessibility permission tests must use a stable app path because macOS privacy grants are tied to app identity.
 - The current app icon asset catalog is a valid placeholder; final icon artwork is deferred until the application runs end to end.

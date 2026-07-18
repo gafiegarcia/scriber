@@ -97,3 +97,60 @@ struct AudioInputPolicyTests {
         #expect(AudioSignal.normalized(decibels: 0) == 1)
     }
 }
+
+@Suite("Text input target policy")
+struct TextInputTargetPolicyTests {
+    @Test("Accepts standard text roles without writable Accessibility values")
+    func acceptsStandardTextRoles() {
+        #expect(TextInputTargetPolicy.accepts(
+            role: "AXTextArea",
+            subrole: nil,
+            selectedTextSettable: false,
+            exposesCharacterCount: false,
+            enabled: true
+        ))
+        #expect(TextInputTargetPolicy.accepts(
+            role: "AXTextField",
+            subrole: "AXSearchField",
+            selectedTextSettable: false,
+            exposesCharacterCount: false,
+            enabled: nil
+        ))
+    }
+
+    @Test("Accepts custom controls that expose editable character counts")
+    func acceptsCustomEditableControls() {
+        #expect(TextInputTargetPolicy.accepts(
+            role: "AXGroup",
+            subrole: nil,
+            selectedTextSettable: false,
+            exposesCharacterCount: true,
+            enabled: true
+        ))
+    }
+
+    @Test("Rejects secure, disabled, and non-text controls")
+    func rejectsUnsafeTargets() {
+        #expect(!TextInputTargetPolicy.accepts(
+            role: "AXTextField",
+            subrole: "AXSecureTextField",
+            selectedTextSettable: true,
+            exposesCharacterCount: true,
+            enabled: true
+        ))
+        #expect(!TextInputTargetPolicy.accepts(
+            role: "AXTextArea",
+            subrole: nil,
+            selectedTextSettable: true,
+            exposesCharacterCount: true,
+            enabled: false
+        ))
+        #expect(!TextInputTargetPolicy.accepts(
+            role: "AXButton",
+            subrole: nil,
+            selectedTextSettable: false,
+            exposesCharacterCount: false,
+            enabled: true
+        ))
+    }
+}

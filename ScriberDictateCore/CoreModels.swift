@@ -144,6 +144,29 @@ public enum TranscriptContent {
     }
 }
 
+public enum TextInputTargetPolicy {
+    private static let recognizedRoles: Set<String> = [
+        "AXTextField",
+        "AXTextArea",
+        "AXComboBox",
+    ]
+
+    public static func accepts(
+        role: String?,
+        subrole: String?,
+        selectedTextSettable: Bool,
+        exposesCharacterCount: Bool,
+        enabled: Bool?
+    ) -> Bool {
+        guard role != "AXSecureTextField",
+              subrole != "AXSecureTextField",
+              enabled != false else { return false }
+        return selectedTextSettable
+            || exposesCharacterCount
+            || role.map(recognizedRoles.contains) == true
+    }
+}
+
 public struct ShortcutMatcher: Sendable {
     public var hold: ShortcutChord
     public var toggle: ShortcutChord
