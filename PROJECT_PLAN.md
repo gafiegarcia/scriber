@@ -99,6 +99,10 @@ Product direction:
 - Persisted API-key validity and added a once-per-launch check for the stored Keychain credential. Definitive authentication or authorization failures now block recording and History retries before audio capture, including failures discovered by a later transcription, while transient network/service failures preserve the last definitive result. The pill reports the invalid key immediately and offers an Update Key action that opens the ElevenLabs Settings section; Settings and onboarding show Verified/Invalid state, and setup requires a verified key. Parser validation, core type-checking, all 15 credit-free tests, and the unsigned Xcode 27 beta Debug build pass. Live startup checks with a tampered or revoked Keychain item remain manual verification.
 - Fixed a false-negative validation exposed by a live, active Speech-to-Text-scoped key. The previous documented `GET /v1/models` probe required an unrelated endpoint scope and could reject a usable Scribe key. Validation now requests a deliberately nonexistent transcript under `/v1/speech-to-text/transcripts`, treating the expected missing/invalid-ID response as proof that authentication and Speech-to-Text authorization succeeded; it uploads no audio and consumes no credits. Parser validation, core type-checking, all 15 credit-free tests, and the unsigned Xcode 27 beta Debug build pass. A final live save/startup check with the affected key remains required.
 
+### 2026-07-19
+
+- Moved the floating pill from a SwiftUI content-level glass modifier to an AppKit `NSGlassEffectView` that embeds the entire hosted interface. The pill now uses untinted regular system glass, native interaction response, phase-appropriate native corner radii, and no duplicate generic panel shadow, bringing its backdrop sampling and edges closer to macOS-owned overlays. Parser validation, core type-checking, all 15 credit-free tests, and the unsigned Xcode 27 beta Debug build pass; the final appearance across light, dark, and varied desktop backgrounds remains a live visual check.
+
 ## Verification Notes
 
 - Automated tests must not consume ElevenLabs credits.

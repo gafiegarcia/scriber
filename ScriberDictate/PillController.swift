@@ -51,6 +51,7 @@ final class PillModel: ObservableObject {
 final class PillController {
     let model = PillModel()
     private let panel: NSPanel
+    private let glassView: NSGlassEffectView
     private var hideTask: Task<Void, Never>?
     private var preferredScreen: NSScreen?
     private var currentPanelSize = NSSize(width: 300, height: 62)
@@ -65,15 +66,26 @@ final class PillController {
             backing: .buffered,
             defer: false
         )
+        glassView = NSGlassEffectView(frame: NSRect(x: 0, y: 0, width: 300, height: 62))
         panel.level = .statusBar
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.hidesOnDeactivate = false
-        panel.hasShadow = true
+        panel.hasShadow = false
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-        panel.contentView = NSHostingView(rootView: PillView(model: model))
+
+        let hostingView = NSHostingView(rootView: PillView(model: model))
+        hostingView.frame = glassView.bounds
+        hostingView.autoresizingMask = [.width, .height]
+        glassView.autoresizingMask = [.width, .height]
+        glassView.style = .regular
+        glassView.cornerRadius = 31
+        glassView.tintColor = nil
+        glassView.effectIsInteractive = true
+        glassView.contentView = hostingView
+        panel.contentView = glassView
         model.onHoverChanged = { [weak self] isHovering in self?.setHovering(isHovering) }
     }
 
@@ -84,6 +96,7 @@ final class PillController {
             panel.setContentSize(desiredSize)
             currentPanelSize = desiredSize
         }
+        glassView.cornerRadius = glassCornerRadius(for: phase, size: desiredSize)
         model.phase = phase
         switch phase {
         case .idle:
@@ -184,6 +197,11 @@ final class PillController {
         }
     }
 
+    private func glassCornerRadius(for phase: AppPhase, size: NSSize) -> CGFloat {
+        if case .dictationCopied = phase { return 24 }
+        return size.height / 2
+    }
+
     private func show() {
         positionPanel()
         panel.orderFrontRegardless()
@@ -215,7 +233,6 @@ private struct PillView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(containerShape)
             .onHover { model.onHoverChanged?($0) }
-            .glassEffect(.regular, in: containerShape)
     }
 
     @ViewBuilder private var content: some View {
