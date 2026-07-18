@@ -226,17 +226,27 @@ private struct PillView: View {
 
     private var compactStatus: some View {
         HStack(spacing: 12) {
-            symbol
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 14, weight: .semibold))
-                if let subtitle { Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+            if case .recording = model.phase {
+                statusText
+                Spacer(minLength: 8)
+                symbol
+            } else {
+                symbol
+                statusText
+                Spacer(minLength: 8)
+                countdown
+                actions
             }
-            Spacer(minLength: 8)
-            countdown
-            actions
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 14)
+    }
+
+    private var statusText: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.system(size: 14, weight: .semibold))
+            if let subtitle { Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+        }
     }
 
     private func copiedResult(text: String, message: String) -> some View {
@@ -298,7 +308,7 @@ private struct PillView: View {
     private var title: String {
         switch model.phase {
         case .idle: "Ready"
-        case .recording(let mode, let elapsed, _): mode == .held ? "Recording · \(elapsed.formattedTimer)" : "Hands-free · \(elapsed.formattedTimer)"
+        case .recording(_, let elapsed, _): "Recording · \(elapsed.formattedTimer)"
         case .transcribing(let attempt, let delay):
             if attempt == 1, delay == nil { "Transcribing…" }
             else { "Retrying \(min(attempt + (delay == nil ? 0 : 1), 3))/3…" }
