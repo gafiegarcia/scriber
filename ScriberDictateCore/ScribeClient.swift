@@ -71,7 +71,9 @@ public enum ScribeError: LocalizedError, Sendable {
 
 public struct ScribeClient: Sendable {
     private let endpoint = URL(string: "https://api.elevenlabs.io/v1/speech-to-text")!
-    private let modelsEndpoint = URL(string: "https://api.elevenlabs.io/v1/models")!
+    private let validationEndpoint = URL(
+        string: "https://api.elevenlabs.io/v1/speech-to-text/transcripts/00000000-0000-0000-0000-000000000000"
+    )!
 
     public init() {}
 
@@ -96,7 +98,9 @@ public struct ScribeClient: Sendable {
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw ScribeError.authentication }
 
-        var request = URLRequest(url: modelsEndpoint, timeoutInterval: 20)
+        // Query a deliberately nonexistent transcript so validation exercises the
+        // Speech-to-Text scope without uploading audio or consuming API credits.
+        var request = URLRequest(url: validationEndpoint, timeoutInterval: 20)
         request.httpMethod = "GET"
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue(trimmed, forHTTPHeaderField: "xi-api-key")
@@ -110,7 +114,9 @@ public struct ScribeClient: Sendable {
     }
 
     static func apiKeyValidationError(statusCode: Int, data: Data) -> ScribeError? {
-        guard !(200..<300).contains(statusCode) else { return nil }
+        // The sentinel transcript must not exist. These responses mean the request
+        // passed authentication and Speech-to-Text authorization before lookup.
+        guard !(200..<300).contains(statusCode), ![400, 404, 422].contains(statusCode) else { return nil }
         switch statusCode {
         case 401:
             return .authentication

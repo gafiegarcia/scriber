@@ -68,6 +68,12 @@ struct ScribeValidationTests {
         let success = ScribeClient.apiKeyValidationError(statusCode: 200, data: Data())
         #expect(success == nil)
 
+        let missingSentinel = ScribeClient.apiKeyValidationError(statusCode: 404, data: Data())
+        #expect(missingSentinel == nil)
+
+        let invalidSentinelID = ScribeClient.apiKeyValidationError(statusCode: 422, data: Data())
+        #expect(invalidSentinelID == nil)
+
         let unauthorized = ScribeClient.apiKeyValidationError(statusCode: 401, data: Data())
         #expect(unauthorized?.errorDescription == "ElevenLabs rejected this API key. Check that it is correct and enabled.")
 
