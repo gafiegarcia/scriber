@@ -43,6 +43,10 @@ struct ScriberDictateApp: App {
         }
         .defaultSize(width: 980, height: 640)
         .commands {
+            CommandGroup(replacing: .appTermination) {
+                Button("Quit Scriber Dictate") { NSApp.terminate(nil) }
+                    .keyboardShortcut("q", modifiers: .command)
+            }
             CommandGroup(after: .windowArrangement) {
                 Button("Close All Windows") { closeAllNormalWindows() }
                     .keyboardShortcut("w", modifiers: [.command, .shift])
