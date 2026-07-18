@@ -36,12 +36,23 @@ private enum KeySaveFeedback {
 
 struct MainWindowView: View {
     @EnvironmentObject private var runtime: AppRuntime
-    @State private var section: MainSection = .history
+    @State private var section: MainSection? = .history
 
     var body: some View {
-        TabView(selection: $section) {
-            HistoryView().tabItem { Label("History", systemImage: "clock.arrow.circlepath") }.tag(MainSection.history)
-            SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(MainSection.settings)
+        NavigationSplitView {
+            List(selection: $section) {
+                Label("History", systemImage: "clock.arrow.circlepath")
+                    .tag(MainSection.history)
+                Label("Settings", systemImage: "gearshape")
+                    .tag(MainSection.settings)
+            }
+            .navigationTitle("Scriber Dictate")
+            .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
+        } detail: {
+            switch section ?? .history {
+            case .history: HistoryView()
+            case .settings: SettingsView()
+            }
         }
         .frame(minWidth: 760, minHeight: 520)
         .sheet(isPresented: Binding(
@@ -50,6 +61,7 @@ struct MainWindowView: View {
         )) {
             OnboardingView().interactiveDismissDisabled()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .showScriberDictateHistory)) { _ in section = .history }
         .onReceive(NotificationCenter.default.publisher(for: .showScriberDictateSettings)) { _ in section = .settings }
     }
 }
@@ -59,34 +71,35 @@ struct MenuBarContent: View {
     @EnvironmentObject private var runtime: AppRuntime
 
     var body: some View {
-        Text(runtime.coordinator.statusText).foregroundStyle(.secondary)
-        Divider()
-        Button(menuDictationTitle) {
-            runtime.coordinator.startHandsFreeFromMenu()
-        }
-        Button("Open History") { openMain(section: .history) }
-        Button("Settings…") { openMain(section: .settings) }
-        Divider()
-        Text("Hold: \(runtime.preferences.holdShortcut.displayName)")
-        Text("Toggle: \(runtime.preferences.toggleShortcut.displayName)")
-        Divider()
-        Button("Quit Scriber Dictate") { NSApp.terminate(nil) }
-        WindowOpenBridge()
-            .frame(width: 0, height: 0)
-            .onAppear {
-                runtime.coordinator.startServices()
-                if !runtime.preferences.onboardingComplete { openMain(section: .history) }
+        Group {
+            Text(runtime.coordinator.statusText).foregroundStyle(.secondary)
+            Divider()
+            Button(menuDictationTitle) {
+                runtime.coordinator.startHandsFreeFromMenu()
             }
+            Button("Open History") { openMain(section: .history) }
+            Button("Settings…") { openMain(section: .settings) }
+            Divider()
+            Text("Hold: \(runtime.preferences.holdShortcut.displayName)")
+            Text("Toggle: \(runtime.preferences.toggleShortcut.displayName)")
+            Divider()
+            Button("Quit Scriber Dictate") { NSApp.terminate(nil) }
+        }
+        .onAppear {
+            runtime.coordinator.startServices()
+            if !runtime.preferences.onboardingComplete { openMain(section: .history) }
+        }
     }
 
     private func openMain(section: MainSection) {
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "main")
         NSApp.activate(ignoringOtherApps: true)
-        if section == .settings {
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .showScriberDictateSettings, object: nil)
-            }
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: section == .history ? .showScriberDictateHistory : .showScriberDictateSettings,
+                object: nil
+            )
         }
     }
 
@@ -99,23 +112,9 @@ struct MenuBarContent: View {
     }
 }
 
-private struct WindowOpenBridge: View {
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Color.clear
-            .onReceive(NotificationCenter.default.publisher(for: .openScriberDictateMainWindow)) { _ in
-                NSApp.setActivationPolicy(.regular)
-                openWindow(id: "main")
-                NSApp.activate(ignoringOtherApps: true)
-            }
-    }
-}
-
 struct HistoryView: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
-    @State private var selection: UUID?
     @State private var search = ""
     @State private var confirmClear = false
 
@@ -125,49 +124,119 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            List(filtered, selection: $selection) { record in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(record.text?.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80) ?? "Failed dictation")
-                        .lineLimit(2)
-                    HStack {
-                        Text(record.createdAt, style: .relative)
-                        Text("·")
-                        Text(record.durationSeconds.formatted(.number.precision(.fractionLength(1))) + "s")
-                        if record.transcriptionState == .failed {
-                            Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("History").font(.largeTitle.bold())
+                    Text("\(records.count) \(records.count == 1 ? "dictation" : "dictations")")
+                        .foregroundStyle(.secondary)
                 }
-                .tag(record.id)
-                .contextMenu {
-                    if record.text != nil { Button("Copy") { runtime.coordinator.copy(record) } }
-                    if record.transcriptionState == .failed, record.pendingAudioRelativePath != nil {
-                        Button("Retry") { runtime.coordinator.retry(record) }
-                    }
-                    Divider()
-                    Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+                Spacer()
+                Menu {
+                    Button("Clear History…", role: .destructive) { confirmClear = true }
+                        .disabled(records.isEmpty)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
+                .menuStyle(.borderlessButton)
+                .help("History actions")
             }
-            .searchable(text: $search, prompt: "Search dictations")
-            .navigationTitle("History")
-            .toolbar {
-                Button("Clear", role: .destructive) { confirmClear = true }.disabled(records.isEmpty)
-            }
-        } detail: {
-            if let record = records.first(where: { $0.id == selection }) {
-                DictationDetailView(record: record)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 18)
+
+            Divider()
+
+            if records.isEmpty {
+                ContentUnavailableView(
+                    "No Dictations Yet",
+                    systemImage: "waveform",
+                    description: Text("Your completed dictations and retryable failures will appear here.")
+                )
+            } else if filtered.isEmpty {
+                ContentUnavailableView.search(text: search)
             } else {
-                ContentUnavailableView("Select a Dictation", systemImage: "waveform")
+                List(filtered) { record in
+                    HistoryRow(record: record)
+                        .contextMenu {
+                            if let text = record.text, !text.isEmpty {
+                                Button("Copy") { runtime.coordinator.copy(record) }
+                            }
+                            if record.transcriptionState == .failed, record.pendingAudioRelativePath != nil {
+                                Button("Retry") { runtime.coordinator.retry(record) }
+                            }
+                            Divider()
+                            Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+                        }
+                }
+                .listStyle(.inset)
             }
         }
+        .navigationTitle("History")
+        .searchable(text: $search, prompt: "Search dictations")
         .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
             Button("Delete All", role: .destructive) { runtime.coordinator.clearHistory(records) }
         } message: {
             Text("This permanently removes transcripts and any retained failed recordings.")
         }
+    }
+}
+
+private struct HistoryRow: View {
+    @EnvironmentObject private var runtime: AppRuntime
+    let record: DictationRecord
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            Text(record.createdAt.formatted(date: .omitted, time: .shortened))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(width: 72, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(rowText)
+                    .lineLimit(4)
+                    .textSelection(.enabled)
+                HStack(spacing: 6) {
+                    Text(record.createdAt.formatted(date: .abbreviated, time: .omitted))
+                    Text("·")
+                    Text(record.durationSeconds.formatted(.number.precision(.fractionLength(1))) + "s")
+                    if record.transcriptionState == .failed {
+                        Label("Failed", systemImage: "exclamationmark.circle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 12)
+
+            if let text = record.text, !text.isEmpty {
+                Button { runtime.coordinator.copy(record) } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help("Copy transcription")
+            }
+            if record.transcriptionState == .failed, record.pendingAudioRelativePath != nil {
+                Button("Retry") { runtime.coordinator.retry(record) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+            Menu {
+                Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+            } label: {
+                Image(systemName: "ellipsis")
+            }
+            .menuStyle(.borderlessButton)
+            .frame(width: 24)
+        }
+        .padding(.vertical, 8)
+    }
+
+    private var rowText: String {
+        if let text = record.text, !text.isEmpty { return text }
+        return record.errorMessage ?? "Transcription failed."
     }
 }
 
@@ -275,6 +344,7 @@ struct SettingsView: View {
             if let message { Text(message).foregroundStyle(.secondary) }
         }
         .formStyle(.grouped)
+        .navigationTitle("Settings")
         .padding()
         .onAppear { apiKey = runtime.coordinator.loadAPIKey() }
         .onChange(of: apiKey) { _, _ in keyFeedback = nil }

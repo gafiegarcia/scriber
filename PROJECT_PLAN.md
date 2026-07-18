@@ -71,6 +71,12 @@ Product direction:
 - Reverified the complete unsigned Debug build and all six credit-free core tests after these fixes.
 - During shortcut testing, Wispr Flow was also running and competing for the same global `Fn` events. This temporarily disrupted Space input until Wispr Flow was stopped and `Fn` was pressed again to resynchronize modifier state. Hardware acceptance tests must be run with other global dictation/shortcut tools disabled.
 - Improved API-key UX in onboarding and Settings: save/update buttons now disable for blank input, successful Keychain storage receives an immediate green confirmation, failures appear inline in red, and the copy explains that the first transcription verifies the key with ElevenLabs. The app build was reverified afterward.
+- Completed the first post-baseline UX pass from hardware testing:
+  - Accessibility target capture now accepts only editable text controls, and pasteboard fallback reports success only when the target's observable text or selection state changes. Missing or unconfirmed targets keep the transcript in History and show Copy/Open actions instead of a false “Pasted” notice.
+  - Empty and punctuation-only API results are treated as “No words detected,” with no useless Retry/Open actions and no empty History record. Two credit-free tests cover this classification.
+  - Pill Open now routes through the process-lifetime app delegate, which retains and reopens the SwiftUI window even while the menu is closed.
+  - Replaced the History/Settings tab strip with a persistent native sidebar. History is now a full-page chronological list with inline actions; Clear History lives in the History overflow menu. This removes the inert tab-overflow double-arrow control and keeps the native sidebar toggle available across sections.
+- Reverified the complete unsigned Debug build and all eight credit-free core tests after this pass. Live acceptance checks remain required for paste confirmation across TextEdit, browsers, and code editors, plus closed-window reopening from the failure pill.
 
 ## Verification Notes
 

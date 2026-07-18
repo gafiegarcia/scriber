@@ -93,6 +93,14 @@ public enum ShortcutAction: Equatable, Sendable {
     case cancel
 }
 
+public enum TranscriptContent {
+    public static func normalized(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.unicodeScalars.contains(where: CharacterSet.alphanumerics.contains) else { return nil }
+        return trimmed
+    }
+}
+
 public struct ShortcutMatcher: Sendable {
     public var hold: ShortcutChord
     public var toggle: ShortcutChord

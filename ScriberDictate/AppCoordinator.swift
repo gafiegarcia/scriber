@@ -8,6 +8,7 @@ import ScriberDictateCore
 
 extension Notification.Name {
     static let openScriberDictateMainWindow = Notification.Name("openScriberDictateMainWindow")
+    static let showScriberDictateHistory = Notification.Name("showScriberDictateHistory")
     static let showScriberDictateSettings = Notification.Name("showScriberDictateSettings")
 }
 
@@ -179,6 +180,7 @@ final class AppCoordinator: ObservableObject {
 
     func openMainWindow() {
         NotificationCenter.default.post(name: .openScriberDictateMainWindow, object: nil)
+        NotificationCenter.default.post(name: .showScriberDictateHistory, object: nil)
     }
 
     private func startRecording(mode: RecordingMode) {
@@ -265,7 +267,20 @@ final class AppCoordinator: ObservableObject {
             let result = try await scribe.transcribe(request) { [weak self] attempt, delay in
                 await MainActor.run { self?.setPhase(.transcribing(attempt: attempt, retryDelay: delay)) }
             }
-            record.text = result.text
+            guard let transcript = TranscriptContent.normalized(result.text) else {
+                AudioRecorder.delete(relativePath: recording.relativePath)
+                modelContext.delete(record)
+                try modelContext.save()
+                currentRecord = nil
+                currentRecording = nil
+                paste.clearTarget()
+                pill.setPreferredScreen(nil)
+                shortcuts.setMode(.idle)
+                setPhase(.message("No words detected"))
+                return
+            }
+
+            record.text = transcript
             record.detectedLanguageCode = result.languageCode
             record.transcriptionState = .succeeded
             record.errorMessage = nil
@@ -276,9 +291,9 @@ final class AppCoordinator: ObservableObject {
             try modelContext.save()
 
             if attemptDelivery {
-                let delivery = await paste.insert(result.text)
+                let delivery = await paste.insert(transcript)
                 switch delivery {
-                case .inserted, .dispatched:
+                case .inserted:
                     record.deliveryState = .pasted
                     try modelContext.save()
                     setPhase(.pasted)

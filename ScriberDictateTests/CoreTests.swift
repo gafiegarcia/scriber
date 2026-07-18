@@ -52,3 +52,17 @@ struct ScribeValidationTests {
         #expect(!ScribeError.invalidRequest("bad input").retryable)
     }
 }
+
+@Suite("Transcript content")
+struct TranscriptContentTests {
+    @Test("Rejects empty and punctuation-only results")
+    func rejectsNoWords() {
+        #expect(TranscriptContent.normalized("   \n") == nil)
+        #expect(TranscriptContent.normalized("... — !") == nil)
+    }
+
+    @Test("Trims a transcript containing words")
+    func normalizesWords() {
+        #expect(TranscriptContent.normalized("  Hello, world. \n") == "Hello, world.")
+    }
+}

@@ -5,7 +5,6 @@ import Foundation
 
 enum PasteResult: Sendable {
     case inserted
-    case dispatched
     case failed(String)
 }
 
@@ -25,21 +24,43 @@ final class PasteService {
         guard AXUIElementCopyAttributeValue(system, kAXFocusedApplicationAttribute as CFString, &applicationValue) == .success,
               let applicationValue,
               CFGetTypeID(applicationValue) == AXUIElementGetTypeID() else { return nil }
-        let application = unsafeBitCast(applicationValue, to: AXUIElement.self)
+        let application = unsafeDowncast(applicationValue, to: AXUIElement.self)
         var focusedValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &focusedValue) == .success,
               let focusedValue,
               CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else { return nil }
-        let focused = unsafeBitCast(focusedValue, to: AXUIElement.self)
+        let focused = unsafeDowncast(focusedValue, to: AXUIElement.self)
         var roleValue: CFTypeRef?
         _ = AXUIElementCopyAttributeValue(focused, kAXRoleAttribute as CFString, &roleValue)
         if let role = roleValue as? String, role == "AXSecureTextField" { return nil }
+        guard isEditableTextElement(focused, role: roleValue as? String) else { return nil }
         var pid: pid_t = 0
         AXUIElementGetPid(application, &pid)
         target = focused
         targetPID = pid
         targetScreen = screen(containing: focused)
         return targetScreen
+    }
+
+    private func isEditableTextElement(_ element: AXUIElement, role: String?) -> Bool {
+        var selectedTextSettable = DarwinBoolean(false)
+        if AXUIElementIsAttributeSettable(
+            element,
+            kAXSelectedTextAttribute as CFString,
+            &selectedTextSettable
+        ) == .success, selectedTextSettable.boolValue {
+            return true
+        }
+
+        guard let role, ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"].contains(role) else {
+            return false
+        }
+        var valueSettable = DarwinBoolean(false)
+        return AXUIElementIsAttributeSettable(
+            element,
+            kAXValueAttribute as CFString,
+            &valueSettable
+        ) == .success && valueSettable.boolValue
     }
 
     func clearTarget() {
@@ -64,6 +85,7 @@ final class PasteService {
             return .failed("The original text box is no longer focused.")
         }
 
+        let stateBeforePaste = textState(of: target)
         let pasteboard = NSPasteboard.general
         let snapshot = PasteboardSnapshot.capture(pasteboard)
         pasteboard.clearContents()
@@ -76,8 +98,13 @@ final class PasteService {
             return .failed("macOS could not dispatch the Paste command.")
         }
         try? await Task.sleep(for: .milliseconds(500))
+        let stateAfterPaste = textState(of: target)
         snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
-        return .dispatched
+        guard stateBeforePaste != stateAfterPaste,
+              stateBeforePaste.hasObservableValue || stateAfterPaste.hasObservableValue else {
+            return .failed("macOS did not confirm that the transcription was inserted.")
+        }
+        return .inserted
     }
 
     private func focusedElementStillMatches(_ expected: AXUIElement) -> Bool {
@@ -88,6 +115,33 @@ final class PasteService {
         return CFEqual(current, expected)
     }
 
+    private func textState(of element: AXUIElement) -> TextElementState {
+        var valueReference: CFTypeRef?
+        let valueStatus = AXUIElementCopyAttributeValue(
+            element,
+            kAXValueAttribute as CFString,
+            &valueReference
+        )
+        let value = valueStatus == .success ? valueReference as? String : nil
+
+        var rangeReference: CFTypeRef?
+        var selectedRange: NSRange?
+        if AXUIElementCopyAttributeValue(
+            element,
+            kAXSelectedTextRangeAttribute as CFString,
+            &rangeReference
+        ) == .success,
+           let rangeReference,
+           CFGetTypeID(rangeReference) == AXValueGetTypeID() {
+            let rangeValue = unsafeDowncast(rangeReference, to: AXValue.self)
+            var range = CFRange()
+            if AXValueGetValue(rangeValue, .cfRange, &range) {
+                selectedRange = NSRange(location: range.location, length: range.length)
+            }
+        }
+        return TextElementState(value: value, selectedRange: selectedRange)
+    }
+
     private func screen(containing element: AXUIElement) -> NSScreen? {
         var positionReference: CFTypeRef?
         var sizeReference: CFTypeRef?
@@ -96,8 +150,8 @@ final class PasteService {
               let positionReference, let sizeReference,
               CFGetTypeID(positionReference) == AXValueGetTypeID(),
               CFGetTypeID(sizeReference) == AXValueGetTypeID() else { return nil }
-        let positionValue = unsafeBitCast(positionReference, to: AXValue.self)
-        let sizeValue = unsafeBitCast(sizeReference, to: AXValue.self)
+        let positionValue = unsafeDowncast(positionReference, to: AXValue.self)
+        let sizeValue = unsafeDowncast(sizeReference, to: AXValue.self)
         var point = CGPoint.zero
         var size = CGSize.zero
         guard AXValueGetValue(positionValue, .cgPoint, &point),
@@ -118,6 +172,13 @@ final class PasteService {
         up.post(tap: .cghidEventTap)
         return true
     }
+}
+
+private struct TextElementState: Equatable {
+    let value: String?
+    let selectedRange: NSRange?
+
+    var hasObservableValue: Bool { value != nil || selectedRange != nil }
 }
 
 private struct PasteboardSnapshot {

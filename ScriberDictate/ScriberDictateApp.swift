@@ -74,9 +74,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         let center = NotificationCenter.default
+        NSApp.windows.filter { !($0 is NSPanel) }.forEach { $0.isReleasedWhenClosed = false }
         observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { note in
             guard let window = note.object as? NSWindow, !(window is NSPanel) else { return }
-            Task { @MainActor in NSApp.setActivationPolicy(.regular) }
+            Task { @MainActor in
+                window.isReleasedWhenClosed = false
+                NSApp.setActivationPolicy(.regular)
+            }
         })
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { note in
             guard let window = note.object as? NSWindow, !(window is NSPanel) else { return }
@@ -85,12 +89,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if !visibleNormalWindow { NSApp.setActivationPolicy(.accessory) }
             }
         })
+        observers.append(center.addObserver(forName: .openScriberDictateMainWindow, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.showMainWindow() }
+        })
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { NotificationCenter.default.post(name: .openScriberDictateMainWindow, object: nil) }
+        if !flag { showMainWindow() }
         return true
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    private func showMainWindow() {
+        guard let window = NSApp.windows.first(where: { !($0 is NSPanel) }) else { return }
+        NSApp.setActivationPolicy(.regular)
+        window.isReleasedWhenClosed = false
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
 }
