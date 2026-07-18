@@ -8,6 +8,17 @@ import ScriberDictateCore
 
 enum MainSection: Hashable { case history, settings }
 
+struct SearchHistoryActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var searchHistoryAction: (() -> Void)? {
+        get { self[SearchHistoryActionKey.self] }
+        set { self[SearchHistoryActionKey.self] = newValue }
+    }
+}
+
 private enum KeySaveFeedback {
     case saved
     case failed(String)
@@ -38,6 +49,8 @@ struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var runtime: AppRuntime
     @State private var section: MainSection? = .history
+    @FocusState private var sidebarFocused: Bool
+    @FocusState private var historySearchFocused: Bool
 
     var body: some View {
         NavigationSplitView {
@@ -49,19 +62,22 @@ struct MainWindowView: View {
             }
             .navigationTitle("Scriber Dictate")
             .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
+            .focused($sidebarFocused)
         } detail: {
             Group {
                 switch section ?? .history {
-                case .history: HistoryView()
+                case .history: HistoryView(searchFocused: $historySearchFocused)
                 case .settings: SettingsView()
                 }
             }
             .navigationTitle(section == .settings ? "Settings" : "History")
         }
         .frame(minWidth: 760, minHeight: 520)
+        .focusedSceneValue(\.searchHistoryAction, focusHistorySearch)
         .onAppear {
             applyMainWindowRequest(runtime.coordinator.mainWindowRequest)
             openOnboardingIfNeeded()
+            focusSidebarIfAppropriate()
         }
         .onChange(of: runtime.preferences.onboardingComplete) { _, _ in openOnboardingIfNeeded() }
         .onChange(of: runtime.coordinator.mainWindowRequest) { _, request in
@@ -72,6 +88,20 @@ struct MainWindowView: View {
     private func applyMainWindowRequest(_ request: MainWindowRequest?) {
         guard let request else { return }
         section = request.destination == .history ? .history : .settings
+    }
+
+    private func focusSidebarIfAppropriate() {
+        switch runtime.coordinator.mainWindowRequest?.destination {
+        case .apiKey, .usage:
+            return
+        case .history, .settings, nil:
+            DispatchQueue.main.async { sidebarFocused = true }
+        }
+    }
+
+    private func focusHistorySearch() {
+        section = .history
+        DispatchQueue.main.async { historySearchFocused = true }
     }
 
     private func openOnboardingIfNeeded() {
@@ -136,6 +166,7 @@ struct MenuBarContent: View {
 struct HistoryView: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
+    let searchFocused: FocusState<Bool>.Binding
     @State private var search = ""
     @State private var confirmClear = false
 
@@ -192,6 +223,7 @@ struct HistoryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .searchable(text: $search, prompt: "Search dictations")
+        .searchFocused(searchFocused)
         .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
             Button("Delete All", role: .destructive) { runtime.coordinator.clearHistory(records) }
         } message: {

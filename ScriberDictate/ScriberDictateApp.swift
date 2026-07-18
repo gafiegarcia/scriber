@@ -43,6 +43,7 @@ struct ScriberDictateApp: App {
         }
         .defaultSize(width: 980, height: 640)
         .commands {
+            MainWindowCommands()
             CommandGroup(replacing: .appTermination) {
                 Button("Quit Scriber Dictate") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
@@ -84,6 +85,18 @@ struct ScriberDictateApp: App {
 
     private func closeAllNormalWindows() {
         NSApp.windows.filter { !($0 is NSPanel) }.forEach { $0.performClose(nil) }
+    }
+}
+
+private struct MainWindowCommands: Commands {
+    @FocusedValue(\.searchHistoryAction) private var searchHistory
+
+    var body: some Commands {
+        CommandGroup(after: .textEditing) {
+            Button("Search History") { searchHistory?() }
+                .keyboardShortcut("f", modifiers: .command)
+                .disabled(searchHistory == nil)
+        }
     }
 }
 
