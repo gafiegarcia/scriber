@@ -126,9 +126,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
-        DispatchQueue.main.async {
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
-        }
+        NSApp.activate()
     }
 }

@@ -363,13 +363,20 @@ final class AppCoordinator: ObservableObject {
     }
 
     func openMainWindow() {
+        prepareForMainWindowActivation()
         NotificationCenter.default.post(name: .openScriberDictateMainWindow, object: nil)
         NotificationCenter.default.post(name: .showScriberDictateHistory, object: nil)
     }
 
     func openAPIKeySettings() {
+        prepareForMainWindowActivation()
         NotificationCenter.default.post(name: .openScriberDictateMainWindow, object: nil)
         NotificationCenter.default.post(name: .showScriberDictateSettings, object: nil)
+    }
+
+    private func prepareForMainWindowActivation() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate()
     }
 
     private func startRecording(mode: RecordingMode) {

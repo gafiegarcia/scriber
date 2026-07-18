@@ -62,14 +62,14 @@ final class PillController {
     init() {
         panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 62),
-            styleMask: [.borderless, .nonactivatingPanel],
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
         glassView = NSGlassEffectView(frame: NSRect(x: 0, y: 0, width: 300, height: 62))
         panel.level = .statusBar
         panel.isFloatingPanel = true
-        panel.becomesKeyOnlyIfNeeded = true
+        panel.becomesKeyOnlyIfNeeded = false
         panel.hidesOnDeactivate = false
         panel.hasShadow = false
         panel.backgroundColor = .clear
