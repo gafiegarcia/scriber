@@ -56,10 +56,19 @@ struct MainWindowView: View {
             }
         }
         .frame(minWidth: 760, minHeight: 520)
-        .onAppear { openOnboardingIfNeeded() }
+        .onAppear {
+            applyMainWindowRequest(runtime.coordinator.mainWindowRequest)
+            openOnboardingIfNeeded()
+        }
         .onChange(of: runtime.preferences.onboardingComplete) { _, _ in openOnboardingIfNeeded() }
-        .onReceive(NotificationCenter.default.publisher(for: .showScriberDictateHistory)) { _ in section = .history }
-        .onReceive(NotificationCenter.default.publisher(for: .showScriberDictateSettings)) { _ in section = .settings }
+        .onChange(of: runtime.coordinator.mainWindowRequest) { _, request in
+            applyMainWindowRequest(request)
+        }
+    }
+
+    private func applyMainWindowRequest(_ request: MainWindowRequest?) {
+        guard let request else { return }
+        section = request.destination == .history ? .history : .settings
     }
 
     private func openOnboardingIfNeeded() {
@@ -106,15 +115,10 @@ struct MenuBarContent: View {
     }
 
     private func openMain(section: MainSection) {
+        runtime.coordinator.selectMainWindowDestination(section == .history ? .history : .settings)
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "main")
         NSApp.activate(ignoringOtherApps: true)
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(
-                name: section == .history ? .showScriberDictateHistory : .showScriberDictateSettings,
-                object: nil
-            )
-        }
     }
 
     private var menuDictationTitle: String {
@@ -314,9 +318,11 @@ struct SettingsView: View {
     @State private var isCheckingAPIKey = false
     @State private var newKeyterm = ""
     @State private var message: String?
+    @FocusState private var apiKeyFieldFocused: Bool
 
     var body: some View {
-        Form {
+        ScrollViewReader { proxy in
+            Form {
             Section("ElevenLabs") {
                 SecureField(
                     text: $apiKey,
@@ -331,6 +337,8 @@ struct SettingsView: View {
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
                     .disabled(isCheckingAPIKey)
+                    .focused($apiKeyFieldFocused)
+                    .id(MainWindowDestination.apiKey)
                 HStack {
                     Button {
                         Task { await saveKey() }
@@ -357,6 +365,7 @@ struct SettingsView: View {
                     Spacer(minLength: 0)
                 }
                 subscriptionUsageView
+                    .id(MainWindowDestination.usage)
                 Picker("Language", selection: $runtime.preferences.languageCode) {
                     Text("Automatic").tag("auto")
                     Text("English").tag("en")
@@ -409,16 +418,35 @@ struct SettingsView: View {
                 ))
             }
             if let message { Text(message).foregroundStyle(.secondary) }
+            }
+            .formStyle(.grouped)
+            .navigationTitle("Settings")
+            .padding()
+            .onAppear {
+                apiKey = ""
+                runtime.coordinator.refreshPermissions(promptForAccessibility: false)
+                applyMainWindowRequest(runtime.coordinator.mainWindowRequest, proxy: proxy)
+            }
+            .onChange(of: runtime.coordinator.mainWindowRequest) { _, request in
+                applyMainWindowRequest(request, proxy: proxy)
+            }
+            .onChange(of: apiKey) { _, newValue in
+                if !newValue.isEmpty { keyFeedback = nil }
+            }
         }
-        .formStyle(.grouped)
-        .navigationTitle("Settings")
-        .padding()
-        .onAppear {
-            apiKey = ""
-            runtime.coordinator.refreshPermissions(promptForAccessibility: false)
-        }
-        .onChange(of: apiKey) { _, newValue in
-            if !newValue.isEmpty { keyFeedback = nil }
+    }
+
+    private func applyMainWindowRequest(_ request: MainWindowRequest?, proxy: ScrollViewProxy) {
+        guard let request else { return }
+        switch request.destination {
+        case .apiKey:
+            proxy.scrollTo(MainWindowDestination.apiKey, anchor: .top)
+            DispatchQueue.main.async { apiKeyFieldFocused = true }
+        case .usage:
+            apiKeyFieldFocused = false
+            proxy.scrollTo(MainWindowDestination.usage, anchor: .center)
+        case .history, .settings:
+            apiKeyFieldFocused = false
         }
     }
 

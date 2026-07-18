@@ -104,7 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         })
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { note in
             guard let window = note.object as? NSWindow, !(window is NSPanel) else { return }
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 let visibleNormalWindow = NSApp.windows.contains { $0.isVisible && !($0 is NSPanel) }
                 if !visibleNormalWindow { NSApp.setActivationPolicy(.accessory) }
             }

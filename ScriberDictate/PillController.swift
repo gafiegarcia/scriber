@@ -42,6 +42,7 @@ final class PillModel: ObservableObject {
     var onCopy: (() -> Void)?
     var onOpen: (() -> Void)?
     var onOpenAPIKeySettings: (() -> Void)?
+    var onOpenUsageSettings: (() -> Void)?
     var onRetry: (() -> Void)?
     var onDismiss: (() -> Void)?
     var onHoverChanged: ((Bool) -> Void)?
@@ -361,7 +362,7 @@ private struct PillView: View {
                 .controlSize(.small)
             dismissButton
         case .apiCreditsExhausted:
-            Button("View Usage") { model.onOpenAPIKeySettings?() }
+            Button("View Usage") { model.onOpenUsageSettings?() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
             dismissButton

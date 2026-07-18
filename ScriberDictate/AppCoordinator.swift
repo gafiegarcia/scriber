@@ -9,8 +9,18 @@ import ScriberDictateCore
 
 extension Notification.Name {
     static let openScriberDictateMainWindow = Notification.Name("openScriberDictateMainWindow")
-    static let showScriberDictateHistory = Notification.Name("showScriberDictateHistory")
-    static let showScriberDictateSettings = Notification.Name("showScriberDictateSettings")
+}
+
+enum MainWindowDestination: Hashable {
+    case history
+    case settings
+    case apiKey
+    case usage
+}
+
+struct MainWindowRequest: Equatable {
+    let id = UUID()
+    let destination: MainWindowDestination
 }
 
 @MainActor
@@ -27,6 +37,7 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var subscriptionUsageUnavailable = false
     @Published private(set) var isRefreshingSubscriptionUsage = false
     @Published private(set) var subscriptionUsageError: String?
+    @Published private(set) var mainWindowRequest: MainWindowRequest?
 
     let preferences: Preferences
     let modelContext: ModelContext
@@ -56,6 +67,7 @@ final class AppCoordinator: ObservableObject {
         pill.model.onCopy = { [weak self] in self?.copyCurrentResult() }
         pill.model.onOpen = { [weak self] in self?.openMainWindow() }
         pill.model.onOpenAPIKeySettings = { [weak self] in self?.openAPIKeySettings() }
+        pill.model.onOpenUsageSettings = { [weak self] in self?.openUsageSettings() }
         pill.model.onRetry = { [weak self] in self?.retryCurrentFailure() }
         pill.model.onDismiss = { [weak self] in self?.returnToIdle() }
 
@@ -363,15 +375,25 @@ final class AppCoordinator: ObservableObject {
     }
 
     func openMainWindow() {
-        prepareForMainWindowActivation()
-        NotificationCenter.default.post(name: .openScriberDictateMainWindow, object: nil)
-        NotificationCenter.default.post(name: .showScriberDictateHistory, object: nil)
+        openMainWindow(destination: .history)
     }
 
     func openAPIKeySettings() {
+        openMainWindow(destination: .apiKey)
+    }
+
+    func openUsageSettings() {
+        openMainWindow(destination: .usage)
+    }
+
+    func selectMainWindowDestination(_ destination: MainWindowDestination) {
+        mainWindowRequest = MainWindowRequest(destination: destination)
+    }
+
+    private func openMainWindow(destination: MainWindowDestination) {
+        selectMainWindowDestination(destination)
         prepareForMainWindowActivation()
         NotificationCenter.default.post(name: .openScriberDictateMainWindow, object: nil)
-        NotificationCenter.default.post(name: .showScriberDictateSettings, object: nil)
     }
 
     private func prepareForMainWindowActivation() {
