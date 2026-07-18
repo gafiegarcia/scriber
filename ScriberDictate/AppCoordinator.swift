@@ -42,6 +42,7 @@ final class AppCoordinator: ObservableObject {
     let preferences: Preferences
     let modelContext: ModelContext
 
+    private let servicesAllowed: Bool
     private let keychain = KeychainStore()
     private let recorder = AudioRecorder()
     private let scribe = ScribeClient()
@@ -59,9 +60,10 @@ final class AppCoordinator: ObservableObject {
     private var credentialRevision = CredentialRevision()
     private var cancellables = Set<AnyCancellable>()
 
-    init(preferences: Preferences, modelContext: ModelContext) {
+    init(preferences: Preferences, modelContext: ModelContext, servicesAllowed: Bool = true) {
         self.preferences = preferences
         self.modelContext = modelContext
+        self.servicesAllowed = servicesAllowed
         shortcuts = GlobalShortcutService(hold: preferences.holdShortcut, toggle: preferences.toggleShortcut)
 
         shortcuts.onAction = { [weak self] action in self?.handle(action) }
@@ -114,6 +116,11 @@ final class AppCoordinator: ObservableObject {
 
     func startServices() {
         refreshPermissions(promptForAccessibility: false)
+        guard servicesAllowed else {
+            shortcuts.stop()
+            shortcutMonitorAvailable = false
+            return
+        }
         guard preferences.onboardingComplete else {
             shortcuts.stop()
             shortcutMonitorAvailable = false
@@ -129,7 +136,7 @@ final class AppCoordinator: ObservableObject {
         microphoneGranted = AudioRecorder.microphoneAuthorized
         microphonePermissionState = AudioRecorder.microphonePermissionState
         refreshAudioInputDevices()
-        if accessibilityGranted, preferences.onboardingComplete {
+        if servicesAllowed, accessibilityGranted, preferences.onboardingComplete {
             shortcuts.start()
         } else {
             shortcuts.stop()

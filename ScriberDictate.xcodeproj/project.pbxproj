@@ -23,7 +23,18 @@
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
 		A1000000000000000000000F /* ../ScriberDictateCore/CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ../ScriberDictateCore/CoreModels.swift */; };
 		A10000000000000000000010 /* ../ScriberDictateCore/CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* ../ScriberDictateCore/CredentialStore.swift */; };
+		A20000000000000000000001 /* ScriberDictateUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* ScriberDictateUITests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		G20000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E10000000000000000000002 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E10000000000000000000001;
+			remoteInfo = ScriberDictate;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		B10000000000000000000001 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
@@ -45,10 +56,19 @@
 		B10000000000000000000011 /* Scriber Dictate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Scriber Dictate.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000012 /* ../ScriberDictateCore/CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberDictateCore/CoreModels.swift; sourceTree = "<group>"; };
 		B10000000000000000000013 /* ../ScriberDictateCore/CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberDictateCore/CredentialStore.swift; sourceTree = "<group>"; };
+		B20000000000000000000001 /* ScriberDictateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriberDictateUITests.swift; sourceTree = "<group>"; };
+		B20000000000000000000002 /* ScriberDictateUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScriberDictateUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		C10000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C20000000000000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -62,6 +82,7 @@
 			isa = PBXGroup;
 			children = (
 				D10000000000000000000002 /* ScriberDictate */,
+				D20000000000000000000001 /* ScriberDictateUITests */,
 				D10000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -91,10 +112,19 @@
 			path = ScriberDictate;
 			sourceTree = "<group>";
 		};
+		D20000000000000000000001 /* ScriberDictateUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B20000000000000000000001 /* ScriberDictateUITests.swift */,
+			);
+			path = ScriberDictateUITests;
+			sourceTree = "<group>";
+		};
 		D10000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				B10000000000000000000011 /* Scriber Dictate.app */,
+				B20000000000000000000002 /* ScriberDictateUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -119,6 +149,24 @@
 			productReference = B10000000000000000000011 /* Scriber Dictate.app */;
 			productType = "com.apple.product-type.application";
 		};
+		E20000000000000000000001 /* ScriberDictateUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F20000000000000000000001 /* Build configuration list for PBXNativeTarget "ScriberDictateUITests" */;
+			buildPhases = (
+				C20000000000000000000002 /* Sources */,
+				C20000000000000000000001 /* Frameworks */,
+				C20000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				G20000000000000000000002 /* PBXTargetDependency */,
+			);
+			name = ScriberDictateUITests;
+			productName = ScriberDictateUITests;
+			productReference = B20000000000000000000002 /* ScriberDictateUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -137,6 +185,10 @@
 							};
 						};
 					};
+					E20000000000000000000001 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = E10000000000000000000001;
+					};
 				};
 			};
 			buildConfigurationList = F10000000000000000000001 /* Build configuration list for PBXProject "ScriberDictate" */;
@@ -153,6 +205,7 @@
 			projectRoot = "";
 			targets = (
 				E10000000000000000000001 /* ScriberDictate */,
+				E20000000000000000000001 /* ScriberDictateUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -163,6 +216,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000000000000000000000E /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C20000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -191,7 +251,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C20000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A20000000000000000000001 /* ScriberDictateUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		G20000000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E10000000000000000000001 /* ScriberDictate */;
+			targetProxy = G20000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		F10000000000000000000010 /* Debug */ = {
@@ -267,6 +343,38 @@
 			};
 			name = Release;
 		};
+		F20000000000000000000010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 24U8BM54A3;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber-dictate.ui-tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = ScriberDictate;
+			};
+			name = Debug;
+		};
+		F20000000000000000000011 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 24U8BM54A3;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber-dictate.ui-tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = ScriberDictate;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -284,6 +392,15 @@
 			buildConfigurations = (
 				F10000000000000000000012 /* Debug */,
 				F10000000000000000000013 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F20000000000000000000001 /* Build configuration list for PBXNativeTarget "ScriberDictateUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F20000000000000000000010 /* Debug */,
+				F20000000000000000000011 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -3,6 +3,16 @@ import Combine
 import SwiftData
 import SwiftUI
 
+enum AppLaunchConfiguration {
+    static var isUITesting: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-testing")
+#else
+        false
+#endif
+    }
+}
+
 @MainActor
 final class AppRuntime: ObservableObject {
     let container: ModelContainer
@@ -11,22 +21,42 @@ final class AppRuntime: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        do {
-            container = try ModelContainer(for: DictationRecord.self)
-        } catch {
+        let isUITesting = AppLaunchConfiguration.isUITesting
+        if isUITesting {
             let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
             container = try! ModelContainer(for: DictationRecord.self, configurations: configuration)
+        } else {
+            do {
+                container = try ModelContainer(for: DictationRecord.self)
+            } catch {
+                let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+                container = try! ModelContainer(for: DictationRecord.self, configurations: configuration)
+            }
         }
-        let inputDevices = AudioRecorder.availableInputDevices()
-        preferences = Preferences(defaultAudioInputSelection: .initialSelection(from: inputDevices))
-        coordinator = AppCoordinator(preferences: preferences, modelContext: container.mainContext)
+
+        if isUITesting {
+            let suiteName = "com.gafiegarcia.scriber-dictate.ui-testing"
+            let defaults = UserDefaults(suiteName: suiteName)!
+            defaults.removePersistentDomain(forName: suiteName)
+            preferences = Preferences(defaults: defaults, defaultAudioInputSelection: .automatic)
+        } else {
+            let inputDevices = AudioRecorder.availableInputDevices()
+            preferences = Preferences(defaultAudioInputSelection: .initialSelection(from: inputDevices))
+        }
+
+        coordinator = AppCoordinator(
+            preferences: preferences,
+            modelContext: container.mainContext,
+            servicesAllowed: !isUITesting
+        )
+        if isUITesting { preferences.onboardingComplete = true }
         preferences.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
         coordinator.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
-        coordinator.startServices()
+        if !isUITesting { coordinator.startServices() }
     }
 }
 
@@ -105,7 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var observers: [NSObjectProtocol] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(AppLaunchConfiguration.isUITesting ? .regular : .accessory)
         let center = NotificationCenter.default
         NSApp.windows.filter { !($0 is NSPanel) }.forEach { $0.isReleasedWhenClosed = false }
         observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { note in

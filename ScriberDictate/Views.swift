@@ -57,9 +57,12 @@ struct MainWindowView: View {
             List(selection: $section) {
                 Label("History", systemImage: "clock.arrow.circlepath")
                     .tag(MainSection.history)
+                    .accessibilityIdentifier("sidebar-history")
                 Label("Settings", systemImage: "gearshape")
                     .tag(MainSection.settings)
+                    .accessibilityIdentifier("sidebar-settings")
             }
+            .accessibilityIdentifier("main-sidebar")
             .navigationTitle("Scriber Dictate")
             .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
             .focused($sidebarFocused)
@@ -222,6 +225,7 @@ struct HistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("history-view")
         .searchable(text: $search, prompt: "Search dictations")
         .searchFocused(searchFocused)
         .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
@@ -452,6 +456,7 @@ struct SettingsView: View {
             if let message { Text(message).foregroundStyle(.secondary) }
             }
             .formStyle(.grouped)
+            .accessibilityIdentifier("settings-view")
             .padding()
             .onAppear {
                 apiKey = ""
