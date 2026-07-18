@@ -319,11 +319,17 @@ struct SettingsView: View {
         Form {
             Section("ElevenLabs") {
                 SecureField(
-                    runtime.preferences.apiKeyConfigured
-                        ? "Enter a new API key to replace the stored key"
-                        : "API key",
-                    text: $apiKey
-                )
+                    text: $apiKey,
+                    prompt: Text(
+                        runtime.preferences.apiKeyConfigured
+                            ? "Enter a new API key to replace the stored key"
+                            : "Paste your ElevenLabs API key"
+                    )
+                ) {
+                    Text("ElevenLabs API key")
+                }
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
                     .disabled(isCheckingAPIKey)
                 HStack {
                     Button {
