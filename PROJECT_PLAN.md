@@ -78,6 +78,7 @@ Product direction:
   - Replaced the History/Settings tab strip with a persistent native sidebar. History is now a full-page chronological list with inline actions; Clear History lives in the History overflow menu. This removes the inert tab-overflow double-arrow control and keeps the native sidebar toggle available across sections.
 - Reverified the complete unsigned Debug build and all eight credit-free core tests after this pass. Live acceptance checks remain required for paste confirmation across TextEdit, browsers, and code editors, plus closed-window reopening from the failure pill.
 - Converted the floating pill from a custom material background to native SwiftUI Liquid Glass. Normal states now use a compact 300×62 pill with increased internal padding; actionable failures expand to 430×72 so their controls remain comfortable. The first request reads only “Transcribing…”, while retryable failures surface “Retrying 2/3…” or “Retrying 3/3…” and show the wait duration as secondary text. The Xcode Debug build passes after this change.
+- Removed an AppKit layout-recursion trigger in the pill: panel size is now changed only when transitioning between compact and actionable-failure layouts, rather than on every 100 ms audio-meter update. Core Spotlight `CSInlineDonation` service errors observed in Xcode are macOS 27 beta system-service diagnostics and do not affect app behavior or stored data.
 
 ## Verification Notes
 

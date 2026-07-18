@@ -20,6 +20,7 @@ final class PillController {
     private let panel: NSPanel
     private var hideTask: Task<Void, Never>?
     private var preferredScreen: NSScreen?
+    private var currentPanelSize = NSSize(width: 300, height: 62)
 
     init() {
         panel = NSPanel(
@@ -41,8 +42,12 @@ final class PillController {
 
     func update(_ phase: AppPhase) {
         hideTask?.cancel()
+        let desiredSize = panelSize(for: phase)
+        if desiredSize != currentPanelSize {
+            panel.setContentSize(desiredSize)
+            currentPanelSize = desiredSize
+        }
         model.phase = phase
-        panel.setContentSize(panelSize(for: phase))
         switch phase {
         case .idle:
             panel.orderOut(nil)
