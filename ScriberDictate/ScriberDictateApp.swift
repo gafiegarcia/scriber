@@ -53,6 +53,20 @@ struct ScriberDictateApp: App {
             }
         }
 
+        Window("Set Up Scriber Dictate", id: "onboarding") {
+            OnboardingView()
+                .environmentObject(runtime)
+                .modelContainer(runtime.container)
+        }
+        .defaultPosition(.center)
+        .windowResizability(.contentSize)
+        .commands {
+            CommandGroup(replacing: .appTermination) {
+                Button("Quit Scriber Dictate") { NSApp.terminate(nil) }
+                    .keyboardShortcut("q", modifiers: .command)
+            }
+        }
+
         MenuBarExtra("Scriber Dictate", systemImage: menuBarSymbol) {
             MenuBarContent().environmentObject(runtime)
         }
@@ -108,7 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     private func showMainWindow() {
-        guard let window = NSApp.windows.first(where: { !($0 is NSPanel) }) else { return }
+        guard let window = NSApp.windows.first(where: { !($0 is NSPanel) && $0.title == "Scriber Dictate" }) else { return }
         NSApp.setActivationPolicy(.regular)
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)

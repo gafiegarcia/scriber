@@ -35,6 +35,7 @@ private enum KeySaveFeedback {
 }
 
 struct MainWindowView: View {
+    @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var runtime: AppRuntime
     @State private var section: MainSection? = .history
 
@@ -55,14 +56,17 @@ struct MainWindowView: View {
             }
         }
         .frame(minWidth: 760, minHeight: 520)
-        .sheet(isPresented: Binding(
-            get: { !runtime.preferences.onboardingComplete },
-            set: { _ in }
-        )) {
-            OnboardingView().interactiveDismissDisabled()
-        }
+        .onAppear { openOnboardingIfNeeded() }
+        .onChange(of: runtime.preferences.onboardingComplete) { _, _ in openOnboardingIfNeeded() }
         .onReceive(NotificationCenter.default.publisher(for: .showScriberDictateHistory)) { _ in section = .history }
         .onReceive(NotificationCenter.default.publisher(for: .showScriberDictateSettings)) { _ in section = .settings }
+    }
+
+    private func openOnboardingIfNeeded() {
+        guard !runtime.preferences.onboardingComplete else { return }
+        NSApp.setActivationPolicy(.regular)
+        openWindow(id: "onboarding")
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
 
@@ -74,8 +78,12 @@ struct MenuBarContent: View {
         Group {
             Text(runtime.coordinator.statusText).foregroundStyle(.secondary)
             Divider()
-            Button(menuDictationTitle) {
-                runtime.coordinator.startHandsFreeFromMenu()
+            if runtime.preferences.onboardingComplete {
+                Button(menuDictationTitle) {
+                    runtime.coordinator.startHandsFreeFromMenu()
+                }
+            } else {
+                Button("Finish Setup…") { openOnboarding() }
             }
             Button("Open History") { openMain(section: .history) }
             Button("Settings…") { openMain(section: .settings) }
@@ -87,8 +95,14 @@ struct MenuBarContent: View {
         }
         .onAppear {
             runtime.coordinator.startServices()
-            if !runtime.preferences.onboardingComplete { openMain(section: .history) }
+            if !runtime.preferences.onboardingComplete { openOnboarding() }
         }
+    }
+
+    private func openOnboarding() {
+        NSApp.setActivationPolicy(.regular)
+        openWindow(id: "onboarding")
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func openMain(section: MainSection) {
@@ -415,6 +429,7 @@ struct SettingsView: View {
 }
 
 struct OnboardingView: View {
+    @Environment(\.dismissWindow) private var dismissWindow
     @EnvironmentObject private var runtime: AppRuntime
     @State private var apiKey = ""
     @State private var keyFeedback: KeySaveFeedback?
@@ -550,6 +565,10 @@ struct OnboardingView: View {
         .padding(32)
         .frame(width: 640)
         .onAppear {
+            guard !runtime.preferences.onboardingComplete else {
+                dismissWindow(id: "onboarding")
+                return
+            }
             apiKey = runtime.coordinator.loadAPIKey()
             runtime.coordinator.refreshPermissions(promptForAccessibility: false)
             if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
@@ -576,6 +595,7 @@ struct OnboardingView: View {
         }
         runtime.preferences.onboardingComplete = true
         runtime.coordinator.startServices()
+        dismissWindow(id: "onboarding")
     }
 
     @ViewBuilder private var microphonePermissionButton: some View {

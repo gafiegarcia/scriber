@@ -77,7 +77,8 @@ final class AppCoordinator: ObservableObject {
     }
 
     var statusText: String {
-        switch phase {
+        if !preferences.onboardingComplete { return "Setup required" }
+        return switch phase {
         case .idle: shortcutMonitorAvailable ? "Ready" : "Shortcut access needed"
         case .recording: "Recording"
         case .transcribing: "Transcribing"
@@ -91,6 +92,11 @@ final class AppCoordinator: ObservableObject {
 
     func startServices() {
         refreshPermissions(promptForAccessibility: false)
+        guard preferences.onboardingComplete else {
+            shortcuts.stop()
+            shortcutMonitorAvailable = false
+            return
+        }
         shortcuts.start()
     }
 
@@ -100,7 +106,12 @@ final class AppCoordinator: ObservableObject {
         microphoneGranted = AudioRecorder.microphoneAuthorized
         microphonePermissionState = AudioRecorder.microphonePermissionState
         refreshAudioInputDevices()
-        if accessibilityGranted { shortcuts.start() }
+        if accessibilityGranted, preferences.onboardingComplete {
+            shortcuts.start()
+        } else {
+            shortcuts.stop()
+            shortcutMonitorAvailable = false
+        }
     }
 
     func requestMicrophone() async {
@@ -162,6 +173,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func handle(_ action: ShortcutAction) {
+        guard preferences.onboardingComplete else { return }
         switch action {
         case .holdPressed:
             switch phase {
@@ -196,6 +208,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func startHandsFreeFromMenu() {
+        guard preferences.onboardingComplete else { return }
         switch phase {
         case .idle, .message, .pasted, .dictationCopied, .pasteFailed, .transcriptionFailed:
             startRecording(mode: .locked)
@@ -207,6 +220,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func retry(_ record: DictationRecord) {
+        guard preferences.onboardingComplete else { return }
         guard !phase.isBusy else {
             showTransientMessage("Already transcribing")
             return
@@ -266,6 +280,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func startRecording(mode: RecordingMode) {
+        guard preferences.onboardingComplete else { return }
         guard accessibilityGranted else {
             showFailure("Accessibility permission is required.", transcription: false)
             return
