@@ -15,6 +15,7 @@ final class Preferences: ObservableObject {
         static let keyterms = "keyterms"
         static let onboardingComplete = "onboardingComplete"
         static let launchAtLoginRequested = "launchAtLoginRequested"
+        static let audioInputSelection = "audioInputSelection"
     }
 
     private let defaults: UserDefaults
@@ -29,8 +30,12 @@ final class Preferences: ObservableObject {
     @Published var keyterms: [String] { didSet { save(keyterms, key: Keys.keyterms) } }
     @Published var onboardingComplete: Bool { didSet { defaults.set(onboardingComplete, forKey: Keys.onboardingComplete) } }
     @Published var launchAtLoginRequested: Bool { didSet { defaults.set(launchAtLoginRequested, forKey: Keys.launchAtLoginRequested) } }
+    @Published var audioInputSelection: AudioInputSelection { didSet { save(audioInputSelection, key: Keys.audioInputSelection) } }
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        defaultAudioInputSelection: AudioInputSelection = .automatic
+    ) {
         self.defaults = defaults
         apiKeyConfigured = defaults.bool(forKey: Keys.apiKeyConfigured)
         holdShortcut = Self.decode(ShortcutChord.self, key: Keys.holdShortcut, defaults: defaults) ?? .defaultHold
@@ -40,6 +45,7 @@ final class Preferences: ObservableObject {
         keyterms = Self.decode([String].self, key: Keys.keyterms, defaults: defaults) ?? []
         onboardingComplete = defaults.bool(forKey: Keys.onboardingComplete)
         launchAtLoginRequested = defaults.object(forKey: Keys.launchAtLoginRequested) == nil ? true : defaults.bool(forKey: Keys.launchAtLoginRequested)
+        audioInputSelection = Self.decode(AudioInputSelection.self, key: Keys.audioInputSelection, defaults: defaults) ?? defaultAudioInputSelection
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

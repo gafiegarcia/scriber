@@ -66,3 +66,26 @@ struct TranscriptContentTests {
         #expect(TranscriptContent.normalized("  Hello, world. \n") == "Hello, world.")
     }
 }
+
+@Suite("Audio input policy")
+struct AudioInputPolicyTests {
+    @Test("Prefers a built-in microphone on first launch")
+    func prefersBuiltInInput() {
+        let devices = [
+            AudioInputDeviceDescriptor(id: "usb", name: "USB Microphone", isBuiltIn: false),
+            AudioInputDeviceDescriptor(id: "built-in", name: "MacBook Microphone", isBuiltIn: true),
+        ]
+        #expect(AudioInputSelection.initialSelection(from: devices) == .device(id: "built-in", name: "MacBook Microphone"))
+        #expect(AudioInputSelection.initialSelection(from: []) == .automatic)
+    }
+
+    @Test("Uses a low, monotonic signal threshold")
+    func signalThreshold() {
+        #expect(!AudioSignal.isDetected(decibels: -80))
+        #expect(!AudioSignal.isDetected(decibels: AudioSignal.detectionThreshold))
+        #expect(AudioSignal.isDetected(decibels: -59.9))
+        #expect(AudioSignal.normalized(decibels: -80) == 0)
+        #expect(AudioSignal.normalized(decibels: -30) < AudioSignal.normalized(decibels: -10))
+        #expect(AudioSignal.normalized(decibels: 0) == 1)
+    }
+}

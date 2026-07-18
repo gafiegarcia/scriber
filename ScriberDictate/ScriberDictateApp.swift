@@ -17,7 +17,8 @@ final class AppRuntime: ObservableObject {
             let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
             container = try! ModelContainer(for: DictationRecord.self, configurations: configuration)
         }
-        preferences = Preferences()
+        let inputDevices = AudioRecorder.availableInputDevices()
+        preferences = Preferences(defaultAudioInputSelection: .initialSelection(from: inputDevices))
         coordinator = AppCoordinator(preferences: preferences, modelContext: container.mainContext)
         preferences.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }

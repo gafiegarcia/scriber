@@ -69,6 +69,48 @@ public enum RecordingMode: Equatable, Sendable {
     case locked
 }
 
+public struct AudioInputDeviceDescriptor: Identifiable, Codable, Equatable, Sendable {
+    public let id: String
+    public let name: String
+    public let isBuiltIn: Bool
+
+    public init(id: String, name: String, isBuiltIn: Bool) {
+        self.id = id
+        self.name = name
+        self.isBuiltIn = isBuiltIn
+    }
+}
+
+public enum AudioInputSelection: Codable, Equatable, Sendable {
+    case automatic
+    case device(id: String, name: String)
+
+    public var deviceID: String? {
+        guard case .device(let id, _) = self else { return nil }
+        return id
+    }
+
+    public static func initialSelection(from devices: [AudioInputDeviceDescriptor]) -> AudioInputSelection {
+        guard let builtIn = devices.first(where: \AudioInputDeviceDescriptor.isBuiltIn) else { return .automatic }
+        return .device(id: builtIn.id, name: builtIn.name)
+    }
+}
+
+public enum AudioSignal {
+    public static let detectionThreshold: Float = -60
+    public static let visibleCeiling: Float = -6
+
+    public static func isDetected(decibels: Float) -> Bool {
+        decibels.isFinite && decibels > detectionThreshold
+    }
+
+    public static func normalized(decibels: Float) -> Double {
+        guard decibels.isFinite, decibels > detectionThreshold else { return 0 }
+        let range = visibleCeiling - detectionThreshold
+        return Double(min(1, max(0, (decibels - detectionThreshold) / range)))
+    }
+}
+
 public enum AppPhase: Equatable, Sendable {
     case idle
     case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)

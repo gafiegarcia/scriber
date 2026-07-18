@@ -152,7 +152,13 @@ final class AppCoordinator: ObservableObject {
             return
         }
         currentRecord = record
-        currentRecording = CompletedRecording(id: record.id, url: url, relativePath: relativePath, duration: record.durationSeconds)
+        currentRecording = CompletedRecording(
+            id: record.id,
+            url: url,
+            relativePath: relativePath,
+            duration: record.durationSeconds,
+            maximumPeakLevel: 0
+        )
         record.transcriptionState = .transcribing
         record.errorMessage = nil
         try? modelContext.save()
@@ -199,7 +205,7 @@ final class AppCoordinator: ObservableObject {
         }
         do {
             pill.setPreferredScreen(paste.captureTarget())
-            try recorder.start()
+            try recorder.start(selection: preferences.audioInputSelection)
             shortcuts.setMode(mode == .held ? .held : .locked)
             setPhase(.recording(mode: mode, elapsed: 0, level: -80))
             startMeter(mode: mode)
@@ -228,8 +234,26 @@ final class AppCoordinator: ObservableObject {
     private func stopAndTranscribe() {
         meterTask?.cancel()
         meterTask = nil
+        shortcuts.setMode(.busy)
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let completed = try await recorder.stop()
+                finishRecording(completed)
+            } catch {
+                shortcuts.setMode(.idle)
+                showFailure(error.localizedDescription, transcription: true)
+            }
+        }
+    }
+
+    private func finishRecording(_ completed: CompletedRecording) {
         do {
-            let completed = try recorder.stop()
+            guard completed.detectedSignal else {
+                AudioRecorder.delete(relativePath: completed.relativePath)
+                returnToIdle()
+                return
+            }
             guard completed.duration >= 0.1 else {
                 AudioRecorder.delete(relativePath: completed.relativePath)
                 paste.clearTarget()
