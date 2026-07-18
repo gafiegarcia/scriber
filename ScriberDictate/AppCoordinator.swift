@@ -209,6 +209,8 @@ final class AppCoordinator: ObservableObject {
             shortcuts.setMode(mode == .held ? .held : .locked)
             setPhase(.recording(mode: mode, elapsed: 0, level: -80))
             startMeter(mode: mode)
+        } catch AudioRecorderError.inputUnavailable(let name) {
+            showMessage("Microphone “\(name)” is unavailable")
         } catch {
             showFailure(error.localizedDescription, transcription: true)
         }
@@ -293,15 +295,7 @@ final class AppCoordinator: ObservableObject {
                 await MainActor.run { self?.setPhase(.transcribing(attempt: attempt, retryDelay: delay)) }
             }
             guard let transcript = TranscriptContent.normalized(result.text) else {
-                AudioRecorder.delete(relativePath: recording.relativePath)
-                modelContext.delete(record)
-                try modelContext.save()
-                currentRecord = nil
-                currentRecording = nil
-                paste.clearTarget()
-                pill.setPreferredScreen(nil)
-                shortcuts.setMode(.idle)
-                setPhase(.message("No words detected"))
+                discardNoContent(record: record, recording: recording)
                 return
             }
 
@@ -345,6 +339,15 @@ final class AppCoordinator: ObservableObject {
             setPhase(.transcriptionFailed(error.localizedDescription))
         }
         shortcuts.setMode(.idle)
+    }
+
+    private func discardNoContent(record: DictationRecord, recording: CompletedRecording) {
+        AudioRecorder.delete(relativePath: recording.relativePath)
+        modelContext.delete(record)
+        try? modelContext.save()
+        currentRecord = nil
+        currentRecording = nil
+        returnToIdle()
     }
 
     private func cancelRecording() {

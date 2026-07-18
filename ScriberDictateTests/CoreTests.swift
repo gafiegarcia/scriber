@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import ScriberDictateCore
 
@@ -50,6 +51,13 @@ struct ScribeValidationTests {
         #expect(ScribeError.network("offline").retryable)
         #expect(!ScribeError.authentication.retryable)
         #expect(!ScribeError.invalidRequest("bad input").retryable)
+    }
+
+    @Test("Accepts a successful response with empty text")
+    func acceptsEmptySuccessfulResponse() throws {
+        let response = try ScribeClient.decodeResponse(Data(#"{"text":"","language_code":"en"}"#.utf8))
+        #expect(response.text.isEmpty)
+        #expect(TranscriptContent.normalized(response.text) == nil)
     }
 }
 

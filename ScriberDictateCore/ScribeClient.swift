@@ -36,7 +36,6 @@ public enum ScribeError: LocalizedError, Sendable {
     case invalidRequest(String)
     case rateLimited
     case serviceUnavailable
-    case emptyTranscript
     case http(Int, String)
     case network(String)
 
@@ -47,7 +46,6 @@ public enum ScribeError: LocalizedError, Sendable {
         case .invalidRequest(let message): message
         case .rateLimited: "ElevenLabs rate limit exceeded."
         case .serviceUnavailable: "ElevenLabs is temporarily unavailable."
-        case .emptyTranscript: "No speech was detected."
         case .http(_, let message): message
         case .network(let message): message
         }
@@ -156,11 +154,11 @@ public struct ScribeClient: Sendable {
             default: throw ScribeError.http(http.statusCode, message)
             }
         }
-        let result = try JSONDecoder().decode(ScribeResult.self, from: data)
-        guard !result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw ScribeError.emptyTranscript
-        }
-        return result
+        return try Self.decodeResponse(data)
+    }
+
+    static func decodeResponse(_ data: Data) throws -> ScribeResult {
+        try JSONDecoder().decode(ScribeResult.self, from: data)
     }
 
     private func isRetryableNetworkError(_ error: Error) -> Bool {

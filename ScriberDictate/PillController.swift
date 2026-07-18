@@ -199,12 +199,20 @@ final class PillController {
 private struct PillView: View {
     @ObservedObject var model: PillModel
 
+    private var containerShape: AnyShape {
+        if case .dictationCopied = model.phase {
+            AnyShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        } else {
+            AnyShape(Capsule())
+        }
+    }
+
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Capsule())
+            .contentShape(containerShape)
             .onHover { model.onHoverChanged?($0) }
-            .glassEffect(.regular, in: Capsule())
+            .glassEffect(.regular, in: containerShape)
     }
 
     @ViewBuilder private var content: some View {
@@ -274,7 +282,8 @@ private struct PillView: View {
     @ViewBuilder private var symbol: some View {
         switch model.phase {
         case .recording(_, _, let level):
-            Circle().fill(.red).frame(width: 12, height: 12).scaleEffect(1 + CGFloat(max(0, level + 60)) / 160)
+            AudioLevelWaveform(level: level, color: .red)
+                .frame(width: 58, height: 24)
         case .transcribing:
             ProgressView().controlSize(.small)
         case .pasted, .dictationCopied:
@@ -330,6 +339,40 @@ private struct PillView: View {
             .buttonStyle(.plain)
             .frame(width: 26, height: 26)
             .contentShape(Rectangle())
+    }
+}
+
+struct AudioLevelWaveform: View {
+    let level: Float
+    var color: Color = .accentColor
+    private let sampleCount = 18
+    @State private var samples = Array(repeating: 0.0, count: 18)
+
+    var body: some View {
+        GeometryReader { proxy in
+            let spacing: CGFloat = 2
+            let barWidth = max(1, (proxy.size.width - spacing * CGFloat(sampleCount - 1)) / CGFloat(sampleCount))
+            HStack(alignment: .center, spacing: spacing) {
+                ForEach(samples.indices, id: \.self) { index in
+                    let sample = samples[index]
+                    Capsule()
+                        .fill(color.opacity(sample == 0 ? 0.35 : 0.95))
+                        .frame(width: barWidth, height: max(2, proxy.size.height * sample))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onAppear { append(level) }
+        .onChange(of: level) { _, newLevel in append(newLevel) }
+        .animation(.easeOut(duration: 0.1), value: samples)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Microphone level")
+        .accessibilityValue(AudioSignal.isDetected(decibels: level) ? "Signal detected" : "No signal")
+    }
+
+    private func append(_ decibels: Float) {
+        samples.removeFirst()
+        samples.append(AudioSignal.normalized(decibels: decibels))
     }
 }
 
