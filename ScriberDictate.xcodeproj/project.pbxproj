@@ -1,0 +1,285 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* AppCoordinator.swift */; };
+		A10000000000000000000002 /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* AudioRecorder.swift */; };
+		A10000000000000000000003 /* GlobalShortcutService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000003 /* GlobalShortcutService.swift */; };
+		A10000000000000000000004 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000004 /* KeychainStore.swift */; };
+		A10000000000000000000005 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000005 /* LaunchAtLoginService.swift */; };
+		A10000000000000000000006 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* Models.swift */; };
+		A10000000000000000000007 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* PasteService.swift */; };
+		A10000000000000000000008 /* PillController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000008 /* PillController.swift */; };
+		A10000000000000000000009 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* Preferences.swift */; };
+		A1000000000000000000000A /* ../ScriberDictateCore/ScribeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000A /* ../ScriberDictateCore/ScribeClient.swift */; };
+		A1000000000000000000000B /* ScriberDictateApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000B /* ScriberDictateApp.swift */; };
+		A1000000000000000000000C /* ShortcutRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* ShortcutRecorderView.swift */; };
+		A1000000000000000000000D /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* Views.swift */; };
+		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
+		A1000000000000000000000F /* ../ScriberDictateCore/CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ../ScriberDictateCore/CoreModels.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		B10000000000000000000001 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
+		B10000000000000000000002 /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
+		B10000000000000000000003 /* GlobalShortcutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcutService.swift; sourceTree = "<group>"; };
+		B10000000000000000000004 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000005 /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
+		B10000000000000000000006 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		B10000000000000000000007 /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
+		B10000000000000000000008 /* PillController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillController.swift; sourceTree = "<group>"; };
+		B10000000000000000000009 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
+		B1000000000000000000000A /* ../ScriberDictateCore/ScribeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberDictateCore/ScribeClient.swift; sourceTree = "<group>"; };
+		B1000000000000000000000B /* ScriberDictateApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriberDictateApp.swift; sourceTree = "<group>"; };
+		B1000000000000000000000C /* ShortcutRecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderView.swift; sourceTree = "<group>"; };
+		B1000000000000000000000D /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
+		B1000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B1000000000000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000000000000000000010 /* ScriberDictate.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScriberDictate.entitlements; sourceTree = "<group>"; };
+		B10000000000000000000011 /* Scriber Dictate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Scriber Dictate.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000012 /* ../ScriberDictateCore/CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberDictateCore/CoreModels.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C10000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D10000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				D10000000000000000000002 /* ScriberDictate */,
+				D10000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D10000000000000000000002 /* ScriberDictate */ = {
+			isa = PBXGroup;
+			children = (
+				B1000000000000000000000B /* ScriberDictateApp.swift */,
+				B10000000000000000000001 /* AppCoordinator.swift */,
+				B10000000000000000000002 /* AudioRecorder.swift */,
+				B10000000000000000000003 /* GlobalShortcutService.swift */,
+				B10000000000000000000012 /* ../ScriberDictateCore/CoreModels.swift */,
+				B10000000000000000000004 /* KeychainStore.swift */,
+				B10000000000000000000005 /* LaunchAtLoginService.swift */,
+				B10000000000000000000006 /* Models.swift */,
+				B10000000000000000000007 /* PasteService.swift */,
+				B10000000000000000000008 /* PillController.swift */,
+				B10000000000000000000009 /* Preferences.swift */,
+				B1000000000000000000000A /* ../ScriberDictateCore/ScribeClient.swift */,
+				B1000000000000000000000C /* ShortcutRecorderView.swift */,
+				B1000000000000000000000D /* Views.swift */,
+				B1000000000000000000000E /* Assets.xcassets */,
+				B1000000000000000000000F /* Info.plist */,
+				B10000000000000000000010 /* ScriberDictate.entitlements */,
+			);
+			path = ScriberDictate;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000011 /* Scriber Dictate.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E10000000000000000000001 /* ScriberDictate */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F10000000000000000000002 /* Build configuration list for PBXNativeTarget "ScriberDictate" */;
+			buildPhases = (
+				C10000000000000000000002 /* Sources */,
+				C10000000000000000000001 /* Frameworks */,
+				C10000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ScriberDictate;
+			productName = "Scriber Dictate";
+			productReference = B10000000000000000000011 /* Scriber Dictate.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E10000000000000000000002 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					E10000000000000000000001 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = F10000000000000000000001 /* Build configuration list for PBXProject "ScriberDictate" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D10000000000000000000001;
+			productRefGroup = D10000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E10000000000000000000001 /* ScriberDictate */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C10000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000E /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C10000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* AppCoordinator.swift in Sources */,
+				A10000000000000000000002 /* AudioRecorder.swift in Sources */,
+				A10000000000000000000003 /* GlobalShortcutService.swift in Sources */,
+				A10000000000000000000004 /* KeychainStore.swift in Sources */,
+				A10000000000000000000005 /* LaunchAtLoginService.swift in Sources */,
+				A10000000000000000000006 /* Models.swift in Sources */,
+				A10000000000000000000007 /* PasteService.swift in Sources */,
+				A10000000000000000000008 /* PillController.swift in Sources */,
+				A10000000000000000000009 /* Preferences.swift in Sources */,
+				A1000000000000000000000A /* ../ScriberDictateCore/ScribeClient.swift in Sources */,
+				A1000000000000000000000B /* ScriberDictateApp.swift in Sources */,
+				A1000000000000000000000C /* ShortcutRecorderView.swift in Sources */,
+				A1000000000000000000000D /* Views.swift in Sources */,
+				A1000000000000000000000F /* ../ScriberDictateCore/CoreModels.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		F10000000000000000000010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		F10000000000000000000011 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		F10000000000000000000012 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ScriberDictate/ScriberDictate.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 24U8BM54A3;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ScriberDictate/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber-dictate";
+				PRODUCT_NAME = "Scriber Dictate";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		F10000000000000000000013 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ScriberDictate/ScriberDictate.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 24U8BM54A3;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ScriberDictate/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber-dictate";
+				PRODUCT_NAME = "Scriber Dictate";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F10000000000000000000001 /* Build configuration list for PBXProject "ScriberDictate" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F10000000000000000000010 /* Debug */,
+				F10000000000000000000011 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F10000000000000000000002 /* Build configuration list for PBXNativeTarget "ScriberDictate" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F10000000000000000000012 /* Debug */,
+				F10000000000000000000013 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = E10000000000000000000002 /* Project object */;
+}
