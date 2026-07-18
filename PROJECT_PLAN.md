@@ -80,6 +80,7 @@ Product direction:
 - Converted the floating pill from a custom material background to native SwiftUI Liquid Glass. Normal states now use a compact 300×62 pill with increased internal padding; actionable failures expand to 430×72 so their controls remain comfortable. The first request reads only “Transcribing…”, while retryable failures surface “Retrying 2/3…” or “Retrying 3/3…” and show the wait duration as secondary text. The Xcode Debug build passes after this change.
 - Removed an AppKit layout-recursion trigger in the pill: panel size is now changed only when transitioning between compact and actionable-failure layouts, rather than on every 100 ms audio-meter update. Core Spotlight `CSInlineDonation` service errors observed in Xcode are macOS 27 beta system-service diagnostics and do not affect app behavior or stored data.
 - When no editable text box was focused at dictation start, the transcript is now copied to the clipboard immediately, stored as a copied delivery, and shown in a smaller pill as “Dictation copied” with “No editable text box was focused” below it. The redundant Copy action is omitted for that case, while Open remains available. The Xcode Debug build passes after this change.
+- All terminal pill states now auto-dismiss: success after 1 second, transient messages after 1.5 seconds, copied/no-target fallback after 3 seconds, and actionable paste/transcription failures after 6 seconds. The Xcode Debug build passes after this change.
 
 ## Verification Notes
 

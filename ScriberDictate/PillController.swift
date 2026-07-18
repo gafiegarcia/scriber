@@ -58,20 +58,35 @@ final class PillController {
         switch phase {
         case .idle:
             panel.orderOut(nil)
-        case .pasted, .message:
-            show()
-            hideTask = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(1.5))
-                guard !Task.isCancelled else { return }
-                self?.panel.orderOut(nil)
-            }
         default:
             show()
+            if let delay = dismissalDelay(for: phase) {
+                hideTask = Task { [weak self] in
+                    try? await Task.sleep(for: delay)
+                    guard !Task.isCancelled else { return }
+                    self?.panel.orderOut(nil)
+                }
+            }
         }
     }
 
     func setPreferredScreen(_ screen: NSScreen?) {
         preferredScreen = screen
+    }
+
+    private func dismissalDelay(for phase: AppPhase) -> Duration? {
+        switch phase {
+        case .pasted:
+            .seconds(1)
+        case .message:
+            .seconds(1.5)
+        case .pasteFailed where phase.isNoEditableTargetPasteFailure:
+            .seconds(3)
+        case .pasteFailed, .transcriptionFailed:
+            .seconds(6)
+        default:
+            nil
+        }
     }
 
     private func panelSize(for phase: AppPhase) -> NSSize {
