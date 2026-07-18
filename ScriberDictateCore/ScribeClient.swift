@@ -42,7 +42,7 @@ public enum ScribeError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .invalidKeyterm(let term): "Invalid keyterm: \(term)"
-        case .authentication: "ElevenLabs authentication failed. Check the API key in Settings."
+        case .authentication: "ElevenLabs rejected this API key. Check that it is correct and enabled."
         case .invalidRequest(let message): message
         case .rateLimited: "ElevenLabs rate limit exceeded."
         case .serviceUnavailable: "ElevenLabs is temporarily unavailable."
@@ -62,6 +62,7 @@ public enum ScribeError: LocalizedError, Sendable {
 
 public struct ScribeClient: Sendable {
     private let endpoint = URL(string: "https://api.elevenlabs.io/v1/speech-to-text")!
+    private let modelsEndpoint = URL(string: "https://api.elevenlabs.io/v1/models")!
 
     public init() {}
 
@@ -79,6 +80,42 @@ public struct ScribeClient: Sendable {
                 throw ScribeError.invalidKeyterm(term)
             }
             return term
+        }
+    }
+
+    public func validateAPIKey(_ apiKey: String) async throws {
+        let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw ScribeError.authentication }
+
+        var request = URLRequest(url: modelsEndpoint, timeoutInterval: 20)
+        request.httpMethod = "GET"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue(trimmed, forHTTPHeaderField: "xi-api-key")
+
+        let data: Data
+        let response: URLResponse
+        do { (data, response) = try await URLSession.shared.data(for: request) }
+        catch { throw ScribeError.network("Could not reach ElevenLabs: \(error.localizedDescription)") }
+        guard let http = response as? HTTPURLResponse else { throw ScribeError.serviceUnavailable }
+        if let error = Self.apiKeyValidationError(statusCode: http.statusCode, data: data) { throw error }
+    }
+
+    static func apiKeyValidationError(statusCode: Int, data: Data) -> ScribeError? {
+        guard !(200..<300).contains(statusCode) else { return nil }
+        switch statusCode {
+        case 401:
+            return .authentication
+        case 403:
+            return .invalidRequest(
+                "ElevenLabs denied this key’s access. Check its endpoint scope and IP allowlist."
+            )
+        case 429:
+            return .rateLimited
+        case 500...599:
+            return .serviceUnavailable
+        default:
+            let message = Self.errorMessage(data: data) ?? "API-key check failed (\(statusCode))."
+            return .http(statusCode, message)
         }
     }
 

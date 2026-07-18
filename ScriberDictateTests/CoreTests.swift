@@ -59,6 +59,21 @@ struct ScribeValidationTests {
         #expect(response.text.isEmpty)
         #expect(TranscriptContent.normalized(response.text) == nil)
     }
+
+    @Test("Classifies credit-free API key checks")
+    func apiKeyValidationResponses() {
+        let success = ScribeClient.apiKeyValidationError(statusCode: 200, data: Data())
+        #expect(success == nil)
+
+        let unauthorized = ScribeClient.apiKeyValidationError(statusCode: 401, data: Data())
+        #expect(unauthorized?.errorDescription == "ElevenLabs rejected this API key. Check that it is correct and enabled.")
+
+        let forbidden = ScribeClient.apiKeyValidationError(statusCode: 403, data: Data())
+        #expect(forbidden?.errorDescription?.contains("scope") == true)
+
+        let unavailable = ScribeClient.apiKeyValidationError(statusCode: 503, data: Data())
+        #expect(unavailable?.retryable == true)
+    }
 }
 
 @Suite("Transcript content")

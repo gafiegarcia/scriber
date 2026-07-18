@@ -14,7 +14,7 @@ private enum KeySaveFeedback {
 
     var message: String {
         switch self {
-        case .saved: "Saved securely in Keychain. Your first transcription will verify it with ElevenLabs."
+        case .saved: "API key verified with ElevenLabs and saved securely in Keychain."
         case .failed(let message): message
         }
     }
@@ -311,6 +311,7 @@ struct SettingsView: View {
     @EnvironmentObject private var runtime: AppRuntime
     @State private var apiKey = ""
     @State private var keyFeedback: KeySaveFeedback?
+    @State private var isCheckingAPIKey = false
     @State private var newKeyterm = ""
     @State private var message: String?
 
@@ -318,10 +319,22 @@ struct SettingsView: View {
         Form {
             Section("ElevenLabs") {
                 SecureField("API key", text: $apiKey)
+                    .disabled(isCheckingAPIKey)
                 HStack {
-                    Button(runtime.preferences.apiKeyConfigured ? "Update API Key" : "Save API Key") { saveKey() }
+                    Button {
+                        Task { await saveKey() }
+                    } label: {
+                        if isCheckingAPIKey {
+                            HStack(spacing: 6) {
+                                ProgressView().controlSize(.small)
+                                Text("Checking…")
+                            }
+                        } else {
+                            Text(runtime.preferences.apiKeyConfigured ? "Update API Key" : "Save API Key")
+                        }
+                    }
                         .buttonStyle(.borderedProminent)
-                        .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCheckingAPIKey)
                     if runtime.preferences.apiKeyConfigured { Label("Stored in Keychain", systemImage: "checkmark.shield") }
                 }
                 if let keyFeedback {
@@ -392,9 +405,12 @@ struct SettingsView: View {
         .onChange(of: apiKey) { _, _ in keyFeedback = nil }
     }
 
-    private func saveKey() {
+    private func saveKey() async {
+        guard !isCheckingAPIKey else { return }
+        isCheckingAPIKey = true
+        defer { isCheckingAPIKey = false }
         do {
-            try runtime.coordinator.saveAPIKey(apiKey)
+            try await runtime.coordinator.validateAndSaveAPIKey(apiKey)
             keyFeedback = .saved
         } catch {
             keyFeedback = .failed(error.localizedDescription)
@@ -433,6 +449,7 @@ struct OnboardingView: View {
     @EnvironmentObject private var runtime: AppRuntime
     @State private var apiKey = ""
     @State private var keyFeedback: KeySaveFeedback?
+    @State private var isCheckingAPIKey = false
     @State private var error: String?
 
     var body: some View {
@@ -446,18 +463,22 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     SecureField("xi-api-key", text: $apiKey)
                         .textFieldStyle(.roundedBorder)
+                        .disabled(isCheckingAPIKey)
                     HStack(spacing: 12) {
-                        Button(runtime.preferences.apiKeyConfigured ? "Update Key" : "Save Key") {
-                            do {
-                                try runtime.coordinator.saveAPIKey(apiKey)
-                                keyFeedback = .saved
-                                error = nil
-                            } catch {
-                                keyFeedback = .failed(error.localizedDescription)
+                        Button {
+                            Task { await saveKey() }
+                        } label: {
+                            if isCheckingAPIKey {
+                                HStack(spacing: 6) {
+                                    ProgressView().controlSize(.small)
+                                    Text("Checking…")
+                                }
+                            } else {
+                                Text(runtime.preferences.apiKeyConfigured ? "Update Key" : "Save Key")
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCheckingAPIKey)
 
                         if runtime.preferences.apiKeyConfigured {
                             Label("Stored in Keychain", systemImage: "checkmark.shield")
@@ -557,7 +578,12 @@ struct OnboardingView: View {
                 Spacer()
                 Button("Finish Setup") { finish() }
                     .buttonStyle(.borderedProminent)
-                    .disabled(!runtime.preferences.apiKeyConfigured || !runtime.coordinator.microphoneGranted || !runtime.coordinator.accessibilityGranted)
+                    .disabled(
+                        isCheckingAPIKey
+                            || !runtime.preferences.apiKeyConfigured
+                            || !runtime.coordinator.microphoneGranted
+                            || !runtime.coordinator.accessibilityGranted
+                    )
             }
             .padding(.horizontal, 4)
             .padding(.top, 2)
@@ -596,6 +622,19 @@ struct OnboardingView: View {
         runtime.preferences.onboardingComplete = true
         runtime.coordinator.startServices()
         dismissWindow(id: "onboarding")
+    }
+
+    private func saveKey() async {
+        guard !isCheckingAPIKey else { return }
+        isCheckingAPIKey = true
+        defer { isCheckingAPIKey = false }
+        do {
+            try await runtime.coordinator.validateAndSaveAPIKey(apiKey)
+            keyFeedback = .saved
+            error = nil
+        } catch {
+            keyFeedback = .failed(error.localizedDescription)
+        }
     }
 
     @ViewBuilder private var microphonePermissionButton: some View {

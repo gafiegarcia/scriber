@@ -158,7 +158,8 @@ final class AppCoordinator: ObservableObject {
         if shouldRestartTest { startMicrophoneTest() }
     }
 
-    func saveAPIKey(_ value: String) throws {
+    func validateAndSaveAPIKey(_ value: String) async throws {
+        try await scribe.validateAPIKey(value)
         try keychain.saveAPIKey(value)
         preferences.apiKeyConfigured = !(try keychain.readAPIKey() ?? "").isEmpty
     }

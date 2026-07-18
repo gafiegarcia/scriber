@@ -4,6 +4,7 @@ import Security
 enum KeychainError: LocalizedError {
     case unexpectedStatus(OSStatus)
     case invalidData
+    case accessCreationFailed
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +12,8 @@ enum KeychainError: LocalizedError {
             return SecCopyErrorMessageString(status, nil) as String? ?? "Keychain error \(status)"
         case .invalidData:
             return "The stored API key could not be read."
+        case .accessCreationFailed:
+            return "Scriber Dictate could not restrict the API key to this app."
         }
     }
 }
@@ -18,6 +21,7 @@ enum KeychainError: LocalizedError {
 struct KeychainStore: Sendable {
     static let service = "com.gafiegarcia.scriber-dictate.elevenlabs-api-key"
     static let account = "default"
+    private static let label = "Scriber Dictate ElevenLabs API key"
 
     func readAPIKey() throws -> String? {
         let query: [String: Any] = [
@@ -34,6 +38,7 @@ struct KeychainStore: Sendable {
         guard let data = result as? Data, let value = String(data: data, encoding: .utf8) else {
             throw KeychainError.invalidData
         }
+        try restrictAPIKeyAccess()
         return value
     }
 
@@ -48,11 +53,12 @@ struct KeychainStore: Sendable {
             kSecAttrService as String: Self.service,
             kSecAttrAccount as String: Self.account,
         ]
-        let attributes: [String: Any] = [
+        var attributes: [String: Any] = [
             kSecValueData as String: data,
-            kSecAttrLabel as String: "Scriber Dictate ElevenLabs API key",
+            kSecAttrLabel as String: Self.label,
             kSecAttrDescription as String: "Stored locally for Scribe v2 transcription",
         ]
+        attributes[kSecAttrAccess as String] = try applicationOnlyAccess()
         let update = SecItemUpdate(match as CFDictionary, attributes as CFDictionary)
         if update == errSecItemNotFound {
             var add = match
@@ -74,5 +80,28 @@ struct KeychainStore: Sendable {
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.unexpectedStatus(status)
         }
+    }
+
+    private func restrictAPIKeyAccess() throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.service,
+            kSecAttrAccount as String: Self.account,
+        ]
+        let attributes: [String: Any] = [
+            kSecAttrAccess as String: try applicationOnlyAccess(),
+        ]
+        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        guard status == errSecSuccess else { throw KeychainError.unexpectedStatus(status) }
+    }
+
+    private func applicationOnlyAccess() throws -> SecAccess {
+        var access: SecAccess?
+        // App Sandbox is intentionally disabled, so explicitly install a legacy
+        // Keychain ACL whose nil trusted-app list means the calling app only.
+        let status = SecAccessCreate(Self.label as CFString, nil, &access)
+        guard status == errSecSuccess else { throw KeychainError.unexpectedStatus(status) }
+        guard let access else { throw KeychainError.accessCreationFailed }
+        return access
     }
 }
