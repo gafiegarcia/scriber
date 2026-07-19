@@ -9,18 +9,18 @@ snapshot for possible Windows/Linux releases and future feature translation.
 This file is a handoff for a fresh Codex task after the local project folder was
 renamed from `scriber-dictate` to `scriber`.
 
-## Current State (2026-07-19)
+## Current State (2026-07-20)
 
 ### New canonical repository
 
 - Local path: `/Users/gafiegarcia/Developer/scriber`
 - Branch: `main`
-- HEAD: `80a64dd` (`Submit API keys with Return`)
-- Working tree: clean before this plan file was added
-- Remote: none
-- History: the native Swift/SwiftUI Scriber Dictate development history
-- Current app version: `0.1.0`
-- Current product/bundle identity: Scriber Dictate / `com.gafiegarcia.scriber-dictate`
+- HEAD before this documentation sweep: `3a95cdf` (`Rename native project to Scriber`)
+- Working tree: tracked tree clean at that checkpoint; the user-owned untracked icon remains deliberately excluded pending provenance documentation
+- Remote: private `origin` at `https://github.com/gafiegarcia/scriber.git`
+- History: the native Swift/SwiftUI history plus the history-free Electron snapshot commits; no legacy Git graph was imported
+- Current native app version: `0.7.0` build `2`
+- Current native product/bundle identity: Scriber / `com.gafiegarcia.scriber`
 
 ### Legacy repository
 
@@ -33,15 +33,14 @@ renamed from `scriber-dictate` to `scriber`.
 - Existing release tag: `v0.6.0` (plus older historical tags)
 - This history contains an early personal-email identity and must not be merged,
   fetched into, or pushed from the new public repository.
-- The legacy working tree currently has three uncommitted title-bar changes:
-  `CHANGELOG.md`, `desktop/main.cjs`, and `src/app/layout.tsx`.
+- The final title-bar changes are included in source commit `fda278b`; the legacy working tree was clean when archived and pushed.
 
 ### GitHub namespace
 
 - The old GitHub repository has already been renamed to `scriber-legacy`.
 - Existing legacy clones should point explicitly to `scriber-legacy.git`.
-- The name `gafiegarcia/scriber` can now be used for a new repository. Reusing
-  it disables GitHub's redirect from the old name to `scriber-legacy`, which is
+- The new private `gafiegarcia/scriber` repository now exists. Reusing the name
+  disables GitHub's redirect from the old name to `scriber-legacy`, which is
   intentional here.
 
 ## Locked Migration Decisions
@@ -75,11 +74,11 @@ scriber/
     │   ├── README.md
     │   ├── PROJECT_PLAN.md
     │   ├── Package.swift
-    │   ├── ScriberDictate.xcodeproj/
-    │   ├── ScriberDictate/
-    │   ├── ScriberDictateCore/
-    │   ├── ScriberDictateTests/
-    │   └── ScriberDictateUITests/
+    │   ├── Scriber.xcodeproj/
+    │   ├── Scriber/
+    │   ├── ScriberCore/
+    │   ├── ScriberCoreTests/
+    │   └── ScriberUITests/
     └── electron/
         ├── README.md
         ├── CHANGELOG.md
@@ -109,7 +108,8 @@ Migration progress as of 2026-07-19:
 - Phase 2 complete: native relocation committed as `f5282c3`; the app builds and its credit-free tests pass from `apps/macos`.
 - Phase 3 complete: the tracked Electron snapshot from `b13274d` was imported without legacy history in commit `48db860`; lint, 73 credit-free tests, and the production build pass.
 - Phase 4 complete: `gafiegarcia/scriber` exists as a private repository, local `origin` points to it, and local/remote `main` matched at `48db860` after the initial push.
-- Phase 5 decisions are recorded in `docs/NATIVE_IDENTITY_PLAN.md`; implementation is pending. The repository license remains an open decision.
+- Phase 5 complete: the approved identity plan was committed as `fa5b56d`, the Scriber product identity as `ce10f39`, and the exhaustive native project/module rename as `3a95cdf`.
+- Phase 6 current-path documentation is complete with this sweep. The repository license, icon provenance, and signed live acceptance remain open.
 
 ### Phase 0: Re-anchor the fresh Codex task
 
@@ -208,24 +208,23 @@ must not connect the two Git histories.
 
 Do this only after both apps build in their monorepo locations.
 
-Recommended product version: `0.7.0`, continuing from Electron Scriber `0.6.0`
-and representing the substantial native-app pivot. Keep the imported Electron
-snapshot at its historical `0.6.0` unless active Electron development resumes.
+Implemented product version: `0.7.0`, continuing from Electron Scriber `0.6.0`
+and representing the substantial native-app pivot. The imported Electron
+snapshot remains at its historical `0.6.0` unless active Electron development resumes.
 
 Separate these concepts:
 
-- User-facing app name: change from **Scriber Dictate** to **Scriber**.
-- Xcode project/target/module names: may remain `ScriberDictate` initially to
-  avoid a risky mechanical rename, then be cleaned up in a dedicated change.
-- Marketing version: change the active native app to `0.7.0`.
-- Build number: increment appropriately.
-- Bundle identifier: requires an explicit migration decision.
+- User-facing app name: changed from **Scriber Dictate** to **Scriber**.
+- Xcode project, target, module, source, and test names: changed to the exhaustive `Scriber` map in a dedicated verified commit.
+- Marketing version: changed to `0.7.0`.
+- Build number: changed to `2`.
+- Bundle identifier: changed to `com.gafiegarcia.scriber` with an explicit clean-reset decision.
 
-#### Bundle-identifier decision required
+#### Bundle-identifier decision (resolved)
 
 Changing `com.gafiegarcia.scriber-dictate` to `com.gafiegarcia.scriber` creates
-a clean long-term identity, but macOS may treat it as a different application.
-Before changing it, decide how to handle:
+a clean long-term identity, and macOS treats it as a different application.
+The decision explicitly covers:
 
 - Accessibility and Microphone permissions
 - Launch at Login registration
@@ -234,10 +233,10 @@ Before changing it, decide how to handle:
 - UserDefaults/onboarding/preferences
 - any installed Electron app already using `com.gafiegarcia.scriber`
 
-Because this is still an early personal beta, accepting a one-time reset and
-re-entering the API key may be simpler than implementing a full migration. That
-must be Gaf's explicit choice. Never log, export, or copy the API key outside the
-dedicated Keychain flow.
+Gaf explicitly chose the one-time clean reset: no history, preferences,
+onboarding, pending audio, Launch at Login, or Keychain credential is migrated.
+The API key will be re-entered through the dedicated Keychain flow; it must never
+be logged, exported, or copied elsewhere.
 
 ### Phase 6: Documentation and release boundaries
 
@@ -270,13 +269,13 @@ dedicated Keychain flow.
 Run from the new paths, updating commands as needed:
 
 ```bash
-swiftc -frontend -parse apps/macos/ScriberDictate/*.swift apps/macos/ScriberDictateCore/*.swift apps/macos/ScriberDictateTests/*.swift
-swiftc -module-cache-path apps/macos/.build/module-cache -typecheck apps/macos/ScriberDictateCore/CoreModels.swift apps/macos/ScriberDictateCore/ScribeClient.swift
+swiftc -frontend -parse apps/macos/Scriber/*.swift apps/macos/ScriberCore/*.swift apps/macos/ScriberCoreTests/*.swift apps/macos/ScriberUITests/*.swift
+swiftc -module-cache-path apps/macos/.build/module-cache -typecheck apps/macos/ScriberCore/CoreModels.swift apps/macos/ScriberCore/ScribeClient.swift apps/macos/ScriberCore/CredentialStore.swift
 swift test --package-path apps/macos
 ```
 
 Use Xcode 27 beta for Debug and Release builds of
-`apps/macos/ScriberDictate.xcodeproj`. Preserve the existing credit-free test
+`apps/macos/Scriber.xcodeproj` with the `Scriber` scheme. Preserve the existing credit-free test
 guarantees. Hardware permissions, shortcuts, Accessibility insertion, Keychain,
 and real transcription remain manual acceptance checks.
 
@@ -307,14 +306,12 @@ The migration is complete when:
 6. Product naming/version changes are documented and verified separately.
 7. Nothing has been pushed until Gaf explicitly authorizes publication.
 
-## First Prompt for the Fresh Codex Task
+## Current Handoff
 
-Suggested prompt:
+The repository and native identity migration are implemented. Remaining work is
+deliberately separate:
 
-> Read `AGENTS.md`, `PROJECT_PLAN.md`, and `migration-plan.md` completely. Verify
-> that this is `/Users/gafiegarcia/Developer/scriber` at native HEAD `80a64dd`
-> and that `/Users/gafiegarcia/Developer/scriber-legacy` points to the legacy
-> GitHub remote. Then execute the migration incrementally from Phase 1. Preserve
-> native history, import the Electron app only as a history-free tracked
-> snapshot, run credit-free verification after each coherent change, make local
-> commits, and do not push without my explicit permission.
+1. Choose and add the root license, copyright, trademark statement, and required third-party notices using `docs/LICENSING_NOTES.md` as the current handoff.
+2. Record the icon's source URL, author, exact license, modification permission, and attribution before adding the artwork.
+3. Produce a signed Release build at a stable path and complete fresh onboarding, Keychain, permissions, Launch at Login, shortcut, insertion, Dictation history, Dock, and pill-activation acceptance checks.
+4. Do not push additional commits unless Gaf explicitly requests it.

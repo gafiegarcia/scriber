@@ -9,7 +9,7 @@ The two applications are self-contained. There is no root JavaScript package and
 
 ## Native macOS app
 
-Open `apps/macos/ScriberDictate.xcodeproj` with Xcode 27 beta, or run its credit-free core tests from the repository root:
+Open `apps/macos/Scriber.xcodeproj` with Xcode 27 beta, or run its credit-free core tests from the repository root:
 
 ```bash
 swift test --package-path apps/macos

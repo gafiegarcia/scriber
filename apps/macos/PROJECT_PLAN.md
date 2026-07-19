@@ -1,4 +1,4 @@
-# Scriber Dictate
+# Scriber
 
 ## Original Goal
 
@@ -127,7 +127,7 @@ Product direction:
 ## Verification Notes
 
 - Automated tests must not consume ElevenLabs credits.
-- Run the macOS UI regressions with `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -project ScriberDictate.xcodeproj -scheme ScriberDictate -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode-ui-tests test`. The first run requires approving XCTest UI Automation in macOS.
+- Run the macOS UI regressions with `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -project Scriber.xcodeproj -scheme Scriber -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode-ui-tests test`. The first run requires a signed test host and approving XCTest UI Automation in macOS.
 - A real ElevenLabs smoke test is opt-in.
 - Hardware verification must cover `Fn`, `Fn-Space`, `Fn-Control-Option`, target capture, TextEdit, Ghostty, Raycast, a browser text field, a code editor, full-screen apps, multiple Spaces, and Dock auto-hide.
 - Pill activation verification must close the final Scriber window, put Finder in front, click Update Key directly, confirm Settings and the API-key field are focused, Command-Tab to Finder, then Command-Tab once back to Scriber. Repeat with the pill's dismiss button and confirm Finder stays focused and Scriber remains absent from Dock and Command-Tab.

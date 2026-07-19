@@ -22,7 +22,7 @@ Read `apps/macos/PROJECT_PLAN.md` before changing the native app; it contains th
 - Target: arm64 macOS 27
 - Language: Swift 6
 - Full toolchain: Xcode 27 beta
-- Open `apps/macos/ScriberDictate.xcodeproj` to build the app.
+- Open `apps/macos/Scriber.xcodeproj` to build the app.
 - `Package.swift` intentionally contains only the UI-independent core and its credit-free tests; the application is an Xcode target because it needs an app bundle, Info.plist, entitlements, SwiftUI, and SwiftData.
 
 Command Line Tools 27 on this machine are incomplete: SwiftUI/SwiftData macro plugins and parts of the Testing runtime are missing from their expected paths. Xcode 27 beta is installed at `/Applications/Xcode-beta.app`; use it directly or select it as the active command-line toolchain. The complete app passes an unsigned Debug build. Signing and UI/hardware verification remain manual.
@@ -30,8 +30,8 @@ Command Line Tools 27 on this machine are incomplete: SwiftUI/SwiftData macro pl
 ## Verification
 
 ```bash
-swiftc -frontend -parse apps/macos/ScriberDictate/*.swift apps/macos/ScriberDictateCore/*.swift apps/macos/ScriberDictateTests/*.swift
-swiftc -module-cache-path apps/macos/.build/module-cache -typecheck apps/macos/ScriberDictateCore/CoreModels.swift apps/macos/ScriberDictateCore/ScribeClient.swift
+swiftc -frontend -parse apps/macos/Scriber/*.swift apps/macos/ScriberCore/*.swift apps/macos/ScriberCoreTests/*.swift apps/macos/ScriberUITests/*.swift
+swiftc -module-cache-path apps/macos/.build/module-cache -typecheck apps/macos/ScriberCore/CoreModels.swift apps/macos/ScriberCore/ScribeClient.swift apps/macos/ScriberCore/CredentialStore.swift
 swift test --package-path apps/macos
 ```
 

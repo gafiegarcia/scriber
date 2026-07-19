@@ -13,8 +13,8 @@ The `0.7.0` release is a personal Apple-silicon beta targeting macOS 27.
 ## Build
 
 1. Install Xcode 27 beta and select it in Xcode Settings → Locations → Command Line Tools.
-2. Open `ScriberDictate.xcodeproj`.
-3. Choose the `ScriberDictate` scheme and the local Mac destination.
+2. Open `Scriber.xcodeproj`.
+3. Choose the `Scriber` scheme and the local Mac destination.
 4. Configure an Apple Development signing team if Xcode requests one.
 5. Build and run.
 

@@ -1,6 +1,6 @@
 # Native Scriber Identity and Expansion Plan
 
-Status: approved for implementation, except where explicitly marked as an open decision.
+Status: implementation steps 1–4 completed in commits `fa5b56d`, `ce10f39`, and `3a95cdf`; licensing and live signed acceptance remain open.
 
 Recorded: 2026-07-19
 
@@ -92,6 +92,8 @@ The previously run Electron development app used the same future bundle identifi
 ## License decision
 
 Open: choose the repository license in a separate change after discussing project goals and public perception.
+
+The durable discussion and preliminary Electron dependency findings are recorded in [`LICENSING_NOTES.md`](LICENSING_NOTES.md).
 
 Candidates:
 
