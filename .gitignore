@@ -1,4 +1,6 @@
 .DS_Store
+
+# Native macOS / Swift
 .build/
 DerivedData/
 build/
@@ -7,3 +9,24 @@ xcuserdata/
 *.m4a
 *.pcm
 *.wav
+
+# Electron / Next.js
+node_modules/
+.next/
+out/
+dist-desktop/
+.scriber-cli/
+.ffmpeg-build/
+.ffmpeg/
+.vercel/
+.local/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Environment files: retain only the documented template.
+.env*
+!.env.example
