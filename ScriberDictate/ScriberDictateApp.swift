@@ -15,6 +15,10 @@ enum AppLaunchConfiguration {
     static var keepsRegularActivationPolicy: Bool {
         isUITesting && !ProcessInfo.processInfo.arguments.contains("--ui-testing-accessory-lifecycle")
     }
+
+    static var presentsInvalidKeyPill: Bool {
+        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-invalid-key-pill")
+    }
 }
 
 @MainActor
@@ -64,7 +68,15 @@ final class AppRuntime: ObservableObject {
             modelContext: container.mainContext,
             servicesAllowed: !isUITesting
         )
-        if isUITesting { preferences.onboardingComplete = true }
+        if isUITesting {
+            preferences.onboardingComplete = true
+            if AppLaunchConfiguration.presentsInvalidKeyPill {
+                Task { @MainActor [coordinator] in
+                    try? await Task.sleep(for: .milliseconds(100))
+                    coordinator.presentInvalidAPIKeyPillForUITesting()
+                }
+            }
+        }
         preferences.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
@@ -148,6 +160,7 @@ private struct MainWindowCommands: Commands {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var observers: [NSObjectProtocol] = []
+    private var activationRetryTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(AppLaunchConfiguration.isUITesting ? .regular : .accessory)
@@ -193,10 +206,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let window = NSApp.windows.first(where: {
             AppWindowIdentity.isManagedWindow($0) && $0.title == AppWindowIdentity.mainTitle
         }) else { return }
+        activationRetryTask?.cancel()
         NSApp.setActivationPolicy(.regular)
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
+        activationRetryTask = Task { @MainActor [weak self, weak window] in
+            await Task.yield()
+            guard let self, let window, !Task.isCancelled, window.isVisible else { return }
+            guard !NSApp.isActive else {
+                activationRetryTask = nil
+                return
+            }
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            activationRetryTask = nil
+        }
     }
 
     private var hasVisibleManagedWindow: Bool {

@@ -424,13 +424,14 @@ final class AppCoordinator: ObservableObject {
 
     private func openMainWindow(destination: MainWindowDestination) {
         selectMainWindowDestination(destination)
-        prepareForMainWindowActivation()
+        returnToIdle()
+        NSApp.setActivationPolicy(.regular)
         NotificationCenter.default.post(name: .openScriberDictateMainWindow, object: nil)
     }
 
-    private func prepareForMainWindowActivation() {
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate()
+    func presentInvalidAPIKeyPillForUITesting() {
+        guard !servicesAllowed else { return }
+        setPhase(.apiKeyInvalid)
     }
 
     private func startRecording(mode: RecordingMode) {

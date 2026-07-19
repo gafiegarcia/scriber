@@ -76,6 +76,56 @@ final class ScriberDictateUITests: XCTestCase {
         XCTAssertFalse(runningApplication.isTerminated, "Accessory mode must leave background services running.")
     }
 
+    func testUpdateKeyForegroundsSettingsAndFocusesAPIKeyField() async {
+        let app = await launchApp(additionalArguments: pillLifecycleArguments)
+        defer { app.terminate() }
+        guard let scriber = runningApplication(bundleIdentifier: "com.gafiegarcia.scriber-dictate"),
+              let finder = runningApplication(bundleIdentifier: "com.apple.finder") else {
+            XCTFail("Scriber Dictate and Finder should both be running.")
+            return
+        }
+
+        let updateKey = app.buttons["Update Key"].firstMatch
+        let updateKeyAppeared = await waitForExistence(updateKey, timeout: 3)
+        XCTAssertTrue(updateKeyAppeared)
+        guard updateKeyAppeared else { return }
+
+        app.typeKey("w", modifierFlags: .command)
+        let becameAccessory = await waitUntil(timeout: 3) { scriber.activationPolicy == .accessory }
+        XCTAssertTrue(becameAccessory)
+        XCTAssertTrue(finder.activate(options: [.activateAllWindows]))
+        let finderBecameActive = await waitUntil(timeout: 3) { finder.isActive }
+        XCTAssertTrue(finderBecameActive)
+
+        updateKey.click()
+
+        let scriberBecameActive = await waitUntil(timeout: 3) {
+            scriber.activationPolicy == .regular && scriber.isActive
+        }
+        XCTAssertTrue(scriberBecameActive)
+        let settingsAppeared = await waitForExistence(settingsView(in: app), timeout: 3)
+        XCTAssertTrue(settingsAppeared)
+        let apiKeyField = app.secureTextFields["ElevenLabs API key"].firstMatch
+        let apiKeyFieldAppeared = await waitForExistence(apiKeyField, timeout: 3)
+        XCTAssertTrue(apiKeyFieldAppeared)
+        app.typeText("focus-check")
+        let apiKeyFieldValue = apiKeyField.value as? String
+        XCTAssertFalse(
+            apiKeyFieldValue?.isEmpty ?? true,
+            "The API-key field should receive typing immediately."
+        )
+        let pillDismissed = await waitUntil(timeout: 3) { !updateKey.exists }
+        XCTAssertTrue(pillDismissed, "Opening Settings should dismiss the pill.")
+    }
+
+    private var pillLifecycleArguments: [String] {
+        [
+            "--ui-testing-accessory-lifecycle",
+            "--ui-testing-invalid-key-pill",
+            "--ui-testing-persistent-pill",
+        ]
+    }
+
     private func launchApp(additionalArguments: [String] = []) async -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -97,6 +147,11 @@ final class ScriberDictateUITests: XCTestCase {
 
     private func historySearchField(in app: XCUIApplication) -> XCUIElement {
         app.searchFields["Search dictations"].firstMatch
+    }
+
+    private func runningApplication(bundleIdentifier: String) -> NSRunningApplication? {
+        NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier)
+            .max(by: { $0.processIdentifier < $1.processIdentifier })
     }
 
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {

@@ -65,13 +65,13 @@ final class PillController {
     init() {
         panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 62),
-            styleMask: [.borderless],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         panel.level = .statusBar
         panel.isFloatingPanel = true
-        panel.becomesKeyOnlyIfNeeded = false
+        panel.becomesKeyOnlyIfNeeded = true
         panel.hidesOnDeactivate = false
         panel.hasShadow = false
         panel.backgroundColor = .clear
@@ -100,7 +100,10 @@ final class PillController {
         }
         model.phase = phase
         show()
-        if let delay = dismissalDelay(for: phase) { startAutoDismissal(after: delay) }
+        if !autoDismissalDisabledForUITesting,
+           let delay = dismissalDelay(for: phase) {
+            startAutoDismissal(after: delay)
+        }
     }
 
     func setPreferredScreen(_ screen: NSScreen?) {
@@ -240,6 +243,14 @@ final class PillController {
 
     private var shouldReduceMotion: Bool {
         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
+
+    private var autoDismissalDisabledForUITesting: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-testing-persistent-pill")
+#else
+        false
+#endif
     }
 
     private func positionPanel() {
@@ -427,6 +438,7 @@ private struct PillView: View {
             .buttonStyle(.plain)
             .frame(width: 26, height: 26)
             .contentShape(Rectangle())
+            .accessibilityLabel("Dismiss")
     }
 }
 
