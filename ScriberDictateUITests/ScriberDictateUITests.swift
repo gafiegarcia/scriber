@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 
 @MainActor
@@ -47,10 +48,38 @@ final class ScriberDictateUITests: XCTestCase {
         XCTAssertEqual(historySearchField(in: app).value as? String, "settings query")
     }
 
-    private func launchApp() async -> XCUIApplication {
+    func testClosingFinalWindowUsesAccessoryActivationPolicy() async {
+        let app = await launchApp(additionalArguments: ["--ui-testing-accessory-lifecycle"])
+        defer { app.terminate() }
+        guard let runningApplication = NSRunningApplication
+            .runningApplications(withBundleIdentifier: "com.gafiegarcia.scriber-dictate")
+            .max(by: { $0.processIdentifier < $1.processIdentifier }) else {
+            XCTFail("The launched app should have a running application instance.")
+            return
+        }
+
+        let beganRegular = await waitUntil(timeout: 3) {
+            runningApplication.activationPolicy == NSApplication.ActivationPolicy.regular
+        }
+        XCTAssertTrue(beganRegular, "The visible main window should begin with a regular activation policy.")
+        guard beganRegular else { return }
+
+        app.typeKey("w", modifierFlags: .command)
+
+        let becameAccessory = await waitUntil(timeout: 3) {
+            runningApplication.activationPolicy == NSApplication.ActivationPolicy.accessory
+        }
+        XCTAssertTrue(
+            becameAccessory,
+            "Closing the final app window should remove Scriber Dictate from the Dock and app switcher."
+        )
+        XCTAssertFalse(runningApplication.isTerminated, "Accessory mode must leave background services running.")
+    }
+
+    private func launchApp(additionalArguments: [String] = []) async -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-testing"]
+        app.launchArguments = ["--ui-testing"] + additionalArguments
         app.launch()
 
         let windowAppeared = await waitForExistence(app.windows.firstMatch, timeout: 5)
@@ -81,5 +110,14 @@ final class ScriberDictateUITests: XCTestCase {
             try? await Task.sleep(for: .milliseconds(100))
         }
         return element.exists
+    }
+
+    private func waitUntil(timeout: TimeInterval, condition: () -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(timeout))
+        while ContinuousClock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return condition()
     }
 }

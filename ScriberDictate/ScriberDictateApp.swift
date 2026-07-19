@@ -11,6 +11,21 @@ enum AppLaunchConfiguration {
         false
 #endif
     }
+
+    static var keepsRegularActivationPolicy: Bool {
+        isUITesting && !ProcessInfo.processInfo.arguments.contains("--ui-testing-accessory-lifecycle")
+    }
+}
+
+@MainActor
+private enum AppWindowIdentity {
+    static let mainTitle = "Scriber Dictate"
+    static let onboardingTitle = "Set Up Scriber Dictate"
+
+    static func isManagedWindow(_ window: NSWindow) -> Bool {
+        guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
+        return window.title == mainTitle || window.title == onboardingTitle
+    }
 }
 
 @MainActor
@@ -114,7 +129,7 @@ struct ScriberDictateApp: App {
     }
 
     private func closeAllNormalWindows() {
-        NSApp.windows.filter { !($0 is NSPanel) }.forEach { $0.performClose(nil) }
+        NSApp.windows.filter(AppWindowIdentity.isManagedWindow).forEach { $0.performClose(nil) }
     }
 }
 
@@ -137,19 +152,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(AppLaunchConfiguration.isUITesting ? .regular : .accessory)
         let center = NotificationCenter.default
-        NSApp.windows.filter { !($0 is NSPanel) }.forEach { $0.isReleasedWhenClosed = false }
+        NSApp.windows.filter(AppWindowIdentity.isManagedWindow).forEach { $0.isReleasedWhenClosed = false }
         observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { note in
-            guard let window = note.object as? NSWindow, !(window is NSPanel) else { return }
+            guard let window = note.object as? NSWindow else { return }
             Task { @MainActor in
+                guard AppWindowIdentity.isManagedWindow(window) else { return }
                 window.isReleasedWhenClosed = false
                 NSApp.setActivationPolicy(.regular)
             }
         })
-        observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { note in
-            guard let window = note.object as? NSWindow, !(window is NSPanel) else { return }
-            DispatchQueue.main.async {
-                let visibleNormalWindow = NSApp.windows.contains { $0.isVisible && !($0 is NSPanel) }
-                if !visibleNormalWindow { NSApp.setActivationPolicy(.accessory) }
+        observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self] note in
+            guard let window = note.object as? NSWindow else { return }
+            Task { @MainActor [weak self] in
+                guard AppWindowIdentity.isManagedWindow(window) else { return }
+                await Task.yield()
+                self?.reconcileActivationPolicy()
+            }
+        })
+        observers.append(center.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { [weak self] note in
+            guard let window = note.object as? NSWindow else { return }
+            Task { @MainActor [weak self] in
+                guard AppWindowIdentity.isManagedWindow(window) else { return }
+                await Task.yield()
+                self?.reconcileActivationPolicy()
             }
         })
         observers.append(center.addObserver(forName: .openScriberDictateMainWindow, object: nil, queue: .main) { [weak self] _ in
@@ -158,17 +183,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { showMainWindow() }
+        if !hasVisibleManagedWindow { showMainWindow() }
         return true
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     private func showMainWindow() {
-        guard let window = NSApp.windows.first(where: { !($0 is NSPanel) && $0.title == "Scriber Dictate" }) else { return }
+        guard let window = NSApp.windows.first(where: {
+            AppWindowIdentity.isManagedWindow($0) && $0.title == AppWindowIdentity.mainTitle
+        }) else { return }
         NSApp.setActivationPolicy(.regular)
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
+    }
+
+    private var hasVisibleManagedWindow: Bool {
+        NSApp.windows.contains { $0.isVisible && AppWindowIdentity.isManagedWindow($0) }
+    }
+
+    private func reconcileActivationPolicy() {
+        let policy: NSApplication.ActivationPolicy =
+            hasVisibleManagedWindow || AppLaunchConfiguration.keepsRegularActivationPolicy
+            ? .regular
+            : .accessory
+        NSApp.setActivationPolicy(policy)
     }
 }
