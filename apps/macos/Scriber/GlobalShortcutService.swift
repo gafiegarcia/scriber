@@ -3,7 +3,7 @@
 import CoreGraphics
 import Foundation
 #if SWIFT_PACKAGE
-import ScriberDictateCore
+import ScriberCore
 #endif
 
 enum ShortcutMonitorMode: Equatable, Sendable {

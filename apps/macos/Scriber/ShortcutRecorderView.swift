@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 #if SWIFT_PACKAGE
-import ScriberDictateCore
+import ScriberCore
 #endif
 
 struct ShortcutRecorderView: View {

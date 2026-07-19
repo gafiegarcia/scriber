@@ -3,20 +3,20 @@
 import PackageDescription
 
 let package = Package(
-    name: "ScriberDictate",
+    name: "Scriber",
     platforms: [.macOS(.v15)],
     products: [
-        .library(name: "ScriberDictateCore", targets: ["ScriberDictateCore"])
+        .library(name: "ScriberCore", targets: ["ScriberCore"])
     ],
     targets: [
         .target(
-            name: "ScriberDictateCore",
-            path: "ScriberDictateCore"
+            name: "ScriberCore",
+            path: "ScriberCore"
         ),
         .testTarget(
-            name: "ScriberDictateTests",
-            dependencies: ["ScriberDictateCore"],
-            path: "ScriberDictateTests"
+            name: "ScriberCoreTests",
+            dependencies: ["ScriberCore"],
+            path: "ScriberCoreTests"
         )
     ]
 )

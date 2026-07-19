@@ -3,7 +3,7 @@ import ServiceManagement
 import SwiftData
 import SwiftUI
 #if SWIFT_PACKAGE
-import ScriberDictateCore
+import ScriberCore
 #endif
 
 enum MainSection: Hashable { case dictation, settings }

@@ -2,7 +2,7 @@ import AppKit
 import XCTest
 
 @MainActor
-final class ScriberDictateUITests: XCTestCase {
+final class ScriberUITests: XCTestCase {
     func testInitialFocusStartsInSelectedSidebarRow() async {
         let app = await launchApp()
         defer { app.terminate() }

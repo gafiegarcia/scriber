@@ -4,7 +4,7 @@ import Combine
 import Foundation
 import SwiftData
 #if SWIFT_PACKAGE
-import ScriberDictateCore
+import ScriberCore
 #endif
 
 extension Notification.Name {

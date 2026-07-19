@@ -2,7 +2,7 @@
 import CoreAudio
 import Foundation
 #if SWIFT_PACKAGE
-import ScriberDictateCore
+import ScriberCore
 #endif
 
 enum AudioRecorderError: LocalizedError {

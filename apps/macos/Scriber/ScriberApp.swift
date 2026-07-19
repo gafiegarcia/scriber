@@ -88,7 +88,7 @@ final class AppRuntime: ObservableObject {
 }
 
 @main
-struct ScriberDictateApp: App {
+struct ScriberApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var runtime = AppRuntime()
 

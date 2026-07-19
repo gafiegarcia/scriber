@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 #if SWIFT_PACKAGE
-import ScriberDictateCore
+import ScriberCore
 #endif
 
 @MainActor

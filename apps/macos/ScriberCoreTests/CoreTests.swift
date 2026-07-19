@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ScriberDictateCore
+@testable import ScriberCore
 
 @Suite("Shortcut matching")
 struct ShortcutMatcherTests {
