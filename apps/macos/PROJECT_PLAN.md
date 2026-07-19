@@ -20,6 +20,7 @@ Product direction:
 - Native macOS app written in Swift and SwiftUI, not Electron.
 - ElevenLabs Scribe v2 batch API, using a bring-your-own API key.
 - Minimal, modern, and based on native macOS components.
+- The approved product-wide rename, clean identity reset, exhaustive internal rename, Dictation navigation vocabulary, and future separate Transcription workspace are specified in [`../../docs/NATIVE_IDENTITY_PLAN.md`](../../docs/NATIVE_IDENTITY_PLAN.md).
 
 ## Locked v0.1 Decisions
 
@@ -103,6 +104,7 @@ Product direction:
 
 ### 2026-07-19
 
+- Approved and documented the native product transition from Scriber Dictate `0.1.0` to Scriber `0.7.0` build 2 with bundle identifier `com.gafiegarcia.scriber`. The transition intentionally performs a clean identity reset instead of migrating history, preferences, pending audio, Launch at Login, or the old protected Keychain item. The durable rename map and future Dictation/Transcription separation live in `docs/NATIVE_IDENTITY_PLAN.md`; the root license remains undecided pending a separate copyleft discussion.
 - Moved the complete native project into `apps/macos` as the first monorepo migration phase without changing the app name, target names, version, bundle identifier, or stored-data behavior. Updated repository-level documentation and ignore rules for the two self-contained implementations. Parser validation, expanded core type-checking, all 25 credit-free package tests, plist validation, and unsigned Xcode 27 beta Debug and Release builds pass from the new path.
 - Changed the main window's initial keyboard focus from the History overflow menu to the selected sidebar row, except when an explicit Update Key or View Usage request needs to focus Settings content. Added a scene-scoped “Search History” Command-F action that focuses the native History search field and first switches from Settings to History when necessary. Parser validation, core type-checking, all 16 credit-free tests, and the unsigned Xcode 27 beta Debug build pass; initial and cross-section focus behavior remains a live UI check.
 - Removed the redundant large History heading from inside the page while retaining the native toolbar title, dictation count, and overflow actions. History and Settings now share one persistent detail-level navigation-title host, preventing the native sidebar toggle from being torn down and redrawn as the selected section changes. Parser validation, all 16 credit-free tests, and the unsigned Xcode 27 beta Debug build pass.
