@@ -106,7 +106,8 @@ Migration progress as of 2026-07-19:
 
 - Phase 0 complete: repository identities and remotes verified.
 - Phase 1 complete: legacy source changes verified, archived at `b13274d`, tagged `electron-legacy-final`, and pushed to `gafiegarcia/scriber-legacy`.
-- Phase 2 verified: the native app builds and its credit-free tests pass from `apps/macos`; commit pending.
+- Phase 2 complete: native relocation committed as `f5282c3`; the app builds and its credit-free tests pass from `apps/macos`.
+- Phase 3 verified: the tracked Electron snapshot from `b13274d` is present without legacy history; lint, 73 credit-free tests, and the production build pass; commit pending.
 
 ### Phase 0: Re-anchor the fresh Codex task
 
