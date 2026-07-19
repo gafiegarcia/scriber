@@ -118,6 +118,32 @@ final class ScriberDictateUITests: XCTestCase {
         XCTAssertTrue(pillDismissed, "Opening Settings should dismiss the pill.")
     }
 
+    func testReturnSubmitsAPIKeyFromSettings() async {
+        let app = await launchApp()
+        defer { app.terminate() }
+
+        let settingsRow = element(in: app, identifier: "sidebar-settings")
+        let settingsRowAppeared = await waitForExistence(settingsRow, timeout: 3)
+        XCTAssertTrue(settingsRowAppeared)
+        settingsRow.click()
+        let settingsAppeared = await waitForExistence(settingsView(in: app), timeout: 3)
+        XCTAssertTrue(settingsAppeared)
+
+        let apiKeyField = app.secureTextFields["ElevenLabs API key"].firstMatch
+        let apiKeyFieldAppeared = await waitForExistence(apiKeyField, timeout: 3)
+        XCTAssertTrue(apiKeyFieldAppeared)
+        apiKeyField.click()
+        apiKeyField.typeText("ui-test-api-key")
+        app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+
+        let feedback = element(in: app, identifier: "api-key-save-feedback")
+        let feedbackAppeared = await waitForExistence(feedback, timeout: 3)
+        XCTAssertTrue(
+            feedbackAppeared,
+            "Return in the API-key field should run the same save action as the button."
+        )
+    }
+
     private var pillLifecycleArguments: [String] {
         [
             "--ui-testing-accessory-lifecycle",

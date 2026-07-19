@@ -360,45 +360,47 @@ struct SettingsView: View {
         ScrollViewReader { proxy in
             Form {
             Section("ElevenLabs") {
-                SecureField(
-                    text: $apiKey,
-                    prompt: Text(
-                        runtime.preferences.apiKeyConfigured
-                            ? "Enter a new API key to replace the stored key"
-                            : "Paste your ElevenLabs API key"
-                    )
-                ) {
-                    Text("ElevenLabs API key")
-                }
-                    .labelsHidden()
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(isCheckingAPIKey)
-                    .focused($apiKeyFieldFocused)
-                    .id(MainWindowDestination.apiKey)
-                HStack {
-                    Button {
-                        Task { await saveKey() }
-                    } label: {
-                        if isCheckingAPIKey {
-                            HStack(spacing: 6) {
-                                ProgressView().controlSize(.small)
-                                Text("Checking…")
+                VStack(alignment: .leading, spacing: 10) {
+                    SecureField(
+                        text: $apiKey,
+                        prompt: Text(
+                            runtime.preferences.apiKeyConfigured
+                                ? "Enter a new API key to replace the stored key"
+                                : "Paste your ElevenLabs API key"
+                        )
+                    ) {
+                        Text("ElevenLabs API key")
+                    }
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .disabled(isCheckingAPIKey)
+                        .focused($apiKeyFieldFocused)
+                        .onSubmit(submitAPIKey)
+                        .id(MainWindowDestination.apiKey)
+                    HStack {
+                        Button(action: submitAPIKey) {
+                            if isCheckingAPIKey {
+                                HStack(spacing: 6) {
+                                    ProgressView().controlSize(.small)
+                                    Text("Checking…")
+                                }
+                            } else {
+                                Text("Save API Key")
                             }
-                        } else {
-                            Text("Save API Key")
                         }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(!canSubmitAPIKey)
+                        if let keyFeedback {
+                            Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
+                                .font(.caption)
+                                .foregroundStyle(keyFeedback.color)
+                                .lineLimit(2)
+                                .accessibilityIdentifier("api-key-save-feedback")
+                        } else if apiKey.isEmpty {
+                            apiKeyStatusLabel
+                        }
+                        Spacer(minLength: 0)
                     }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCheckingAPIKey)
-                    if let keyFeedback {
-                        Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
-                            .font(.caption)
-                            .foregroundStyle(keyFeedback.color)
-                            .lineLimit(2)
-                    } else if apiKey.isEmpty {
-                        apiKeyStatusLabel
-                    }
-                    Spacer(minLength: 0)
                 }
                 subscriptionUsageView
                     .id(MainWindowDestination.usage)
@@ -470,6 +472,15 @@ struct SettingsView: View {
                 if !newValue.isEmpty { keyFeedback = nil }
             }
         }
+    }
+
+    private var canSubmitAPIKey: Bool {
+        !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isCheckingAPIKey
+    }
+
+    private func submitAPIKey() {
+        guard canSubmitAPIKey else { return }
+        Task { await saveKey() }
     }
 
     private func applyMainWindowRequest(_ request: MainWindowRequest?, proxy: ScrollViewProxy) {
@@ -630,10 +641,9 @@ struct OnboardingView: View {
                     )
                         .textFieldStyle(.roundedBorder)
                         .disabled(isCheckingAPIKey)
+                        .onSubmit(submitAPIKey)
                     HStack(spacing: 12) {
-                        Button {
-                            Task { await saveKey() }
-                        } label: {
+                        Button(action: submitAPIKey) {
                             if isCheckingAPIKey {
                                 HStack(spacing: 6) {
                                     ProgressView().controlSize(.small)
@@ -644,7 +654,7 @@ struct OnboardingView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCheckingAPIKey)
+                        .disabled(!canSubmitAPIKey)
 
                         if let keyFeedback {
                             Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
@@ -790,6 +800,15 @@ struct OnboardingView: View {
         .onChange(of: apiKey) { _, newValue in
             if !newValue.isEmpty { keyFeedback = nil }
         }
+    }
+
+    private var canSubmitAPIKey: Bool {
+        !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isCheckingAPIKey
+    }
+
+    private func submitAPIKey() {
+        guard canSubmitAPIKey else { return }
+        Task { await saveKey() }
     }
 
     private func finish() {

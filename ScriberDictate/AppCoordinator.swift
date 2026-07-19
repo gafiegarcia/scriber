@@ -189,6 +189,18 @@ final class AppCoordinator: ObservableObject {
     }
 
     func validateAndSaveAPIKey(_ value: String) async throws {
+#if DEBUG
+        if !servicesAllowed {
+            preferences.apiKeyConfigured = true
+            preferences.apiKeyValidity = .valid
+            preferences.subscriptionUsage = nil
+            preferences.apiCreditsExhausted = false
+            subscriptionUsageUnavailable = false
+            subscriptionUsageError = nil
+            clearResolvedCredentialBlock()
+            return
+        }
+#endif
         let result = try await scribe.validateAPIKey(value)
         credentialRevision.advance()
         storedAPIKeyValidationTask?.cancel()
