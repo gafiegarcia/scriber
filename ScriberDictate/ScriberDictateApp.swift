@@ -206,20 +206,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let window = NSApp.windows.first(where: {
             AppWindowIdentity.isManagedWindow($0) && $0.title == AppWindowIdentity.mainTitle
         }) else { return }
+        let previouslyActiveApplication = NSWorkspace.shared.frontmostApplication
         activationRetryTask?.cancel()
         NSApp.setActivationPolicy(.regular)
         window.isReleasedWhenClosed = false
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
-        activationRetryTask = Task { @MainActor [weak self, weak window] in
-            await Task.yield()
+        window.orderFrontRegardless()
+        activationRetryTask = Task { @MainActor [weak self, weak window, previouslyActiveApplication] in
+            try? await Task.sleep(for: .milliseconds(50))
             guard let self, let window, !Task.isCancelled, window.isVisible else { return }
-            guard !NSApp.isActive else {
-                activationRetryTask = nil
-                return
+
+            let currentApplication = NSRunningApplication.current
+            let activationRequested: Bool
+            if let previouslyActiveApplication,
+               previouslyActiveApplication.processIdentifier != currentApplication.processIdentifier {
+                activationRequested = currentApplication.activate(
+                    from: previouslyActiveApplication,
+                    options: [.activateAllWindows]
+                )
+            } else {
+                activationRequested = currentApplication.activate(options: [.activateAllWindows])
             }
-            NSApp.activate(ignoringOtherApps: true)
+            if !activationRequested { NSApp.activate() }
             window.makeKeyAndOrderFront(nil)
+
+            try? await Task.sleep(for: .milliseconds(50))
+            guard !Task.isCancelled else { return }
+            if !currentApplication.isActive {
+                _ = currentApplication.activate(options: [.activateAllWindows])
+                NSApp.activate()
+                window.makeKeyAndOrderFront(nil)
+            }
             activationRetryTask = nil
         }
     }
