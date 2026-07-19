@@ -1,8 +1,8 @@
-# Scriber Dictate
+# Scriber
 
-Scriber Dictate is a native macOS menu-bar dictation app powered by ElevenLabs Scribe v2. It records only while a configured shortcut is active, stores the API key in Keychain, saves transcript history locally with SwiftData, and inserts finished text through macOS Accessibility.
+Scriber is a native macOS menu-bar dictation app powered by ElevenLabs Scribe v2. It records only while a configured shortcut is active, stores the API key in Keychain, saves dictation history locally with SwiftData, and inserts finished text through macOS Accessibility.
 
-The initial `0.1.0` release is a personal Apple-silicon beta targeting macOS 27.
+The `0.7.0` release is a personal Apple-silicon beta targeting macOS 27.
 
 ## Current prerequisites
 
@@ -18,7 +18,7 @@ The initial `0.1.0` release is a personal Apple-silicon beta targeting macOS 27.
 4. Configure an Apple Development signing team if Xcode requests one.
 5. Build and run.
 
-For stable Accessibility and Launch at Login permissions, archive a Release build and keep `Scriber Dictate.app` in `/Applications` rather than repeatedly moving it.
+For stable Accessibility and Launch at Login permissions, archive a Release build and keep `Scriber.app` in `/Applications` rather than repeatedly moving it.
 
 ## First launch
 

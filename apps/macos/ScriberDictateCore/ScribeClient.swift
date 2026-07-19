@@ -282,7 +282,7 @@ public struct ScribeClient: Sendable {
         do { audio = try Data(contentsOf: input.audioURL) }
         catch { throw ScribeError.invalidRequest("The recording could not be read.") }
 
-        let boundary = "ScriberDictate-\(UUID().uuidString)"
+        let boundary = "Scriber-\(UUID().uuidString)"
         var body = Data()
         func append(_ string: String) { body.append(Data(string.utf8)) }
         func field(_ name: String, _ value: String) {

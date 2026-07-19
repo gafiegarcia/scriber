@@ -132,14 +132,14 @@ final class AudioRecorder {
             appropriateFor: nil,
             create: true
         )
-        let directory = support.appendingPathComponent("Scriber Dictate/PendingAudio", isDirectory: true)
+        let directory = support.appendingPathComponent("Scriber/PendingAudio", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
 }
 
 private final class CaptureBackend: NSObject, @unchecked Sendable {
-    private let queue = DispatchQueue(label: "com.gafiegarcia.scriber-dictate.audio-capture")
+    private let queue = DispatchQueue(label: "com.gafiegarcia.scriber.audio-capture")
     private var session: AVCaptureSession?
     private var dataOutput: AVCaptureAudioDataOutput?
     private var fileOutput: AVCaptureAudioFileOutput?

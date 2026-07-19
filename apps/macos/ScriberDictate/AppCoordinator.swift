@@ -8,11 +8,11 @@ import ScriberDictateCore
 #endif
 
 extension Notification.Name {
-    static let openScriberDictateMainWindow = Notification.Name("openScriberDictateMainWindow")
+    static let openScriberMainWindow = Notification.Name("openScriberMainWindow")
 }
 
 enum MainWindowDestination: Hashable {
-    case history
+    case dictation
     case settings
     case apiKey
     case usage
@@ -414,12 +414,12 @@ final class AppCoordinator: ObservableObject {
         try? modelContext.save()
     }
 
-    func clearHistory(_ records: [DictationRecord]) {
+    func clearDictationHistory(_ records: [DictationRecord]) {
         for record in records { delete(record) }
     }
 
     func openMainWindow() {
-        openMainWindow(destination: .history)
+        openMainWindow(destination: .dictation)
     }
 
     func openAPIKeySettings() {
@@ -438,7 +438,7 @@ final class AppCoordinator: ObservableObject {
         selectMainWindowDestination(destination)
         returnToIdle()
         NSApp.setActivationPolicy(.regular)
-        NotificationCenter.default.post(name: .openScriberDictateMainWindow, object: nil)
+        NotificationCenter.default.post(name: .openScriberMainWindow, object: nil)
     }
 
     func presentInvalidAPIKeyPillForUITesting() {

@@ -23,8 +23,8 @@ enum AppLaunchConfiguration {
 
 @MainActor
 private enum AppWindowIdentity {
-    static let mainTitle = "Scriber Dictate"
-    static let onboardingTitle = "Set Up Scriber Dictate"
+    static let mainTitle = "Scriber"
+    static let onboardingTitle = "Set Up Scriber"
 
     static func isManagedWindow(_ window: NSWindow) -> Bool {
         guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
@@ -54,7 +54,7 @@ final class AppRuntime: ObservableObject {
         }
 
         if isUITesting {
-            let suiteName = "com.gafiegarcia.scriber-dictate.ui-testing"
+            let suiteName = "com.gafiegarcia.scriber.ui-testing"
             let defaults = UserDefaults(suiteName: suiteName)!
             defaults.removePersistentDomain(forName: suiteName)
             preferences = Preferences(defaults: defaults, defaultAudioInputSelection: .automatic)
@@ -93,7 +93,7 @@ struct ScriberDictateApp: App {
     @StateObject private var runtime = AppRuntime()
 
     var body: some Scene {
-        Window("Scriber Dictate", id: "main") {
+        Window("Scriber", id: "main") {
             MainWindowView()
                 .environmentObject(runtime)
                 .modelContainer(runtime.container)
@@ -102,7 +102,7 @@ struct ScriberDictateApp: App {
         .commands {
             MainWindowCommands()
             CommandGroup(replacing: .appTermination) {
-                Button("Quit Scriber Dictate") { NSApp.terminate(nil) }
+                Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             }
             CommandGroup(after: .windowArrangement) {
@@ -111,7 +111,7 @@ struct ScriberDictateApp: App {
             }
         }
 
-        Window("Set Up Scriber Dictate", id: "onboarding") {
+        Window("Set Up Scriber", id: "onboarding") {
             OnboardingView()
                 .environmentObject(runtime)
                 .modelContainer(runtime.container)
@@ -120,12 +120,12 @@ struct ScriberDictateApp: App {
         .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .appTermination) {
-                Button("Quit Scriber Dictate") { NSApp.terminate(nil) }
+                Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             }
         }
 
-        MenuBarExtra("Scriber Dictate", systemImage: menuBarSymbol) {
+        MenuBarExtra("Scriber", systemImage: menuBarSymbol) {
             MenuBarContent().environmentObject(runtime)
         }
     }
@@ -146,13 +146,13 @@ struct ScriberDictateApp: App {
 }
 
 private struct MainWindowCommands: Commands {
-    @FocusedValue(\.searchHistoryAction) private var searchHistory
+    @FocusedValue(\.searchDictationHistoryAction) private var searchDictationHistory
 
     var body: some Commands {
         CommandGroup(after: .textEditing) {
-            Button("Search History") { searchHistory?() }
+            Button("Search Dictations") { searchDictationHistory?() }
                 .keyboardShortcut("f", modifiers: .command)
-                .disabled(searchHistory == nil)
+                .disabled(searchDictationHistory == nil)
         }
     }
 }
@@ -190,7 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.reconcileActivationPolicy()
             }
         })
-        observers.append(center.addObserver(forName: .openScriberDictateMainWindow, object: nil, queue: .main) { [weak self] _ in
+        observers.append(center.addObserver(forName: .openScriberMainWindow, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.showMainWindow() }
         })
     }

@@ -53,7 +53,7 @@
 		B1000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000000000000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000000000000000000010 /* ScriberDictate.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScriberDictate.entitlements; sourceTree = "<group>"; };
-		B10000000000000000000011 /* Scriber Dictate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Scriber Dictate.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000011 /* Scriber.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scriber.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000012 /* ../ScriberDictateCore/CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberDictateCore/CoreModels.swift; sourceTree = "<group>"; };
 		B10000000000000000000013 /* ../ScriberDictateCore/CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberDictateCore/CredentialStore.swift; sourceTree = "<group>"; };
 		B20000000000000000000001 /* ScriberDictateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriberDictateUITests.swift; sourceTree = "<group>"; };
@@ -123,7 +123,7 @@
 		D10000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				B10000000000000000000011 /* Scriber Dictate.app */,
+				B10000000000000000000011 /* Scriber.app */,
 				B20000000000000000000002 /* ScriberDictateUITests.xctest */,
 			);
 			name = Products;
@@ -145,8 +145,8 @@
 			dependencies = (
 			);
 			name = ScriberDictate;
-			productName = "Scriber Dictate";
-			productReference = B10000000000000000000011 /* Scriber Dictate.app */;
+			productName = Scriber;
+			productReference = B10000000000000000000011 /* Scriber.app */;
 			productType = "com.apple.product-type.application";
 		};
 		E20000000000000000000001 /* ScriberDictateUITests */ = {
@@ -299,7 +299,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 24U8BM54A3;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -309,9 +309,9 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber-dictate";
-				PRODUCT_NAME = "Scriber Dictate";
+				MARKETING_VERSION = 0.7.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber;
+				PRODUCT_NAME = Scriber;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 			};
@@ -326,7 +326,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 24U8BM54A3;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -336,9 +336,9 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber-dictate";
-				PRODUCT_NAME = "Scriber Dictate";
+				MARKETING_VERSION = 0.7.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber;
+				PRODUCT_NAME = Scriber;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 			};
@@ -348,11 +348,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 24U8BM54A3;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber-dictate.ui-tests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber.ui-tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
@@ -364,11 +364,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 24U8BM54A3;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber-dictate.ui-tests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber.ui-tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;

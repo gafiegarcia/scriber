@@ -6,16 +6,16 @@ import SwiftUI
 import ScriberDictateCore
 #endif
 
-enum MainSection: Hashable { case history, settings }
+enum MainSection: Hashable { case dictation, settings }
 
-struct SearchHistoryActionKey: FocusedValueKey {
+struct SearchDictationHistoryActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
 extension FocusedValues {
-    var searchHistoryAction: (() -> Void)? {
-        get { self[SearchHistoryActionKey.self] }
-        set { self[SearchHistoryActionKey.self] = newValue }
+    var searchDictationHistoryAction: (() -> Void)? {
+        get { self[SearchDictationHistoryActionKey.self] }
+        set { self[SearchDictationHistoryActionKey.self] = newValue }
     }
 }
 
@@ -48,35 +48,35 @@ private enum KeySaveFeedback {
 struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var runtime: AppRuntime
-    @State private var section: MainSection? = .history
+    @State private var section: MainSection? = .dictation
     @FocusState private var sidebarFocused: Bool
-    @FocusState private var historySearchFocused: Bool
+    @FocusState private var dictationSearchFocused: Bool
 
     var body: some View {
         NavigationSplitView {
             List(selection: $section) {
-                Label("History", systemImage: "clock.arrow.circlepath")
-                    .tag(MainSection.history)
-                    .accessibilityIdentifier("sidebar-history")
+                Label("Dictation", systemImage: "clock.arrow.circlepath")
+                    .tag(MainSection.dictation)
+                    .accessibilityIdentifier("sidebar-dictation")
                 Label("Settings", systemImage: "gearshape")
                     .tag(MainSection.settings)
                     .accessibilityIdentifier("sidebar-settings")
             }
             .accessibilityIdentifier("main-sidebar")
-            .navigationTitle("Scriber Dictate")
+            .navigationTitle("Scriber")
             .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
             .focused($sidebarFocused)
         } detail: {
             Group {
-                switch section ?? .history {
-                case .history: HistoryView(searchFocused: $historySearchFocused)
+                switch section ?? .dictation {
+                case .dictation: DictationHistoryView(searchFocused: $dictationSearchFocused)
                 case .settings: SettingsView()
                 }
             }
-            .navigationTitle(section == .settings ? "Settings" : "History")
+            .navigationTitle(section == .settings ? "Settings" : "Dictation")
         }
         .frame(minWidth: 760, minHeight: 520)
-        .focusedSceneValue(\.searchHistoryAction, focusHistorySearch)
+        .focusedSceneValue(\.searchDictationHistoryAction, focusDictationSearch)
         .onAppear {
             applyMainWindowRequest(runtime.coordinator.mainWindowRequest)
             openOnboardingIfNeeded()
@@ -90,21 +90,21 @@ struct MainWindowView: View {
 
     private func applyMainWindowRequest(_ request: MainWindowRequest?) {
         guard let request else { return }
-        section = request.destination == .history ? .history : .settings
+        section = request.destination == .dictation ? .dictation : .settings
     }
 
     private func focusSidebarIfAppropriate() {
         switch runtime.coordinator.mainWindowRequest?.destination {
         case .apiKey, .usage:
             return
-        case .history, .settings, nil:
+        case .dictation, .settings, nil:
             DispatchQueue.main.async { sidebarFocused = true }
         }
     }
 
-    private func focusHistorySearch() {
-        section = .history
-        DispatchQueue.main.async { historySearchFocused = true }
+    private func focusDictationSearch() {
+        section = .dictation
+        DispatchQueue.main.async { dictationSearchFocused = true }
     }
 
     private func openOnboardingIfNeeded() {
@@ -130,13 +130,13 @@ struct MenuBarContent: View {
             } else {
                 Button("Finish Setup…") { openOnboarding() }
             }
-            Button("Open History") { openMain(section: .history) }
+            Button("Open Dictation") { openMain(section: .dictation) }
             Button("Settings…") { openMain(section: .settings) }
             Divider()
             Text("Hold: \(runtime.preferences.holdShortcut.displayName)")
             Text("Toggle: \(runtime.preferences.toggleShortcut.displayName)")
             Divider()
-            Button("Quit Scriber Dictate") { NSApp.terminate(nil) }
+            Button("Quit Scriber") { NSApp.terminate(nil) }
         }
         .onAppear {
             runtime.coordinator.startServices()
@@ -151,7 +151,7 @@ struct MenuBarContent: View {
     }
 
     private func openMain(section: MainSection) {
-        runtime.coordinator.selectMainWindowDestination(section == .history ? .history : .settings)
+        runtime.coordinator.selectMainWindowDestination(section == .dictation ? .dictation : .settings)
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "main")
         NSApp.activate(ignoringOtherApps: true)
@@ -166,7 +166,7 @@ struct MenuBarContent: View {
     }
 }
 
-struct HistoryView: View {
+struct DictationHistoryView: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
     let searchFocused: FocusState<Bool>.Binding
@@ -185,14 +185,14 @@ struct HistoryView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 Menu {
-                    Button("Clear History…", role: .destructive) { confirmClear = true }
+                    Button("Clear Dictation History…", role: .destructive) { confirmClear = true }
                         .disabled(records.isEmpty)
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
-                .help("History actions")
+                .help("Dictation history actions")
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 14)
@@ -209,7 +209,7 @@ struct HistoryView: View {
                 ContentUnavailableView.search(text: search)
             } else {
                 List(filtered) { record in
-                    HistoryRow(record: record)
+                    DictationHistoryRow(record: record)
                         .contextMenu {
                             if let text = record.text, !text.isEmpty {
                                 Button("Copy") { runtime.coordinator.copy(record) }
@@ -225,18 +225,18 @@ struct HistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .accessibilityIdentifier("history-view")
+        .accessibilityIdentifier("dictation-history-view")
         .searchable(text: $search, prompt: "Search dictations")
         .searchFocused(searchFocused)
         .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
-            Button("Delete All", role: .destructive) { runtime.coordinator.clearHistory(records) }
+            Button("Delete All", role: .destructive) { runtime.coordinator.clearDictationHistory(records) }
         } message: {
             Text("This permanently removes transcripts and any retained failed recordings.")
         }
     }
 }
 
-private struct HistoryRow: View {
+private struct DictationHistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
 
@@ -492,7 +492,7 @@ struct SettingsView: View {
         case .usage:
             apiKeyFieldFocused = false
             proxy.scrollTo(MainWindowDestination.usage, anchor: .center)
-        case .history, .settings:
+        case .dictation, .settings:
             apiKeyFieldFocused = false
         }
     }
@@ -627,7 +627,7 @@ struct OnboardingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Welcome to Scriber Dictate").font(.largeTitle.bold())
+                Text("Welcome to Scriber").font(.largeTitle.bold())
                 Text("Hold Fn to dictate. Your audio goes only to ElevenLabs, and your history stays on this Mac.")
                     .foregroundStyle(.secondary)
             }
@@ -741,7 +741,7 @@ struct OnboardingView: View {
                             Button("Allow") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
                         }
                     }
-                    Text("Accessibility lets Scriber Dictate watch global shortcuts and insert text into the app you were using.")
+                    Text("Accessibility lets Scriber watch global shortcuts and insert text into the app you were using.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -749,7 +749,7 @@ struct OnboardingView: View {
                 .padding(.vertical, 12)
             }
             VStack(alignment: .leading, spacing: 12) {
-                Toggle("Launch Scriber Dictate when I log in", isOn: $runtime.preferences.launchAtLoginRequested)
+                Toggle("Launch Scriber when I log in", isOn: $runtime.preferences.launchAtLoginRequested)
                 Text("Defaults: Hold \(runtime.preferences.holdShortcut.displayName) · Toggle \(runtime.preferences.toggleShortcut.displayName)")
                     .font(.caption)
                     .foregroundStyle(.secondary)

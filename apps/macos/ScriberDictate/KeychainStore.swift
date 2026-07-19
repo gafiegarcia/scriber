@@ -16,9 +16,9 @@ enum KeychainError: LocalizedError {
 }
 
 struct KeychainStore: Sendable {
-    static let service = "com.gafiegarcia.scriber-dictate.elevenlabs-api-key"
+    static let service = "com.gafiegarcia.scriber.elevenlabs-api-key"
     static let account = "default"
-    private static let label = "Scriber Dictate ElevenLabs API key"
+    private static let label = "Scriber ElevenLabs API key"
     private let store: VerifiedCredentialStore<KeychainStorageBackend>
 
     init() {

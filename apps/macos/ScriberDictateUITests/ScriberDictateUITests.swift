@@ -6,31 +6,31 @@ final class ScriberDictateUITests: XCTestCase {
     func testInitialFocusStartsInSelectedSidebarRow() async {
         let app = await launchApp()
         defer { app.terminate() }
-        let historyAppeared = await waitForExistence(historyView(in: app), timeout: 3)
-        XCTAssertTrue(historyAppeared)
+        let dictationAppeared = await waitForExistence(dictationHistoryView(in: app), timeout: 3)
+        XCTAssertTrue(dictationAppeared)
 
         app.typeKey(XCUIKeyboardKey.downArrow.rawValue, modifierFlags: [])
 
         let settingsAppeared = await waitForExistence(settingsView(in: app), timeout: 3)
         XCTAssertTrue(
             settingsAppeared,
-            "Down Arrow should move the focused sidebar selection from History to Settings."
+            "Down Arrow should move the focused sidebar selection from Dictation to Settings."
         )
     }
 
-    func testCommandFFocusesHistorySearch() async {
+    func testCommandFFocusesDictationSearch() async {
         let app = await launchApp()
         defer { app.terminate() }
-        let historyAppeared = await waitForExistence(historyView(in: app), timeout: 3)
-        XCTAssertTrue(historyAppeared)
+        let dictationAppeared = await waitForExistence(dictationHistoryView(in: app), timeout: 3)
+        XCTAssertTrue(dictationAppeared)
 
         app.typeKey("f", modifierFlags: .command)
         app.typeText("launch query")
 
-        XCTAssertEqual(historySearchField(in: app).value as? String, "launch query")
+        XCTAssertEqual(dictationSearchField(in: app).value as? String, "launch query")
     }
 
-    func testCommandFFromSettingsRoutesToHistorySearch() async {
+    func testCommandFFromSettingsRoutesToDictationSearch() async {
         let app = await launchApp()
         defer { app.terminate() }
         let settingsRow = element(in: app, identifier: "sidebar-settings")
@@ -43,16 +43,16 @@ final class ScriberDictateUITests: XCTestCase {
         app.typeKey("f", modifierFlags: .command)
         app.typeText("settings query")
 
-        let historyAppeared = await waitForExistence(historyView(in: app), timeout: 3)
-        XCTAssertTrue(historyAppeared)
-        XCTAssertEqual(historySearchField(in: app).value as? String, "settings query")
+        let dictationAppeared = await waitForExistence(dictationHistoryView(in: app), timeout: 3)
+        XCTAssertTrue(dictationAppeared)
+        XCTAssertEqual(dictationSearchField(in: app).value as? String, "settings query")
     }
 
     func testClosingFinalWindowUsesAccessoryActivationPolicy() async {
         let app = await launchApp(additionalArguments: ["--ui-testing-accessory-lifecycle"])
         defer { app.terminate() }
         guard let runningApplication = NSRunningApplication
-            .runningApplications(withBundleIdentifier: "com.gafiegarcia.scriber-dictate")
+            .runningApplications(withBundleIdentifier: "com.gafiegarcia.scriber")
             .max(by: { $0.processIdentifier < $1.processIdentifier }) else {
             XCTFail("The launched app should have a running application instance.")
             return
@@ -71,7 +71,7 @@ final class ScriberDictateUITests: XCTestCase {
         }
         XCTAssertTrue(
             becameAccessory,
-            "Closing the final app window should remove Scriber Dictate from the Dock and app switcher."
+            "Closing the final app window should remove Scriber from the Dock and app switcher."
         )
         XCTAssertFalse(runningApplication.isTerminated, "Accessory mode must leave background services running.")
     }
@@ -79,9 +79,9 @@ final class ScriberDictateUITests: XCTestCase {
     func testUpdateKeyForegroundsSettingsAndFocusesAPIKeyField() async {
         let app = await launchApp(additionalArguments: pillLifecycleArguments)
         defer { app.terminate() }
-        guard let scriber = runningApplication(bundleIdentifier: "com.gafiegarcia.scriber-dictate"),
+        guard let scriber = runningApplication(bundleIdentifier: "com.gafiegarcia.scriber"),
               let finder = runningApplication(bundleIdentifier: "com.apple.finder") else {
-            XCTFail("Scriber Dictate and Finder should both be running.")
+            XCTFail("Scriber and Finder should both be running.")
             return
         }
 
@@ -163,15 +163,15 @@ final class ScriberDictateUITests: XCTestCase {
         return app
     }
 
-    private func historyView(in app: XCUIApplication) -> XCUIElement {
-        element(in: app, identifier: "history-view")
+    private func dictationHistoryView(in app: XCUIApplication) -> XCUIElement {
+        element(in: app, identifier: "dictation-history-view")
     }
 
     private func settingsView(in app: XCUIApplication) -> XCUIElement {
         element(in: app, identifier: "settings-view")
     }
 
-    private func historySearchField(in app: XCUIApplication) -> XCUIElement {
+    private func dictationSearchField(in app: XCUIApplication) -> XCUIElement {
         app.searchFields["Search dictations"].firstMatch
     }
 
