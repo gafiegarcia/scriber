@@ -20,15 +20,7 @@
           "value" : "normal"
         }
       ],
-      "blur-material-specializations" : [
-        {
-          "value" : null
-        },
-        {
-          "appearance" : "dark",
-          "value" : null
-        }
-      ],
+      "blur-material" : null,
       "hidden" : false,
       "layers" : [
         {
@@ -52,16 +44,19 @@
           ],
           "glass" : true,
           "hidden" : false,
-          "image-name" : "ScriberIcon-BlackBackground.svg",
-          "name" : "Default",
+          "image-name" : "ScriberIcon-BlackBG.svg",
+          "name" : "ScriberIcon-BlackBG",
           "opacity-specializations" : [
+            {
+              "value" : 1
+            },
             {
               "appearance" : "dark",
               "value" : 0
             }
           ],
           "position" : {
-            "scale" : 0.5,
+            "scale" : 1,
             "translation-in-points" : [
               0,
               0
@@ -69,12 +64,13 @@
           }
         },
         {
+          "glass" : false,
           "hidden" : false,
-          "image-name" : "ScriberIcon-Transparent.svg",
-          "name" : "Dark",
+          "image-name" : "ScriberIcon-Transparent 1.svg",
+          "name" : "ScriberIcon-Transparent 1",
           "opacity-specializations" : [
             {
-              "value" : 0
+              "value" : 1
             },
             {
               "appearance" : "dark",
@@ -82,7 +78,7 @@
             }
           ],
           "position" : {
-            "scale" : 0.5,
+            "scale" : 1,
             "translation-in-points" : [
               0,
               0
@@ -90,9 +86,9 @@
           }
         }
       ],
-      "lighting" : "individual",
+      "lighting" : "combined",
       "position" : {
-        "scale" : 1.46,
+        "scale" : 0.75,
         "translation-in-points" : [
           0,
           0
@@ -127,21 +123,10 @@
           "value" : false
         }
       ],
-      "translucency-specializations" : [
-        {
-          "value" : {
-            "enabled" : true,
-            "value" : 0.33
-          }
-        },
-        {
-          "appearance" : "dark",
-          "value" : {
-            "enabled" : true,
-            "value" : 0.38
-          }
-        }
-      ]
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.33
+      }
     }
   ],
   "supported-platforms" : {

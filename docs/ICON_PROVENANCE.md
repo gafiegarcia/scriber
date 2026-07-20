@@ -6,7 +6,7 @@ Recorded: 2026-07-20
 
 The Scriber icon artwork was created specifically for this project from basic SVG geometry at Gafie Garcia's direction, with AI-assisted implementation by OpenAI Codex. Gaf then imported that clean geometric base into Figma and personally reshaped and simplified the microphone before exporting the current artwork.
 
-The current design has a compact white microphone, recording cradle, and stand. Its default SVG places the mark on a `#000000` rounded square; its dark-appearance SVG places the white mark on transparency. No third-party icon, font, logo, or SVG path is intentionally incorporated.
+The current design has a compact white microphone, recording cradle, and stand. Its default SVG places the mark on a `#000000` rounded square; its dark-appearance SVG places the white mark on transparency. Gaf subsequently adjusted the group scale, combined lighting, glass, translucency, and appearance visibility directly in Icon Composer. No third-party icon, font, logo, or SVG path is intentionally incorporated.
 
 Files:
 
@@ -15,6 +15,8 @@ Files:
 - [`../apps/macos/Scriber/AppIcon.icon`](../apps/macos/Scriber/AppIcon.icon), the Icon Composer source connected to the native app target
 
 The artwork is offered under `GPL-3.0-or-later` to the extent that Gafie Garcia holds rights that can be licensed. The separate trademark boundary in [`../COPYRIGHT.md`](../COPYRIGHT.md) continues to apply to the Scriber name and branding.
+
+`AppIcon.icon` is tool-managed. Icon Composer may preserve or regenerate imported asset filenames when it saves; those internal names do not change the provenance of the canonical SVG artwork above.
 
 ## Superseded artwork
 

@@ -115,14 +115,6 @@
 			path = Scriber;
 			sourceTree = "<group>";
 		};
-		D20000000000000000000001 /* ScriberUITests */ = {
-			isa = PBXGroup;
-			children = (
-				B20000000000000000000001 /* ScriberUITests.swift */,
-			);
-			path = ScriberUITests;
-			sourceTree = "<group>";
-		};
 		D10000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -130,6 +122,14 @@
 				B20000000000000000000002 /* ScriberUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		D20000000000000000000001 /* ScriberUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B20000000000000000000001 /* ScriberUITests.swift */,
+			);
+			path = ScriberUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -356,7 +356,7 @@
 				DEVELOPMENT_TEAM = 24U8BM54A3;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber.ui-tests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber.ui-tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
@@ -372,7 +372,7 @@
 				DEVELOPMENT_TEAM = 24U8BM54A3;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber.ui-tests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber.ui-tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
