@@ -38,7 +38,6 @@ struct DismissalCountdown: Equatable {
 @MainActor
 final class PillModel: ObservableObject {
     @Published var phase: AppPhase = .idle
-    @Published var isPresented = false
     @Published var dismissalCountdown: DismissalCountdown?
     var onCopy: (() -> Void)?
     var onOpen: (() -> Void)?
@@ -53,6 +52,7 @@ final class PillModel: ObservableObject {
 final class PillController {
     let model = PillModel()
     private let panel: NSPanel
+    private let glassView: NSGlassEffectView
     private var autoDismissTask: Task<Void, Never>?
     private var presentationTask: Task<Void, Never>?
     private var preferredScreen: NSScreen?
@@ -69,6 +69,7 @@ final class PillController {
             backing: .buffered,
             defer: false
         )
+        glassView = NSGlassEffectView(frame: NSRect(x: 0, y: 0, width: 300, height: 62))
         panel.level = .statusBar
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = true
@@ -78,10 +79,18 @@ final class PillController {
         panel.isOpaque = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
-        let hostingView = NSHostingView(rootView: PillPresentationView(model: model))
-        hostingView.frame = NSRect(x: 0, y: 0, width: 300, height: 62)
+        // SwiftUI glass only has this transparent panel's empty content to sample.
+        // AppKit clear glass can instead refract the window beneath this overlay.
+        let hostingView = NSHostingView(rootView: PillView(model: model))
+        hostingView.frame = glassView.bounds
         hostingView.autoresizingMask = [.width, .height]
-        panel.contentView = hostingView
+        glassView.autoresizingMask = [.width, .height]
+        glassView.style = .clear
+        glassView.cornerRadius = currentPanelSize.height / 2
+        glassView.tintColor = nil
+        glassView.effectIsInteractive = true
+        glassView.contentView = hostingView
+        panel.contentView = glassView
         model.onHoverChanged = { [weak self] isHovering in self?.setHovering(isHovering) }
     }
 
@@ -98,6 +107,7 @@ final class PillController {
             panel.setContentSize(desiredSize)
             currentPanelSize = desiredSize
         }
+        glassView.cornerRadius = glassCornerRadius(for: phase, size: desiredSize)
         model.phase = phase
         show()
         if !autoDismissalDisabledForUITesting,
@@ -199,21 +209,19 @@ final class PillController {
         presentationTask?.cancel()
         presentationTask = nil
         positionPanel()
-        panel.orderFrontRegardless()
-        guard !model.isPresented else { return }
-
-        guard !shouldReduceMotion else {
-            model.isPresented = true
+        guard !panel.isVisible else {
+            panel.alphaValue = 1
             return
         }
 
-        presentationTask = Task { [weak self] in
-            await Task.yield()
-            guard let self, !Task.isCancelled else { return }
-            withAnimation(.smooth(duration: presentationDuration)) {
-                model.isPresented = true
-            }
-            presentationTask = nil
+        panel.alphaValue = shouldReduceMotion ? 1 : 0
+        panel.orderFrontRegardless()
+        guard !shouldReduceMotion else { return }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = presentationDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().alphaValue = 1
         }
     }
 
@@ -221,21 +229,24 @@ final class PillController {
         presentationTask?.cancel()
         presentationTask = nil
 
-        guard model.isPresented, !shouldReduceMotion else {
-            model.isPresented = false
+        guard panel.isVisible, !shouldReduceMotion else {
             panel.orderOut(nil)
+            panel.alphaValue = 1
             if clearPhaseWhenFinished { model.phase = .idle }
             return
         }
 
-        withAnimation(.smooth(duration: presentationDuration)) {
-            model.isPresented = false
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = presentationDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
         }
         let duration = presentationDuration
         presentationTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(duration))
             guard let self, !Task.isCancelled else { return }
             panel.orderOut(nil)
+            panel.alphaValue = 1
             if clearPhaseWhenFinished { model.phase = .idle }
             presentationTask = nil
         }
@@ -253,6 +264,11 @@ final class PillController {
 #endif
     }
 
+    private func glassCornerRadius(for phase: AppPhase, size: NSSize) -> CGFloat {
+        if case .dictationCopied = phase { return 24 }
+        return size.height / 2
+    }
+
     private func positionPanel() {
         let mouse = NSEvent.mouseLocation
         let screen = preferredScreen ?? NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) ?? NSScreen.main
@@ -260,23 +276,6 @@ final class PillController {
         let x = frame.midX - panel.frame.width / 2
         let y = frame.minY + 18
         panel.setFrameOrigin(NSPoint(x: x, y: y))
-    }
-}
-
-private struct PillPresentationView: View {
-    @ObservedObject var model: PillModel
-    @Namespace private var glassNamespace
-
-    var body: some View {
-        GlassEffectContainer(spacing: 0) {
-            if model.isPresented {
-                PillView(model: model)
-                    .glassEffect(.regular.interactive(), in: pillShape(for: model.phase))
-                    .glassEffectID("dictationPill", in: glassNamespace)
-                    .glassEffectTransition(.materialize)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
