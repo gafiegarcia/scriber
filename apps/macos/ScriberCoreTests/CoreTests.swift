@@ -354,6 +354,18 @@ struct TextInputTargetPolicyTests {
         ))
     }
 
+    @Test("Accepts web controls that explicitly report editability")
+    func acceptsExplicitlyEditableWebControls() {
+        #expect(TextInputTargetPolicy.accepts(
+            role: "AXGroup",
+            subrole: nil,
+            selectedTextSettable: false,
+            exposesCharacterCount: false,
+            explicitlyEditable: true,
+            enabled: true
+        ))
+    }
+
     @Test("Rejects secure, disabled, and non-text controls")
     func rejectsUnsafeTargets() {
         #expect(!TextInputTargetPolicy.accepts(

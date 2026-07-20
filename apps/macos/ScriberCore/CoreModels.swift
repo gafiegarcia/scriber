@@ -194,6 +194,7 @@ public enum TextInputTargetPolicy {
         subrole: String?,
         selectedTextSettable: Bool,
         exposesCharacterCount: Bool,
+        explicitlyEditable: Bool = false,
         enabled: Bool?
     ) -> Bool {
         guard role != "AXSecureTextField",
@@ -201,6 +202,7 @@ public enum TextInputTargetPolicy {
               enabled != false else { return false }
         return selectedTextSettable
             || exposesCharacterCount
+            || explicitlyEditable
             || role.map(recognizedRoles.contains) == true
     }
 }

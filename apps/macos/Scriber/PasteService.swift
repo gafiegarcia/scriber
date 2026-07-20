@@ -54,7 +54,7 @@ final class PasteService {
     private func editableTextElement(startingAt focused: AXUIElement) -> AXUIElement? {
         var ancestry = [focused]
         var current = focused
-        for _ in 0..<8 {
+        for _ in 0..<24 {
             guard let parent = elementAttribute(current, named: kAXParentAttribute),
                   !ancestry.contains(where: { CFEqual($0, parent) }) else { break }
             ancestry.append(parent)
@@ -62,9 +62,11 @@ final class PasteService {
         }
 
         var candidates = ancestry
-        if let editableAncestor = elementAttribute(focused, named: "AXEditableAncestor"),
-           !candidates.contains(where: { CFEqual($0, editableAncestor) }) {
-            candidates.insert(editableAncestor, at: 1)
+        for attribute in ["AXEditableAncestor", "AXHighestEditableAncestor"] {
+            if let editableAncestor = elementAttribute(focused, named: attribute),
+               !candidates.contains(where: { CFEqual($0, editableAncestor) }) {
+                candidates.insert(editableAncestor, at: 1)
+            }
         }
 
         // Walk the whole short ancestry first so a child of a password field can
@@ -99,11 +101,13 @@ final class PasteService {
             kAXEnabledAttribute as CFString,
             &enabledValue
         )
+        let explicitlyEditable = boolAttribute(element, named: "AXIsEditable") == true
         return TextInputTargetPolicy.accepts(
             role: role,
             subrole: subrole,
             selectedTextSettable: selectedTextStatus == .success && selectedTextSettable.boolValue,
             exposesCharacterCount: characterCountStatus == .success && characterCountValue != nil,
+            explicitlyEditable: explicitlyEditable,
             enabled: enabledStatus == .success ? enabledValue as? Bool : nil
         )
     }
@@ -120,6 +124,12 @@ final class PasteService {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
         return value as? String
+    }
+
+    private func boolAttribute(_ element: AXUIElement, named name: String) -> Bool? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        return value as? Bool
     }
 
     func clearTarget() {
