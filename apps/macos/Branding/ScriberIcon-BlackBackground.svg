@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright © 2026 Gafie Garcia.
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  Original geometric artwork created for Scriber with AI-assisted
+  implementation. No third-party artwork is intentionally incorporated.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
+  <title id="title">Scriber microphone mark on a black background</title>
+  <desc id="description">A white outlined microphone containing three transcription lines, on a black rounded square.</desc>
+
+  <rect width="1024" height="1024" rx="224" fill="#000000"/>
+
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="352" y="144" width="320" height="448" rx="160" stroke-width="64"/>
+    <path d="M432 312H592 M432 392H592 M432 472H592" stroke-width="40"/>
+    <path d="M240 496V520C240 670.2 361.8 792 512 792C662.2 792 784 670.2 784 520V496" stroke-width="64"/>
+    <path d="M512 792V896 M392 896H632" stroke-width="64"/>
+  </g>
+</svg>

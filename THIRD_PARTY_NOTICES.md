@@ -8,7 +8,7 @@ This file is the repository-level compliance inventory. A distributed release mu
 
 The native app currently uses Apple platform frameworks and does not declare a third-party Swift package dependency. Apple SDK and operating-system components are governed by Apple's terms and are not covered by Scriber's GPL license.
 
-The prospective final icon is intentionally excluded until its upstream SVG source, author, exact license, modification permission, and attribution are documented.
+The candidate Scriber SVG artwork under [`apps/macos/Branding`](apps/macos/Branding) was created for this project from basic geometry and does not intentionally incorporate third-party artwork; see [`docs/ICON_PROVENANCE.md`](docs/ICON_PROVENANCE.md). The earlier unknown-provenance Icon Composer draft remains untracked and must not be incorporated into a release.
 
 ## Archived Electron app
 

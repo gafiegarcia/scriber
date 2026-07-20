@@ -55,7 +55,7 @@ The existing Electron release safeguards deliberately do not redistribute the do
 ## Items to resolve before a public release
 
 1. Complete trademark clearance before treating Scriber as a settled public product name.
-2. Record the icon's provenance and license before adding it.
+2. Review the documented candidate icon in Icon Composer and live app contexts before treating it as final branding; never use the unknown-provenance draft.
 3. Generate complete third-party notices from the actual native and Electron release artifacts, not only package manifests.
 4. Re-run FFmpeg, Sharp/libvips, Electron, and other binary-component checks for each distributed platform.
 5. Choose contributor terms before accepting substantial outside contributions if future relicensing flexibility matters.

@@ -15,8 +15,8 @@ renamed from `scriber-dictate` to `scriber`.
 
 - Local path: `/Users/gafiegarcia/Developer/scriber`
 - Branch: `main`
-- HEAD before this licensing change: `806281a` (`Update migration and licensing handoff`)
-- Working tree: tracked tree clean at that checkpoint; the user-owned untracked icon remains deliberately excluded pending provenance documentation
+- HEAD before this candidate-icon change: `b9aed67` (`License Scriber under GPL-3.0-or-later`)
+- Working tree: tracked tree clean at that checkpoint; the earlier unknown-provenance `Untitled.icon` draft remains deliberately untracked and excluded
 - Remote: private `origin` at `https://github.com/gafiegarcia/scriber.git`
 - History: the native Swift/SwiftUI history plus the history-free Electron snapshot commits; no legacy Git graph was imported
 - Current native app version: `0.7.0` build `2`
@@ -109,7 +109,7 @@ Migration progress as of 2026-07-20:
 - Phase 3 complete: the tracked Electron snapshot from `b13274d` was imported without legacy history in commit `48db860`; lint, 73 credit-free tests, and the production build pass.
 - Phase 4 complete: `gafiegarcia/scriber` exists as a private repository, local `origin` points to it, and local/remote `main` matched at `48db860` after the initial push.
 - Phase 5 complete: the approved identity plan was committed as `fa5b56d`, the Scriber product identity as `ce10f39`, and the exhaustive native project/module rename as `3a95cdf`.
-- Phase 6 repository licensing is complete: original Scriber code and documentation use `GPL-3.0-or-later`, with copyright, trademark-boundary, and third-party inventory documents. Icon provenance and signed live acceptance remain open.
+- Phase 6 repository licensing is complete: original Scriber code and documentation use `GPL-3.0-or-later`, with copyright, trademark-boundary, and third-party inventory documents. Fresh candidate icon source now has a creation record; Icon Composer assembly and signed live acceptance remain open.
 
 ### Phase 0: Re-anchor the fresh Codex task
 
@@ -311,7 +311,7 @@ The migration is complete when:
 The repository and native identity migration are implemented. Remaining work is
 deliberately separate:
 
-1. Record the icon's source URL, author, exact license, modification permission, and attribution before adding the artwork.
+1. Assemble the documented candidate SVG artwork into `AppIcon.icon`, connect it to the Xcode target, and verify its default, dark, tinted, and small-size appearances without using the unknown-provenance draft.
 2. Produce a signed Release build at a stable path and complete fresh onboarding, Keychain, permissions, Launch at Login, shortcut, insertion, Dictation history, Dock, and pill-activation acceptance checks.
 3. Generate artifact-specific third-party notices before any public binary release.
 4. Do not push additional commits unless Gaf explicitly requests it.

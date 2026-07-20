@@ -127,6 +127,7 @@ Product direction:
 ### 2026-07-20
 
 - Licensed Scriber's original code and documentation under `GPL-3.0-or-later`. Added GNU's unmodified GPLv3 text, the copyright and trademark boundary, a third-party compliance inventory, matching Electron package metadata, and durable notes about AI-assisted authorship scope. The icon remains excluded pending provenance, and release artifacts still require exact dependency-license verification and notices.
+- Created fresh candidate Scriber icon source as two original geometric SVG variants: a white microphone/transcription mark on `#000000` and a black mark on transparency. Documented the AI-assisted creation process and explicitly excluded the earlier unknown-provenance Icon Composer draft. The candidate is not yet connected to the Xcode target; Icon Composer assembly and live size/appearance review remain separate acceptance steps.
 
 ## Verification Notes
 
