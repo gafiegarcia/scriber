@@ -61,7 +61,7 @@ final class PillController {
     private var isHovering = false
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
     private let presentationDuration: TimeInterval = 0.18
-    private let standardGlassOpacity: CGFloat = 0.4
+    private let standardGlassOpacity: CGFloat = 0.7
 
     init() {
         panel = NSPanel(
