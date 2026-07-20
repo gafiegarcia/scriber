@@ -257,4 +257,6 @@ Once built, `node bin/scriber.js` boots the production server the same way the g
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Original Scriber code in this archived implementation is licensed under
+GPL-3.0-or-later. See [LICENSE](LICENSE). Third-party dependencies retain their
+own licenses.

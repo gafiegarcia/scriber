@@ -15,7 +15,7 @@ renamed from `scriber-dictate` to `scriber`.
 
 - Local path: `/Users/gafiegarcia/Developer/scriber`
 - Branch: `main`
-- HEAD before this documentation sweep: `3a95cdf` (`Rename native project to Scriber`)
+- HEAD before this licensing change: `806281a` (`Update migration and licensing handoff`)
 - Working tree: tracked tree clean at that checkpoint; the user-owned untracked icon remains deliberately excluded pending provenance documentation
 - Remote: private `origin` at `https://github.com/gafiegarcia/scriber.git`
 - History: the native Swift/SwiftUI history plus the history-free Electron snapshot commits; no legacy Git graph was imported
@@ -65,7 +65,7 @@ renamed from `scriber-dictate` to `scriber`.
 ```text
 scriber/
 ├── README.md                    # Product and repository overview
-├── LICENSE                      # Root project license, after Gaf confirms it
+├── LICENSE                      # GNU GPL v3-or-later project license
 ├── AGENTS.md                    # Repository-wide contributor/agent rules
 ├── migration-plan.md            # This temporary migration handoff
 ├── docs/                        # Cross-platform/product documentation
@@ -101,7 +101,7 @@ schema, fixture suite, or behavioral specification.
 
 ## Execution Plan
 
-Migration progress as of 2026-07-19:
+Migration progress as of 2026-07-20:
 
 - Phase 0 complete: repository identities and remotes verified.
 - Phase 1 complete: legacy source changes verified, archived at `b13274d`, tagged `electron-legacy-final`, and pushed to `gafiegarcia/scriber-legacy`.
@@ -109,7 +109,7 @@ Migration progress as of 2026-07-19:
 - Phase 3 complete: the tracked Electron snapshot from `b13274d` was imported without legacy history in commit `48db860`; lint, 73 credit-free tests, and the production build pass.
 - Phase 4 complete: `gafiegarcia/scriber` exists as a private repository, local `origin` points to it, and local/remote `main` matched at `48db860` after the initial push.
 - Phase 5 complete: the approved identity plan was committed as `fa5b56d`, the Scriber product identity as `ce10f39`, and the exhaustive native project/module rename as `3a95cdf`.
-- Phase 6 current-path documentation is complete with this sweep. The repository license, icon provenance, and signed live acceptance remain open.
+- Phase 6 repository licensing is complete: original Scriber code and documentation use `GPL-3.0-or-later`, with copyright, trademark-boundary, and third-party inventory documents. Icon provenance and signed live acceptance remain open.
 
 ### Phase 0: Re-anchor the fresh Codex task
 
@@ -311,7 +311,7 @@ The migration is complete when:
 The repository and native identity migration are implemented. Remaining work is
 deliberately separate:
 
-1. Choose and add the root license, copyright, trademark statement, and required third-party notices using `docs/LICENSING_NOTES.md` as the current handoff.
-2. Record the icon's source URL, author, exact license, modification permission, and attribution before adding the artwork.
-3. Produce a signed Release build at a stable path and complete fresh onboarding, Keychain, permissions, Launch at Login, shortcut, insertion, Dictation history, Dock, and pill-activation acceptance checks.
+1. Record the icon's source URL, author, exact license, modification permission, and attribution before adding the artwork.
+2. Produce a signed Release build at a stable path and complete fresh onboarding, Keychain, permissions, Launch at Login, shortcut, insertion, Dictation history, Dock, and pill-activation acceptance checks.
+3. Generate artifact-specific third-party notices before any public binary release.
 4. Do not push additional commits unless Gaf explicitly requests it.

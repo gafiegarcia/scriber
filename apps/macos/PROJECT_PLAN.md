@@ -124,6 +124,10 @@ Product direction:
 - Completed the first native identity slice from Scriber Dictate to Scriber. The built product is now `Scriber.app` version `0.7.0` build `2` with bundle identifier `com.gafiegarcia.scriber`; visible app copy, Dictation navigation vocabulary, Keychain service, pending-audio directory, notification names, queue labels, UI-test expectations, and other product-specific identifiers follow the new identity. Existing data is intentionally not migrated. Parser validation, core type-checking, all 25 credit-free package tests, plist validation, and unsigned Xcode 27 beta Debug and Release builds pass. The UI-test target also builds unsigned, but this command-line run could not materialize the macOS test runner and was interrupted; execution remains to be retried after the internal Xcode target/project rename or run interactively in Xcode.
 - Completed the exhaustive internal rename to `Scriber.xcodeproj`, the `Scriber` app target and scheme, `ScriberCore`, `ScriberCoreTests`, and `ScriberUITests`. Source, test, app-entry, and entitlements files now use the same identity, while dictation-specific domain types retain their names. Xcode discovers only the renamed targets and scheme. Parser validation, expanded core type-checking, all 25 credit-free package tests, plist validation, unsigned Debug and Release builds, and the unsigned UI-test build all pass under the new paths and names. Running the six UI regressions still requires a launchable signed test host and macOS UI Automation approval.
 
+### 2026-07-20
+
+- Licensed Scriber's original code and documentation under `GPL-3.0-or-later`. Added GNU's unmodified GPLv3 text, the copyright and trademark boundary, a third-party compliance inventory, matching Electron package metadata, and durable notes about AI-assisted authorship scope. The icon remains excluded pending provenance, and release artifacts still require exact dependency-license verification and notices.
+
 ## Verification Notes
 
 - Automated tests must not consume ElevenLabs credits.

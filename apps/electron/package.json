@@ -2,7 +2,7 @@
   "name": "@gafiegarcia/scriber",
   "version": "0.6.0",
   "description": "Local-first voice transcription powered by your own ElevenLabs Scribe v2 account.",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "bin": {
     "scriber": "./bin/scriber.js"
   },

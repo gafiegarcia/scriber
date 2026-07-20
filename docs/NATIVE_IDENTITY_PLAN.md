@@ -1,6 +1,6 @@
 # Native Scriber Identity and Expansion Plan
 
-Status: implementation steps 1–4 completed in commits `fa5b56d`, `ce10f39`, and `3a95cdf`; licensing and live signed acceptance remain open.
+Status: implementation steps 1–5 completed; live signed acceptance remains open.
 
 Recorded: 2026-07-19
 
@@ -91,17 +91,17 @@ The previously run Electron development app used the same future bundle identifi
 
 ## License decision
 
-Open: choose the repository license in a separate change after discussing project goals and public perception.
+Decision: license Scriber's original code and documentation under `GPL-3.0-or-later`.
 
 The durable discussion and preliminary Electron dependency findings are recorded in [`LICENSING_NOTES.md`](LICENSING_NOTES.md).
 
-Candidates:
+Considered alternatives:
 
 - `MIT`: permissive and familiar; proprietary forks are allowed.
 - `GPL-3.0-or-later`: strong copyleft when software is distributed.
 - `AGPL-3.0-or-later`: GPLv3 copyleft plus source availability for modified versions offered to users over a network.
 
-No standard open-source license forces publication of purely private modifications. A copyleft license does not prevent Gaf from selling Scriber, offering paid support, or later selling a managed service as the copyright holder. Before accepting substantial outside contributions, decide whether contributor terms are needed to preserve future relicensing or dual-licensing options.
+No standard open-source license forces publication of purely private modifications. GPL does not prevent Gaf from selling Scriber, offering paid support, or later selling a managed service as the copyright holder. Before accepting substantial outside contributions, decide whether contributor terms are needed to preserve future relicensing or dual-licensing options.
 
 ## Implementation sequence
 

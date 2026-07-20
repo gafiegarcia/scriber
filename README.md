@@ -30,3 +30,9 @@ npm run build
 ```
 
 Do not run `npm run test:e2e` during normal verification because it can contact ElevenLabs and consume API credit.
+
+## License
+
+Original Scriber source code and documentation are copyright © 2026 Gafie Garcia and licensed under the [GNU General Public License, version 3 or later](LICENSE).
+
+Third-party components and assets retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The GPL does not grant permission to use the Scriber name or logo as trademarks or to imply endorsement of a modified version. See [COPYRIGHT.md](COPYRIGHT.md) for the scope and trademark boundary.
