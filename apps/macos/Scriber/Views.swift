@@ -76,12 +76,6 @@ struct MainWindowView: View {
             .navigationTitle(section == .settings ? "Settings" : "Dictation")
         }
         .frame(minWidth: 760, minHeight: 520)
-        // Keep the native sidebar control owned by the split view, rather than
-        // letting SwiftUI recreate its implicit toolbar item with each detail.
-        .toolbar(removing: .sidebarToggle)
-        .toolbar {
-            DefaultToolbarItem(kind: .sidebarToggle, placement: .navigation)
-        }
         .focusedSceneValue(\.searchDictationHistoryAction, focusDictationSearch)
         .onAppear {
             applyMainWindowRequest(runtime.coordinator.mainWindowRequest)
