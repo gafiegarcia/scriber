@@ -581,10 +581,10 @@ final class AppCoordinator: ObservableObject {
                     try modelContext.save()
                     setPhase(.dictationCopied(text: transcript, message: message))
                 case .failed(let message):
-                    record.deliveryState = .pasteFailed
+                    copy(record)
                     record.errorMessage = message
                     try modelContext.save()
-                    setPhase(.pasteFailed(message))
+                    setPhase(.dictationCopied(text: transcript, message: message))
                 }
             } else {
                 record.deliveryState = .notAttempted

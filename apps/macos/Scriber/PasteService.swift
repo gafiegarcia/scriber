@@ -19,6 +19,7 @@ final class PasteService {
     private var target: AXUIElement?
     private var focusAnchor: AXUIElement?
     private var targetPID: pid_t = 0
+    private var capturedTextState: TextElementState?
     private(set) var targetScreen: NSScreen?
 
     @discardableResult
@@ -26,6 +27,7 @@ final class PasteService {
         target = nil
         focusAnchor = nil
         targetPID = 0
+        capturedTextState = nil
         targetScreen = nil
         let system = AXUIElementCreateSystemWide()
         var applicationValue: CFTypeRef?
@@ -44,6 +46,7 @@ final class PasteService {
         target = editableTarget
         focusAnchor = focused
         targetPID = pid
+        capturedTextState = textState(of: editableTarget)
         targetScreen = screen(containing: editableTarget)
         return targetScreen
     }
@@ -123,26 +126,65 @@ final class PasteService {
         target = nil
         focusAnchor = nil
         targetPID = 0
+        capturedTextState = nil
         targetScreen = nil
     }
 
     func insert(_ text: String) async -> PasteResult {
         guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
-        guard let target else { return .noEditableTarget(PasteResult.noEditableTargetMessage) }
 
-        var settable = DarwinBoolean(false)
-        let settableStatus = AXUIElementIsAttributeSettable(target, kAXSelectedTextAttribute as CFString, &settable)
-        if settableStatus == .success, settable.boolValue {
-            let status = AXUIElementSetAttributeValue(target, kAXSelectedTextAttribute as CFString, text as CFString)
-            if status == .success { return .inserted }
+        if insertAtCapturedSelection(text) { return .inserted }
+        guard let currentTarget = currentFocusedEditableTarget() else {
+            return .noEditableTarget(PasteResult.noEditableTargetMessage)
+        }
+        return await pasteAtCurrentSelection(text, into: currentTarget)
+    }
+
+    private func insertAtCapturedSelection(_ text: String) -> Bool {
+        guard let target, let capturedTextState else { return false }
+        let currentState = textState(of: target)
+        let isOriginalTargetFocused = NSWorkspace.shared.frontmostApplication?.processIdentifier == targetPID
+            && focusedElementStillMatches(focusAnchor ?? target)
+        guard CapturedSelectionRestorePolicy.canRestore(
+            capturedText: capturedTextState.value,
+            currentText: currentState.value,
+            capturedRange: capturedTextState.selectedRange,
+            currentRange: currentState.selectedRange,
+            isOriginalTargetFocused: isOriginalTargetFocused
+        ), let capturedRange = capturedTextState.selectedRange,
+           setSelectedTextRange(capturedRange, on: target),
+           textState(of: target).selectedRange == capturedRange,
+           isSelectedTextSettable(on: target) else { return false }
+
+        return AXUIElementSetAttributeValue(target, kAXSelectedTextAttribute as CFString, text as CFString) == .success
+    }
+
+    private func currentFocusedEditableTarget() -> FocusedTextTarget? {
+        let system = AXUIElementCreateSystemWide()
+        var applicationValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(system, kAXFocusedApplicationAttribute as CFString, &applicationValue) == .success,
+              let applicationValue,
+              CFGetTypeID(applicationValue) == AXUIElementGetTypeID() else { return nil }
+        let application = unsafeDowncast(applicationValue, to: AXUIElement.self)
+        var focusedValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &focusedValue) == .success,
+              let focusedValue,
+              CFGetTypeID(focusedValue) == AXUIElementGetTypeID(),
+              let editableTarget = editableTextElement(startingAt: unsafeDowncast(focusedValue, to: AXUIElement.self)) else {
+            return nil
+        }
+        var pid: pid_t = 0
+        AXUIElementGetPid(application, &pid)
+        return FocusedTextTarget(element: editableTarget, focusAnchor: unsafeDowncast(focusedValue, to: AXUIElement.self), pid: pid)
+    }
+
+    private func pasteAtCurrentSelection(_ text: String, into currentTarget: FocusedTextTarget) async -> PasteResult {
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == currentTarget.pid,
+              focusedElementStillMatches(currentTarget.focusAnchor) else {
+            return .failed("The current text box is no longer focused.")
         }
 
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == targetPID,
-              focusedElementStillMatches(focusAnchor ?? target) else {
-            return .failed("The original text box is no longer focused.")
-        }
-
-        let stateBeforePaste = textState(of: target)
+        let stateBeforePaste = textState(of: currentTarget.element)
         let pasteboard = NSPasteboard.general
         let snapshot = PasteboardSnapshot.capture(pasteboard)
         pasteboard.clearContents()
@@ -155,13 +197,38 @@ final class PasteService {
             return .failed("macOS could not dispatch the Paste command.")
         }
         try? await Task.sleep(for: .milliseconds(500))
-        let stateAfterPaste = textState(of: target)
+        let stateAfterPaste = textState(of: currentTarget.element)
         snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
         guard stateBeforePaste != stateAfterPaste,
               stateBeforePaste.hasObservableValue || stateAfterPaste.hasObservableValue else {
             return .failed("macOS did not confirm that the transcription was inserted.")
         }
         return .inserted
+    }
+
+    private func isSelectedTextSettable(on element: AXUIElement) -> Bool {
+        var settable = DarwinBoolean(false)
+        return AXUIElementIsAttributeSettable(
+            element,
+            kAXSelectedTextAttribute as CFString,
+            &settable
+        ) == .success && settable.boolValue
+    }
+
+    private func setSelectedTextRange(_ range: NSRange, on element: AXUIElement) -> Bool {
+        var settable = DarwinBoolean(false)
+        guard AXUIElementIsAttributeSettable(
+            element,
+            kAXSelectedTextRangeAttribute as CFString,
+            &settable
+        ) == .success, settable.boolValue else { return false }
+        var accessibilityRange = CFRange(location: range.location, length: range.length)
+        guard let rangeValue = AXValueCreate(.cfRange, &accessibilityRange) else { return false }
+        return AXUIElementSetAttributeValue(
+            element,
+            kAXSelectedTextRangeAttribute as CFString,
+            rangeValue
+        ) == .success
     }
 
     private func focusedElementStillMatches(_ expected: AXUIElement) -> Bool {
@@ -250,6 +317,12 @@ private struct TextElementState: Equatable {
     let characterCount: Int?
 
     var hasObservableValue: Bool { value != nil || selectedRange != nil || characterCount != nil }
+}
+
+private struct FocusedTextTarget {
+    let element: AXUIElement
+    let focusAnchor: AXUIElement
+    let pid: pid_t
 }
 
 private struct PasteboardSnapshot {

@@ -76,6 +76,12 @@ struct MainWindowView: View {
             .navigationTitle(section == .settings ? "Settings" : "Dictation")
         }
         .frame(minWidth: 760, minHeight: 520)
+        // Keep the native sidebar control owned by the split view, rather than
+        // letting SwiftUI recreate its implicit toolbar item with each detail.
+        .toolbar(removing: .sidebarToggle)
+        .toolbar {
+            DefaultToolbarItem(kind: .sidebarToggle, placement: .navigation)
+        }
         .focusedSceneValue(\.searchDictationHistoryAction, focusDictationSearch)
         .onAppear {
             applyMainWindowRequest(runtime.coordinator.mainWindowRequest)
@@ -820,6 +826,12 @@ struct OnboardingView: View {
         runtime.preferences.onboardingComplete = true
         runtime.coordinator.startServices()
         dismissWindow(id: "onboarding")
+        Task { @MainActor in
+            // Let the onboarding window finish closing before restoring the
+            // already-created main window to its default Dictation destination.
+            await Task.yield()
+            runtime.coordinator.openMainWindow()
+        }
     }
 
     private func saveKey() async {

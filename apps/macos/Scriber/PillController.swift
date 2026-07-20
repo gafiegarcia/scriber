@@ -194,8 +194,8 @@ final class PillController {
 
     private func panelSize(for phase: AppPhase) -> NSSize {
         switch phase {
-        case .dictationCopied:
-            NSSize(width: 560, height: 230)
+        case .dictationCopied(let text, _):
+            copiedResultSize(for: text)
         case .apiKeyInvalid, .apiCreditsExhausted:
             NSSize(width: 470, height: 72)
         case .pasteFailed, .transcriptionFailed:
@@ -203,6 +203,26 @@ final class PillController {
         default:
             NSSize(width: 300, height: 62)
         }
+    }
+
+    private func copiedResultSize(for text: String) -> NSSize {
+        let width: CGFloat = 560
+        let previewFont = NSFont.systemFont(ofSize: 15)
+        let previewWidth = width - 44 // Matches copiedResult's horizontal padding.
+        let lineHeight = ceil(previewFont.boundingRectForFont.height)
+        let measuredPreviewHeight = ceil((text as NSString).boundingRect(
+            with: NSSize(width: previewWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: previewFont],
+            context: nil
+        ).height)
+        let previewHeight = min(max(lineHeight, measuredPreviewHeight), lineHeight * 4)
+
+        // The result has four rows, three 14-point gaps, and 18-point vertical
+        // insets. Keeping this calculation independent of SwiftUI layout avoids
+        // resizing the AppKit host in response to its own layout pass.
+        let chromeHeight: CGFloat = 146
+        return NSSize(width: width, height: chromeHeight + previewHeight)
     }
 
     private func show() {
