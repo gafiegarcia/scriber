@@ -10,4 +10,4 @@ Third-party software, fonts, icons, media, and other assets are not relicensed b
 
 The GPL grants copyright permissions for covered material. It does not grant trademark rights in the Scriber name or logo, permission to imply that a modified version is the original Scriber product, or permission to imply endorsement by Gafie Garcia. This notice does not claim that the name or logo is registered as a trademark, and it does not restrict descriptive references that applicable law otherwise permits.
 
-Candidate Scriber icon source is included under `apps/macos/Branding` with its creation record in [`docs/ICON_PROVENANCE.md`](docs/ICON_PROVENANCE.md). The earlier unknown-provenance Icon Composer draft is not part of the repository and must not be distributed or incorporated into a release.
+Scriber icon source is included under `apps/macos/Branding` and integrated as `apps/macos/Scriber/AppIcon.icon`, with its AI-assisted creation and Gaf-authored Figma modifications recorded in [`docs/ICON_PROVENANCE.md`](docs/ICON_PROVENANCE.md). The earlier unknown-provenance SVG assets are not part of the repository.

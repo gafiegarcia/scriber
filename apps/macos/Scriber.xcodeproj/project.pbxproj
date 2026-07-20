@@ -23,6 +23,7 @@
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
 		A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */; };
 		A10000000000000000000010 /* ../ScriberCore/CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */; };
+		A10000000000000000000011 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* AppIcon.icon */; };
 		A20000000000000000000001 /* ScriberUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* ScriberUITests.swift */; };
 /* End PBXBuildFile section */
 
@@ -56,6 +57,7 @@
 		B10000000000000000000011 /* Scriber.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scriber.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CoreModels.swift; sourceTree = "<group>"; };
 		B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CredentialStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000014 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		B20000000000000000000001 /* ScriberUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriberUITests.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* ScriberUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScriberUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -105,6 +107,7 @@
 				B1000000000000000000000A /* ../ScriberCore/ScribeClient.swift */,
 				B1000000000000000000000C /* ShortcutRecorderView.swift */,
 				B1000000000000000000000D /* Views.swift */,
+				B10000000000000000000014 /* AppIcon.icon */,
 				B1000000000000000000000E /* Assets.xcassets */,
 				B1000000000000000000000F /* Info.plist */,
 				B10000000000000000000010 /* Scriber.entitlements */,
@@ -215,6 +218,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000011 /* AppIcon.icon in Resources */,
 				A1000000000000000000000E /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

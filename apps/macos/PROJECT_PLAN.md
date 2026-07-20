@@ -128,6 +128,7 @@ Product direction:
 
 - Licensed Scriber's original code and documentation under `GPL-3.0-or-later`. Added GNU's unmodified GPLv3 text, the copyright and trademark boundary, a third-party compliance inventory, matching Electron package metadata, and durable notes about AI-assisted authorship scope. The icon remains excluded pending provenance, and release artifacts still require exact dependency-license verification and notices.
 - Created fresh candidate Scriber icon source as two original geometric SVG variants: a white microphone/transcription mark on `#000000` and a black mark on transparency. Documented the AI-assisted creation process and explicitly excluded the earlier unknown-provenance Icon Composer draft. The candidate is not yet connected to the Xcode target; Icon Composer assembly and live size/appearance review remain separate acceptance steps.
+- Replaced the first candidate with Gaf's personally reshaped Figma artwork, preserved canonical black-background and transparent SVG sources, renamed the cleaned Icon Composer document to `AppIcon.icon`, and connected it to the native target. Xcode 27 beta compiles the icon without warnings alongside the asset catalog in unsigned Debug and Release builds; both apps contain identical `AppIcon.icns` resources and Aqua, Dark Aqua, tintable, and 16–1024 asset renditions. Live Dock, Finder, default, dark, and tinted appearance review remains manual.
 
 ## Verification Notes
 
@@ -137,4 +138,4 @@ Product direction:
 - Hardware verification must cover `Fn`, `Fn-Space`, `Fn-Control-Option`, target capture, TextEdit, Ghostty, Raycast, a browser text field, a code editor, full-screen apps, multiple Spaces, and Dock auto-hide.
 - Pill activation verification must close the final Scriber window, put Finder in front, click Update Key directly, confirm Settings and the API-key field are focused, Command-Tab to Finder, then Command-Tab once back to Scriber. Repeat with the pill's dismiss button and confirm Finder stays focused and Scriber remains absent from Dock and Command-Tab.
 - Signing and Accessibility permission tests must use a stable app path because macOS privacy grants are tied to app identity.
-- The current app icon asset catalog is a valid placeholder; final icon artwork is deferred until the application runs end to end.
+- The current Icon Composer app icon is integrated and compile-verified. Final visual acceptance in Dock, Finder, default, dark, tinted, and small-size contexts remains manual.
