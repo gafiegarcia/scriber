@@ -61,7 +61,6 @@ final class PillController {
     private var isHovering = false
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
     private let presentationDuration: TimeInterval = 0.18
-    private let standardGlassOpacity: CGFloat = 0.7
 
     init() {
         panel = NSPanel(
@@ -80,21 +79,18 @@ final class PillController {
         panel.isOpaque = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
-        // Behind-window glass uses a stronger blur than SwiftUI's same-window glass.
-        // Keep the effect separate so it can be softened without fading the content.
-        let rootView = NSView(frame: glassView.bounds)
+        // SwiftUI glass only has this transparent panel's empty content to sample.
+        // AppKit clear glass can instead refract the window beneath this overlay.
         let hostingView = NSHostingView(rootView: PillView(model: model))
-        hostingView.frame = rootView.bounds
+        hostingView.frame = glassView.bounds
         hostingView.autoresizingMask = [.width, .height]
         glassView.autoresizingMask = [.width, .height]
         glassView.style = .clear
         glassView.cornerRadius = currentPanelSize.height / 2
         glassView.tintColor = nil
         glassView.effectIsInteractive = true
-        glassView.alphaValue = preferredGlassOpacity
-        rootView.addSubview(glassView)
-        rootView.addSubview(hostingView, positioned: .above, relativeTo: glassView)
-        panel.contentView = rootView
+        glassView.contentView = hostingView
+        panel.contentView = glassView
         model.onHoverChanged = { [weak self] isHovering in self?.setHovering(isHovering) }
     }
 
@@ -233,7 +229,6 @@ final class PillController {
         presentationTask?.cancel()
         presentationTask = nil
         positionPanel()
-        glassView.alphaValue = preferredGlassOpacity
         guard !panel.isVisible else {
             panel.alphaValue = 1
             return
@@ -279,10 +274,6 @@ final class PillController {
 
     private var shouldReduceMotion: Bool {
         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-    }
-
-    private var preferredGlassOpacity: CGFloat {
-        NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency ? 1 : standardGlassOpacity
     }
 
     private var autoDismissalDisabledForUITesting: Bool {
