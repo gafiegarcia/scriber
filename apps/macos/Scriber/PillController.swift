@@ -81,13 +81,13 @@ final class PillController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
         // SwiftUI glass only has this transparent panel's empty content to sample.
-        // AppKit clear glass can instead refract the window beneath this overlay.
+        // AppKit glass can instead sample the window beneath this overlay.
         let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 316, height: 78))
         let hostingView = NSHostingView(rootView: PillView(model: model))
         hostingView.frame = glassView.bounds
         hostingView.autoresizingMask = [.width, .height]
         glassView.autoresizingMask = [.width, .height]
-        glassView.style = .clear
+        glassView.style = .regular
         glassView.cornerRadius = glassView.bounds.height / 2
         glassView.tintColor = nil
         glassView.effectIsInteractive = true
