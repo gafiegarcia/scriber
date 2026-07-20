@@ -56,20 +56,21 @@ final class PillController {
     private var autoDismissTask: Task<Void, Never>?
     private var presentationTask: Task<Void, Never>?
     private var preferredScreen: NSScreen?
-    private var currentPanelSize = NSSize(width: 300, height: 62)
+    private var currentPanelSize = NSSize(width: 316, height: 78)
     private var dismissalCountdown: DismissalCountdown?
     private var isHovering = false
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
     private let presentationDuration: TimeInterval = 0.18
+    private let glassMargin: CGFloat = 8
 
     init() {
         panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 62),
+            contentRect: NSRect(x: 0, y: 0, width: 316, height: 78),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
-        glassView = NSGlassEffectView(frame: NSRect(x: 0, y: 0, width: 300, height: 62))
+        glassView = NSGlassEffectView(frame: NSRect(x: 8, y: 8, width: 300, height: 62))
         panel.level = .statusBar
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = true
@@ -81,16 +82,18 @@ final class PillController {
 
         // SwiftUI glass only has this transparent panel's empty content to sample.
         // AppKit clear glass can instead refract the window beneath this overlay.
+        let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 316, height: 78))
         let hostingView = NSHostingView(rootView: PillView(model: model))
         hostingView.frame = glassView.bounds
         hostingView.autoresizingMask = [.width, .height]
         glassView.autoresizingMask = [.width, .height]
         glassView.style = .clear
-        glassView.cornerRadius = currentPanelSize.height / 2
+        glassView.cornerRadius = glassView.bounds.height / 2
         glassView.tintColor = nil
         glassView.effectIsInteractive = true
         glassView.contentView = hostingView
-        panel.contentView = glassView
+        rootView.addSubview(glassView)
+        panel.contentView = rootView
         model.onHoverChanged = { [weak self] isHovering in self?.setHovering(isHovering) }
     }
 
@@ -102,12 +105,13 @@ final class PillController {
             return
         }
 
-        let desiredSize = panelSize(for: phase)
-        if desiredSize != currentPanelSize {
-            panel.setContentSize(desiredSize)
-            currentPanelSize = desiredSize
+        let desiredPillSize = pillSize(for: phase)
+        let desiredPanelSize = panelSize(for: desiredPillSize)
+        if desiredPanelSize != currentPanelSize {
+            panel.setContentSize(desiredPanelSize)
+            currentPanelSize = desiredPanelSize
         }
-        glassView.cornerRadius = glassCornerRadius(for: phase, size: desiredSize)
+        glassView.cornerRadius = glassCornerRadius(for: phase, size: desiredPillSize)
         model.phase = phase
         show()
         if !autoDismissalDisabledForUITesting,
@@ -192,7 +196,7 @@ final class PillController {
         }
     }
 
-    private func panelSize(for phase: AppPhase) -> NSSize {
+    private func pillSize(for phase: AppPhase) -> NSSize {
         switch phase {
         case .dictationCopied(let text, _):
             copiedResultSize(for: text)
@@ -203,6 +207,13 @@ final class PillController {
         default:
             NSSize(width: 300, height: 62)
         }
+    }
+
+    private func panelSize(for pillSize: NSSize) -> NSSize {
+        NSSize(
+            width: pillSize.width + glassMargin * 2,
+            height: pillSize.height + glassMargin * 2
+        )
     }
 
     private func copiedResultSize(for text: String) -> NSSize {
@@ -294,7 +305,7 @@ final class PillController {
         let screen = preferredScreen ?? NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) ?? NSScreen.main
         guard let frame = screen?.visibleFrame else { return }
         let x = frame.midX - panel.frame.width / 2
-        let y = frame.minY + 18
+        let y = frame.minY + 18 - glassMargin
         panel.setFrameOrigin(NSPoint(x: x, y: y))
     }
 }
