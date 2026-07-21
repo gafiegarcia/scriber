@@ -7,7 +7,7 @@ import ScriberCore
 #endif
 
 enum PasteResult: Sendable {
-    static let noEditableTargetMessage = "No editable text box was focused"
+    static let noEditableTargetMessage = "No frontmost app was available for pasting"
 
     case inserted
     case noEditableTarget(String)
@@ -29,21 +29,22 @@ final class PasteService {
         targetPID = 0
         capturedTextState = nil
         targetScreen = nil
-        let system = AXUIElementCreateSystemWide()
-        var applicationValue: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedApplicationAttribute as CFString, &applicationValue) == .success,
-              let applicationValue,
-              CFGetTypeID(applicationValue) == AXUIElementGetTypeID() else { return nil }
-        let application = unsafeDowncast(applicationValue, to: AXUIElement.self)
+        guard let runningApplication = NSWorkspace.shared.frontmostApplication else { return nil }
+        let pid = runningApplication.processIdentifier
+        let application = AXUIElementCreateApplication(pid)
         var focusedValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &focusedValue) == .success,
               let focusedValue,
-              CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else { return nil }
+              CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else {
+            // Some web-backed apps keep keyboard focus internally without
+            // publishing AXFocusedUIElement. Retain their process so delivery
+            // can still use the app's Paste command after transcription.
+            targetPID = pid
+            return nil
+        }
         let focused = unsafeDowncast(focusedValue, to: AXUIElement.self)
         let candidates = candidateElements(startingAt: focused)
         guard !candidates.contains(where: isSecureTextElement) else { return nil }
-        var pid: pid_t = 0
-        AXUIElementGetPid(application, &pid)
         target = candidates.first(where: isEditableTextElement)
         focusAnchor = focused
         targetPID = pid
@@ -140,14 +141,14 @@ final class PasteService {
     func insert(_ text: String) async -> PasteResult {
         guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
 
-        if insertAtCapturedSelection(text) { return .inserted }
+        if await insertAtCapturedSelection(text) { return .inserted }
         guard let currentTarget = currentFocusedPasteTarget() else {
             return .noEditableTarget(PasteResult.noEditableTargetMessage)
         }
         return await pasteAtCurrentSelection(text, into: currentTarget)
     }
 
-    private func insertAtCapturedSelection(_ text: String) -> Bool {
+    private func insertAtCapturedSelection(_ text: String) async -> Bool {
         guard let target, let capturedTextState else { return false }
         let currentState = textState(of: target)
         let isOriginalTargetFocused = NSWorkspace.shared.frontmostApplication?.processIdentifier == targetPID
@@ -163,31 +164,41 @@ final class PasteService {
            textState(of: target).selectedRange == capturedRange,
            isSelectedTextSettable(on: target) else { return false }
 
-        return AXUIElementSetAttributeValue(target, kAXSelectedTextAttribute as CFString, text as CFString) == .success
+        let stateBeforeInsertion = textState(of: target)
+        guard AXUIElementSetAttributeValue(
+            target,
+            kAXSelectedTextAttribute as CFString,
+            text as CFString
+        ) == .success else { return false }
+        try? await Task.sleep(for: .milliseconds(100))
+        let stateAfterInsertion = textState(of: target)
+        return stateAfterInsertion.hasObservableValue
+            && stateAfterInsertion != stateBeforeInsertion
     }
 
     private func currentFocusedPasteTarget() -> FocusedTextTarget? {
-        let system = AXUIElementCreateSystemWide()
-        var applicationValue: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedApplicationAttribute as CFString, &applicationValue) == .success,
-              let applicationValue,
-              CFGetTypeID(applicationValue) == AXUIElementGetTypeID() else { return nil }
-        let application = unsafeDowncast(applicationValue, to: AXUIElement.self)
+        guard let runningApplication = NSWorkspace.shared.frontmostApplication else { return nil }
+        let pid = runningApplication.processIdentifier
+        let application = AXUIElementCreateApplication(pid)
         var focusedValue: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &focusedValue) == .success,
-              let focusedValue,
-              CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else {
-            return nil
+        let observationElements: [AXUIElement]
+        if AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &focusedValue) == .success,
+           let focusedValue,
+           CFGetTypeID(focusedValue) == AXUIElementGetTypeID() {
+            let focused = unsafeDowncast(focusedValue, to: AXUIElement.self)
+            let candidates = candidateElements(startingAt: focused)
+            guard !candidates.contains(where: isSecureTextElement) else { return nil }
+            observationElements = candidates
+        } else {
+            // A hidden focused element must not prevent process-level delivery.
+            // There is no target state to inspect, so confirmation falls back to
+            // whether the application accepts its own Paste menu action.
+            observationElements = []
         }
-        let focused = unsafeDowncast(focusedValue, to: AXUIElement.self)
-        let candidates = candidateElements(startingAt: focused)
-        guard !candidates.contains(where: isSecureTextElement) else { return nil }
-        var pid: pid_t = 0
-        AXUIElementGetPid(application, &pid)
         return FocusedTextTarget(
             application: application,
             pid: pid,
-            observationElements: candidates
+            observationElements: observationElements
         )
     }
 
