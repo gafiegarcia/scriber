@@ -185,6 +185,7 @@ final class PasteService {
         var pid: pid_t = 0
         AXUIElementGetPid(application, &pid)
         return FocusedTextTarget(
+            application: application,
             pid: pid,
             observationElements: candidates
         )
@@ -203,9 +204,10 @@ final class PasteService {
             return .failed("The transcription could not be placed on the clipboard.")
         }
         let transcriptChangeCount = pasteboard.changeCount
-        guard postPasteShortcut() else {
+        try? await Task.sleep(for: .milliseconds(75))
+        guard let dispatch = await dispatchPaste(to: currentTarget) else {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
-            return .failed("macOS could not dispatch the Paste command.")
+            return .failed("The focused app did not provide a usable Paste command.")
         }
         try? await Task.sleep(for: .milliseconds(500))
         let stateAfterPaste = currentFocusedPasteTarget()
@@ -213,11 +215,66 @@ final class PasteService {
             ? observableTextStates(of: stateAfterPaste?.observationElements ?? [])
             : []
         snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
-        guard !statesBeforePaste.isEmpty || !statesAfterPaste.isEmpty,
-              statesBeforePaste != statesAfterPaste else {
+        let accessibilityConfirmed = (!statesBeforePaste.isEmpty || !statesAfterPaste.isEmpty)
+            && statesBeforePaste != statesAfterPaste
+        guard accessibilityConfirmed || dispatch == .applicationMenu else {
             return .failed("macOS did not confirm that the transcription was inserted.")
         }
         return .inserted
+    }
+
+    private func dispatchPaste(to target: FocusedTextTarget) async -> PasteDispatch? {
+        if performApplicationPasteCommand(in: target.application) {
+            return .applicationMenu
+        }
+        return await postPasteShortcut(to: target.pid) ? .targetedKeyboard : nil
+    }
+
+    private func performApplicationPasteCommand(in application: AXUIElement) -> Bool {
+        guard let menuBar = elementAttribute(application, named: kAXMenuBarAttribute),
+              let pasteItem = pasteMenuItem(in: menuBar) else { return false }
+        return AXUIElementPerformAction(pasteItem, kAXPressAction as CFString) == .success
+    }
+
+    private func pasteMenuItem(in root: AXUIElement) -> AXUIElement? {
+        var queue = [root]
+        var index = 0
+        while index < queue.count, index < 256 {
+            let element = queue[index]
+            index += 1
+            if stringAttribute(element, named: kAXRoleAttribute) == "AXMenuItem",
+               boolAttribute(element, named: kAXEnabledAttribute) != false,
+               isStandardPasteMenuItem(element) {
+                return element
+            }
+            queue.append(contentsOf: elementArrayAttribute(element, named: kAXChildrenAttribute))
+        }
+        return nil
+    }
+
+    private func isStandardPasteMenuItem(_ element: AXUIElement) -> Bool {
+        let title = stringAttribute(element, named: kAXTitleAttribute)?.localizedLowercase
+        if title == "paste" { return true }
+        let commandCharacter = stringAttribute(element, named: "AXMenuItemCmdChar")?.lowercased()
+        let commandModifiers = numberAttribute(element, named: "AXMenuItemCmdModifiers")?.intValue
+        return commandCharacter == "v" && commandModifiers == 0
+    }
+
+    private func elementArrayAttribute(_ element: AXUIElement, named name: String) -> [AXUIElement] {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success,
+              let values = value as? [Any] else { return [] }
+        return values.compactMap { value in
+            let reference = value as CFTypeRef
+            guard CFGetTypeID(reference) == AXUIElementGetTypeID() else { return nil }
+            return unsafeDowncast(reference, to: AXUIElement.self)
+        }
+    }
+
+    private func numberAttribute(_ element: AXUIElement, named name: String) -> NSNumber? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        return value as? NSNumber
     }
 
     private func observableTextStates(of elements: [AXUIElement]) -> [TextElementState] {
@@ -317,16 +374,22 @@ final class PasteService {
         return NSScreen.screens.first { $0.frame.contains(appKitCenter) }
     }
 
-    private func postPasteShortcut() -> Bool {
+    private func postPasteShortcut(to pid: pid_t) async -> Bool {
         guard let source = CGEventSource(stateID: .combinedSessionState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else { return false }
         down.flags = .maskCommand
         up.flags = .maskCommand
-        down.post(tap: .cghidEventTap)
-        up.post(tap: .cghidEventTap)
+        down.postToPid(pid)
+        try? await Task.sleep(for: .milliseconds(12))
+        up.postToPid(pid)
         return true
     }
+}
+
+private enum PasteDispatch: Equatable {
+    case applicationMenu
+    case targetedKeyboard
 }
 
 private struct TextElementState: Equatable {
@@ -338,6 +401,7 @@ private struct TextElementState: Equatable {
 }
 
 private struct FocusedTextTarget {
+    let application: AXUIElement
     let pid: pid_t
     let observationElements: [AXUIElement]
 }
