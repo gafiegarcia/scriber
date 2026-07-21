@@ -40,18 +40,19 @@ final class PasteService {
               let focusedValue,
               CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else { return nil }
         let focused = unsafeDowncast(focusedValue, to: AXUIElement.self)
-        guard let editableTarget = editableTextElement(startingAt: focused) else { return nil }
+        let candidates = candidateElements(startingAt: focused)
+        guard !candidates.contains(where: isSecureTextElement) else { return nil }
         var pid: pid_t = 0
         AXUIElementGetPid(application, &pid)
-        target = editableTarget
+        target = candidates.first(where: isEditableTextElement)
         focusAnchor = focused
         targetPID = pid
-        capturedTextState = textState(of: editableTarget)
-        targetScreen = screen(containing: editableTarget)
+        capturedTextState = target.map { self.textState(of: $0) }
+        targetScreen = candidates.lazy.compactMap { self.screen(containing: $0) }.first
         return targetScreen
     }
 
-    private func editableTextElement(startingAt focused: AXUIElement) -> AXUIElement? {
+    private func candidateElements(startingAt focused: AXUIElement) -> [AXUIElement] {
         var ancestry = [focused]
         var current = focused
         for _ in 0..<24 {
@@ -68,11 +69,7 @@ final class PasteService {
                 candidates.insert(editableAncestor, at: 1)
             }
         }
-
-        // Walk the whole short ancestry first so a child of a password field can
-        // never be accepted through a more generic text capability.
-        guard !candidates.contains(where: isSecureTextElement) else { return nil }
-        return candidates.first(where: isEditableTextElement)
+        return candidates
     }
 
     private func isSecureTextElement(_ element: AXUIElement) -> Bool {
@@ -144,7 +141,7 @@ final class PasteService {
         guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
 
         if insertAtCapturedSelection(text) { return .inserted }
-        guard let currentTarget = currentFocusedEditableTarget() else {
+        guard let currentTarget = currentFocusedPasteTarget() else {
             return .noEditableTarget(PasteResult.noEditableTargetMessage)
         }
         return await pasteAtCurrentSelection(text, into: currentTarget)
@@ -169,7 +166,7 @@ final class PasteService {
         return AXUIElementSetAttributeValue(target, kAXSelectedTextAttribute as CFString, text as CFString) == .success
     }
 
-    private func currentFocusedEditableTarget() -> FocusedTextTarget? {
+    private func currentFocusedPasteTarget() -> FocusedTextTarget? {
         let system = AXUIElementCreateSystemWide()
         var applicationValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(system, kAXFocusedApplicationAttribute as CFString, &applicationValue) == .success,
@@ -179,22 +176,26 @@ final class PasteService {
         var focusedValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &focusedValue) == .success,
               let focusedValue,
-              CFGetTypeID(focusedValue) == AXUIElementGetTypeID(),
-              let editableTarget = editableTextElement(startingAt: unsafeDowncast(focusedValue, to: AXUIElement.self)) else {
+              CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else {
             return nil
         }
+        let focused = unsafeDowncast(focusedValue, to: AXUIElement.self)
+        let candidates = candidateElements(startingAt: focused)
+        guard !candidates.contains(where: isSecureTextElement) else { return nil }
         var pid: pid_t = 0
         AXUIElementGetPid(application, &pid)
-        return FocusedTextTarget(element: editableTarget, focusAnchor: unsafeDowncast(focusedValue, to: AXUIElement.self), pid: pid)
+        return FocusedTextTarget(
+            pid: pid,
+            observationElements: candidates
+        )
     }
 
     private func pasteAtCurrentSelection(_ text: String, into currentTarget: FocusedTextTarget) async -> PasteResult {
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == currentTarget.pid,
-              focusedElementStillMatches(currentTarget.focusAnchor) else {
-            return .failed("The current text box is no longer focused.")
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == currentTarget.pid else {
+            return .failed("The focused app changed before Scriber could paste.")
         }
 
-        let stateBeforePaste = textState(of: currentTarget.element)
+        let statesBeforePaste = observableTextStates(of: currentTarget.observationElements)
         let pasteboard = NSPasteboard.general
         let snapshot = PasteboardSnapshot.capture(pasteboard)
         pasteboard.clearContents()
@@ -207,13 +208,20 @@ final class PasteService {
             return .failed("macOS could not dispatch the Paste command.")
         }
         try? await Task.sleep(for: .milliseconds(500))
-        let stateAfterPaste = textState(of: currentTarget.element)
+        let stateAfterPaste = currentFocusedPasteTarget()
+        let statesAfterPaste = stateAfterPaste?.pid == currentTarget.pid
+            ? observableTextStates(of: stateAfterPaste?.observationElements ?? [])
+            : []
         snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
-        guard stateBeforePaste != stateAfterPaste,
-              stateBeforePaste.hasObservableValue || stateAfterPaste.hasObservableValue else {
+        guard !statesBeforePaste.isEmpty || !statesAfterPaste.isEmpty,
+              statesBeforePaste != statesAfterPaste else {
             return .failed("macOS did not confirm that the transcription was inserted.")
         }
         return .inserted
+    }
+
+    private func observableTextStates(of elements: [AXUIElement]) -> [TextElementState] {
+        elements.map { self.textState(of: $0) }.filter(\.hasObservableValue)
     }
 
     private func isSelectedTextSettable(on element: AXUIElement) -> Bool {
@@ -330,9 +338,8 @@ private struct TextElementState: Equatable {
 }
 
 private struct FocusedTextTarget {
-    let element: AXUIElement
-    let focusAnchor: AXUIElement
     let pid: pid_t
+    let observationElements: [AXUIElement]
 }
 
 private struct PasteboardSnapshot {
