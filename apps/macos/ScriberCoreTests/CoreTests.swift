@@ -93,7 +93,8 @@ struct PasteConfirmationTests {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: true,
             pasteboardDataRequested: false,
-            insertedTextNotificationObserved: false
+            insertedTextNotificationObserved: false,
+            editableSelectionMutationObserved: false
         ))
     }
 
@@ -102,7 +103,18 @@ struct PasteConfirmationTests {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
             pasteboardDataRequested: true,
-            insertedTextNotificationObserved: true
+            insertedTextNotificationObserved: true,
+            editableSelectionMutationObserved: false
+        ))
+    }
+
+    @Test("Confirms a hidden editable selection mutation after transcript consumption")
+    func editableSelectionMutation() {
+        #expect(PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: false,
+            pasteboardDataRequested: true,
+            insertedTextNotificationObserved: false,
+            editableSelectionMutationObserved: true
         ))
     }
 
@@ -111,7 +123,8 @@ struct PasteConfirmationTests {
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
             pasteboardDataRequested: true,
-            insertedTextNotificationObserved: false
+            insertedTextNotificationObserved: false,
+            editableSelectionMutationObserved: false
         ))
     }
 
@@ -120,7 +133,18 @@ struct PasteConfirmationTests {
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
             pasteboardDataRequested: false,
-            insertedTextNotificationObserved: true
+            insertedTextNotificationObserved: true,
+            editableSelectionMutationObserved: false
+        ))
+    }
+
+    @Test("Rejects an editable selection mutation without transcript consumption")
+    func selectionMutationWithoutClipboardRead() {
+        #expect(!PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: false,
+            pasteboardDataRequested: false,
+            insertedTextNotificationObserved: false,
+            editableSelectionMutationObserved: true
         ))
     }
 

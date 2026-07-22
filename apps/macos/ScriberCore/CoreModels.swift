@@ -266,10 +266,12 @@ public enum PasteConfirmationPolicy {
     public static func confirmsInsertion(
         accessibilityMutationObserved: Bool,
         pasteboardDataRequested: Bool,
-        insertedTextNotificationObserved: Bool
+        insertedTextNotificationObserved: Bool,
+        editableSelectionMutationObserved: Bool
     ) -> Bool {
         accessibilityMutationObserved
-            || (pasteboardDataRequested && insertedTextNotificationObserved)
+            || (pasteboardDataRequested
+                && (insertedTextNotificationObserved || editableSelectionMutationObserved))
     }
 
     public static func containsInsertedText(

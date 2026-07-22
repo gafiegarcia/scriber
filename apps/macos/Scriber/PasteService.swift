@@ -272,7 +272,8 @@ final class PasteService {
         guard PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: accessibilityConfirmed,
             pasteboardDataRequested: pasteboardDataRequested,
-            insertedTextNotificationObserved: mutationObserver?.insertedTextObserved == true
+            insertedTextNotificationObserved: mutationObserver?.insertedTextObserved == true,
+            editableSelectionMutationObserved: mutationObserver?.editableSelectionMutationObserved == true
         ) else {
             return .failed("macOS did not confirm that the transcription was inserted.")
         }
@@ -485,6 +486,7 @@ private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider,
 
 private final class PasteMutationObserver: @unchecked Sendable {
     private static let textChangeValuesKey = "AXTextChangeValues"
+    private static let textChangeElementKey = "AXTextChangeElement"
     private static let textEditTypeKey = "AXTextEditType"
     private static let textChangeValueKey = "AXTextChangeValue"
 
@@ -492,7 +494,9 @@ private final class PasteMutationObserver: @unchecked Sendable {
     private let application: AXUIElement
     private let lock = NSLock()
     private var observer: AXObserver?
-    private var observed = false
+    private var registeredNotifications = [CFString]()
+    private var insertedTextWasObserved = false
+    private var editableSelectionWasMutated = false
 
     init?(pid: pid_t, application: AXUIElement, expectedText: String) {
         self.expectedText = expectedText
@@ -504,12 +508,13 @@ private final class PasteMutationObserver: @unchecked Sendable {
         self.observer = observer
 
         let refcon = Unmanaged.passUnretained(self).toOpaque()
-        guard AXObserverAddNotification(
-            observer,
-            application,
-            kAXValueChangedNotification as CFString,
-            refcon
-        ) == .success else { return nil }
+        for notification in [kAXValueChangedNotification, kAXSelectedTextChangedNotification] {
+            let notification = notification as CFString
+            if AXObserverAddNotification(observer, application, notification, refcon) == .success {
+                registeredNotifications.append(notification)
+            }
+        }
+        guard !registeredNotifications.isEmpty else { return nil }
 
         CFRunLoopAddSource(
             CFRunLoopGetMain(),
@@ -520,11 +525,9 @@ private final class PasteMutationObserver: @unchecked Sendable {
 
     deinit {
         guard let observer else { return }
-        AXObserverRemoveNotification(
-            observer,
-            application,
-            kAXValueChangedNotification as CFString
-        )
+        for notification in registeredNotifications {
+            AXObserverRemoveNotification(observer, application, notification)
+        }
         CFRunLoopRemoveSource(
             CFRunLoopGetMain(),
             AXObserverGetRunLoopSource(observer),
@@ -533,19 +536,77 @@ private final class PasteMutationObserver: @unchecked Sendable {
     }
 
     var insertedTextObserved: Bool {
-        lock.withLock { observed }
+        lock.withLock { insertedTextWasObserved }
     }
 
-    fileprivate func receive(info: CFDictionary) {
+    var editableSelectionMutationObserved: Bool {
+        lock.withLock { editableSelectionWasMutated }
+    }
+
+    fileprivate func receive(
+        element: AXUIElement,
+        notification: CFString,
+        info: CFDictionary
+    ) {
         let dictionary = info as NSDictionary
-        guard let changes = dictionary[Self.textChangeValuesKey] as? [NSDictionary] else { return }
-        let textChanges = changes.map { change in
-            let editType = (change[Self.textEditTypeKey] as? NSNumber)?.intValue
-            let value = change[Self.textChangeValueKey] as? String
-            return PasteTextChange(editType: editType, value: value)
+        if notification as String == kAXValueChangedNotification,
+           let changes = dictionary[Self.textChangeValuesKey] as? [NSDictionary] {
+            let textChanges = changes.map { change in
+                let editType = (change[Self.textEditTypeKey] as? NSNumber)?.intValue
+                let value = change[Self.textChangeValueKey] as? String
+                return PasteTextChange(editType: editType, value: value)
+            }
+            if PasteConfirmationPolicy.containsInsertedText(expectedText, changes: textChanges) {
+                lock.withLock { insertedTextWasObserved = true }
+            }
         }
-        guard PasteConfirmationPolicy.containsInsertedText(expectedText, changes: textChanges) else { return }
-        lock.withLock { observed = true }
+
+        guard notification as String == kAXSelectedTextChangedNotification else { return }
+        let changedElement = accessibilityElement(
+            from: dictionary[Self.textChangeElementKey]
+        ) ?? element
+        guard isEditableTextElement(changedElement) else { return }
+        lock.withLock { editableSelectionWasMutated = true }
+    }
+
+    private func accessibilityElement(from value: Any?) -> AXUIElement? {
+        guard let value else { return nil }
+        let reference = value as CFTypeRef
+        guard CFGetTypeID(reference) == AXUIElementGetTypeID() else { return nil }
+        return unsafeDowncast(reference, to: AXUIElement.self)
+    }
+
+    private func isEditableTextElement(_ element: AXUIElement) -> Bool {
+        if stringAttribute(element, named: kAXRoleAttribute) == "AXSecureTextField"
+            || stringAttribute(element, named: kAXSubroleAttribute) == "AXSecureTextField"
+            || boolAttribute(element, named: kAXEnabledAttribute) == false {
+            return false
+        }
+        if boolAttribute(element, named: "AXIsEditable") == true { return true }
+
+        var selectedTextSettable = DarwinBoolean(false)
+        if AXUIElementIsAttributeSettable(
+            element,
+            kAXSelectedTextAttribute as CFString,
+            &selectedTextSettable
+        ) == .success, selectedTextSettable.boolValue {
+            return true
+        }
+
+        let recognizedRoles = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
+        return stringAttribute(element, named: kAXRoleAttribute).map(recognizedRoles.contains) == true
+    }
+
+    private func stringAttribute(_ element: AXUIElement, named name: String) -> String? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        return value as? String
+    }
+
+    private func boolAttribute(_ element: AXUIElement, named name: String) -> Bool? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        return value as? Bool
     }
 }
 
@@ -560,7 +621,7 @@ private func pasteMutationObserverCallback(
     Unmanaged<PasteMutationObserver>
         .fromOpaque(refcon)
         .takeUnretainedValue()
-        .receive(info: info)
+        .receive(element: element, notification: notification, info: info)
 }
 
 private struct PasteboardSnapshot {
