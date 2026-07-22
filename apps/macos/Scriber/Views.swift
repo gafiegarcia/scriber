@@ -334,6 +334,7 @@ private struct DictationHistoryRow: View {
             .frame(width: 24)
         }
         .padding(.vertical, 8)
+        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
     }
 
     private var rowText: String {
