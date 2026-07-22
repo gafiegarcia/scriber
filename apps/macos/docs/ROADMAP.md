@@ -27,6 +27,7 @@ Scriber `0.7.0` build `3` remains the first frozen personal-use alpha snapshot f
 - [ ] Complete fresh onboarding under the `com.gafiegarcia.scriber` identity.
 - [ ] Verify Microphone and Accessibility grants persist for the stable app.
 - [ ] Verify Launch at Login registration, relaunch, and opt-out.
+- [ ] Verify launch presents onboarding before setup and the main Dictation window after setup.
 - [ ] Verify Command-W, Command-Shift-W, and the red window control remove the final normal window and Dock icon without terminating menu-bar or dictation services.
 
 ### Credentials, quota, and transcription

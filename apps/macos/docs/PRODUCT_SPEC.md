@@ -59,6 +59,7 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Microphone permission is required for recording.
 - Accessibility permission is required for global shortcut interception and cross-app insertion.
 - Launch at Login is optional, offered during onboarding, defaults on, and requires explicit consent.
+- Every launch presents onboarding until setup is complete, then presents the main Dictation window. Closing the final normal window still leaves menu-bar and dictation services running.
 - Onboarding must be complete and the credential definitively usable before recording or Dictation retry can begin.
 - App Sandbox remains disabled for the native alpha because global event interception and cross-app Accessibility insertion are core behavior.
 

@@ -194,6 +194,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         observers.append(center.addObserver(forName: .openScriberMainWindow, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.showMainWindow() }
         })
+        Task { @MainActor [weak self] in
+            await Task.yield()
+            let onboardingComplete = AppLaunchConfiguration.isUITesting
+                || UserDefaults.standard.bool(forKey: "onboardingComplete")
+            self?.showInitialWindow(onboardingComplete: onboardingComplete)
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -204,8 +210,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     private func showMainWindow() {
+        showWindow(titled: AppWindowIdentity.mainTitle)
+    }
+
+    private func showInitialWindow(onboardingComplete: Bool) {
+        showWindow(titled: onboardingComplete ? AppWindowIdentity.mainTitle : AppWindowIdentity.onboardingTitle)
+    }
+
+    private func showWindow(titled title: String) {
         guard let window = NSApp.windows.first(where: {
-            AppWindowIdentity.isManagedWindow($0) && $0.title == AppWindowIdentity.mainTitle
+            AppWindowIdentity.isManagedWindow($0) && $0.title == title
         }) else { return }
         let previouslyActiveApplication = NSWorkspace.shared.frontmostApplication
         activationRetryTask?.cancel()
