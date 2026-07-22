@@ -20,6 +20,14 @@ struct ShortcutMatcherTests {
         #expect(!matcher.matchesToggleWhileHeld(modifiers: [.function, .control, .option, .shift], keyCode: 49))
     }
 
+    @Test("Locked recording stops only with the hands-free toggle")
+    func lockedStopSemantics() {
+        #expect(ShortcutAction.togglePressed.stopsRecording(mode: .locked))
+        #expect(!ShortcutAction.holdPressed.stopsRecording(mode: .locked))
+        #expect(!ShortcutAction.holdReleased.stopsRecording(mode: .locked))
+        #expect(ShortcutAction.holdReleased.stopsRecording(mode: .held))
+    }
+
     @Test("Busy state is limited to recording and transcription")
     func busyState() {
         #expect(AppPhase.recording(mode: .held, elapsed: 0, level: -80).isBusy)

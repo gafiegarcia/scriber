@@ -351,8 +351,6 @@ final class AppCoordinator: ObservableObject {
             switch phase {
             case .idle, .message, .cancelledTranscript, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .held)
-            case .recording(let mode, _, _) where mode == .locked:
-                stopAndTranscribe()
             case .transcribing:
                 showTransientMessage("Still transcribing")
             default:

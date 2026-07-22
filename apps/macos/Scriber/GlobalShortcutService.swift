@@ -133,7 +133,7 @@ final class GlobalShortcutService {
 
         if event.type == .keyDown {
             let exactHold = matcher.matchesExactly(matcher.hold, modifiers: event.modifiers, keyCode: event.keyCode)
-            if holdEnabled, matcher.hold.keyCode != nil, exactHold, !holdLatched, (mode == .idle || mode == .locked) {
+            if holdEnabled, matcher.hold.keyCode != nil, exactHold, !holdLatched, mode == .idle {
                 holdLatched = true
                 suppressedKeyCodes.insert(event.keyCode)
                 onAction?(.holdPressed)
@@ -171,10 +171,6 @@ final class GlobalShortcutService {
                 onAction?(.holdReleased)
             }
         case .locked:
-            if matcher.hold.keyCode == nil, exactHold, !holdLatched {
-                holdLatched = true
-                onAction?(.holdPressed)
-            }
             if !holdSatisfied { holdLatched = false }
         case .busy:
             break

@@ -172,6 +172,13 @@ public enum ShortcutAction: Equatable, Sendable {
     case holdReleased
     case togglePressed
     case cancel
+
+    public func stopsRecording(mode: RecordingMode) -> Bool {
+        switch (self, mode) {
+        case (.holdReleased, .held), (.togglePressed, .locked): true
+        default: false
+        }
+    }
 }
 
 public enum PillDismissalAction: Equatable, Sendable {
