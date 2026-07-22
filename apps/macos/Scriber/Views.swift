@@ -504,6 +504,7 @@ struct SettingsView: View {
                         catch { message = error.localizedDescription }
                     }
                 ))
+                Toggle("Show in Menu Bar", isOn: $runtime.preferences.showInMenuBar)
             }
             if let message { Text(message).foregroundStyle(.secondary) }
             }

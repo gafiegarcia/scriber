@@ -29,6 +29,7 @@ Scriber `0.7.0` build `3` remains the first frozen personal-use alpha snapshot f
 - [ ] Verify Launch at Login registration, relaunch, and opt-out.
 - [ ] Verify launch presents onboarding before setup and the main Dictation window after setup.
 - [ ] Verify Command-W, Command-Shift-W, and the red window control remove the final normal window and Dock icon without terminating menu-bar or dictation services.
+- [ ] Verify the Show in Menu Bar setting, restoration after re-enabling, and preference synchronization after Command-drag removal.
 
 ### Credentials, quota, and transcription
 

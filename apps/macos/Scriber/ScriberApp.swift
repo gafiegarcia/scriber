@@ -125,7 +125,14 @@ struct ScriberApp: App {
             }
         }
 
-        MenuBarExtra("Scriber", systemImage: menuBarSymbol) {
+        MenuBarExtra(
+            "Scriber",
+            systemImage: menuBarSymbol,
+            isInserted: Binding(
+                get: { runtime.preferences.showInMenuBar },
+                set: { runtime.preferences.showInMenuBar = $0 }
+            )
+        ) {
             MenuBarContent().environmentObject(runtime)
         }
     }
