@@ -130,7 +130,12 @@ struct ScriberApp: App {
             systemImage: menuBarSymbol,
             isInserted: Binding(
                 get: { runtime.preferences.showInMenuBar },
-                set: { runtime.preferences.showInMenuBar = $0 }
+                set: { isInserted in
+                    Task { @MainActor in
+                        guard runtime.preferences.showInMenuBar != isInserted else { return }
+                        runtime.preferences.showInMenuBar = isInserted
+                    }
+                }
             )
         ) {
             MenuBarContent().environmentObject(runtime)
