@@ -240,6 +240,11 @@ final class PasteService {
         }
 
         let statesBeforePaste = observableTextStates(of: currentTarget.observationElements)
+        let mutationObserver = PasteMutationObserver(
+            pid: currentTarget.pid,
+            application: currentTarget.application,
+            expectedText: text
+        )
         let pasteboard = NSPasteboard.general
         let snapshot = PasteboardSnapshot.capture(pasteboard)
         pasteboard.clearContents()
@@ -266,7 +271,8 @@ final class PasteService {
             && statesBeforePaste != statesAfterPaste
         guard PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: accessibilityConfirmed,
-            pasteboardDataRequested: pasteboardDataRequested
+            pasteboardDataRequested: pasteboardDataRequested,
+            insertedTextNotificationObserved: mutationObserver?.insertedTextObserved == true
         ) else {
             return .failed("macOS did not confirm that the transcription was inserted.")
         }
@@ -475,6 +481,86 @@ private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider,
     }
 
     func pasteboardFinishedWithDataProvider(_ pasteboard: NSPasteboard) {}
+}
+
+private final class PasteMutationObserver: @unchecked Sendable {
+    private static let textChangeValuesKey = "AXTextChangeValues"
+    private static let textEditTypeKey = "AXTextEditType"
+    private static let textChangeValueKey = "AXTextChangeValue"
+
+    private let expectedText: String
+    private let application: AXUIElement
+    private let lock = NSLock()
+    private var observer: AXObserver?
+    private var observed = false
+
+    init?(pid: pid_t, application: AXUIElement, expectedText: String) {
+        self.expectedText = expectedText
+        self.application = application
+
+        var observer: AXObserver?
+        guard AXObserverCreateWithInfoCallback(pid, pasteMutationObserverCallback, &observer) == .success,
+              let observer else { return nil }
+        self.observer = observer
+
+        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        guard AXObserverAddNotification(
+            observer,
+            application,
+            kAXValueChangedNotification as CFString,
+            refcon
+        ) == .success else { return nil }
+
+        CFRunLoopAddSource(
+            CFRunLoopGetMain(),
+            AXObserverGetRunLoopSource(observer),
+            .commonModes
+        )
+    }
+
+    deinit {
+        guard let observer else { return }
+        AXObserverRemoveNotification(
+            observer,
+            application,
+            kAXValueChangedNotification as CFString
+        )
+        CFRunLoopRemoveSource(
+            CFRunLoopGetMain(),
+            AXObserverGetRunLoopSource(observer),
+            .commonModes
+        )
+    }
+
+    var insertedTextObserved: Bool {
+        lock.withLock { observed }
+    }
+
+    fileprivate func receive(info: CFDictionary) {
+        let dictionary = info as NSDictionary
+        guard let changes = dictionary[Self.textChangeValuesKey] as? [NSDictionary] else { return }
+        let textChanges = changes.map { change in
+            let editType = (change[Self.textEditTypeKey] as? NSNumber)?.intValue
+            let value = change[Self.textChangeValueKey] as? String
+            return PasteTextChange(editType: editType, value: value)
+        }
+        guard PasteConfirmationPolicy.containsInsertedText(expectedText, changes: textChanges) else { return }
+        lock.withLock { observed = true }
+    }
+}
+
+private func pasteMutationObserverCallback(
+    _ observer: AXObserver,
+    _ element: AXUIElement,
+    _ notification: CFString,
+    _ info: CFDictionary,
+    _ refcon: UnsafeMutableRawPointer?
+) {
+    guard let refcon else { return }
+    Unmanaged<PasteMutationObserver>
+        .fromOpaque(refcon)
+        .takeUnretainedValue()
+        .receive(info: info)
 }
 
 private struct PasteboardSnapshot {

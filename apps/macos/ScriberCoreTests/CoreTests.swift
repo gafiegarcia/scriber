@@ -92,7 +92,8 @@ struct PasteConfirmationTests {
     func accessibilityMutation() {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: true,
-            pasteboardDataRequested: false
+            pasteboardDataRequested: false,
+            insertedTextNotificationObserved: false
         ))
     }
 
@@ -100,15 +101,52 @@ struct PasteConfirmationTests {
     func pasteboardRequest() {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
-            pasteboardDataRequested: true
+            pasteboardDataRequested: true,
+            insertedTextNotificationObserved: true
         ))
     }
 
-    @Test("Rejects a dispatched paste with no observable consumer")
-    func noConsumer() {
+    @Test("Rejects a browser clipboard read without text insertion")
+    func clipboardReadWithoutMutation() {
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
-            pasteboardDataRequested: false
+            pasteboardDataRequested: true,
+            insertedTextNotificationObserved: false
+        ))
+    }
+
+    @Test("Rejects an unrelated text notification without transcript consumption")
+    func unrelatedMutation() {
+        #expect(!PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: false,
+            pasteboardDataRequested: false,
+            insertedTextNotificationObserved: true
+        ))
+    }
+
+    @Test("Matches exact and fragmented inserted-text metadata")
+    func insertedTextMetadata() {
+        #expect(PasteConfirmationPolicy.containsInsertedText(
+            "hello world",
+            changes: [PasteTextChange(editType: 2, value: "hello world")]
+        ))
+        #expect(PasteConfirmationPolicy.containsInsertedText(
+            "hello world",
+            changes: [
+                PasteTextChange(editType: 2, value: "hello "),
+                PasteTextChange(editType: 3, value: "world")
+            ]
+        ))
+    }
+
+    @Test("Does not mistake deleted matching text for insertion")
+    func deletedTextMetadata() {
+        #expect(!PasteConfirmationPolicy.containsInsertedText(
+            "hello world",
+            changes: [PasteTextChange(
+                editType: PasteConfirmationPolicy.deleteEditType,
+                value: "hello world"
+            )]
         ))
     }
 }

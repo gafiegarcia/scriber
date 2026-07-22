@@ -261,11 +261,37 @@ public enum CapturedSelectionRestorePolicy {
 }
 
 public enum PasteConfirmationPolicy {
+    public static let deleteEditType = 1
+
     public static func confirmsInsertion(
         accessibilityMutationObserved: Bool,
-        pasteboardDataRequested: Bool
+        pasteboardDataRequested: Bool,
+        insertedTextNotificationObserved: Bool
     ) -> Bool {
-        accessibilityMutationObserved || pasteboardDataRequested
+        accessibilityMutationObserved
+            || (pasteboardDataRequested && insertedTextNotificationObserved)
+    }
+
+    public static func containsInsertedText(
+        _ expectedText: String,
+        changes: [PasteTextChange]
+    ) -> Bool {
+        let insertedFragments = changes.compactMap { change -> String? in
+            guard change.editType != deleteEditType else { return nil }
+            return change.value
+        }
+        return insertedFragments.contains(expectedText)
+            || insertedFragments.joined() == expectedText
+    }
+}
+
+public struct PasteTextChange: Equatable, Sendable {
+    public let editType: Int?
+    public let value: String?
+
+    public init(editType: Int?, value: String?) {
+        self.editType = editType
+        self.value = value
     }
 }
 
