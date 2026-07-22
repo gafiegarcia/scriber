@@ -15,7 +15,7 @@ Read `apps/macos/PROJECT_PLAN.md` before changing the native app; it contains th
 - Keep the ElevenLabs key in the dedicated Keychain item and never log or persist it elsewhere.
 - Normal automated tests must never make an ElevenLabs request or consume API credit.
 - Successful dictation audio is deleted only after the transcript is saved. Failed/interrupted audio remains available for retry.
-- App Sandbox is intentionally disabled for v0.1 because global event interception and cross-app Accessibility insertion are core features.
+- App Sandbox is intentionally disabled for the current native alpha because global event interception and cross-app Accessibility insertion are core features.
 
 ## Toolchain
 

@@ -20,6 +20,7 @@ renamed from `scriber-dictate` to `scriber`.
 - Remote: private `origin` at `https://github.com/gafiegarcia/scriber.git`
 - History: the native Swift/SwiftUI history plus the history-free Electron snapshot commits; no legacy Git graph was imported
 - Current native app version: `0.7.0` build `2`
+- Current native maturity: alpha-stage and untagged; see `docs/VERSIONING.md`
 - Current native product/bundle identity: Scriber / `com.gafiegarcia.scriber`
 
 ### Legacy repository
@@ -212,12 +213,17 @@ Implemented product version: `0.7.0`, continuing from Electron Scriber `0.6.0`
 and representing the substantial native-app pivot. The imported Electron
 snapshot remains at its historical `0.6.0` unless active Electron development resumes.
 
+This is a product-line version, not a codebase-age counter. Rewriting the app in
+Swift and choosing a clean native bundle identity do not reset Scriber to
+`0.1.0`. The durable decision is recorded in `docs/VERSIONING.md`.
+
 Separate these concepts:
 
 - User-facing app name: changed from **Scriber Dictate** to **Scriber**.
 - Xcode project, target, module, source, and test names: changed to the exhaustive `Scriber` map in a dedicated verified commit.
 - Marketing version: changed to `0.7.0`.
 - Build number: changed to `2`.
+- Prerelease state: alpha-stage; not yet represented by a frozen release tag.
 - Bundle identifier: changed to `com.gafiegarcia.scriber` with an explicit clean-reset decision.
 
 #### Bundle-identifier decision (resolved)
@@ -246,11 +252,12 @@ be logged, exported, or copied elsewhere.
    app-specific instructions only where they genuinely differ.
 3. Update the native `PROJECT_PLAN.md` after each meaningful milestone and
    verification result.
-4. Add a root changelog or release notes policy only after deciding whether
-   versions apply product-wide or independently per app.
-5. Do not create `v0.7.0` until the corresponding release state is real. A
-   pre-migration/native archival tag can use a descriptive prerelease name
-   instead of pretending that an unreleased build is final.
+4. Apply the product-line version and release-tag policy in
+   `docs/VERSIONING.md`. Platform implementations retain their historical
+   package versions unless their active product line advances.
+5. Keep ordinary development commits untagged. The first intentionally frozen
+   native testing snapshot may use `v0.7.0-alpha.1`; create final `v0.7.0` only
+   when the corresponding stable release state is real.
 
 ## Verification Checklist
 

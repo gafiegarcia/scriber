@@ -15,6 +15,7 @@ The rename must leave room for a later long-form transcription workflow without 
 - User-facing name: **Scriber**.
 - Native marketing version: `0.7.0`.
 - Native build number: `2`.
+- Current native maturity: alpha-stage; no stable `0.7.0` release or canonical-repository tag exists yet.
 - Native bundle identifier: `com.gafiegarcia.scriber`.
 - UI-test bundle identifier: `com.gafiegarcia.scriber.ui-tests`.
 - Built product: `Scriber.app`.
@@ -22,6 +23,12 @@ The rename must leave room for a later long-form transcription workflow without 
 - Gaf will re-enter the ElevenLabs API key, repeat onboarding, grant Microphone and Accessibility permissions, and re-enable Launch at Login as needed.
 - Keep the Electron snapshot at its historical `0.6.0` identity and source state. Do not apply the native rename mechanically to `apps/electron`.
 - Do not add an empty Transcription sidebar destination before the feature exists.
+
+## Version and prerelease policy
+
+Native Scriber continues the product lineage from archived Electron Scriber `0.6.0`; it does not restart merely because the app was rewritten in Swift or adopted a clean native identity. The earlier Scriber Dictate `0.1.0` value is historical prototype context, not the active product version.
+
+Marketing version `0.7.0`, bundle build `2`, and alpha/beta maturity are separate concepts. Ordinary local recompiles do not increment the build number, and an Xcode Release configuration does not imply a stable release. The first intentionally frozen testing snapshot may receive `v0.7.0-alpha.1`; the final `v0.7.0` tag is reserved for a genuinely stable release. The complete policy is in [`VERSIONING.md`](VERSIONING.md).
 
 ## Product and code rename map
 

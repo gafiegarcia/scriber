@@ -21,24 +21,31 @@ Product direction:
 - ElevenLabs Scribe v2 batch API, using a bring-your-own API key.
 - Minimal, modern, and based on native macOS components.
 - The approved product-wide rename, clean identity reset, exhaustive internal rename, Dictation navigation vocabulary, and future separate Transcription workspace are specified in [`../../docs/NATIVE_IDENTITY_PLAN.md`](../../docs/NATIVE_IDENTITY_PLAN.md).
+- Product versions follow the product lineage rather than the age of an implementation; the durable version, build, and prerelease-tag rules are specified in [`../../docs/VERSIONING.md`](../../docs/VERSIONING.md).
 
-## Locked v0.1 Decisions
+## Current Version and Release Status
 
-- Version: `0.1.0` personal Apple-silicon beta for macOS 27.
+Native Scriber continues the product line from the archived Electron app's `0.6.0`. The current native line is `0.7.0` build `2`, alpha-stage, and is not yet a stable `0.7.0` release. The original native `0.1.0` value remains historical context for the early Scriber Dictate prototype; the Swift rewrite and clean bundle identity do not reset the product version.
+
+Ordinary local Debug and Release-configuration builds remain build `2`. A new bundle build number is needed when another installable or distributed build must be distinguished. A prerelease tag such as `v0.7.0-alpha.1` is reserved for the first intentionally frozen testing snapshot, and the final `v0.7.0` tag is reserved for a genuinely stable release.
+
+## Locked Native Decisions
+
+- Version: `0.7.0` build `2`, currently an alpha-stage personal Apple-silicon preview for macOS 27.
 - Toolchain: Xcode 27 beta and Swift 6.4. Full Xcode is a prerequisite for app signing and end-to-end UI verification.
 - Output: Scribe v2 with `no_verbatim=true`; no secondary rewrite model.
 - Audio: delete after successful transcription; retain after a failed or interrupted transcription so it can be retried.
 - Retry: three total attempts for transient failures, with 3-second and 5-second delays.
 - Maximum recording duration: 10 minutes.
 - History: local SwiftData database, retained until manually deleted.
-- API key: a separate Scriber Dictate Keychain item.
+- API key: a separate Scriber Keychain item.
 - Personal keyterms are included and validated against Scribe limits.
 - Launch at Login is optional, offered during onboarding, and defaults on with explicit consent.
 - The Dock icon is visible while a normal app window is open and disappears after the final normal window closes.
 - The target text element is captured when recording begins.
 - Successful automatic insertion preserves the previous clipboard.
 - `Escape` cancels and discards an active recording.
-- Only one recording/transcription job runs at a time in v0.1.
+- Only one recording/transcription job runs at a time in the current native alpha.
 - While converting a held recording to hands-free, modifiers belonging only to the Hold chord are ignored when matching Toggle. Stopping a locked recording requires an exact configured chord.
 
 ## Milestones
@@ -48,9 +55,9 @@ Product direction:
 - [ ] Validate bare `Fn` capture and suppression on macOS 27 hardware.
 - [x] Complete recording, transcription, retries, and recovery implementation.
 - [x] Complete Accessibility insertion and clipboard-preserving fallback implementation.
-- [x] Complete menu-bar, pill, History, Settings, onboarding, and Dock lifecycle implementation.
+- [x] Complete menu-bar, pill, Dictation, Settings, onboarding, and Dock lifecycle implementation.
 - [ ] Run automated and manual acceptance checks.
-- [ ] Produce and install the v0.1 Release app at a stable path.
+- [ ] Produce and install an intentionally identified `0.7.0` alpha build at a stable path.
 
 ## Progress Log
 
@@ -126,6 +133,7 @@ Product direction:
 
 ### 2026-07-20
 
+- Confirmed that native Scriber keeps marketing version `0.7.0` and bundle build `2` because versions track the product lineage from Electron `0.6.0`, not the age of the rewritten Swift codebase. Documented the current alpha-stage status, the distinction between an Xcode Release configuration and a stable product release, and the policy of reserving `v0.7.0-alpha.1` for an intentionally frozen test snapshot and `v0.7.0` for the eventual stable release.
 - Licensed Scriber's original code and documentation under `GPL-3.0-or-later`. Added GNU's unmodified GPLv3 text, the copyright and trademark boundary, a third-party compliance inventory, matching Electron package metadata, and durable notes about AI-assisted authorship scope. The icon remains excluded pending provenance, and release artifacts still require exact dependency-license verification and notices.
 - Created fresh candidate Scriber icon source as two original geometric SVG variants: a white microphone/transcription mark on `#000000` and a black mark on transparency. Documented the AI-assisted creation process and explicitly excluded the earlier unknown-provenance Icon Composer draft. The candidate is not yet connected to the Xcode target; Icon Composer assembly and live size/appearance review remain separate acceptance steps.
 - Replaced the first candidate with Gaf's personally reshaped Figma artwork, preserved canonical black-background and transparent SVG sources, renamed the cleaned Icon Composer document to `AppIcon.icon`, and connected it to the native target. Xcode 27 beta compiles the icon without warnings alongside the asset catalog in unsigned Debug and Release builds; both apps contain identical `AppIcon.icns` resources and Aqua, Dark Aqua, tintable, and 16–1024 asset renditions. Live Dock, Finder, default, dark, and tinted appearance review remains manual.

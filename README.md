@@ -7,6 +7,10 @@ Scriber is a local-first transcription product with separate platform implementa
 
 The two applications are self-contained. There is no root JavaScript package and no shared runtime layer.
 
+## Version status
+
+The active native app is alpha-stage Scriber `0.7.0` build `2`, continuing the product lineage from the archived Electron app's `0.6.0`. The Swift rewrite and clean native identity do not reset the product version. Development builds remain untagged until a specific test snapshot is intentionally frozen; see the [versioning policy](docs/VERSIONING.md).
+
 ## Native macOS app
 
 Open `apps/macos/Scriber.xcodeproj` with Xcode 27 beta, or run its credit-free core tests from the repository root:
