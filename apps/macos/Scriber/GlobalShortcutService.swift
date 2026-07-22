@@ -16,6 +16,7 @@ enum ShortcutMonitorMode: Equatable, Sendable {
 @MainActor
 final class GlobalShortcutService {
     var onAction: ((ShortcutAction) -> Void)?
+    var onEscape: (() -> Bool)?
     var onAvailabilityChanged: ((Bool) -> Void)?
 
     private var eventTap: CFMachPort?
@@ -109,8 +110,7 @@ final class GlobalShortcutService {
 
     private func process(_ event: EventSnapshot) -> Bool {
         if event.type == .keyDown, event.keyCode == 53 {
-            onAction?(.cancel)
-            return mode == .held || mode == .locked
+            return onEscape?() ?? false
         }
 
         if event.type == .keyUp {

@@ -174,6 +174,13 @@ public enum ShortcutAction: Equatable, Sendable {
     case cancel
 }
 
+public enum PillDismissalAction: Equatable, Sendable {
+    case passThrough
+    case cancelRecording
+    case hideTranscription
+    case dismiss
+}
+
 public enum PillShapeStyle: Equatable, Sendable {
     case capsule
     case roundedRectangle
@@ -189,6 +196,17 @@ public extension AppPhase {
         switch pillShapeStyle {
         case .capsule: height / 2
         case .roundedRectangle: 24
+        }
+    }
+
+    func pillDismissalAction(isPresented: Bool) -> PillDismissalAction {
+        guard isPresented else { return .passThrough }
+        return switch self {
+        case .idle: .passThrough
+        case .recording: .cancelRecording
+        case .transcribing: .hideTranscription
+        case .pasted, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted,
+             .pasteFailed, .transcriptionFailed, .message: .dismiss
         }
     }
 }

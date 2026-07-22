@@ -118,6 +118,23 @@ final class ScriberUITests: XCTestCase {
         XCTAssertTrue(pillDismissed, "Opening Settings should dismiss the pill.")
     }
 
+    func testEscapeDismissesPersistentPill() async {
+        let app = await launchApp(
+            additionalArguments: pillLifecycleArguments + ["--ui-testing-global-shortcuts"]
+        )
+        defer { app.terminate() }
+
+        let updateKey = app.buttons["Update Key"].firstMatch
+        let updateKeyAppeared = await waitForExistence(updateKey, timeout: 3)
+        XCTAssertTrue(updateKeyAppeared)
+        guard updateKeyAppeared else { return }
+
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        let pillDismissed = await waitUntil(timeout: 3) { !updateKey.exists }
+        XCTAssertTrue(pillDismissed, "Escape should dismiss a visible persistent pill.")
+    }
+
     func testReturnSubmitsAPIKeyFromSettings() async {
         let app = await launchApp()
         defer { app.terminate() }

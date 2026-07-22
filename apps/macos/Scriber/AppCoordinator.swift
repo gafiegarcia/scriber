@@ -58,6 +58,7 @@ final class AppCoordinator: ObservableObject {
     private var isCheckingStoredAPIKey = false
     private var storedAPIKeyValidationTask: Task<Void, Never>?
     private var credentialRevision = CredentialRevision()
+    private var suppressPillForCurrentTranscription = false
     private var cancellables = Set<AnyCancellable>()
 
     init(preferences: Preferences, modelContext: ModelContext, servicesAllowed: Bool = true) {
@@ -67,13 +68,14 @@ final class AppCoordinator: ObservableObject {
         shortcuts = GlobalShortcutService(hold: preferences.holdShortcut, toggle: preferences.toggleShortcut)
 
         shortcuts.onAction = { [weak self] action in self?.handle(action) }
+        shortcuts.onEscape = { [weak self] in self?.dismissVisiblePill() ?? false }
         shortcuts.onAvailabilityChanged = { [weak self] value in self?.shortcutMonitorAvailable = value }
         pill.model.onCopy = { [weak self] in self?.copyCurrentResult() }
         pill.model.onOpen = { [weak self] in self?.openMainWindow() }
         pill.model.onOpenAPIKeySettings = { [weak self] in self?.openAPIKeySettings() }
         pill.model.onOpenUsageSettings = { [weak self] in self?.openUsageSettings() }
         pill.model.onRetry = { [weak self] in self?.retryCurrentFailure() }
-        pill.model.onDismiss = { [weak self] in self?.returnToIdle() }
+        pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
 
         Publishers.CombineLatest(preferences.$holdShortcut, preferences.$toggleShortcut)
             .sink { [weak self] hold, toggle in self?.shortcuts.update(hold: hold, toggle: toggle) }
@@ -116,17 +118,17 @@ final class AppCoordinator: ObservableObject {
 
     func startServices() {
         refreshPermissions(promptForAccessibility: false)
-        guard servicesAllowed else {
+        guard shortcutMonitoringAllowed else {
             shortcuts.stop()
             shortcutMonitorAvailable = false
             return
         }
-        guard preferences.onboardingComplete else {
+        guard preferences.onboardingComplete, accessibilityGranted else {
             shortcuts.stop()
             shortcutMonitorAvailable = false
             return
         }
-        validateStoredAPIKeyOnce()
+        if servicesAllowed { validateStoredAPIKeyOnce() }
         shortcuts.start()
     }
 
@@ -136,12 +138,20 @@ final class AppCoordinator: ObservableObject {
         microphoneGranted = AudioRecorder.microphoneAuthorized
         microphonePermissionState = AudioRecorder.microphonePermissionState
         refreshAudioInputDevices()
-        if servicesAllowed, accessibilityGranted, preferences.onboardingComplete {
+        if shortcutMonitoringAllowed, accessibilityGranted, preferences.onboardingComplete {
             shortcuts.start()
         } else {
             shortcuts.stop()
             shortcutMonitorAvailable = false
         }
+    }
+
+    private var shortcutMonitoringAllowed: Bool {
+#if DEBUG
+        servicesAllowed || ProcessInfo.processInfo.arguments.contains("--ui-testing-global-shortcuts")
+#else
+        servicesAllowed
+#endif
     }
 
     func requestMicrophone() async {
@@ -346,7 +356,7 @@ final class AppCoordinator: ObservableObject {
                 break
             }
         case .cancel:
-            if case .recording = phase { cancelRecording() }
+            _ = dismissVisiblePill()
         }
     }
 
@@ -364,6 +374,7 @@ final class AppCoordinator: ObservableObject {
 
     func retry(_ record: DictationRecord) {
         guard preferences.onboardingComplete else { return }
+        suppressPillForCurrentTranscription = false
         guard canUseConfiguredAPIKey() else { return }
         guard !phase.isBusy else {
             showTransientMessage("Already transcribing")
@@ -448,6 +459,7 @@ final class AppCoordinator: ObservableObject {
 
     private func startRecording(mode: RecordingMode) {
         guard preferences.onboardingComplete else { return }
+        suppressPillForCurrentTranscription = false
         guard canUseConfiguredAPIKey() else { return }
         guard accessibilityGranted else {
             showFailure("Accessibility permission is required.", transcription: false)
@@ -527,6 +539,7 @@ final class AppCoordinator: ObservableObject {
             try modelContext.save()
             currentRecord = record
             currentRecording = completed
+            suppressPillForCurrentTranscription = false
             shortcuts.setMode(.busy)
             Task { await transcribeCurrentRecord(attemptDelivery: true) }
         } catch {
@@ -627,6 +640,22 @@ final class AppCoordinator: ObservableObject {
         showMessage("Cancelled")
     }
 
+    @discardableResult
+    private func dismissVisiblePill() -> Bool {
+        switch phase.pillDismissalAction(isPresented: pill.isPresented) {
+        case .passThrough:
+            return false
+        case .cancelRecording:
+            cancelRecording()
+        case .hideTranscription:
+            suppressPillForCurrentTranscription = true
+            pill.dismiss()
+        case .dismiss:
+            returnToIdle()
+        }
+        return true
+    }
+
     private func retryCurrentFailure() {
         guard let currentRecord else { return }
         retry(currentRecord)
@@ -668,16 +697,22 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func showTransientMessage(_ message: String) {
+        suppressPillForCurrentTranscription = false
         let retainedPhase = phase
         pill.update(.message(message))
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.5))
             guard let self, self.phase == retainedPhase else { return }
-            self.pill.update(retainedPhase)
+            if self.suppressPillForCurrentTranscription {
+                self.pill.dismiss()
+            } else {
+                self.pill.update(retainedPhase)
+            }
         }
     }
 
     private func returnToIdle() {
+        suppressPillForCurrentTranscription = false
         paste.clearTarget()
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)
@@ -686,7 +721,11 @@ final class AppCoordinator: ObservableObject {
 
     private func setPhase(_ phase: AppPhase) {
         self.phase = phase
-        pill.update(phase)
+        if suppressPillForCurrentTranscription {
+            pill.dismiss()
+        } else {
+            pill.update(phase)
+        }
     }
 
     private func recoverInterruptedRecords() {

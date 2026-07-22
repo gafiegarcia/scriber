@@ -63,6 +63,8 @@ final class PillController {
     private let presentationDuration: TimeInterval = 0.18
     private let glassMargin: CGFloat = 8
 
+    private(set) var isPresented = false
+
     init() {
         panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 316, height: 78),
@@ -116,6 +118,12 @@ final class PillController {
 
     func setPreferredScreen(_ screen: NSScreen?) {
         preferredScreen = screen
+    }
+
+    func dismiss() {
+        clearAutoDismissal()
+        isHovering = false
+        hide(clearPhaseWhenFinished: false)
     }
 
     private func setHovering(_ hovering: Bool) {
@@ -254,6 +262,7 @@ final class PillController {
     }
 
     private func show() {
+        isPresented = true
         presentationTask?.cancel()
         presentationTask = nil
         positionPanel()
@@ -274,6 +283,7 @@ final class PillController {
     }
 
     private func hide(clearPhaseWhenFinished: Bool) {
+        isPresented = false
         presentationTask?.cancel()
         presentationTask = nil
 

@@ -29,6 +29,37 @@ struct ShortcutMatcherTests {
     }
 }
 
+@Suite("Pill dismissal")
+struct PillDismissalTests {
+    @Test("Escape passes through when no pill is presented")
+    func hiddenPill() {
+        #expect(AppPhase.recording(mode: .held, elapsed: 0, level: -80)
+            .pillDismissalAction(isPresented: false) == .passThrough)
+        #expect(AppPhase.idle.pillDismissalAction(isPresented: false) == .passThrough)
+    }
+
+    @Test("A visible recording is cancelled")
+    func recording() {
+        #expect(AppPhase.recording(mode: .locked, elapsed: 2, level: -20)
+            .pillDismissalAction(isPresented: true) == .cancelRecording)
+    }
+
+    @Test("A visible transcription is hidden without cancellation")
+    func transcribing() {
+        #expect(AppPhase.transcribing(attempt: 2, retryDelay: 3)
+            .pillDismissalAction(isPresented: true) == .hideTranscription)
+    }
+
+    @Test("Visible terminal pills are dismissed")
+    func terminalPills() {
+        #expect(AppPhase.pasted.pillDismissalAction(isPresented: true) == .dismiss)
+        #expect(AppPhase.dictationCopied(text: "Done", message: "Copied")
+            .pillDismissalAction(isPresented: true) == .dismiss)
+        #expect(AppPhase.transcriptionFailed("Offline")
+            .pillDismissalAction(isPresented: true) == .dismiss)
+    }
+}
+
 @Suite("Pill shape")
 struct PillShapeTests {
     @Test("Only an expanded copied result uses the fixed corner radius")
