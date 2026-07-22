@@ -217,7 +217,7 @@ struct DictationHistoryView: View {
                             if let text = record.text, !text.isEmpty {
                                 Button("Copy") { runtime.coordinator.copy(record) }
                             }
-                            if record.transcriptionState == .failed, record.pendingAudioRelativePath != nil {
+                            if record.isRetryable, record.pendingAudioRelativePath != nil {
                                 Button("Retry") { runtime.coordinator.retry(record) }
                             }
                             Divider()
@@ -265,6 +265,9 @@ private struct DictationHistoryRow: View {
                     if isRetrying {
                         Label("Retrying", systemImage: "arrow.clockwise")
                             .foregroundStyle(.secondary)
+                    } else if record.transcriptionState == .cancelled {
+                        Label("Cancelled", systemImage: "xmark.circle.fill")
+                            .foregroundStyle(.orange)
                     } else if record.transcriptionState == .failed {
                         Label("Failed", systemImage: "exclamationmark.circle.fill")
                             .foregroundStyle(.orange)
@@ -287,7 +290,7 @@ private struct DictationHistoryRow: View {
                 ProgressView()
                     .controlSize(.small)
                     .frame(minWidth: 48)
-            } else if record.transcriptionState == .failed, record.pendingAudioRelativePath != nil {
+            } else if record.isRetryable, record.pendingAudioRelativePath != nil {
                 Button("Retry") { runtime.coordinator.retry(record) }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -311,6 +314,12 @@ private struct DictationHistoryRow: View {
     }
 }
 
+private extension DictationRecord {
+    var isRetryable: Bool {
+        transcriptionState == .failed || transcriptionState == .cancelled
+    }
+}
+
 private struct DictationDetailView: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
@@ -327,7 +336,7 @@ private struct DictationDetailView: View {
                     Button("Copy") { runtime.coordinator.copy(record) }
                         .disabled(text.isEmpty)
                 }
-                if record.transcriptionState == .failed, record.pendingAudioRelativePath != nil {
+                if record.isRetryable, record.pendingAudioRelativePath != nil {
                     Button("Retry") { runtime.coordinator.retry(record) }.buttonStyle(.borderedProminent)
                 }
                 Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }

@@ -19,7 +19,8 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Both bindings are configurable.
 - A custom Hold chord such as `Fn-Control-Option` must coexist correctly with Toggle.
 - While converting a held recording to hands-free, modifiers used only by Hold are ignored when matching Toggle. Stopping a locked recording requires an exact configured chord.
-- `Escape` cancels and discards an active recording.
+- During the first second of a held recording, any non-modifier key cancels and discards it while the key continues to the foreground app.
+- `Escape` cancels either recording mode. Recordings shorter than one second are discarded; recordings at least one second long with detected speech retain their audio in Dictation history. The recovery pill can undo cancellation and resume transcription plus automatic insertion, while History retry transcribes and copies the result without inserting it.
 - Only one recording or transcription job runs at a time in the current alpha.
 - Maximum recording duration is 10 minutes.
 

@@ -59,14 +59,32 @@ struct PillDismissalTests {
     }
 }
 
+@Suite("Recording cancellation")
+struct RecordingCancellationTests {
+    @Test("One second begins recoverable cancellation")
+    func recoveryBoundary() {
+        #expect(!RecordingCancellationPolicy.retainsAudio(elapsed: 0.999, detectedSignal: true))
+        #expect(RecordingCancellationPolicy.retainsAudio(elapsed: 1, detectedSignal: true))
+        #expect(!RecordingCancellationPolicy.retainsAudio(elapsed: 2, detectedSignal: false))
+    }
+
+    @Test("Typing only cancels an early held recording")
+    func typingWindow() {
+        #expect(RecordingCancellationPolicy.cancelsForNonModifierKey(mode: .held, elapsed: 0.5))
+        #expect(!RecordingCancellationPolicy.cancelsForNonModifierKey(mode: .held, elapsed: 1))
+        #expect(!RecordingCancellationPolicy.cancelsForNonModifierKey(mode: .locked, elapsed: 0.5))
+    }
+}
+
 @Suite("Pill shape")
 struct PillShapeTests {
-    @Test("Only an expanded copied result uses the fixed corner radius")
+    @Test("Expanded result and cancellation recovery use the fixed corner radius")
     func copiedResultShape() {
         let copied = AppPhase.dictationCopied(text: String(repeating: "Long text ", count: 20), message: "Copied")
 
         #expect(copied.pillShapeStyle == .roundedRectangle)
         #expect(copied.pillCornerRadius(height: 230) == 24)
+        #expect(AppPhase.cancelledTranscript.pillShapeStyle == .roundedRectangle)
     }
 
     @Test("Phases after a copied result restore their capsule radius")

@@ -69,12 +69,14 @@ final class AppCoordinator: ObservableObject {
 
         shortcuts.onAction = { [weak self] action in self?.handle(action) }
         shortcuts.onEscape = { [weak self] in self?.dismissVisiblePill() ?? false }
+        shortcuts.onNonModifierKeyDown = { [weak self] in self?.cancelHeldRecordingForTypingIfNeeded() }
         shortcuts.onAvailabilityChanged = { [weak self] value in self?.shortcutMonitorAvailable = value }
         pill.model.onCopy = { [weak self] in self?.copyCurrentResult() }
         pill.model.onOpen = { [weak self] in self?.openMainWindow() }
         pill.model.onOpenAPIKeySettings = { [weak self] in self?.openAPIKeySettings() }
         pill.model.onOpenUsageSettings = { [weak self] in self?.openUsageSettings() }
         pill.model.onRetry = { [weak self] in self?.retryCurrentFailure() }
+        pill.model.onUndo = { [weak self] in self?.undoCancelledDictation() }
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
 
         Publishers.CombineLatest(preferences.$holdShortcut, preferences.$toggleShortcut)
@@ -106,6 +108,7 @@ final class AppCoordinator: ObservableObject {
         case .idle: shortcutMonitorAvailable ? "Ready" : "Shortcut access needed"
         case .recording: "Recording"
         case .transcribing: "Transcribing"
+        case .cancelledTranscript: "Cancelled"
         case .dictationCopied: "Copied"
         case .apiKeyInvalid: "API key invalid"
         case .apiCreditsExhausted: "Credits exhausted"
@@ -329,7 +332,7 @@ final class AppCoordinator: ObservableObject {
         switch action {
         case .holdPressed:
             switch phase {
-            case .idle, .message, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .cancelledTranscript, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .held)
             case .recording(let mode, _, _) where mode == .locked:
                 stopAndTranscribe()
@@ -342,7 +345,7 @@ final class AppCoordinator: ObservableObject {
             if case .recording(let mode, _, _) = phase, mode == .held { stopAndTranscribe() }
         case .togglePressed:
             switch phase {
-            case .idle, .message, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .cancelledTranscript, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .locked)
             case .recording(let mode, let elapsed, let level) where mode == .held:
                 shortcuts.setMode(.locked)
@@ -362,7 +365,7 @@ final class AppCoordinator: ObservableObject {
     func startHandsFreeFromMenu() {
         guard preferences.onboardingComplete else { return }
         switch phase {
-        case .idle, .message, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+        case .idle, .message, .cancelledTranscript, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
             startRecording(mode: .locked)
         case .recording:
             stopAndTranscribe()
@@ -379,7 +382,7 @@ final class AppCoordinator: ObservableObject {
             showTransientMessage("Already transcribing")
             return
         }
-        guard record.transcriptionState == .failed,
+        guard (record.transcriptionState == .failed || record.transcriptionState == .cancelled),
               let relativePath = record.pendingAudioRelativePath else {
             showMessage("This dictation is no longer retryable")
             return
@@ -406,7 +409,7 @@ final class AppCoordinator: ObservableObject {
         retryingRecordID = record.id
         shortcuts.setMode(.busy)
         setPhase(.transcribing(attempt: 1, retryDelay: nil))
-        Task { await transcribeCurrentRecord(attemptDelivery: false) }
+        Task { await transcribeCurrentRecord(delivery: .copy) }
     }
 
     func copy(_ record: DictationRecord) {
@@ -540,14 +543,19 @@ final class AppCoordinator: ObservableObject {
             currentRecording = completed
             suppressPillForCurrentTranscription = false
             shortcuts.setMode(.busy)
-            Task { await transcribeCurrentRecord(attemptDelivery: true) }
+            Task { await transcribeCurrentRecord(delivery: .automaticPaste) }
         } catch {
             shortcuts.setMode(.idle)
             showFailure(error.localizedDescription, transcription: true)
         }
     }
 
-    private func transcribeCurrentRecord(attemptDelivery: Bool) async {
+    private enum RetryDelivery {
+        case automaticPaste
+        case copy
+    }
+
+    private func transcribeCurrentRecord(delivery: RetryDelivery) async {
         guard let record = currentRecord, let recording = currentRecording else { returnToIdle(); return }
         defer {
             retryingRecordID = nil
@@ -580,7 +588,7 @@ final class AppCoordinator: ObservableObject {
             record.pendingAudioRelativePath = nil
             try modelContext.save()
 
-            if attemptDelivery {
+            if delivery == .automaticPaste {
                 let delivery = await paste.insert(transcript)
                 switch delivery {
                 case .inserted:
@@ -599,9 +607,9 @@ final class AppCoordinator: ObservableObject {
                     setPhase(.dictationCopied(text: transcript, message: message))
                 }
             } else {
-                record.deliveryState = .notAttempted
+                copy(record)
                 try modelContext.save()
-                setPhase(.message("Retry complete"))
+                setPhase(.message("Transcript copied"))
             }
             preferences.apiCreditsExhausted = false
             Task { [weak self] in await self?.refreshSubscriptionUsage() }
@@ -631,12 +639,80 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func cancelRecording() {
+        guard case .recording(_, let elapsed, _) = phase else { return }
         meterTask?.cancel()
         meterTask = nil
-        recorder.cancel()
-        paste.clearTarget()
-        shortcuts.setMode(.idle)
-        showMessage("Cancelled")
+        if elapsed < RecordingCancellationPolicy.recoveryThreshold {
+            recorder.cancel()
+            paste.clearTarget()
+            shortcuts.setMode(.idle)
+            showMessage("Cancelled")
+            return
+        }
+        shortcuts.setMode(.busy)
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let completed = try await recorder.stop()
+                retainCancelledRecording(completed)
+            } catch {
+                shortcuts.setMode(.idle)
+                showFailure(error.localizedDescription, transcription: true)
+            }
+        }
+    }
+
+    private func cancelHeldRecordingForTypingIfNeeded() {
+        guard case .recording(let mode, let elapsed, _) = phase,
+              RecordingCancellationPolicy.cancelsForNonModifierKey(mode: mode, elapsed: elapsed) else { return }
+        cancelRecording()
+    }
+
+    private func retainCancelledRecording(_ completed: CompletedRecording) {
+        guard RecordingCancellationPolicy.retainsAudio(
+            elapsed: completed.duration,
+            detectedSignal: completed.detectedSignal
+        ) else {
+            AudioRecorder.delete(relativePath: completed.relativePath)
+            paste.clearTarget()
+            shortcuts.setMode(.idle)
+            showMessage("Cancelled")
+            return
+        }
+        let record = DictationRecord(
+            id: completed.id,
+            durationSeconds: completed.duration,
+            transcriptionState: .cancelled,
+            errorMessage: "Cancelled before transcription.",
+            pendingAudioRelativePath: completed.relativePath
+        )
+        modelContext.insert(record)
+        do {
+            try modelContext.save()
+            currentRecord = record
+            currentRecording = completed
+            shortcuts.setMode(.idle)
+            setPhase(.cancelledTranscript)
+        } catch {
+            shortcuts.setMode(.idle)
+            showFailure(error.localizedDescription, transcription: true)
+        }
+    }
+
+    private func undoCancelledDictation() {
+        guard let record = currentRecord,
+              record.transcriptionState == .cancelled,
+              currentRecording != nil else {
+            showMessage("Recording unavailable")
+            return
+        }
+        guard canUseConfiguredAPIKey() else { return }
+        record.transcriptionState = .transcribing
+        record.errorMessage = nil
+        try? modelContext.save()
+        shortcuts.setMode(.busy)
+        setPhase(.transcribing(attempt: 1, retryDelay: nil))
+        Task { await transcribeCurrentRecord(delivery: .automaticPaste) }
     }
 
     @discardableResult

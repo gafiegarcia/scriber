@@ -135,6 +135,7 @@ public enum AppPhase: Equatable, Sendable {
     case idle
     case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)
     case transcribing(attempt: Int, retryDelay: TimeInterval?)
+    case cancelledTranscript
     case dictationCopied(text: String, message: String)
     case apiKeyInvalid
     case apiCreditsExhausted
@@ -180,6 +181,18 @@ public enum PillDismissalAction: Equatable, Sendable {
     case dismiss
 }
 
+public enum RecordingCancellationPolicy {
+    public static let recoveryThreshold: TimeInterval = 1
+
+    public static func retainsAudio(elapsed: TimeInterval, detectedSignal: Bool) -> Bool {
+        elapsed >= recoveryThreshold && detectedSignal
+    }
+
+    public static func cancelsForNonModifierKey(mode: RecordingMode, elapsed: TimeInterval) -> Bool {
+        mode == .held && elapsed < recoveryThreshold
+    }
+}
+
 public enum PillShapeStyle: Equatable, Sendable {
     case capsule
     case roundedRectangle
@@ -188,6 +201,7 @@ public enum PillShapeStyle: Equatable, Sendable {
 public extension AppPhase {
     var pillShapeStyle: PillShapeStyle {
         if case .dictationCopied = self { return .roundedRectangle }
+        if case .cancelledTranscript = self { return .roundedRectangle }
         return .capsule
     }
 
@@ -204,7 +218,7 @@ public extension AppPhase {
         case .idle: .passThrough
         case .recording: .cancelRecording
         case .transcribing: .hideTranscription
-        case .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted,
+        case .cancelledTranscript, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted,
              .pasteFailed, .transcriptionFailed, .message: .dismiss
         }
     }

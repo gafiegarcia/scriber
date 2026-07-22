@@ -134,6 +134,7 @@ struct ScriberApp: App {
         switch runtime.coordinator.phase {
         case .recording: "waveform.circle.fill"
         case .transcribing: "ellipsis.circle"
+        case .cancelledTranscript: "exclamationmark.circle"
         case .dictationCopied: "checkmark.circle"
         case .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed: "exclamationmark.circle"
         default: "waveform.circle"

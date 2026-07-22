@@ -17,6 +17,7 @@ enum ShortcutMonitorMode: Equatable, Sendable {
 final class GlobalShortcutService {
     var onAction: ((ShortcutAction) -> Void)?
     var onEscape: (() -> Bool)?
+    var onNonModifierKeyDown: (() -> Void)?
     var onAvailabilityChanged: ((Bool) -> Void)?
 
     private var eventTap: CFMachPort?
@@ -144,6 +145,7 @@ final class GlobalShortcutService {
                 onAction?(.togglePressed)
                 return true
             }
+            if mode == .held { onNonModifierKeyDown?() }
             return false
         }
 
