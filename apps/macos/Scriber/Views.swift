@@ -140,8 +140,10 @@ struct MenuBarContent: View {
             HStack {
                 Text(menuDictationTitle)
                 Spacer(minLength: 32)
-                Text(runtime.preferences.toggleShortcut.displayName)
-                    .foregroundStyle(.secondary)
+                if runtime.preferences.toggleShortcutEnabled {
+                    Text(runtime.preferences.toggleShortcut.displayName)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .disabled(!runtime.preferences.onboardingComplete)
@@ -450,8 +452,18 @@ struct SettingsView: View {
                 Toggle("Remove filler words and false starts", isOn: $runtime.preferences.noVerbatim)
             }
             Section("Shortcuts") {
-                ShortcutRecorderView(title: "Hold to Dictate", chord: $runtime.preferences.holdShortcut, conflictingChord: runtime.preferences.toggleShortcut)
-                ShortcutRecorderView(title: "Hands-free Toggle", chord: $runtime.preferences.toggleShortcut, conflictingChord: runtime.preferences.holdShortcut)
+                ShortcutRecorderView(
+                    title: "Hold to Dictate",
+                    isEnabled: $runtime.preferences.holdShortcutEnabled,
+                    chord: $runtime.preferences.holdShortcut,
+                    conflictingChord: runtime.preferences.toggleShortcutEnabled ? runtime.preferences.toggleShortcut : nil
+                )
+                ShortcutRecorderView(
+                    title: "Hands-free Toggle",
+                    isEnabled: $runtime.preferences.toggleShortcutEnabled,
+                    chord: $runtime.preferences.toggleShortcut,
+                    conflictingChord: runtime.preferences.holdShortcutEnabled ? runtime.preferences.holdShortcut : nil
+                )
                 Text("Modifier-only chords are supported. Press Escape while recording a binding to cancel.")
                     .font(.caption).foregroundStyle(.secondary)
             }

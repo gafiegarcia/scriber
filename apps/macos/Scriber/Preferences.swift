@@ -13,6 +13,8 @@ final class Preferences: ObservableObject {
         static let apiCreditsExhausted = "apiCreditsExhausted"
         static let holdShortcut = "holdShortcut"
         static let toggleShortcut = "toggleShortcut"
+        static let holdShortcutEnabled = "holdShortcutEnabled"
+        static let toggleShortcutEnabled = "toggleShortcutEnabled"
         static let languageCode = "languageCode"
         static let noVerbatim = "noVerbatim"
         static let keyterms = "keyterms"
@@ -31,6 +33,8 @@ final class Preferences: ObservableObject {
     @Published var apiCreditsExhausted: Bool { didSet { defaults.set(apiCreditsExhausted, forKey: Keys.apiCreditsExhausted) } }
     @Published var holdShortcut: ShortcutChord { didSet { save(holdShortcut, key: Keys.holdShortcut) } }
     @Published var toggleShortcut: ShortcutChord { didSet { save(toggleShortcut, key: Keys.toggleShortcut) } }
+    @Published var holdShortcutEnabled: Bool { didSet { defaults.set(holdShortcutEnabled, forKey: Keys.holdShortcutEnabled) } }
+    @Published var toggleShortcutEnabled: Bool { didSet { defaults.set(toggleShortcutEnabled, forKey: Keys.toggleShortcutEnabled) } }
     @Published var languageCode: String { didSet { defaults.set(languageCode, forKey: Keys.languageCode) } }
     @Published var noVerbatim: Bool { didSet { defaults.set(noVerbatim, forKey: Keys.noVerbatim) } }
     @Published var keyterms: [String] { didSet { save(keyterms, key: Keys.keyterms) } }
@@ -49,6 +53,8 @@ final class Preferences: ObservableObject {
         apiCreditsExhausted = defaults.bool(forKey: Keys.apiCreditsExhausted)
         holdShortcut = Self.decode(ShortcutChord.self, key: Keys.holdShortcut, defaults: defaults) ?? .defaultHold
         toggleShortcut = Self.decode(ShortcutChord.self, key: Keys.toggleShortcut, defaults: defaults) ?? .defaultToggle
+        holdShortcutEnabled = defaults.object(forKey: Keys.holdShortcutEnabled) == nil ? true : defaults.bool(forKey: Keys.holdShortcutEnabled)
+        toggleShortcutEnabled = defaults.object(forKey: Keys.toggleShortcutEnabled) == nil ? true : defaults.bool(forKey: Keys.toggleShortcutEnabled)
         languageCode = defaults.string(forKey: Keys.languageCode) ?? "auto"
         noVerbatim = defaults.object(forKey: Keys.noVerbatim) == nil ? true : defaults.bool(forKey: Keys.noVerbatim)
         keyterms = Self.decode([String].self, key: Keys.keyterms, defaults: defaults) ?? []

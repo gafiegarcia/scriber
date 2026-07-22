@@ -18,6 +18,7 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Default Hold shortcut: hold `Fn` to record; release it to stop and transcribe.
 - Default Toggle shortcut: press `Fn-Space` to start hands-free recording; press either configured shortcut again to stop and transcribe.
 - Both bindings are configurable.
+- Each binding can be disabled independently without losing its configured chord; both are enabled by default. Menu-started hands-free dictation remains available when its keyboard binding is disabled.
 - A custom Hold chord such as `Fn-Control-Option` must coexist correctly with Toggle.
 - While converting a held recording to hands-free, modifiers used only by Hold are ignored when matching Toggle. Stopping a locked recording requires an exact configured chord.
 - During the first second of a held recording, any non-modifier key cancels and discards it while the key continues to the foreground app.

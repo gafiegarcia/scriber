@@ -23,13 +23,17 @@ final class GlobalShortcutService {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var matcher: ShortcutMatcher
+    private var holdEnabled: Bool
+    private var toggleEnabled: Bool
     private var mode: ShortcutMonitorMode = .idle
     private var holdLatched = false
     private var toggleLatched = false
     private var suppressedKeyCodes = Set<UInt16>()
 
-    init(hold: ShortcutChord, toggle: ShortcutChord) {
+    init(hold: ShortcutChord, toggle: ShortcutChord, holdEnabled: Bool, toggleEnabled: Bool) {
         matcher = ShortcutMatcher(hold: hold, toggle: toggle)
+        self.holdEnabled = holdEnabled
+        self.toggleEnabled = toggleEnabled
     }
 
     var isTrusted: Bool { AXIsProcessTrusted() }
@@ -39,8 +43,10 @@ final class GlobalShortcutService {
         AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
-    func update(hold: ShortcutChord, toggle: ShortcutChord) {
+    func update(hold: ShortcutChord, toggle: ShortcutChord, holdEnabled: Bool, toggleEnabled: Bool) {
         matcher = ShortcutMatcher(hold: hold, toggle: toggle)
+        self.holdEnabled = holdEnabled
+        self.toggleEnabled = toggleEnabled
         resetLatches()
     }
 
@@ -127,7 +133,7 @@ final class GlobalShortcutService {
 
         if event.type == .keyDown {
             let exactHold = matcher.matchesExactly(matcher.hold, modifiers: event.modifiers, keyCode: event.keyCode)
-            if matcher.hold.keyCode != nil, exactHold, !holdLatched, (mode == .idle || mode == .locked) {
+            if holdEnabled, matcher.hold.keyCode != nil, exactHold, !holdLatched, (mode == .idle || mode == .locked) {
                 holdLatched = true
                 suppressedKeyCodes.insert(event.keyCode)
                 onAction?(.holdPressed)
@@ -139,7 +145,7 @@ final class GlobalShortcutService {
             } else {
                 toggleMatches = matcher.matchesExactly(matcher.toggle, modifiers: event.modifiers, keyCode: event.keyCode)
             }
-            if toggleMatches, !toggleLatched {
+            if toggleEnabled, toggleMatches, !toggleLatched {
                 toggleLatched = true
                 suppressedKeyCodes.insert(event.keyCode)
                 onAction?(.togglePressed)
@@ -150,8 +156,8 @@ final class GlobalShortcutService {
         }
 
         guard event.type == .flagsChanged else { return false }
-        let holdSatisfied = matcher.hold.modifiers.isSubset(of: event.modifiers)
-        let exactHold = matcher.matchesExactly(matcher.hold, modifiers: event.modifiers, keyCode: nil)
+        let holdSatisfied = holdEnabled && matcher.hold.modifiers.isSubset(of: event.modifiers)
+        let exactHold = holdEnabled && matcher.matchesExactly(matcher.hold, modifiers: event.modifiers, keyCode: nil)
 
         switch mode {
         case .idle:

@@ -65,7 +65,12 @@ final class AppCoordinator: ObservableObject {
         self.preferences = preferences
         self.modelContext = modelContext
         self.servicesAllowed = servicesAllowed
-        shortcuts = GlobalShortcutService(hold: preferences.holdShortcut, toggle: preferences.toggleShortcut)
+        shortcuts = GlobalShortcutService(
+            hold: preferences.holdShortcut,
+            toggle: preferences.toggleShortcut,
+            holdEnabled: preferences.holdShortcutEnabled,
+            toggleEnabled: preferences.toggleShortcutEnabled
+        )
 
         shortcuts.onAction = { [weak self] action in self?.handle(action) }
         shortcuts.onEscape = { [weak self] in self?.dismissVisiblePill() ?? false }
@@ -79,8 +84,20 @@ final class AppCoordinator: ObservableObject {
         pill.model.onUndo = { [weak self] in self?.undoCancelledDictation() }
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
 
-        Publishers.CombineLatest(preferences.$holdShortcut, preferences.$toggleShortcut)
-            .sink { [weak self] hold, toggle in self?.shortcuts.update(hold: hold, toggle: toggle) }
+        Publishers.CombineLatest4(
+            preferences.$holdShortcut,
+            preferences.$toggleShortcut,
+            preferences.$holdShortcutEnabled,
+            preferences.$toggleShortcutEnabled
+        )
+            .sink { [weak self] hold, toggle, holdEnabled, toggleEnabled in
+                self?.shortcuts.update(
+                    hold: hold,
+                    toggle: toggle,
+                    holdEnabled: holdEnabled,
+                    toggleEnabled: toggleEnabled
+                )
+            }
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)

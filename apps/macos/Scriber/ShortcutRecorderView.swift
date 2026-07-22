@@ -6,8 +6,9 @@ import ScriberCore
 
 struct ShortcutRecorderView: View {
     let title: String
+    @Binding var isEnabled: Bool
     @Binding var chord: ShortcutChord
-    let conflictingChord: ShortcutChord
+    let conflictingChord: ShortcutChord?
 
     @State private var recording = false
     @State private var monitor: Any?
@@ -17,16 +18,21 @@ struct ShortcutRecorderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text(title)
+                Toggle(title, isOn: $isEnabled)
+                    .disabled(!isEnabled && conflictingChord == chord)
                 Spacer()
                 Button(recording ? "Press shortcut…" : chord.displayName) {
                     recording ? stopRecording() : startRecording()
                 }
                 .frame(minWidth: 130)
+                .disabled(!isEnabled)
             }
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
         }
         .onDisappear { stopRecording() }
+        .onChange(of: isEnabled) { _, enabled in
+            if !enabled { stopRecording() }
+        }
     }
 
     private func startRecording() {
@@ -58,7 +64,7 @@ struct ShortcutRecorderView: View {
 
     private func commit(_ value: ShortcutChord) {
         guard value.isValid else { error = "Include at least one modifier."; return }
-        guard value != conflictingChord else { error = "Hold and Toggle must be different."; return }
+        guard conflictingChord == nil || value != conflictingChord else { error = "Hold and Toggle must be different."; return }
         chord = value
         stopRecording()
     }
