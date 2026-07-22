@@ -52,7 +52,6 @@ struct PillDismissalTests {
 
     @Test("Visible terminal pills are dismissed")
     func terminalPills() {
-        #expect(AppPhase.pasted.pillDismissalAction(isPresented: true) == .dismiss)
         #expect(AppPhase.dictationCopied(text: "Done", message: "Copied")
             .pillDismissalAction(isPresented: true) == .dismiss)
         #expect(AppPhase.transcriptionFailed("Offline")
@@ -75,7 +74,6 @@ struct PillShapeTests {
         let destinations: [(AppPhase, Double)] = [
             (.recording(mode: .held, elapsed: 1, level: -20), 62),
             (.transcribing(attempt: 1, retryDelay: nil), 62),
-            (.pasted, 62),
             (.message("Copied"), 62),
             (.pasteFailed("No target"), 72),
             (.transcriptionFailed("Offline"), 72)

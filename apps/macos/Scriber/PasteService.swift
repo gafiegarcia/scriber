@@ -7,7 +7,7 @@ import ScriberCore
 #endif
 
 enum PasteResult: Sendable {
-    static let noEditableTargetMessage = "No frontmost app was available for pasting"
+    static let noEditableTargetMessage = "No editable text box was focused"
 
     case inserted
     case noEditableTarget(String)
@@ -32,17 +32,12 @@ final class PasteService {
         guard let runningApplication = NSWorkspace.shared.frontmostApplication else { return nil }
         let pid = runningApplication.processIdentifier
         let application = AXUIElementCreateApplication(pid)
-        var focusedValue: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &focusedValue) == .success,
-              let focusedValue,
-              CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else {
-            // Some web-backed apps keep keyboard focus internally without
-            // publishing AXFocusedUIElement. Retain their process so delivery
-            // can still use the app's Paste command after transcription.
+        guard let focused = focusedElement(in: application, pid: pid) else {
+            // Retain the process so delivery can retry focus discovery after
+            // transcription; web-backed apps can publish focus inconsistently.
             targetPID = pid
             return nil
         }
-        let focused = unsafeDowncast(focusedValue, to: AXUIElement.self)
         let candidates = candidateElements(startingAt: focused)
         guard !candidates.contains(where: isSecureTextElement) else { return nil }
         target = candidates.first(where: isEditableTextElement)
@@ -180,26 +175,56 @@ final class PasteService {
         guard let runningApplication = NSWorkspace.shared.frontmostApplication else { return nil }
         let pid = runningApplication.processIdentifier
         let application = AXUIElementCreateApplication(pid)
-        var focusedValue: CFTypeRef?
-        let observationElements: [AXUIElement]
-        if AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &focusedValue) == .success,
-           let focusedValue,
-           CFGetTypeID(focusedValue) == AXUIElementGetTypeID() {
-            let focused = unsafeDowncast(focusedValue, to: AXUIElement.self)
-            let candidates = candidateElements(startingAt: focused)
-            guard !candidates.contains(where: isSecureTextElement) else { return nil }
-            observationElements = candidates
-        } else {
-            // A hidden focused element must not prevent process-level delivery.
-            // There is no target state to inspect, so confirmation falls back to
-            // whether the application accepts its own Paste menu action.
-            observationElements = []
-        }
+        guard let focused = focusedElement(in: application, pid: pid) else { return nil }
+        let observationElements = candidateElements(startingAt: focused)
+        guard !observationElements.contains(where: isSecureTextElement) else { return nil }
+        guard observationElements.contains(where: isEditableTextElement) else { return nil }
         return FocusedTextTarget(
             application: application,
             pid: pid,
             observationElements: observationElements
         )
+    }
+
+    private func focusedElement(in application: AXUIElement, pid: pid_t) -> AXUIElement? {
+        if let focused = elementAttribute(application, named: kAXFocusedUIElementAttribute),
+           isPotentialTextFocus(focused) {
+            return focused
+        }
+
+        let systemWide = AXUIElementCreateSystemWide()
+        if let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) {
+            var focusedPID: pid_t = 0
+            if AXUIElementGetPid(focused, &focusedPID) == .success,
+               focusedPID == pid,
+               isPotentialTextFocus(focused) {
+                return focused
+            }
+        }
+
+        // Web-backed apps sometimes omit AXFocusedUIElement while still marking
+        // the actual DOM-backed control as focused in their Accessibility tree.
+        var queue = [application]
+        var index = 0
+        while index < queue.count, index < 1_024 {
+            let element = queue[index]
+            index += 1
+            if boolAttribute(element, named: kAXFocusedAttribute) == true,
+               isPotentialTextFocus(element) {
+                return element
+            }
+            let remainingCapacity = 1_024 - queue.count
+            if remainingCapacity > 0 {
+                queue.append(contentsOf: elementArrayAttribute(element, named: kAXChildrenAttribute).prefix(remainingCapacity))
+            }
+        }
+        return nil
+    }
+
+    private func isPotentialTextFocus(_ element: AXUIElement) -> Bool {
+        candidateElements(startingAt: element).contains {
+            isEditableTextElement($0) || isSecureTextElement($0)
+        }
     }
 
     private func pasteAtCurrentSelection(_ text: String, into currentTarget: FocusedTextTarget) async -> PasteResult {
@@ -216,7 +241,7 @@ final class PasteService {
         }
         let transcriptChangeCount = pasteboard.changeCount
         try? await Task.sleep(for: .milliseconds(75))
-        guard let dispatch = await dispatchPaste(to: currentTarget) else {
+        guard await dispatchPaste(to: currentTarget) else {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
             return .failed("The focused app did not provide a usable Paste command.")
         }
@@ -228,17 +253,17 @@ final class PasteService {
         snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
         let accessibilityConfirmed = (!statesBeforePaste.isEmpty || !statesAfterPaste.isEmpty)
             && statesBeforePaste != statesAfterPaste
-        guard accessibilityConfirmed || dispatch == .applicationMenu else {
+        guard accessibilityConfirmed else {
             return .failed("macOS did not confirm that the transcription was inserted.")
         }
         return .inserted
     }
 
-    private func dispatchPaste(to target: FocusedTextTarget) async -> PasteDispatch? {
+    private func dispatchPaste(to target: FocusedTextTarget) async -> Bool {
         if performApplicationPasteCommand(in: target.application) {
-            return .applicationMenu
+            return true
         }
-        return await postPasteShortcut(to: target.pid) ? .targetedKeyboard : nil
+        return await postPasteShortcut(to: target.pid)
     }
 
     private func performApplicationPasteCommand(in application: AXUIElement) -> Bool {
@@ -396,11 +421,6 @@ final class PasteService {
         up.postToPid(pid)
         return true
     }
-}
-
-private enum PasteDispatch: Equatable {
-    case applicationMenu
-    case targetedKeyboard
 }
 
 private struct TextElementState: Equatable {

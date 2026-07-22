@@ -106,7 +106,6 @@ final class AppCoordinator: ObservableObject {
         case .idle: shortcutMonitorAvailable ? "Ready" : "Shortcut access needed"
         case .recording: "Recording"
         case .transcribing: "Transcribing"
-        case .pasted: "Pasted"
         case .dictationCopied: "Copied"
         case .apiKeyInvalid: "API key invalid"
         case .apiCreditsExhausted: "Credits exhausted"
@@ -330,7 +329,7 @@ final class AppCoordinator: ObservableObject {
         switch action {
         case .holdPressed:
             switch phase {
-            case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .held)
             case .recording(let mode, _, _) where mode == .locked:
                 stopAndTranscribe()
@@ -343,7 +342,7 @@ final class AppCoordinator: ObservableObject {
             if case .recording(let mode, _, _) = phase, mode == .held { stopAndTranscribe() }
         case .togglePressed:
             switch phase {
-            case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .locked)
             case .recording(let mode, let elapsed, let level) where mode == .held:
                 shortcuts.setMode(.locked)
@@ -363,7 +362,7 @@ final class AppCoordinator: ObservableObject {
     func startHandsFreeFromMenu() {
         guard preferences.onboardingComplete else { return }
         switch phase {
-        case .idle, .message, .pasted, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+        case .idle, .message, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
             startRecording(mode: .locked)
         case .recording:
             stopAndTranscribe()
@@ -587,7 +586,7 @@ final class AppCoordinator: ObservableObject {
                 case .inserted:
                     record.deliveryState = .pasted
                     try modelContext.save()
-                    setPhase(.pasted)
+                    returnToIdle()
                 case .noEditableTarget(let message):
                     copy(record)
                     record.errorMessage = message

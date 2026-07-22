@@ -135,7 +135,6 @@ public enum AppPhase: Equatable, Sendable {
     case idle
     case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)
     case transcribing(attempt: Int, retryDelay: TimeInterval?)
-    case pasted
     case dictationCopied(text: String, message: String)
     case apiKeyInvalid
     case apiCreditsExhausted
@@ -205,7 +204,7 @@ public extension AppPhase {
         case .idle: .passThrough
         case .recording: .cancelRecording
         case .transcribing: .hideTranscription
-        case .pasted, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted,
+        case .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted,
              .pasteFailed, .transcriptionFailed, .message: .dismiss
         }
     }

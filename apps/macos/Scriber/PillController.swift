@@ -185,8 +185,6 @@ final class PillController {
 
     private func dismissalDelay(for phase: AppPhase) -> TimeInterval? {
         switch phase {
-        case .pasted:
-            1
         case .message:
             1.5
         case .dictationCopied:
@@ -423,7 +421,7 @@ private struct PillView: View {
                 .frame(width: 58, height: 24)
         case .transcribing:
             ProgressView().controlSize(.small)
-        case .pasted, .dictationCopied:
+        case .dictationCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
         case .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -439,7 +437,6 @@ private struct PillView: View {
         case .transcribing(let attempt, let delay):
             if attempt == 1, delay == nil { "Transcribing…" }
             else { "Retrying \(min(attempt + (delay == nil ? 0 : 1), 3))/3…" }
-        case .pasted: "Pasted"
         case .dictationCopied: "Copied"
         case .apiKeyInvalid: "ElevenLabs API key is invalid"
         case .apiCreditsExhausted: "ElevenLabs credits exhausted"
