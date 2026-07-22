@@ -19,7 +19,7 @@ Open `apps/macos/Scriber.xcodeproj` with Xcode 27 beta, or run its credit-free c
 swift test --package-path apps/macos
 ```
 
-See [`apps/macos/README.md`](apps/macos/README.md) for setup and build details.
+See [`apps/macos/README.md`](apps/macos/README.md) for setup and build details. Native requirements, current release gates, and historical progress are separated under [`apps/macos/docs`](apps/macos/docs). Product-wide references are indexed in [`docs`](docs).
 
 ## Electron app
 

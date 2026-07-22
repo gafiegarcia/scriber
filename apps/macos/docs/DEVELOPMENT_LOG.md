@@ -1,63 +1,8 @@
-# Scriber
+# Native macOS Development Log
 
-## Original Goal
+This is the chronological engineering record for the native Scriber app. Entries preserve the terminology and verification state that were accurate when written, so historical names such as **Scriber Dictate** and **History** may appear.
 
-Build a new app called Scriber Dictate, designed as a Wispr Flow direct replacement:
-
-- Always active in the menu bar.
-- Closing the app window removes it from the Dock while the app remains active in the background and visible in the menu bar. This applies to `Command-W`, `Command-Shift-W`, and the red window control.
-- Default shortcuts:
-  - Hold `Fn` to dictate; releasing it stops recording and starts transcription.
-  - Press `Fn-Space` for hands-free recording; press either the Hold or Toggle shortcut again to stop and transcribe.
-  - Both bindings are configurable. A custom Hold chord such as `Fn-Control-Option` must still coexist correctly with the Toggle chord.
-- Show a floating pill at the bottom-center of the active screen while recording and transcribing.
-- Save dictation history in the app.
-- Automatically insert the transcription into the text box that was active when dictation began.
-- If insertion fails, show Copy and Open App actions in the pill; the transcript must already be saved in History.
-
-Product direction:
-
-- Native macOS app written in Swift and SwiftUI, not Electron.
-- ElevenLabs Scribe v2 batch API, using a bring-your-own API key.
-- Minimal, modern, and based on native macOS components.
-- The approved product-wide rename, clean identity reset, exhaustive internal rename, Dictation navigation vocabulary, and future separate Transcription workspace are specified in [`../../docs/NATIVE_IDENTITY_PLAN.md`](../../docs/NATIVE_IDENTITY_PLAN.md).
-- Product versions follow the product lineage rather than the age of an implementation; the durable version, build, and prerelease-tag rules are specified in [`../../docs/VERSIONING.md`](../../docs/VERSIONING.md).
-
-## Current Version and Release Status
-
-Native Scriber continues the product line from the archived Electron app's `0.6.0`. The current native line is `0.7.0` build `2`, alpha-stage, and is not yet a stable `0.7.0` release. The original native `0.1.0` value remains historical context for the early Scriber Dictate prototype; the Swift rewrite and clean bundle identity do not reset the product version.
-
-Ordinary local Debug and Release-configuration builds remain build `2`. A new bundle build number is needed when another installable or distributed build must be distinguished. A prerelease tag such as `v0.7.0-alpha.1` is reserved for the first intentionally frozen testing snapshot, and the final `v0.7.0` tag is reserved for a genuinely stable release.
-
-## Locked Native Decisions
-
-- Version: `0.7.0` build `2`, currently an alpha-stage personal Apple-silicon preview for macOS 27.
-- Toolchain: Xcode 27 beta and Swift 6.4. Full Xcode is a prerequisite for app signing and end-to-end UI verification.
-- Output: Scribe v2 with `no_verbatim=true`; no secondary rewrite model.
-- Audio: delete after successful transcription; retain after a failed or interrupted transcription so it can be retried.
-- Retry: three total attempts for transient failures, with 3-second and 5-second delays.
-- Maximum recording duration: 10 minutes.
-- History: local SwiftData database, retained until manually deleted.
-- API key: a separate Scriber Keychain item.
-- Personal keyterms are included and validated against Scribe limits.
-- Launch at Login is optional, offered during onboarding, and defaults on with explicit consent.
-- The Dock icon is visible while a normal app window is open and disappears after the final normal window closes.
-- The target text element is captured when recording begins.
-- Successful automatic insertion preserves the previous clipboard.
-- `Escape` cancels and discards an active recording.
-- Only one recording/transcription job runs at a time in the current native alpha.
-- While converting a held recording to hands-free, modifiers belonging only to the Hold chord are ignored when matching Toggle. Stopping a locked recording requires an exact configured chord.
-
-## Milestones
-
-- [x] Capture the product outline and locked decisions.
-- [x] Scaffold and compile the native app.
-- [ ] Validate bare `Fn` capture and suppression on macOS 27 hardware.
-- [x] Complete recording, transcription, retries, and recovery implementation.
-- [x] Complete Accessibility insertion and clipboard-preserving fallback implementation.
-- [x] Complete menu-bar, pill, Dictation, Settings, onboarding, and Dock lifecycle implementation.
-- [ ] Run automated and manual acceptance checks.
-- [ ] Produce and install an intentionally identified `0.7.0` alpha build at a stable path.
+This file is not the current specification or task list. See [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) for required behavior and [`ROADMAP.md`](ROADMAP.md) for current release gates.
 
 ## Progress Log
 
@@ -150,13 +95,3 @@ Ordinary local Debug and Release-configuration builds remain build `2`. A new bu
 - Diagnosed the repeated ChatGPT/Codex paste failure from Scriber's live SwiftData delivery records rather than adding another target-role guess. The seven latest attempts all exited as copied with “No editable text box was focused,” proving that the app-level focused-element lookup returned no element and no insertion or paste mechanism ran. Delivery now anchors on `NSWorkspace`'s frontmost process and creates its application Accessibility object directly; when a web-backed app hides `AXFocusedUIElement`, Scriber still invokes that app's enabled standard Paste menu command or sends PID-targeted Command-V events after clipboard-propagation and key-transition delays. Known secure Accessibility ancestry remains rejected when exposed. Exact captured-range insertion also now verifies an observable state change after the AX setter instead of accepting a success status that may not mutate a web editor. Parser validation, core type-checking, all 35 credit-free package tests in the current worktree, and unsigned Xcode 27 beta Debug and Release builds pass; live ChatGPT/Codex insertion remains required from the signed stable app path.
 - Fixed the pill retaining the copied-result panel's 24-point corner radius after returning to compact states. Every phase transition now explicitly applies the destination panel and glass frames before resetting the AppKit glass radius, while AppKit and SwiftUI share one phase-based shape policy: only the tall Copied preview is a fixed-radius rounded rectangle and all other states are capsules. Two credit-free regressions cover the copied-result policy and transitions back to recording, transcribing, success, messages, and actionable failures. Parser validation, core type-checking, all 35 credit-free package tests, and unsigned Xcode 27 beta Debug and Release builds pass; the long-result failure-to-next-dictation appearance remains a live visual check.
 - Made Escape dismiss any currently visible pill through Scriber's existing global event tap, independent of app or pill focus, and consume the handled key so the frontmost app does not also react. Recording still cancels and discards; transcription continues silently with later retry/completion pill updates suppressed for that job; terminal pills simply return to idle without deleting History or retained audio. The close button now uses the same phase-aware path. Four credit-free policy regressions and a persistent-pill UI regression cover the behavior. Parser validation, core type-checking, the unsigned UI-test build, all 35 credit-free package tests, and unsigned Xcode 27 beta Debug and Release builds pass; cross-app and full-screen handling remains a signed stable-path hardware check.
-
-## Verification Notes
-
-- Automated tests must not consume ElevenLabs credits.
-- Run the macOS UI regressions with `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -project Scriber.xcodeproj -scheme Scriber -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode-ui-tests test`. The first run requires a signed test host and approving XCTest UI Automation in macOS.
-- A real ElevenLabs smoke test is opt-in.
-- Hardware verification must cover `Fn`, `Fn-Space`, `Fn-Control-Option`, target capture, TextEdit, Ghostty, Raycast, a browser text field, a code editor, full-screen apps, multiple Spaces, and Dock auto-hide.
-- Pill activation verification must close the final Scriber window, put Finder in front, click Update Key directly, confirm Settings and the API-key field are focused, Command-Tab to Finder, then Command-Tab once back to Scriber. Repeat with the pill's dismiss button and confirm Finder stays focused and Scriber remains absent from Dock and Command-Tab.
-- Signing and Accessibility permission tests must use a stable app path because macOS privacy grants are tied to app identity.
-- The current Icon Composer app icon is integrated and compile-verified. Final visual acceptance in Dock, Finder, default, dark, tinted, and small-size contexts remains manual.

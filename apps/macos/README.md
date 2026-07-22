@@ -31,6 +31,12 @@ Onboarding asks for:
 
 Default shortcuts are Hold `Fn` and Toggle `Fn-Space`. If macOS still performs a configured Globe/Fn action during hardware testing, set the Globe/Fn action to “Do Nothing” in System Settings.
 
+## Documentation
+
+- [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) defines required native behavior and locked decisions.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) tracks release gates, manual acceptance, and complete verification commands.
+- [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md) preserves chronological engineering history without burdening normal development context.
+
 ## Verification
 
-`swift test` covers non-UI behavior once run through the full Xcode toolchain. Tests never call ElevenLabs. See `PROJECT_PLAN.md` for the complete acceptance matrix and live progress notes.
+`swift test` covers UI-independent behavior when run through the full Xcode toolchain. Tests never call ElevenLabs. Follow [`docs/ROADMAP.md`](docs/ROADMAP.md) for parser validation, core type-checking, Xcode builds, isolated UI tests, and manual acceptance.

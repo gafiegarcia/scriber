@@ -1,4 +1,6 @@
-# Scriber Monorepo Migration Plan
+# Scriber Monorepo Migration Record
+
+Status: completed and archived. This file preserves the migration handoff and decisions as historical context; it is not the current task list. See [`../../apps/macos/docs/ROADMAP.md`](../../apps/macos/docs/ROADMAP.md) for active native work.
 
 ## Purpose
 
@@ -68,12 +70,16 @@ scriber/
 ├── README.md                    # Product and repository overview
 ├── LICENSE                      # GNU GPL v3-or-later project license
 ├── AGENTS.md                    # Repository-wide contributor/agent rules
-├── migration-plan.md            # This temporary migration handoff
-├── docs/                        # Cross-platform/product documentation
+├── docs/                        # Product documentation and archived plans
+│   └── archive/
+│       └── MONOREPO_MIGRATION.md
 └── apps/
     ├── macos/
     │   ├── README.md
-    │   ├── PROJECT_PLAN.md
+    │   ├── docs/
+    │   │   ├── PRODUCT_SPEC.md
+    │   │   ├── ROADMAP.md
+    │   │   └── DEVELOPMENT_LOG.md
     │   ├── Package.swift
     │   ├── Scriber.xcodeproj/
     │   ├── Scriber/
@@ -125,7 +131,7 @@ Migration progress as of 2026-07-20:
    git remote -v
    ```
 
-3. Read `AGENTS.md`, `PROJECT_PLAN.md`, and this file completely.
+3. Read `AGENTS.md`, `apps/macos/docs/PRODUCT_SPEC.md`, the relevant roadmap sections, and this file.
 4. Confirm `/Users/gafiegarcia/Developer/scriber-legacy` still exists and its
    `origin` points to `gafiegarcia/scriber-legacy.git`.
 5. Do not push or publish anything without Gaf's explicit request.
@@ -160,7 +166,7 @@ its bundle identifier at the same time.
 1. Create `apps/macos` and move the native project into it with `git mv` so Git
    can recognize the relocation.
 2. Keep the root-level repository documents that apply to the whole product at
-   the root. Move the native-only `PROJECT_PLAN.md` and native README into
+   the root. Keep native-only documentation and the native README under
    `apps/macos`.
 3. Create a concise root README that explains:
    - Scriber is one product with two platform implementations.
@@ -250,8 +256,8 @@ be logged, exported, or copied elsewhere.
    platform status, and build commands.
 2. Consolidate repository-wide agent instructions into root `AGENTS.md`; retain
    app-specific instructions only where they genuinely differ.
-3. Update the native `PROJECT_PLAN.md` after each meaningful milestone and
-   verification result.
+3. Update the native roadmap when milestones or release gates change, and keep
+   meaningful historical results in the development log.
 4. Apply the product-line version and release-tag policy in
    `docs/VERSIONING.md`. Platform implementations retain their historical
    package versions unless their active product line advances.
