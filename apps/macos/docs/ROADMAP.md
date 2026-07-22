@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `3` remains the first frozen personal-use alpha snapshot for Apple silicon on macOS 27. Later live testing found that successful insertion in VS Code, Zed, Notion, and the ChatGPT app is still falsely classified as failed because their editor mutations are not reliably observable. Correct detection of an unfocused browser page remains a competing requirement, so paste delivery and recovery are again an open stable-release gate. Preserve the investigation across sessions in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md). Broader formal acceptance and a stable-path installation also remain open; Developer ID signing and notarization are future distribution concerns rather than prerequisites for a stable personal-use source release.
+Scriber `0.7.0` build `3` remains the first frozen personal-use alpha snapshot for Apple silicon on macOS 27. A candidate root fix for paste confirmation now conceals the temporary promised-text item from compatible clipboard-history tools, accepts the destination's data request without requiring Accessibility evidence, and republishes ordinary clipboard text only after a no-request timeout. This follows the behavior observed from Wispr in Zen and addresses Raycast consumption as the likely source of Scriber's former false success. Signed live testing across opaque editors and unfocused browser pages remains an open stable-release gate. Preserve the evidence and reasoning across sessions in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md). Broader formal acceptance and a stable-path installation also remain open; Developer ID signing and notarization are future distribution concerns rather than prerequisites for a stable personal-use source release.
 
 ## Milestones
 
@@ -50,7 +50,7 @@ Scriber `0.7.0` build `3` remains the first frozen personal-use alpha snapshot f
 - [ ] Verify target capture, selection restoration, confirmed insertion, clipboard restoration, and copied fallback in TextEdit.
 - [ ] Repeat insertion checks in Ghostty, Raycast, Zen with a focused field, Zen without a focused field, VS Code, Zed, Notion, ChatGPT, and Codex without treating missing Accessibility evidence as failure.
 - [ ] Verify behavior when the focused target disappears, moves its selection, is secure/disabled, or exposes no focused Accessibility element.
-- [ ] Verify menu-command and PID-targeted paste fallbacks without false success reporting.
+- [ ] Verify menu-command and PID-targeted paste fallbacks without false success reporting, including with Raycast clipboard history running and the transient/concealed markers honored.
 
 ### Pill, windows, and visual behavior
 

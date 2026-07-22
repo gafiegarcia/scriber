@@ -92,85 +92,23 @@ struct PasteConfirmationTests {
     func accessibilityMutation() {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: true,
-            pasteboardDataRequested: false,
-            insertedTextNotificationObserved: false,
-            editableSelectionMutationObserved: false
+            pasteboardDataRequested: false
         ))
     }
 
-    @Test("Confirms a hidden editor requesting the promised text")
+    @Test("Confirms a destination requesting the concealed promised text")
     func pasteboardRequest() {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
-            pasteboardDataRequested: true,
-            insertedTextNotificationObserved: true,
-            editableSelectionMutationObserved: false
+            pasteboardDataRequested: true
         ))
     }
 
-    @Test("Confirms a hidden editable selection mutation after transcript consumption")
-    func editableSelectionMutation() {
-        #expect(PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: false,
-            pasteboardDataRequested: true,
-            insertedTextNotificationObserved: false,
-            editableSelectionMutationObserved: true
-        ))
-    }
-
-    @Test("Rejects a browser clipboard read without text insertion")
-    func clipboardReadWithoutMutation() {
+    @Test("Rejects a dispatched paste with no data request or observable mutation")
+    func noConsumptionOrMutation() {
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
-            pasteboardDataRequested: true,
-            insertedTextNotificationObserved: false,
-            editableSelectionMutationObserved: false
-        ))
-    }
-
-    @Test("Rejects an unrelated text notification without transcript consumption")
-    func unrelatedMutation() {
-        #expect(!PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: false,
-            pasteboardDataRequested: false,
-            insertedTextNotificationObserved: true,
-            editableSelectionMutationObserved: false
-        ))
-    }
-
-    @Test("Rejects an editable selection mutation without transcript consumption")
-    func selectionMutationWithoutClipboardRead() {
-        #expect(!PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: false,
-            pasteboardDataRequested: false,
-            insertedTextNotificationObserved: false,
-            editableSelectionMutationObserved: true
-        ))
-    }
-
-    @Test("Matches exact and fragmented inserted-text metadata")
-    func insertedTextMetadata() {
-        #expect(PasteConfirmationPolicy.containsInsertedText(
-            "hello world",
-            changes: [PasteTextChange(editType: 2, value: "hello world")]
-        ))
-        #expect(PasteConfirmationPolicy.containsInsertedText(
-            "hello world",
-            changes: [
-                PasteTextChange(editType: 2, value: "hello "),
-                PasteTextChange(editType: 3, value: "world")
-            ]
-        ))
-    }
-
-    @Test("Does not mistake deleted matching text for insertion")
-    func deletedTextMetadata() {
-        #expect(!PasteConfirmationPolicy.containsInsertedText(
-            "hello world",
-            changes: [PasteTextChange(
-                editType: PasteConfirmationPolicy.deleteEditType,
-                value: "hello world"
-            )]
+            pasteboardDataRequested: false
         ))
     }
 }
