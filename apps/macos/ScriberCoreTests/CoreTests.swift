@@ -29,6 +29,34 @@ struct ShortcutMatcherTests {
     }
 }
 
+@Suite("Pill shape")
+struct PillShapeTests {
+    @Test("Only an expanded copied result uses the fixed corner radius")
+    func copiedResultShape() {
+        let copied = AppPhase.dictationCopied(text: String(repeating: "Long text ", count: 20), message: "Copied")
+
+        #expect(copied.pillShapeStyle == .roundedRectangle)
+        #expect(copied.pillCornerRadius(height: 230) == 24)
+    }
+
+    @Test("Phases after a copied result restore their capsule radius")
+    func restoresCapsuleAfterCopiedResult() {
+        let destinations: [(AppPhase, Double)] = [
+            (.recording(mode: .held, elapsed: 1, level: -20), 62),
+            (.transcribing(attempt: 1, retryDelay: nil), 62),
+            (.pasted, 62),
+            (.message("Copied"), 62),
+            (.pasteFailed("No target"), 72),
+            (.transcriptionFailed("Offline"), 72)
+        ]
+
+        for (phase, height) in destinations {
+            #expect(phase.pillShapeStyle == .capsule)
+            #expect(phase.pillCornerRadius(height: height) == height / 2)
+        }
+    }
+}
+
 @Suite("Scribe validation")
 struct ScribeValidationTests {
     @Test("Trims and removes empty keyterms")

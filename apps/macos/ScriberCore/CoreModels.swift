@@ -174,6 +174,25 @@ public enum ShortcutAction: Equatable, Sendable {
     case cancel
 }
 
+public enum PillShapeStyle: Equatable, Sendable {
+    case capsule
+    case roundedRectangle
+}
+
+public extension AppPhase {
+    var pillShapeStyle: PillShapeStyle {
+        if case .dictationCopied = self { return .roundedRectangle }
+        return .capsule
+    }
+
+    func pillCornerRadius(height: Double) -> Double {
+        switch pillShapeStyle {
+        case .capsule: height / 2
+        case .roundedRectangle: 24
+        }
+    }
+}
+
 public enum TranscriptContent {
     public static func normalized(_ text: String) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

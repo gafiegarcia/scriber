@@ -105,13 +105,7 @@ final class PillController {
             return
         }
 
-        let desiredPillSize = pillSize(for: phase)
-        let desiredPanelSize = panelSize(for: desiredPillSize)
-        if desiredPanelSize != currentPanelSize {
-            panel.setContentSize(desiredPanelSize)
-            currentPanelSize = desiredPanelSize
-        }
-        glassView.cornerRadius = glassCornerRadius(for: phase, size: desiredPillSize)
+        applyLayout(for: phase)
         model.phase = phase
         show()
         if !autoDismissalDisabledForUITesting,
@@ -216,6 +210,29 @@ final class PillController {
         )
     }
 
+    private func applyLayout(for phase: AppPhase) {
+        let desiredPillSize = pillSize(for: phase)
+        let desiredPanelSize = panelSize(for: desiredPillSize)
+
+        if desiredPanelSize != currentPanelSize {
+            panel.setContentSize(desiredPanelSize)
+            currentPanelSize = desiredPanelSize
+        }
+
+        // Apply the destination glass geometry directly on every phase change.
+        // Relying on autoresizing alone can leave NSGlassEffectView rendering the
+        // fixed copied-result radius after its host shrinks back to a capsule.
+        panel.contentView?.layoutSubtreeIfNeeded()
+        glassView.frame = NSRect(
+            x: glassMargin,
+            y: glassMargin,
+            width: desiredPillSize.width,
+            height: desiredPillSize.height
+        )
+        glassView.layoutSubtreeIfNeeded()
+        glassView.cornerRadius = CGFloat(phase.pillCornerRadius(height: Double(desiredPillSize.height)))
+    }
+
     private func copiedResultSize(for text: String) -> NSSize {
         let width: CGFloat = 560
         let previewFont = NSFont.systemFont(ofSize: 15)
@@ -293,11 +310,6 @@ final class PillController {
 #else
         false
 #endif
-    }
-
-    private func glassCornerRadius(for phase: AppPhase, size: NSSize) -> CGFloat {
-        if case .dictationCopied = phase { return 24 }
-        return size.height / 2
     }
 
     private func positionPanel() {
@@ -473,10 +485,11 @@ private struct PillView: View {
 }
 
 private func pillShape(for phase: AppPhase) -> AnyShape {
-    if case .dictationCopied = phase {
-        AnyShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-    } else {
+    switch phase.pillShapeStyle {
+    case .capsule:
         AnyShape(Capsule())
+    case .roundedRectangle:
+        AnyShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 
