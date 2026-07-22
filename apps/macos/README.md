@@ -2,7 +2,7 @@
 
 Scriber is a native macOS menu-bar dictation app powered by ElevenLabs Scribe v2. It records only while a configured shortcut is active, stores the API key in Keychain, saves dictation history locally with SwiftData, and inserts finished text through macOS Accessibility.
 
-The current native line is alpha-stage Scriber `0.7.0` build `2`, a personal Apple-silicon preview targeting macOS 27. It continues the product lineage from the archived Electron app's `0.6.0`; it is not yet a stable `0.7.0` release. See the repository [versioning policy](../../docs/VERSIONING.md) for build-number and prerelease-tag semantics.
+The current native line is Scriber `0.7.0` build `3`, frozen as the first personal-use alpha snapshot and targeting Apple silicon on macOS 27. It continues the product lineage from the archived Electron app's `0.6.0`; it is not yet a stable `0.7.0` release. See the repository [versioning policy](../../docs/VERSIONING.md) for the distinction between product maturity, bundle builds, signing, notarization, and Git tags.
 
 ## Current prerequisites
 

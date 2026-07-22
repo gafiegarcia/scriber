@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `2` is an alpha-stage personal Apple-silicon preview for macOS 27. Core implementation is substantially complete, but the release is not yet frozen or accepted from a stable signed app path.
+Scriber `0.7.0` build `3` is the first frozen personal-use alpha snapshot for Apple silicon on macOS 27. Gaf's regular-app workflow now works end to end, including successful hidden-editor insertion in ChatGPT without false failure UI and correct failure detection when no browser text box is focused. Broader formal acceptance and a stable-path installation remain open; Developer ID signing and notarization are future distribution concerns rather than prerequisites for a stable personal-use source release.
 
 ## Milestones
 
@@ -15,7 +15,8 @@ Scriber `0.7.0` build `2` is an alpha-stage personal Apple-silicon preview for m
 - [x] Integrate documented original app-icon artwork.
 - [ ] Validate bare `Fn` capture and suppression on macOS 27 hardware.
 - [ ] Complete automated and signed manual acceptance checks.
-- [ ] Produce and install an intentionally identified `0.7.0` alpha build at a stable path.
+- [x] Freeze an intentionally identified `0.7.0` personal-use alpha source snapshot.
+- [ ] Install an intentionally identified signed build at a stable path.
 
 ## Open acceptance checks
 
@@ -82,12 +83,12 @@ The first UI-test run requires a signed test host and macOS UI Automation approv
 
 ## Release gates
 
-Before freezing `v0.7.0-alpha.1`:
+Before promoting the personal-use line to stable `v0.7.0`:
 
-- [ ] Complete the applicable checks above from a stable signed app path.
-- [ ] Decide which known limitations are acceptable for the first tester snapshot.
-- [ ] Increment build `2` only if the new installable must be distinguished from an earlier distributed bundle.
-- [ ] Generate artifact-specific third-party notices.
+- [ ] Complete the applicable functional checks above; a stable source release does not require Developer ID signing or notarization.
+- [x] Decide that the remaining formal acceptance gaps are acceptable for the first personal alpha snapshot.
+- [x] Increment the intentionally distinguishable alpha snapshot to bundle build `3`.
+- [ ] Generate artifact-specific third-party notices before publishing a downloadable binary.
 - [ ] Confirm the repository and release artifact contain no credentials, recordings, local data, or machine-specific build output.
 
-The final `v0.7.0` tag remains reserved for a genuinely stable release. See [`../../../docs/VERSIONING.md`](../../../docs/VERSIONING.md).
+The final `v0.7.0` tag remains reserved for behavior accepted as stable for personal use. A supported downloadable binary remains a separate distribution-ready milestone. See [`../../../docs/VERSIONING.md`](../../../docs/VERSIONING.md).
