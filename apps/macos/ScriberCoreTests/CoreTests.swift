@@ -86,6 +86,33 @@ struct PillShapeTests {
     }
 }
 
+@Suite("Paste confirmation")
+struct PasteConfirmationTests {
+    @Test("Confirms an observable Accessibility mutation")
+    func accessibilityMutation() {
+        #expect(PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: true,
+            pasteboardDataRequested: false
+        ))
+    }
+
+    @Test("Confirms a hidden editor requesting the promised text")
+    func pasteboardRequest() {
+        #expect(PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: false,
+            pasteboardDataRequested: true
+        ))
+    }
+
+    @Test("Rejects a dispatched paste with no observable consumer")
+    func noConsumer() {
+        #expect(!PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: false,
+            pasteboardDataRequested: false
+        ))
+    }
+}
+
 @Suite("Scribe validation")
 struct ScribeValidationTests {
     @Test("Trims and removes empty keyterms")

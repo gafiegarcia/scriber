@@ -175,10 +175,17 @@ final class PasteService {
         guard let runningApplication = NSWorkspace.shared.frontmostApplication else { return nil }
         let pid = runningApplication.processIdentifier
         let application = AXUIElementCreateApplication(pid)
-        guard let focused = focusedElement(in: application, pid: pid) else { return nil }
-        let observationElements = candidateElements(startingAt: focused)
-        guard !observationElements.contains(where: isSecureTextElement) else { return nil }
-        guard observationElements.contains(where: isEditableTextElement) else { return nil }
+        let observationElements: [AXUIElement]
+        if let focused = focusedElement(in: application, pid: pid) {
+            let candidates = candidateElements(startingAt: focused)
+            guard !candidates.contains(where: isSecureTextElement) else { return nil }
+            observationElements = candidates
+        } else {
+            // The destination may keep a real editor outside its Accessibility
+            // tree. Process-level paste remains safe to try because success is
+            // confirmed independently by target mutation or pasteboard access.
+            observationElements = []
+        }
         return FocusedTextTarget(
             application: application,
             pid: pid,
@@ -236,7 +243,10 @@ final class PasteService {
         let pasteboard = NSPasteboard.general
         let snapshot = PasteboardSnapshot.capture(pasteboard)
         pasteboard.clearContents()
-        guard pasteboard.setString(text, forType: .string) else {
+        let pasteboardReadProbe = PasteboardReadProbe(text: text)
+        let transcriptItem = NSPasteboardItem()
+        guard transcriptItem.setDataProvider(pasteboardReadProbe, forTypes: [.string]),
+              pasteboard.writeObjects([transcriptItem]) else {
             return .failed("The transcription could not be placed on the clipboard.")
         }
         let transcriptChangeCount = pasteboard.changeCount
@@ -250,10 +260,14 @@ final class PasteService {
         let statesAfterPaste = stateAfterPaste?.pid == currentTarget.pid
             ? observableTextStates(of: stateAfterPaste?.observationElements ?? [])
             : []
+        let pasteboardDataRequested = pasteboardReadProbe.wasRequested
         snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
         let accessibilityConfirmed = (!statesBeforePaste.isEmpty || !statesAfterPaste.isEmpty)
             && statesBeforePaste != statesAfterPaste
-        guard accessibilityConfirmed else {
+        guard PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: accessibilityConfirmed,
+            pasteboardDataRequested: pasteboardDataRequested
+        ) else {
             return .failed("macOS did not confirm that the transcription was inserted.")
         }
         return .inserted
@@ -435,6 +449,32 @@ private struct FocusedTextTarget {
     let application: AXUIElement
     let pid: pid_t
     let observationElements: [AXUIElement]
+}
+
+private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider, @unchecked Sendable {
+    private let textData: Data
+    private let lock = NSLock()
+    private var requested = false
+
+    init(text: String) {
+        textData = Data(text.utf8)
+    }
+
+    var wasRequested: Bool {
+        lock.withLock { requested }
+    }
+
+    func pasteboard(
+        _ pasteboard: NSPasteboard?,
+        item: NSPasteboardItem,
+        provideDataForType type: NSPasteboard.PasteboardType
+    ) {
+        if item.setData(textData, forType: type) {
+            lock.withLock { requested = true }
+        }
+    }
+
+    func pasteboardFinishedWithDataProvider(_ pasteboard: NSPasteboard) {}
 }
 
 private struct PasteboardSnapshot {

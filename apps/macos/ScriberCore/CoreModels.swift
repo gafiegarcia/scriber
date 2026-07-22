@@ -260,6 +260,15 @@ public enum CapturedSelectionRestorePolicy {
     }
 }
 
+public enum PasteConfirmationPolicy {
+    public static func confirmsInsertion(
+        accessibilityMutationObserved: Bool,
+        pasteboardDataRequested: Bool
+    ) -> Bool {
+        accessibilityMutationObserved || pasteboardDataRequested
+    }
+}
+
 public struct ShortcutMatcher: Sendable {
     public var hold: ShortcutChord
     public var toggle: ShortcutChord

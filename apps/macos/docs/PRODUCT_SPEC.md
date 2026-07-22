@@ -38,7 +38,7 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Capture the target text element and selection when recording begins.
 - Show a floating pill at the bottom center of the active screen while recording, transcribing, and reporting terminal states.
 - Preserve the previous clipboard after confirmed automatic insertion.
-- Confirm observable target mutation rather than treating a successful Accessibility status alone as proof of insertion.
+- Confirm observable target mutation when Accessibility exposes it. For editors that hide their text state, lazily provide the transcript through the pasteboard and require the destination to request that promised text. Never treat a dispatched Paste command alone as proof of insertion.
 - If no editable target was available or insertion cannot be confirmed, keep the transcript in Dictation history and copy it to the clipboard when appropriate.
 - Recovery UI may offer Copy, Open, Retry, Update Key, or View Usage according to the failure state.
 - The pill must not activate Scriber merely by appearing. Actions that do not open an app window should preserve the foreground app; window-opening actions should intentionally activate Scriber.
