@@ -18,5 +18,5 @@
 - Before changing native behavior, read `apps/macos/docs/PRODUCT_SPEC.md` and the relevant part of `apps/macos/docs/ROADMAP.md`. Consult `DEVELOPMENT_LOG.md` only when historical context is useful.
 - Use the toolchain and verification commands documented in `apps/macos/README.md` and `apps/macos/docs/ROADMAP.md`.
 - Update the roadmap when milestones or release gates change. Add only meaningful completed work or verification results to the development log.
-- Make an incremental local commit after each coherent, verified change. Do not push or publish unless Gaf explicitly asks.
+- Do not push or publish unless Gaf explicitly asks.
 - Never use `rm`; use `trash`. If `trash` is unavailable, ask before permanently deleting anything.
