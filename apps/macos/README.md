@@ -1,6 +1,6 @@
 # Scriber
 
-Scriber is a native macOS menu-bar dictation app powered by ElevenLabs Scribe v2. It records only while a configured shortcut is active, stores the API key in Keychain, saves dictation history locally with SwiftData, and inserts finished text through macOS Accessibility.
+Scriber is a native macOS menu-bar dictation app powered by ElevenLabs Scribe v2. It records only while a configured shortcut is active, stores the API key in Keychain, saves dictation history locally with SwiftData, and inserts finished text through macOS Accessibility or standard clipboard paste.
 
 The current native line is Scriber `0.7.0` build `3`, frozen as the first personal-use alpha snapshot and targeting Apple silicon on macOS 27. It continues the product lineage from the archived Electron app's `0.6.0`; it is not yet a stable `0.7.0` release. See the repository [versioning policy](../../docs/VERSIONING.md) for the distinction between product maturity, bundle builds, signing, notarization, and Git tags.
 
@@ -35,6 +35,7 @@ Default shortcuts are Hold `Fn` and Toggle `Fn-Space`. If macOS still performs a
 
 - [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) defines required native behavior and locked decisions.
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) tracks release gates, manual acceptance, and complete verification commands.
+- [`docs/PASTE_ENGINE_RESEARCH.md`](docs/PASTE_ENGINE_RESEARCH.md) preserves active paste-delivery evidence, rejected assumptions, and the cross-app investigation plan.
 - [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md) preserves chronological engineering history without burdening normal development context.
 
 ## Verification

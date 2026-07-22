@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `3` is the first frozen personal-use alpha snapshot for Apple silicon on macOS 27. Gaf's regular-app workflow now works end to end, including successful hidden-editor insertion in ChatGPT without false failure UI and correct failure detection when no browser text box is focused. Broader formal acceptance and a stable-path installation remain open; Developer ID signing and notarization are future distribution concerns rather than prerequisites for a stable personal-use source release.
+Scriber `0.7.0` build `3` remains the first frozen personal-use alpha snapshot for Apple silicon on macOS 27. Later live testing found that successful insertion in VS Code, Zed, Notion, and the ChatGPT app is still falsely classified as failed because their editor mutations are not reliably observable. Correct detection of an unfocused browser page remains a competing requirement, so paste delivery and recovery are again an open stable-release gate. Preserve the investigation across sessions in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md). Broader formal acceptance and a stable-path installation also remain open; Developer ID signing and notarization are future distribution concerns rather than prerequisites for a stable personal-use source release.
 
 ## Milestones
 
@@ -48,7 +48,7 @@ Scriber `0.7.0` build `3` is the first frozen personal-use alpha snapshot for Ap
 ### Insertion and fallback
 
 - [ ] Verify target capture, selection restoration, confirmed insertion, clipboard restoration, and copied fallback in TextEdit.
-- [ ] Repeat insertion checks in Ghostty, Raycast, a browser text field, a code editor, ChatGPT, and Codex.
+- [ ] Repeat insertion checks in Ghostty, Raycast, Zen with a focused field, Zen without a focused field, VS Code, Zed, Notion, ChatGPT, and Codex without treating missing Accessibility evidence as failure.
 - [ ] Verify behavior when the focused target disappears, moves its selection, is secure/disabled, or exposes no focused Accessibility element.
 - [ ] Verify menu-command and PID-targeted paste fallbacks without false success reporting.
 
