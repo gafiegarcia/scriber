@@ -368,8 +368,8 @@ private struct PillView: View {
                 actions
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 11)
     }
 
     private var statusText: some View {
@@ -410,7 +410,7 @@ private struct PillView: View {
                     .controlSize(.small)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 18)
         .padding(.vertical, 11)
     }
 
@@ -445,7 +445,7 @@ private struct PillView: View {
             }
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .padding(.vertical, 11)
     }
 
     @ViewBuilder private var countdown: some View {
