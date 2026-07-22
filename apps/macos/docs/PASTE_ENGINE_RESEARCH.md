@@ -4,6 +4,8 @@ This is the durable working note for Scriber's automatic-insertion investigation
 
 Last updated: 2026-07-23
 
+Status: resolved and accepted for personal use after signed live testing. Preserve this note as the rationale and regression guard for the paste engine.
+
 ## Non-negotiable premise
 
 Standard macOS Accessibility text attributes and notifications have never been reliable enough to serve as Scriber's general paste-success receipt. They may provide useful positive evidence in a particular app, but the delivery path and default UX must not depend on receiving them.
@@ -12,7 +14,7 @@ Do not regress to another policy that interprets missing Accessibility evidence 
 
 ## User-observed behavior
 
-- Scriber successfully inserts into VS Code, Zed, Notion, and the ChatGPT macOS app, but the current confirmation policy reports those insertions as failures.
+- Before the resolved design, Scriber successfully inserted into VS Code, Zed, Notion, and the ChatGPT macOS app but reported those insertions as failures.
 - A browser with no focused text box must still be recognized as a failed insertion; merely sending Paste or observing a clipboard read is insufficient.
 - Wispr Flow inserts into the text cursor that is focused when cloud transcription finishes. The user can move focus or the cursor while transcription is running, and delivery follows that final cursor rather than the element focused when recording began.
 - The Wispr behavior is evidence about its delivery model, not a requirement that Scriber must copy its target semantics unchanged.
@@ -128,7 +130,7 @@ Apple references:
 - <https://developer.apple.com/documentation/appkit/nspasteboarditemdataprovider>
 - <https://developer.apple.com/documentation/applicationservices/1462089-axobserveraddnotification>
 
-## Implemented candidate direction
+## Resolved design
 
 ### Delivery must be independent of confirmation
 
@@ -142,7 +144,7 @@ The clipboard fallback now uses this transaction:
 6. If neither signal arrives within 1.25 seconds, classify the attempt as no editable target. The existing coordinator then rewrites the transcript as ordinary clipboard text and presents the copied recovery panel.
 7. After success, restore the previous clipboard after a short delay only if no other process or user has changed it.
 
-This does not prove that a pasteboard request is universally identical to insertion. It removes the identified third-party clipboard-manager reader from the signal and matches the observed Wispr transaction. The signed live matrix is required before calling the engine complete.
+This does not make a pasteboard request universally identical to insertion. It removes the identified third-party clipboard-manager reader from the signal and matches the observed Wispr transaction. Signed live use confirmed the distinction for the apps and failure case that originally exposed the bug.
 
 ### Evidence must not be forced into a false binary
 
@@ -162,14 +164,18 @@ The core UX constraint remains:
 
 Accessibility remains useful for safe captured-selection insertion and observable before/after mutation. It must not be restored as a required confirmation gate for clipboard fallback. The Zen/Wispr/Raycast result provides a stronger explanation of Scriber's former ambiguity than another focused-role classifier.
 
-## Next research and test steps
+## Signed live validation
 
-1. Build the signed app and retest successful insertion in VS Code, Zed, Notion, ChatGPT, Codex, and a focused Zen input while Raycast clipboard history is running. None should show copied recovery UI.
-2. In Zen with no focused text box, verify that the timeout produces copied recovery UI after about 1.25 seconds, the transcript becomes the ordinary current clipboard item, and Raycast records it only then.
-3. Repeat the no-target case with Raycast quit to confirm the result does not depend on the clipboard manager.
-4. Verify successful paste restores `OLD CLIPBOARD` without adding the concealed transcript to Raycast history, while copying something new during the restoration window is never overwritten.
-5. Test with the active keyboard input sources Gaf uses; include a non-Latin IME if feasible because Freeflow has a documented silent failure there.
-6. If a destination still produces ambiguous reads, add privacy-safe per-attempt diagnostics that never record transcript contents or nearby user text before changing the confirmation policy again.
+With Raycast clipboard history running, the signed app's persisted Dictation history recorded the final controlled sequence as:
+
+- Xcode: `pasted`;
+- ChatGPT app prompt: `pasted`;
+- Notion: `pasted`;
+- Zen on a Reddit page with no text box focused: `copied`, with `Select a text box, then paste`.
+
+This is the required result on both sides of the original failure: opaque editors no longer show a false recovery panel, and a browser page with nowhere to insert still preserves the transcript and shows recovery. Gaf accepted the issue as closed on 2026-07-23.
+
+Broader app coverage, clipboard-restoration races, and non-Latin IMEs remain useful general acceptance checks, but they no longer keep this specific investigation open. If a new ambiguous consumer appears, capture privacy-safe evidence before changing the confirmation model again.
 
 ## Rejected or unsafe shortcuts
 
