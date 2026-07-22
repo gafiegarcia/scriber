@@ -181,6 +181,14 @@ struct DictationHistoryView: View {
         return records.filter { ($0.text ?? "").localizedCaseInsensitiveContains(search) }
     }
 
+    private var sections: [DictationHistorySection] {
+        let calendar = Calendar.autoupdatingCurrent
+        let grouped = Dictionary(grouping: filtered) { calendar.startOfDay(for: $0.createdAt) }
+        return grouped.keys.sorted(by: >).map { date in
+            DictationHistorySection(date: date, records: grouped[date] ?? [])
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -211,18 +219,24 @@ struct DictationHistoryView: View {
             } else if filtered.isEmpty {
                 ContentUnavailableView.search(text: search)
             } else {
-                List(filtered) { record in
-                    DictationHistoryRow(record: record)
-                        .contextMenu {
-                            if let text = record.text, !text.isEmpty {
-                                Button("Copy") { runtime.coordinator.copy(record) }
+                List {
+                    ForEach(sections) { section in
+                        Section(section.title) {
+                            ForEach(section.records) { record in
+                                DictationHistoryRow(record: record)
+                                    .contextMenu {
+                                        if let text = record.text, !text.isEmpty {
+                                            Button("Copy") { runtime.coordinator.copy(record) }
+                                        }
+                                        if record.isRetryable, record.pendingAudioRelativePath != nil {
+                                            Button("Retry") { runtime.coordinator.retry(record) }
+                                        }
+                                        Divider()
+                                        Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+                                    }
                             }
-                            if record.isRetryable, record.pendingAudioRelativePath != nil {
-                                Button("Retry") { runtime.coordinator.retry(record) }
-                            }
-                            Divider()
-                            Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
                         }
+                    }
                 }
                 .listStyle(.inset)
             }
@@ -239,6 +253,20 @@ struct DictationHistoryView: View {
     }
 }
 
+private struct DictationHistorySection: Identifiable {
+    let date: Date
+    let records: [DictationRecord]
+
+    var id: Date { date }
+
+    var title: String {
+        let calendar = Calendar.autoupdatingCurrent
+        if calendar.isDateInToday(date) { return "Today" }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+        return date.formatted(.dateTime.day().month(.abbreviated).year())
+    }
+}
+
 private struct DictationHistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
@@ -248,7 +276,7 @@ private struct DictationHistoryRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
+        HStack(alignment: .center, spacing: 16) {
             Text(record.createdAt.formatted(date: .omitted, time: .shortened))
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -259,8 +287,6 @@ private struct DictationHistoryRow: View {
                     .lineLimit(4)
                     .textSelection(.enabled)
                 HStack(spacing: 6) {
-                    Text(record.createdAt.formatted(date: .abbreviated, time: .omitted))
-                    Text("·")
                     Text(record.durationSeconds.formatted(.number.precision(.fractionLength(1))) + "s")
                     if isRetrying {
                         Label("Retrying", systemImage: "arrow.clockwise")
