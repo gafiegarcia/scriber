@@ -202,13 +202,13 @@ final class PillController {
         case .dictationCopied(let text, _):
             copiedResultSize(for: text)
         case .cancelledTranscript:
-            NSSize(width: 560, height: 116)
+            NSSize(width: 430, height: 104)
         case .apiKeyInvalid, .apiCreditsExhausted:
-            NSSize(width: 470, height: 72)
+            NSSize(width: 410, height: 60)
         case .pasteFailed, .transcriptionFailed:
-            NSSize(width: 430, height: 72)
+            NSSize(width: 390, height: 60)
         default:
-            NSSize(width: 300, height: 62)
+            NSSize(width: 280, height: 52)
         }
     }
 
@@ -243,9 +243,9 @@ final class PillController {
     }
 
     private func copiedResultSize(for text: String) -> NSSize {
-        let width: CGFloat = 560
-        let previewFont = NSFont.systemFont(ofSize: 15)
-        let previewWidth = width - 44 // Matches copiedResult's horizontal padding.
+        let width: CGFloat = 480
+        let previewFont = NSFont.systemFont(ofSize: 14)
+        let previewWidth = width - 36 // Matches copiedResult's horizontal padding.
         let lineHeight = ceil(previewFont.boundingRectForFont.height)
         let measuredPreviewHeight = ceil((text as NSString).boundingRect(
             with: NSSize(width: previewWidth, height: .greatestFiniteMagnitude),
@@ -255,10 +255,10 @@ final class PillController {
         ).height)
         let previewHeight = min(max(lineHeight, measuredPreviewHeight), lineHeight * 4)
 
-        // The result has four rows, three 14-point gaps, and 18-point vertical
+        // The result has four rows, three 10-point gaps, and 14-point vertical
         // insets. Keeping this calculation independent of SwiftUI layout avoids
         // resizing the AppKit host in response to its own layout pass.
-        let chromeHeight: CGFloat = 146
+        let chromeHeight: CGFloat = 116
         return NSSize(width: width, height: chromeHeight + previewHeight)
     }
 
@@ -347,55 +347,92 @@ private struct PillView: View {
         switch model.phase {
         case .dictationCopied(let text, let message):
             copiedResult(text: text, message: message)
+        case .cancelledTranscript:
+            cancellationRecovery
         default:
             compactStatus
         }
     }
 
     private var compactStatus: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             if case .recording = model.phase {
                 statusText
-                Spacer(minLength: 8)
+                Spacer(minLength: 6)
                 symbol
             } else {
                 symbol
                 statusText
-                Spacer(minLength: 8)
+                Spacer(minLength: 6)
                 countdown
                 actions
             }
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 
     private var statusText: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.system(size: 14, weight: .semibold))
-            if let subtitle { Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+            Text(title).font(.system(size: 13, weight: .semibold))
+            if let subtitle {
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
     }
 
-    private func copiedResult(text: String, message: String) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Copied")
-                    .font(.system(size: 14, weight: .semibold))
+    private var cancellationRecovery: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 9) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.orange)
+                Text("Recover cancelled transcript?")
+                    .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 8)
                 countdown
                 dismissButton
             }
 
+            Text("The recording is saved and ready to transcribe.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                Spacer()
+                Button("Undo") { model.onUndo?() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                Button("Open History") { model.onOpen?() }
+                    .controlSize(.small)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 11)
+    }
+
+    private func copiedResult(text: String, message: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text("Copied")
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer(minLength: 6)
+                countdown
+                dismissButton
+            }
+
             Text(message)
-                .font(.caption)
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
             Text(text)
-                .font(.system(size: 15))
+                .font(.system(size: 14))
                 .foregroundStyle(.primary)
                 .lineLimit(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -404,11 +441,11 @@ private struct PillView: View {
             HStack {
                 Spacer()
                 Button("Open") { model.onOpen?() }
-                    .controlSize(.regular)
+                    .controlSize(.small)
             }
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 18)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
     }
 
     @ViewBuilder private var countdown: some View {
@@ -464,10 +501,6 @@ private struct PillView: View {
 
     @ViewBuilder private var actions: some View {
         switch model.phase {
-        case .cancelledTranscript:
-            Button("Undo") { model.onUndo?() }.buttonStyle(.borderedProminent).controlSize(.small)
-            Button("Open History") { model.onOpen?() }.controlSize(.small)
-            dismissButton
         case .apiKeyInvalid:
             Button("Update Key") { model.onOpenAPIKeySettings?() }
                 .buttonStyle(.borderedProminent)
@@ -494,7 +527,7 @@ private struct PillView: View {
     private var dismissButton: some View {
         Button { model.onDismiss?() } label: { Image(systemName: "xmark") }
             .buttonStyle(.plain)
-            .frame(width: 26, height: 26)
+            .frame(width: 22, height: 22)
             .contentShape(Rectangle())
             .accessibilityLabel("Dismiss")
     }
