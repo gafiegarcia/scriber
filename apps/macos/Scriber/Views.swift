@@ -121,26 +121,31 @@ struct MenuBarContent: View {
 
     var body: some View {
         Group {
-            Text(runtime.coordinator.statusText).foregroundStyle(.secondary)
-            Divider()
-            if runtime.preferences.onboardingComplete {
-                Button(menuDictationTitle) {
-                    runtime.coordinator.startHandsFreeFromMenu()
-                }
-            } else {
-                Button("Finish Setup…") { openOnboarding() }
-            }
-            Button("Open Dictation") { openMain(section: .dictation) }
-            Button("Settings…") { openMain(section: .settings) }
-            Divider()
-            Text("Hold: \(runtime.preferences.holdShortcut.displayName)")
-            Text("Toggle: \(runtime.preferences.toggleShortcut.displayName)")
+            dictationButton
+            Button("Open Scriber") { openMain(section: .dictation) }
+            Button("Settings") { openMain(section: .settings) }
             Divider()
             Button("Quit Scriber") { NSApp.terminate(nil) }
         }
         .onAppear {
             runtime.coordinator.startServices()
             if !runtime.preferences.onboardingComplete { openOnboarding() }
+        }
+    }
+
+    @ViewBuilder
+    private var dictationButton: some View {
+        if let shortcut = runtime.preferences.toggleShortcut.menuShortcut {
+            Button(menuDictationTitle) {
+                runtime.coordinator.startHandsFreeFromMenu()
+            }
+            .keyboardShortcut(shortcut.key, modifiers: shortcut.modifiers)
+            .disabled(!runtime.preferences.onboardingComplete)
+        } else {
+            Button(menuDictationTitle) {
+                runtime.coordinator.startHandsFreeFromMenu()
+            }
+            .disabled(!runtime.preferences.onboardingComplete)
         }
     }
 
@@ -162,6 +167,37 @@ struct MenuBarContent: View {
         case .recording: "Stop Dictation"
         case .transcribing: "Still Transcribing…"
         default: "Start Hands-Free Dictation"
+        }
+    }
+}
+
+private extension ShortcutChord {
+    var menuShortcut: (key: KeyEquivalent, modifiers: EventModifiers)? {
+        guard let keyCode, let character = Self.menuCharacter(for: keyCode) else { return nil }
+        var eventModifiers: EventModifiers = []
+        if modifiers.contains(.command) { eventModifiers.insert(.command) }
+        if modifiers.contains(.option) { eventModifiers.insert(.option) }
+        if modifiers.contains(.control) { eventModifiers.insert(.control) }
+        if modifiers.contains(.shift) { eventModifiers.insert(.shift) }
+        if modifiers.contains(.function) { eventModifiers.insert(.function) }
+        return (KeyEquivalent(character), eventModifiers)
+    }
+
+    static func menuCharacter(for keyCode: UInt16) -> Character? {
+        switch keyCode {
+        case 0: "a"; case 1: "s"; case 2: "d"; case 3: "f"; case 4: "h"
+        case 5: "g"; case 6: "z"; case 7: "x"; case 8: "c"; case 9: "v"
+        case 11: "b"; case 12: "q"; case 13: "w"; case 14: "e"; case 15: "r"
+        case 16: "y"; case 17: "t"; case 18: "1"; case 19: "2"; case 20: "3"
+        case 21: "4"; case 22: "6"; case 23: "5"; case 24: "="; case 25: "9"
+        case 26: "7"; case 27: "-"; case 28: "8"; case 29: "0"; case 30: "]"
+        case 31: "o"; case 32: "u"; case 33: "["; case 34: "i"; case 35: "p"
+        case 36: "\r"; case 37: "l"; case 38: "j"; case 39: "'"; case 40: "k"
+        case 41: ";"; case 42: "\\"; case 43: ","; case 44: "/"; case 45: "n"
+        case 46: "m"; case 47: "."; case 48: "\t"; case 49: " "; case 50: "`"
+        case 51: "\u{8}"; case 53: "\u{1b}"
+        case 123: "\u{2190}"; case 124: "\u{2192}"; case 125: "\u{2193}"; case 126: "\u{2191}"
+        default: nil
         }
     }
 }
