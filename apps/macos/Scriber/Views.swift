@@ -243,7 +243,7 @@ struct DictationHistoryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("dictation-history-view")
-        .searchable(text: $search, prompt: "Search dictations")
+        .searchable(text: $search, prompt: "Search past transcripts")
         .searchFocused(searchFocused)
         .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
             Button("Delete All", role: .destructive) { runtime.coordinator.clearDictationHistory(records) }
