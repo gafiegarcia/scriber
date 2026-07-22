@@ -63,7 +63,8 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 
 ## Platform and release boundary
 
-- Native Swift 6 app using SwiftUI, AppKit, SwiftData, AVFoundation, Accessibility, and Keychain APIs.
+- Native Swift 6.4 app using SwiftUI, AppKit, SwiftData, AVFoundation, Accessibility, and Keychain APIs.
+- Toolchain baseline: Xcode 27 beta with Swift 6.4 until a later explicit toolchain decision.
 - Current app target: Apple silicon and macOS 27.
 - Current product line: Scriber `0.7.0` build `2`, alpha-stage and not a stable `0.7.0` release.
 - A real ElevenLabs smoke test is always explicit and opt-in.

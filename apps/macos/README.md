@@ -7,7 +7,7 @@ The current native line is alpha-stage Scriber `0.7.0` build `2`, a personal App
 ## Current prerequisites
 
 - macOS 27
-- Xcode 27 beta (the Command Line Tools package alone does not contain the SwiftUI/SwiftData macro plugins)
+- Xcode 27 beta with Swift 6.4 (the Command Line Tools package alone does not contain the SwiftUI/SwiftData macro plugins)
 - An ElevenLabs API key with Speech to Text access
 
 ## Build
