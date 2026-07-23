@@ -19,6 +19,16 @@ enum AppLaunchConfiguration {
     static var presentsInvalidKeyPill: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-invalid-key-pill")
     }
+
+    static var simulatesMissingPermissions: Bool {
+        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-missing-permissions")
+    }
+
+    static var permissionReadinessOverride: PermissionReadiness? {
+        simulatesMissingPermissions
+            ? PermissionReadiness(missingPermissions: [.microphone, .accessibility])
+            : nil
+    }
 }
 
 @MainActor
@@ -114,6 +124,7 @@ final class AppRuntime: ObservableObject {
             preferences: preferences,
             modelContext: container.mainContext,
             persistenceAvailable: persistenceAvailable,
+            permissionReadinessOverride: AppLaunchConfiguration.permissionReadinessOverride,
             servicesAllowed: !isUITesting
         )
         if isUITesting {
@@ -122,6 +133,12 @@ final class AppRuntime: ObservableObject {
                 Task { @MainActor [coordinator] in
                     try? await Task.sleep(for: .milliseconds(100))
                     coordinator.presentInvalidAPIKeyPillForUITesting()
+                }
+            }
+            if AppLaunchConfiguration.simulatesMissingPermissions {
+                Task { @MainActor [coordinator] in
+                    try? await Task.sleep(for: .milliseconds(100))
+                    coordinator.presentPermissionRecoveryPillForUITesting()
                 }
             }
         }
@@ -193,12 +210,17 @@ struct ScriberApp: App {
     }
 
     private var menuBarSymbol: String {
-        switch runtime.coordinator.phase {
+        if runtime.preferences.onboardingComplete,
+           !runtime.coordinator.permissionReadiness.isReady {
+            return "exclamationmark.circle"
+        }
+        return switch runtime.coordinator.phase {
         case .recording: "waveform.circle.fill"
         case .transcribing: "ellipsis.circle"
         case .cancelledTranscript: "exclamationmark.circle"
         case .dictationCopied: "checkmark.circle"
-        case .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed: "exclamationmark.circle"
+        case .permissionsRequired, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+            "exclamationmark.circle"
         default: "waveform.circle"
         }
     }

@@ -37,6 +37,56 @@ struct ShortcutMatcherTests {
     }
 }
 
+@Suite("Permission readiness")
+struct PermissionReadinessTests {
+    @Test("Reports each missing requirement in a stable order")
+    func missingRequirements() {
+        let readiness = PermissionReadiness(microphoneGranted: false, accessibilityGranted: false)
+
+        #expect(readiness.missingPermissions == [.microphone, .accessibility])
+        #expect(!readiness.isReady)
+        #expect(readiness.recoveryMessage.contains("Microphone and Accessibility"))
+    }
+
+    @Test("Becomes ready only when both permissions are granted")
+    func readyState() {
+        #expect(PermissionReadiness(microphoneGranted: true, accessibilityGranted: true).isReady)
+        #expect(!PermissionReadiness(microphoneGranted: true, accessibilityGranted: false).isReady)
+        #expect(!PermissionReadiness(microphoneGranted: false, accessibilityGranted: true).isReady)
+    }
+
+    @Test("Presents recovery after revocation without repeating every poll")
+    func recoveryPresentation() {
+        let ready = PermissionReadiness(microphoneGranted: true, accessibilityGranted: true)
+        let missing = PermissionReadiness(microphoneGranted: true, accessibilityGranted: false)
+
+        #expect(PermissionRecoveryPolicy.shouldPresent(
+            previous: ready,
+            current: missing,
+            onboardingComplete: true,
+            force: false
+        ))
+        #expect(!PermissionRecoveryPolicy.shouldPresent(
+            previous: missing,
+            current: missing,
+            onboardingComplete: true,
+            force: false
+        ))
+        #expect(PermissionRecoveryPolicy.shouldPresent(
+            previous: missing,
+            current: missing,
+            onboardingComplete: true,
+            force: true
+        ))
+        #expect(!PermissionRecoveryPolicy.shouldPresent(
+            previous: ready,
+            current: missing,
+            onboardingComplete: false,
+            force: true
+        ))
+    }
+}
+
 @Suite("Pill dismissal")
 struct PillDismissalTests {
     @Test("Escape passes through when no pill is presented")
@@ -63,6 +113,8 @@ struct PillDismissalTests {
         #expect(AppPhase.dictationCopied(text: "Done", message: "Copied")
             .pillDismissalAction(isPresented: true) == .dismiss)
         #expect(AppPhase.transcriptionFailed("Offline")
+            .pillDismissalAction(isPresented: true) == .dismiss)
+        #expect(AppPhase.permissionsRequired([.accessibility])
             .pillDismissalAction(isPresented: true) == .dismiss)
     }
 }
@@ -101,6 +153,7 @@ struct PillShapeTests {
             (.recording(mode: .held, elapsed: 1, level: -20), 62),
             (.transcribing(attempt: 1, retryDelay: nil), 62),
             (.message("Copied"), 62),
+            (.permissionsRequired([.microphone, .accessibility]), 76),
             (.pasteFailed("No target"), 72),
             (.transcriptionFailed("Offline"), 72)
         ]

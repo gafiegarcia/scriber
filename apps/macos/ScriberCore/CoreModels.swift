@@ -117,6 +117,59 @@ public enum APIKeyValidity: String, Codable, Sendable {
     case invalid
 }
 
+public enum ScriberPermission: String, CaseIterable, Hashable, Sendable {
+    case microphone
+    case accessibility
+
+    public var displayName: String {
+        switch self {
+        case .microphone: "Microphone"
+        case .accessibility: "Accessibility"
+        }
+    }
+}
+
+public struct PermissionReadiness: Equatable, Sendable {
+    public let missingPermissions: [ScriberPermission]
+
+    public init(microphoneGranted: Bool, accessibilityGranted: Bool) {
+        var missing: [ScriberPermission] = []
+        if !microphoneGranted { missing.append(.microphone) }
+        if !accessibilityGranted { missing.append(.accessibility) }
+        missingPermissions = missing
+    }
+
+    public init(missingPermissions: [ScriberPermission]) {
+        self.missingPermissions = ScriberPermission.allCases.filter(missingPermissions.contains)
+    }
+
+    public var isReady: Bool { missingPermissions.isEmpty }
+
+    public var recoveryMessage: String {
+        switch missingPermissions {
+        case [.microphone]:
+            "Enable Microphone so Scriber can record dictation."
+        case [.accessibility]:
+            "Enable Accessibility so Scriber can detect global shortcuts and insert text."
+        case [.microphone, .accessibility]:
+            "Enable Microphone and Accessibility before using dictation shortcuts."
+        default:
+            "Review Scriber's permissions before using dictation."
+        }
+    }
+}
+
+public enum PermissionRecoveryPolicy {
+    public static func shouldPresent(
+        previous: PermissionReadiness,
+        current: PermissionReadiness,
+        onboardingComplete: Bool,
+        force: Bool
+    ) -> Bool {
+        onboardingComplete && !current.isReady && (force || current != previous)
+    }
+}
+
 struct CredentialRevision: Equatable, Sendable {
     private(set) var current: UInt = 0
 
@@ -137,6 +190,7 @@ public enum AppPhase: Equatable, Sendable {
     case transcribing(attempt: Int, retryDelay: TimeInterval?)
     case cancelledTranscript
     case dictationCopied(text: String, message: String)
+    case permissionsRequired([ScriberPermission])
     case apiKeyInvalid
     case apiCreditsExhausted
     case pasteFailed(String)
@@ -225,7 +279,7 @@ public extension AppPhase {
         case .idle: .passThrough
         case .recording: .cancelRecording
         case .transcribing: .hideTranscription
-        case .cancelledTranscript, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted,
+        case .cancelledTranscript, .dictationCopied, .permissionsRequired, .apiKeyInvalid, .apiCreditsExhausted,
              .pasteFailed, .transcriptionFailed, .message: .dismiss
         }
     }

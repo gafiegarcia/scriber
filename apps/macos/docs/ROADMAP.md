@@ -18,6 +18,7 @@ Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidat
 - [x] Preserve the final provisioned Data Protection Keychain state as annotated tag `v0.7.0-alpha.2`.
 - [x] Preserve the locally certificate-signed login-Keychain build as `v0.7.0-alpha.6`; live permission and reboot acceptance remains open.
 - [x] Install an intentionally identified signed build at a stable path.
+- [x] Add post-onboarding permission-loss recovery through the Dictation window, menu bar, and actionable pill.
 
 ## Open acceptance checks
 
@@ -27,6 +28,7 @@ Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidat
 - [x] Install the verified locally certificate-signed Release build at `/Applications/Scriber.app`.
 - [ ] Complete fresh onboarding under the `com.gafiegarcia.scriber` identity.
 - [ ] Verify Microphone and Accessibility grants persist for the stable app.
+- [ ] Revoke Microphone and Accessibility separately and together after onboarding; verify the proactive warning, permission pill, Settings route, and automatic shortcut-monitor recovery after regranting.
 - [ ] Verify Launch at Login registration, first-login dictation after persistent-store readiness, relaunch, and opt-out.
 - [ ] Verify launch presents onboarding before setup and the main Dictation window after setup.
 - [ ] Verify Command-W, Command-Shift-W, and the red window control remove the final normal window and Dock icon without terminating menu-bar or dictation services when “Show app in Dock” is disabled.

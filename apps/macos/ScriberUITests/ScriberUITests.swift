@@ -218,6 +218,28 @@ final class ScriberUITests: XCTestCase {
         )
     }
 
+    func testMissingPermissionsAreVisibleAndPillRoutesToSettings() async {
+        let app = await launchApp(additionalArguments: [
+            "--ui-testing-missing-permissions",
+            "--ui-testing-persistent-pill",
+        ])
+        defer { app.terminate() }
+
+        let banner = app.buttons["Review Permissions"].firstMatch
+        let bannerAppeared = await waitForExistence(banner, timeout: 3)
+        XCTAssertTrue(bannerAppeared, "The Dictation view should explain why shortcuts are unavailable.")
+
+        let review = app.buttons["Review"].firstMatch
+        let pillAppeared = await waitForExistence(review, timeout: 3)
+        XCTAssertTrue(pillAppeared, "Missing permissions should also produce an actionable pill.")
+        guard pillAppeared else { return }
+
+        review.click()
+
+        let settingsAppeared = await waitForExistence(settingsView(in: app), timeout: 3)
+        XCTAssertTrue(settingsAppeared, "The permission pill should open Scriber's Settings page.")
+    }
+
     private var pillLifecycleArguments: [String] {
         [
             "--ui-testing-accessory-lifecycle",

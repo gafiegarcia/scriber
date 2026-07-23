@@ -45,6 +45,7 @@ final class AppCoordinator: ObservableObject {
 
     private let servicesAllowed: Bool
     private let persistenceAvailable: Bool
+    private let permissionReadinessOverride: PermissionReadiness?
     private let keychain = KeychainStore()
     private let recorder = AudioRecorder()
     private let scribe = ScribeClient()
@@ -61,17 +62,20 @@ final class AppCoordinator: ObservableObject {
     private var storedAPIKeyValidationTask: Task<Void, Never>?
     private var credentialRevision = CredentialRevision()
     private var suppressPillForCurrentTranscription = false
+    private var permissionRecoveryPresentationPending = false
     private var cancellables = Set<AnyCancellable>()
 
     init(
         preferences: Preferences,
         modelContext: ModelContext,
         persistenceAvailable: Bool = true,
+        permissionReadinessOverride: PermissionReadiness? = nil,
         servicesAllowed: Bool = true
     ) {
         self.preferences = preferences
         self.modelContext = modelContext
         self.persistenceAvailable = persistenceAvailable
+        self.permissionReadinessOverride = permissionReadinessOverride
         self.servicesAllowed = servicesAllowed
         shortcuts = GlobalShortcutService(
             hold: preferences.holdShortcut,
@@ -88,6 +92,7 @@ final class AppCoordinator: ObservableObject {
         pill.model.onOpen = { [weak self] in self?.openMainWindow() }
         pill.model.onOpenAPIKeySettings = { [weak self] in self?.openAPIKeySettings() }
         pill.model.onOpenUsageSettings = { [weak self] in self?.openUsageSettings() }
+        pill.model.onOpenPermissionSettings = { [weak self] in self?.openPermissionSettings() }
         pill.model.onRetry = { [weak self] in self?.retryCurrentFailure() }
         pill.model.onUndo = { [weak self] in self?.undoCancelledDictation() }
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
@@ -110,9 +115,30 @@ final class AppCoordinator: ObservableObject {
 
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in
-                Task { @MainActor in self?.refreshPermissions(promptForAccessibility: false) }
+                Task { @MainActor in
+                    self?.refreshPermissions(
+                        promptForAccessibility: false,
+                        presentRecoveryWhenMissing: true,
+                        refreshAudioInputs: true
+                    )
+                }
             }
             .store(in: &cancellables)
+
+        if servicesAllowed {
+            Timer.publish(every: 1, on: .main, in: .common)
+                .autoconnect()
+                .sink { [weak self] _ in
+                    Task { @MainActor in
+                        self?.refreshPermissions(
+                            promptForAccessibility: false,
+                            presentRecoveryWhenMissing: false,
+                            refreshAudioInputs: false
+                        )
+                    }
+                }
+                .store(in: &cancellables)
+        }
 
         Publishers.Merge(
             NotificationCenter.default.publisher(for: AVCaptureDevice.wasConnectedNotification),
@@ -123,19 +149,21 @@ final class AppCoordinator: ObservableObject {
         }
         .store(in: &cancellables)
 
-        if persistenceAvailable { recoverPersistedAndOrphanedRecords() }
+        if persistenceAvailable, servicesAllowed { recoverPersistedAndOrphanedRecords() }
         refreshPermissions(promptForAccessibility: false)
     }
 
     var statusText: String {
         if !preferences.onboardingComplete { return "Setup required" }
         if !persistenceAvailable { return "Dictation history unavailable" }
+        if !permissionReadiness.isReady { return "Permissions required" }
         return switch phase {
         case .idle: shortcutMonitorAvailable ? "Ready" : "Shortcut access needed"
         case .recording: "Recording"
         case .transcribing: "Transcribing"
         case .cancelledTranscript: "Cancelled"
         case .dictationCopied: "Copied"
+        case .permissionsRequired: "Permissions required"
         case .apiKeyInvalid: "API key invalid"
         case .apiCreditsExhausted: "Credits exhausted"
         case .pasteFailed: "Paste failed"
@@ -144,8 +172,19 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+    var permissionReadiness: PermissionReadiness {
+        PermissionReadiness(
+            microphoneGranted: microphoneGranted,
+            accessibilityGranted: accessibilityGranted
+        )
+    }
+
     func startServices() {
-        refreshPermissions(promptForAccessibility: false)
+        refreshPermissions(
+            promptForAccessibility: false,
+            presentRecoveryWhenMissing: true,
+            refreshAudioInputs: true
+        )
         guard shortcutMonitoringAllowed else {
             shortcuts.stop()
             shortcutMonitorAvailable = false
@@ -161,17 +200,51 @@ final class AppCoordinator: ObservableObject {
     }
 
     func refreshPermissions(promptForAccessibility: Bool) {
+        refreshPermissions(
+            promptForAccessibility: promptForAccessibility,
+            presentRecoveryWhenMissing: false,
+            refreshAudioInputs: true
+        )
+    }
+
+    private func refreshPermissions(
+        promptForAccessibility: Bool,
+        presentRecoveryWhenMissing: Bool,
+        refreshAudioInputs: Bool
+    ) {
+        let previousReadiness = permissionReadiness
         if promptForAccessibility { shortcuts.requestAccessibility() }
-        accessibilityGranted = AXIsProcessTrusted()
-        microphoneGranted = AudioRecorder.microphoneAuthorized
-        microphonePermissionState = AudioRecorder.microphonePermissionState
-        refreshAudioInputDevices()
+        if let permissionReadinessOverride {
+            accessibilityGranted = !permissionReadinessOverride.missingPermissions.contains(.accessibility)
+            microphoneGranted = !permissionReadinessOverride.missingPermissions.contains(.microphone)
+            microphonePermissionState = microphoneGranted ? .allowed : .denied
+        } else {
+            accessibilityGranted = AXIsProcessTrusted()
+            microphoneGranted = AudioRecorder.microphoneAuthorized
+            microphonePermissionState = AudioRecorder.microphonePermissionState
+        }
+        if refreshAudioInputs { refreshAudioInputDevices() }
+
         if shortcutMonitoringAllowed, accessibilityGranted, preferences.onboardingComplete {
-            shortcuts.start()
+            if !shortcutMonitorAvailable { shortcuts.start() }
         } else {
             shortcuts.stop()
             shortcutMonitorAvailable = false
         }
+
+        let currentReadiness = permissionReadiness
+        if currentReadiness.isReady {
+            permissionRecoveryPresentationPending = false
+            if case .permissionsRequired = phase { returnToIdle() }
+        } else if PermissionRecoveryPolicy.shouldPresent(
+            previous: previousReadiness,
+            current: currentReadiness,
+            onboardingComplete: preferences.onboardingComplete,
+            force: presentRecoveryWhenMissing
+        ) {
+            permissionRecoveryPresentationPending = true
+        }
+        presentPendingPermissionRecoveryIfPossible()
     }
 
     private var shortcutMonitoringAllowed: Bool {
@@ -358,7 +431,8 @@ final class AppCoordinator: ObservableObject {
         switch action {
         case .holdPressed:
             switch phase {
-            case .idle, .message, .cancelledTranscript, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
+                 .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .held)
             case .transcribing:
                 showTransientMessage("Still transcribing")
@@ -369,7 +443,8 @@ final class AppCoordinator: ObservableObject {
             if case .recording(let mode, _, _) = phase, mode == .held { stopAndTranscribe() }
         case .togglePressed:
             switch phase {
-            case .idle, .message, .cancelledTranscript, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+            case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
+                 .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .locked)
             case .recording(let mode, let elapsed, let level) where mode == .held:
                 shortcuts.setMode(.locked)
@@ -389,7 +464,8 @@ final class AppCoordinator: ObservableObject {
     func startHandsFreeFromMenu() {
         guard preferences.onboardingComplete else { return }
         switch phase {
-        case .idle, .message, .cancelledTranscript, .dictationCopied, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+        case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
+             .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
             startRecording(mode: .locked)
         case .recording:
             stopAndTranscribe()
@@ -468,6 +544,10 @@ final class AppCoordinator: ObservableObject {
         openMainWindow(destination: .usage)
     }
 
+    func openPermissionSettings() {
+        openMainWindow(destination: .settings)
+    }
+
     func selectMainWindowDestination(_ destination: MainWindowDestination) {
         mainWindowRequest = MainWindowRequest(destination: destination)
     }
@@ -484,19 +564,27 @@ final class AppCoordinator: ObservableObject {
         setPhase(.apiKeyInvalid)
     }
 
+    func presentPermissionRecoveryPillForUITesting() {
+        guard !servicesAllowed else { return }
+        permissionRecoveryPresentationPending = true
+        presentPendingPermissionRecoveryIfPossible()
+    }
+
     private func startRecording(mode: RecordingMode) {
         guard preferences.onboardingComplete else { return }
         suppressPillForCurrentTranscription = false
         guard canUseHistoryStorage() else { return }
+        refreshPermissions(
+            promptForAccessibility: false,
+            presentRecoveryWhenMissing: false,
+            refreshAudioInputs: false
+        )
+        guard permissionReadiness.isReady else {
+            permissionRecoveryPresentationPending = true
+            presentPendingPermissionRecoveryIfPossible()
+            return
+        }
         guard canUseConfiguredAPIKey() else { return }
-        guard accessibilityGranted else {
-            showFailure("Accessibility permission is required.", transcription: false)
-            return
-        }
-        guard microphoneGranted else {
-            showFailure("Microphone permission is required.", transcription: true)
-            return
-        }
         do {
             stopMicrophoneTest()
             pill.setPreferredScreen(paste.captureTarget())
@@ -791,6 +879,16 @@ final class AppCoordinator: ObservableObject {
             return false
         }
         return true
+    }
+
+    private func presentPendingPermissionRecoveryIfPossible() {
+        guard permissionRecoveryPresentationPending,
+              preferences.onboardingComplete,
+              !permissionReadiness.isReady,
+              !phase.isBusy else { return }
+        permissionRecoveryPresentationPending = false
+        suppressPillForCurrentTranscription = false
+        setPhase(.permissionsRequired(permissionReadiness.missingPermissions))
     }
 
     private func copyCurrentResult() {

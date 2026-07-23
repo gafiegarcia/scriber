@@ -123,6 +123,13 @@ struct MenuBarContent: View {
         Group {
             Button("Open Scriber") { openMain(section: .dictation) }
             Button("Settings") { openMain(section: .settings) }
+            if runtime.preferences.onboardingComplete,
+               !runtime.coordinator.permissionReadiness.isReady {
+                Divider()
+                Button { openMain(section: .settings) } label: {
+                    Label("Permissions Required…", systemImage: "exclamationmark.triangle.fill")
+                }
+            }
             Divider()
             shortcutHint(
                 "Hold to Dictate: \(runtime.preferences.holdShortcut.displayName)",
@@ -203,6 +210,14 @@ struct DictationHistoryView: View {
 
             Divider()
 
+            if runtime.preferences.onboardingComplete,
+               !runtime.coordinator.permissionReadiness.isReady {
+                PermissionRecoveryBanner(readiness: runtime.coordinator.permissionReadiness) {
+                    runtime.coordinator.selectMainWindowDestination(.settings)
+                }
+                Divider()
+            }
+
             if records.isEmpty {
                 ContentUnavailableView(
                     "No Dictations Yet",
@@ -243,6 +258,37 @@ struct DictationHistoryView: View {
         } message: {
             Text("This permanently removes transcripts and any retained failed recordings.")
         }
+    }
+}
+
+private struct PermissionRecoveryBanner: View {
+    let readiness: PermissionReadiness
+    let reviewPermissions: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.title3)
+                .foregroundStyle(.orange)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Dictation is unavailable")
+                    .font(.headline)
+                    .accessibilityIdentifier("permission-recovery-banner")
+                Text(readiness.recoveryMessage)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 12)
+
+            Button("Review Permissions", action: reviewPermissions)
+                .buttonStyle(.borderedProminent)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
+        .padding(16)
     }
 }
 

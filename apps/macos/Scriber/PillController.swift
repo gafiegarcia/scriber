@@ -43,6 +43,7 @@ final class PillModel: ObservableObject {
     var onOpen: (() -> Void)?
     var onOpenAPIKeySettings: (() -> Void)?
     var onOpenUsageSettings: (() -> Void)?
+    var onOpenPermissionSettings: (() -> Void)?
     var onRetry: (() -> Void)?
     var onUndo: (() -> Void)?
     var onDismiss: (() -> Void)?
@@ -188,6 +189,8 @@ final class PillController {
         switch phase {
         case .message:
             1.5
+        case .permissionsRequired:
+            8
         case .dictationCopied:
             5
         case .cancelledTranscript, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
@@ -203,6 +206,8 @@ final class PillController {
             copiedResultSize(for: text)
         case .cancelledTranscript:
             NSSize(width: 430, height: 104)
+        case .permissionsRequired:
+            NSSize(width: 450, height: 60)
         case .apiKeyInvalid, .apiCreditsExhausted:
             NSSize(width: 410, height: 60)
         case .pasteFailed, .transcriptionFailed:
@@ -463,7 +468,8 @@ private struct PillView: View {
             ProgressView().controlSize(.small)
         case .dictationCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case .cancelledTranscript, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+        case .cancelledTranscript, .permissionsRequired, .apiKeyInvalid, .apiCreditsExhausted,
+             .pasteFailed, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         default:
             Image(systemName: "waveform")
@@ -479,6 +485,7 @@ private struct PillView: View {
             else { "Retrying \(min(attempt + (delay == nil ? 0 : 1), 3))/3…" }
         case .dictationCopied: "Copied"
         case .cancelledTranscript: "You can recover your cancelled transcript"
+        case .permissionsRequired: "Permissions required"
         case .apiKeyInvalid: "ElevenLabs API key is invalid"
         case .apiCreditsExhausted: "ElevenLabs credits exhausted"
         case .pasteFailed: "Couldn't paste automatically"
@@ -494,6 +501,8 @@ private struct PillView: View {
         case .apiKeyInvalid: "Add or update the key in Settings"
         case .apiCreditsExhausted: "Add credits or wait for your quota to reset"
         case .cancelledTranscript: "We noticed you cancelled your transcription"
+        case .permissionsRequired(let missing):
+            PermissionReadiness(missingPermissions: missing).recoveryMessage
         case .dictationCopied(_, let message), .pasteFailed(let message), .transcriptionFailed(let message): message
         default: nil
         }
@@ -501,6 +510,11 @@ private struct PillView: View {
 
     @ViewBuilder private var actions: some View {
         switch model.phase {
+        case .permissionsRequired:
+            Button("Review") { model.onOpenPermissionSettings?() }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            dismissButton
         case .apiKeyInvalid:
             Button("Update Key") { model.onOpenAPIKeySettings?() }
                 .buttonStyle(.borderedProminent)
