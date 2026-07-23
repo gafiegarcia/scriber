@@ -51,6 +51,7 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 ## Persistence and security
 
 - Store Dictation history locally with SwiftData until the user manually deletes it.
+- Keep Scriber's SwiftData history in its dedicated `Scriber/History.store`; never use the generic Application Support `default.store` shared by unsandboxed apps.
 - Store the API key in the default encrypted macOS login Keychain using modern `SecItem` APIs. This is an interim personal-use workaround for free-team provisioning expiry; never store the key in a plaintext file or `UserDefaults`.
 - Keep the storage policy capable of returning to the Data Protection Keychain. A future provisioned build must prefer and migrate the current login-Keychain value before considering an older protected item.
 - Never log, export, or persist the key elsewhere.
@@ -72,5 +73,6 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Native Swift 6.4 app using SwiftUI, AppKit, SwiftData, AVFoundation, Accessibility, and Keychain APIs.
 - Toolchain baseline: Xcode 27 beta with Swift 6.4 until a later explicit toolchain decision.
 - Current app target: Apple silicon and macOS 27.
-- Current product line: Scriber `0.7.0` build `4`. The final provisioned Data Protection state is preserved as `v0.7.0-alpha.2`; the login-Keychain personal build is the `v0.7.0-alpha.3` candidate and is not yet a stable `0.7.0` release.
+- Personal Release builds use the long-lived `Scriber Local Code Signing` identity from the login Keychain, with no provisioning profile or restricted entitlements. Its private-key backup remains outside the repository; Developer ID signing and notarization remain separate future distribution work.
+- Current product line: Scriber `0.7.0` build `7`. The final provisioned Data Protection state is preserved as `v0.7.0-alpha.2`; the locally certificate-signed login-Keychain build is the `v0.7.0-alpha.6` candidate and is not yet a stable `0.7.0` release.
 - A real ElevenLabs smoke test is always explicit and opt-in.

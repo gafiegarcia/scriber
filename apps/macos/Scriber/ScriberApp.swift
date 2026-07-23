@@ -33,6 +33,48 @@ private enum AppWindowIdentity {
     }
 }
 
+/// Keep Scriber's history isolated from other SwiftData apps. The framework's
+/// default URL is the generic `~/Library/Application Support/default.store`, so
+/// multiple unsandboxed apps can otherwise attempt to open the same database.
+@MainActor
+private enum DictationHistoryStore {
+    private static let retryDelays: [TimeInterval] = [0, 0.2, 0.5, 1]
+
+    static func makePersistentContainer() throws -> ModelContainer {
+        var lastError: Error?
+
+        for delay in retryDelays {
+            if delay > 0 { Thread.sleep(forTimeInterval: delay) }
+            do {
+                let container = try ModelContainer(
+                    for: DictationRecord.self,
+                    configurations: try persistentConfiguration()
+                )
+                var readinessCheck = FetchDescriptor<DictationRecord>()
+                readinessCheck.fetchLimit = 1
+                _ = try container.mainContext.fetch(readinessCheck)
+                return container
+            } catch {
+                lastError = error
+            }
+        }
+
+        throw lastError!
+    }
+
+    private static func persistentConfiguration() throws -> ModelConfiguration {
+        let applicationSupport = try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let directory = applicationSupport.appendingPathComponent("Scriber", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return ModelConfiguration(url: directory.appendingPathComponent("History.store"))
+    }
+}
+
 @MainActor
 final class AppRuntime: ObservableObject {
     let container: ModelContainer
@@ -42,15 +84,19 @@ final class AppRuntime: ObservableObject {
 
     init() {
         let isUITesting = AppLaunchConfiguration.isUITesting
+        let persistenceAvailable: Bool
         if isUITesting {
             let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
             container = try! ModelContainer(for: DictationRecord.self, configurations: configuration)
+            persistenceAvailable = true
         } else {
             do {
-                container = try ModelContainer(for: DictationRecord.self)
+                container = try DictationHistoryStore.makePersistentContainer()
+                persistenceAvailable = true
             } catch {
                 let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
                 container = try! ModelContainer(for: DictationRecord.self, configurations: configuration)
+                persistenceAvailable = false
             }
         }
 
@@ -67,6 +113,7 @@ final class AppRuntime: ObservableObject {
         coordinator = AppCoordinator(
             preferences: preferences,
             modelContext: container.mainContext,
+            persistenceAvailable: persistenceAvailable,
             servicesAllowed: !isUITesting
         )
         if isUITesting {

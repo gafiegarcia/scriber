@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `4` is the `v0.7.0-alpha.3` personal-installation candidate for Apple silicon on macOS 27. The preceding provisioned Data Protection Keychain implementation is preserved by annotated tag `v0.7.0-alpha.2`. Build 4 uses the encrypted login Keychain and an ad-hoc Release signature to avoid free-team provisioning expiry; stable-path installation and manual acceptance remain open. The paste-confirmation investigation remains resolved for personal use and its rationale lives in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md).
+Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidate for Apple silicon on macOS 27. The preceding provisioned Data Protection Keychain implementation is preserved by annotated tag `v0.7.0-alpha.2`. Build 7 retains the dedicated `Scriber/History.store` and encrypted login-Keychain policy, while replacing version-specific ad-hoc signing with the long-lived local `Scriber Local Code Signing` identity. This gives rebuilt Release bundles one stable designated requirement without a provisioning profile; the initial identity transition still requires one final permission and Keychain authorization. Reboot acceptance remains open. The paste-confirmation investigation remains resolved for personal use and its rationale lives in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md).
 
 ## Milestones
 
@@ -16,18 +16,18 @@ Scriber `0.7.0` build `4` is the `v0.7.0-alpha.3` personal-installation candidat
 - [ ] Validate bare `Fn` capture and suppression on macOS 27 hardware.
 - [ ] Complete automated and signed manual acceptance checks.
 - [x] Preserve the final provisioned Data Protection Keychain state as annotated tag `v0.7.0-alpha.2`.
-- [ ] Accept and tag the ad-hoc login-Keychain build as `v0.7.0-alpha.3`.
-- [ ] Install an intentionally identified signed build at a stable path.
+- [x] Preserve the locally certificate-signed login-Keychain build as `v0.7.0-alpha.6`; live permission and reboot acceptance remains open.
+- [x] Install an intentionally identified signed build at a stable path.
 
 ## Open acceptance checks
 
 ### Installation, identity, and lifecycle
 
-- [x] Build the Apple Development-signed Debug configuration and entitlement-free ad-hoc-signed Release configuration with Xcode 27 beta.
-- [x] Install the verified ad-hoc Release build at `/Applications/Scriber.app`.
+- [x] Build the Apple Development-signed Debug configuration and entitlement-free locally certificate-signed Release configuration with Xcode 27 beta.
+- [x] Install the verified locally certificate-signed Release build at `/Applications/Scriber.app`.
 - [ ] Complete fresh onboarding under the `com.gafiegarcia.scriber` identity.
 - [ ] Verify Microphone and Accessibility grants persist for the stable app.
-- [ ] Verify Launch at Login registration, relaunch, and opt-out.
+- [ ] Verify Launch at Login registration, first-login dictation after persistent-store readiness, relaunch, and opt-out.
 - [ ] Verify launch presents onboarding before setup and the main Dictation window after setup.
 - [ ] Verify Command-W, Command-Shift-W, and the red window control remove the final normal window and Dock icon without terminating menu-bar or dictation services when “Show app in Dock” is disabled.
 - [ ] Verify “Show app in Dock” persists, keeps Scriber in the Dock and app switcher after the final window closes when enabled, and does not close a visible window when disabled.
@@ -35,7 +35,7 @@ Scriber `0.7.0` build `4` is the `v0.7.0-alpha.3` personal-installation candidat
 
 ### Credentials, quota, and transcription
 
-- [ ] Re-enter, save, and read back a real Speech-to-Text-scoped ElevenLabs key across relaunch and restart from the installed ad-hoc build.
+- [ ] Re-enter, save, and read back a real Speech-to-Text-scoped ElevenLabs key across relaunch and restart from the installed locally signed build.
 - [ ] Verify startup handling for valid, revoked, tampered, restricted-scope, and transiently unreachable credentials.
 - [ ] Verify subscription usage for full-scope, Speech-to-Text-only, exhausted, and extended-usage accounts.
 - [ ] Run an explicitly approved real transcription smoke test; never include this in normal automation.
@@ -77,7 +77,7 @@ swift test --package-path apps/macos
 plutil -lint apps/macos/Scriber/Info.plist
 ```
 
-Build Debug and Release configurations from `apps/macos/Scriber.xcodeproj` with Xcode 27 beta. Release must use its configured ad-hoc identity and contain neither an embedded provisioning profile nor restricted Keychain entitlements.
+Build Debug and Release configurations from `apps/macos/Scriber.xcodeproj` with Xcode 27 beta. Release must use its configured `Scriber Local Code Signing` identity and contain neither an embedded provisioning profile nor restricted Keychain entitlements. Separately built Release bundles must satisfy the same certificate-based designated requirement.
 
 Run isolated UI regressions from `apps/macos`:
 
@@ -93,7 +93,7 @@ Before promoting the personal-use line to stable `v0.7.0`:
 
 - [ ] Complete the applicable functional checks above; a stable source release does not require Developer ID signing or notarization.
 - [x] Decide that the remaining formal acceptance gaps are acceptable for the first personal alpha snapshot.
-- [x] Increment the login-Keychain personal candidate to bundle build `4`.
+- [x] Increment the login-Keychain personal candidate to bundle build `7`.
 - [ ] Generate artifact-specific third-party notices before publishing a downloadable binary.
 - [ ] Confirm the repository and release artifact contain no credentials, recordings, local data, or machine-specific build output.
 

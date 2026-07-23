@@ -44,6 +44,7 @@ final class AppCoordinator: ObservableObject {
     let modelContext: ModelContext
 
     private let servicesAllowed: Bool
+    private let persistenceAvailable: Bool
     private let keychain = KeychainStore()
     private let recorder = AudioRecorder()
     private let scribe = ScribeClient()
@@ -62,9 +63,15 @@ final class AppCoordinator: ObservableObject {
     private var suppressPillForCurrentTranscription = false
     private var cancellables = Set<AnyCancellable>()
 
-    init(preferences: Preferences, modelContext: ModelContext, servicesAllowed: Bool = true) {
+    init(
+        preferences: Preferences,
+        modelContext: ModelContext,
+        persistenceAvailable: Bool = true,
+        servicesAllowed: Bool = true
+    ) {
         self.preferences = preferences
         self.modelContext = modelContext
+        self.persistenceAvailable = persistenceAvailable
         self.servicesAllowed = servicesAllowed
         shortcuts = GlobalShortcutService(
             hold: preferences.holdShortcut,
@@ -116,12 +123,13 @@ final class AppCoordinator: ObservableObject {
         }
         .store(in: &cancellables)
 
-        recoverInterruptedRecords()
+        if persistenceAvailable { recoverPersistedAndOrphanedRecords() }
         refreshPermissions(promptForAccessibility: false)
     }
 
     var statusText: String {
         if !preferences.onboardingComplete { return "Setup required" }
+        if !persistenceAvailable { return "Dictation history unavailable" }
         return switch phase {
         case .idle: shortcutMonitorAvailable ? "Ready" : "Shortcut access needed"
         case .recording: "Recording"
@@ -393,6 +401,7 @@ final class AppCoordinator: ObservableObject {
     func retry(_ record: DictationRecord) {
         guard preferences.onboardingComplete else { return }
         suppressPillForCurrentTranscription = false
+        guard canUseHistoryStorage() else { return }
         guard canUseConfiguredAPIKey() else { return }
         guard !phase.isBusy else {
             showTransientMessage("Already transcribing")
@@ -478,6 +487,7 @@ final class AppCoordinator: ObservableObject {
     private func startRecording(mode: RecordingMode) {
         guard preferences.onboardingComplete else { return }
         suppressPillForCurrentTranscription = false
+        guard canUseHistoryStorage() else { return }
         guard canUseConfiguredAPIKey() else { return }
         guard accessibilityGranted else {
             showFailure("Accessibility permission is required.", transcription: false)
@@ -772,6 +782,17 @@ final class AppCoordinator: ObservableObject {
         return true
     }
 
+    private func canUseHistoryStorage() -> Bool {
+        guard persistenceAvailable else {
+            showFailure(
+                "Dictation history could not be opened. Quit and reopen Scriber.",
+                transcription: true
+            )
+            return false
+        }
+        return true
+    }
+
     private func copyCurrentResult() {
         guard let currentRecord else { return }
         copy(currentRecord)
@@ -819,13 +840,29 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    private func recoverInterruptedRecords() {
+    private func recoverPersistedAndOrphanedRecords() {
         guard let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
         for record in records where record.transcriptionState == .transcribing {
             record.transcriptionState = .failed
             record.errorMessage = record.pendingAudioRelativePath == nil
                 ? "The app stopped before this dictation completed, and no retryable audio remains."
                 : "The app stopped before this dictation completed. Retry when ready."
+        }
+
+        let referencedAudio = Set(records.compactMap(\.pendingAudioRelativePath))
+        if let files = try? AudioRecorder.recoverableAudioFiles() {
+            for file in files where !referencedAudio.contains(file.lastPathComponent) {
+                let values = try? file.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+                let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent) ?? UUID()
+                modelContext.insert(DictationRecord(
+                    id: id,
+                    createdAt: values?.creationDate ?? values?.contentModificationDate ?? .now,
+                    durationSeconds: AudioRecorder.duration(of: file),
+                    transcriptionState: .failed,
+                    errorMessage: "Recovered after Scriber could not save this recording. Retry when ready.",
+                    pendingAudioRelativePath: file.lastPathComponent
+                ))
+            }
         }
         try? modelContext.save()
     }

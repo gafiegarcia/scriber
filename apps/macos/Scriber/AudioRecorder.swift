@@ -125,6 +125,21 @@ final class AudioRecorder {
         try? FileManager.default.removeItem(at: url)
     }
 
+    static func recoverableAudioFiles() throws -> [URL] {
+        try FileManager.default.contentsOfDirectory(
+            at: pendingAudioDirectory(),
+            includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        )
+        .filter { $0.pathExtension.localizedCaseInsensitiveCompare("m4a") == .orderedSame }
+    }
+
+    static func duration(of url: URL) -> TimeInterval {
+        guard let file = try? AVAudioFile(forReading: url),
+              file.processingFormat.sampleRate > 0 else { return 0 }
+        return Double(file.length) / file.processingFormat.sampleRate
+    }
+
     private static func pendingAudioDirectory() throws -> URL {
         let support = try FileManager.default.url(
             for: .applicationSupportDirectory,
