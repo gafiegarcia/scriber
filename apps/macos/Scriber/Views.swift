@@ -121,9 +121,17 @@ struct MenuBarContent: View {
 
     var body: some View {
         Group {
-            dictationButton
             Button("Open Scriber") { openMain(section: .dictation) }
             Button("Settings") { openMain(section: .settings) }
+            Divider()
+            shortcutHint(
+                "Hold to Dictate: \(runtime.preferences.holdShortcut.displayName)",
+                isEnabled: runtime.preferences.holdShortcutEnabled
+            )
+            shortcutHint(
+                "Hands-free Toggle: \(runtime.preferences.toggleShortcut.displayName)",
+                isEnabled: runtime.preferences.toggleShortcutEnabled
+            )
             Divider()
             Button("Quit Scriber") { NSApp.terminate(nil) }
         }
@@ -133,20 +141,10 @@ struct MenuBarContent: View {
         }
     }
 
-    private var dictationButton: some View {
-        Button {
-            runtime.coordinator.startHandsFreeFromMenu()
-        } label: {
-            HStack {
-                Text(menuDictationTitle)
-                Spacer(minLength: 32)
-                if runtime.preferences.toggleShortcutEnabled {
-                    Text(runtime.preferences.toggleShortcut.displayName)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .disabled(!runtime.preferences.onboardingComplete)
+    private func shortcutHint(_ title: String, isEnabled: Bool) -> some View {
+        Text(title)
+            .foregroundStyle(.secondary)
+            .strikethrough(!isEnabled)
     }
 
     private func openOnboarding() {
@@ -162,13 +160,6 @@ struct MenuBarContent: View {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private var menuDictationTitle: String {
-        switch runtime.coordinator.phase {
-        case .recording: "Stop Dictation"
-        case .transcribing: "Still Transcribing…"
-        default: "Start Hands-Free Dictation"
-        }
-    }
 }
 
 struct DictationHistoryView: View {
@@ -506,6 +497,8 @@ struct SettingsView: View {
                     }
                 ))
                 Toggle("Show in Menu Bar", isOn: $runtime.preferences.showInMenuBar)
+                Toggle("Show app in Dock", isOn: $runtime.preferences.showAppInDock)
+                    .accessibilityIdentifier("show-app-in-dock-toggle")
             }
             if let message { Text(message).foregroundStyle(.secondary) }
             }

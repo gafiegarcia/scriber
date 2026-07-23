@@ -6,7 +6,7 @@ Scriber is a native macOS menu-bar dictation app intended as a direct replacemen
 
 - Remain available from the menu bar.
 - Menu-bar presence is user-configurable and enabled by default. Removing the item through macOS updates the same Settings preference; windows, launch-at-login, and global shortcuts continue independently.
-- Show the Dock icon while a normal Scriber window is open. Closing the final normal window with Command-W, Command-Shift-W, or the red window control removes Scriber from the Dock while menu-bar and dictation services continue.
+- Show the Dock icon while a normal Scriber window is open. “Show app in Dock” is user-configurable and disabled by default; disabling it never closes a visible window. When disabled, closing the final normal window with Command-W, Command-Shift-W, or the red window control removes Scriber from the Dock while menu-bar and dictation services continue. When enabled, Scriber remains in the Dock and app switcher without an open window.
 - Save local dictation history.
 - Group Dictation history by local calendar date and vertically center each entry's time beside its transcript content.
 - Insert each completed transcript into the text element that was active when dictation began.

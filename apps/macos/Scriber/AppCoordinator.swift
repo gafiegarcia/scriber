@@ -9,6 +9,7 @@ import ScriberCore
 
 extension Notification.Name {
     static let openScriberMainWindow = Notification.Name("openScriberMainWindow")
+    static let showAppInDockDidChange = Notification.Name("showAppInDockDidChange")
 }
 
 enum MainWindowDestination: Hashable {

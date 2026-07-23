@@ -21,6 +21,7 @@ final class Preferences: ObservableObject {
         static let onboardingComplete = "onboardingComplete"
         static let launchAtLoginRequested = "launchAtLoginRequested"
         static let showInMenuBar = "showInMenuBar"
+        static let showAppInDock = "showAppInDock"
         static let audioInputSelection = "audioInputSelection"
     }
 
@@ -42,6 +43,12 @@ final class Preferences: ObservableObject {
     @Published var onboardingComplete: Bool { didSet { defaults.set(onboardingComplete, forKey: Keys.onboardingComplete) } }
     @Published var launchAtLoginRequested: Bool { didSet { defaults.set(launchAtLoginRequested, forKey: Keys.launchAtLoginRequested) } }
     @Published var showInMenuBar: Bool { didSet { defaults.set(showInMenuBar, forKey: Keys.showInMenuBar) } }
+    @Published var showAppInDock: Bool {
+        didSet {
+            defaults.set(showAppInDock, forKey: Keys.showAppInDock)
+            NotificationCenter.default.post(name: .showAppInDockDidChange, object: showAppInDock)
+        }
+    }
     @Published var audioInputSelection: AudioInputSelection { didSet { save(audioInputSelection, key: Keys.audioInputSelection) } }
 
     init(
@@ -63,6 +70,7 @@ final class Preferences: ObservableObject {
         onboardingComplete = defaults.bool(forKey: Keys.onboardingComplete)
         launchAtLoginRequested = defaults.object(forKey: Keys.launchAtLoginRequested) == nil ? true : defaults.bool(forKey: Keys.launchAtLoginRequested)
         showInMenuBar = defaults.object(forKey: Keys.showInMenuBar) == nil ? true : defaults.bool(forKey: Keys.showInMenuBar)
+        showAppInDock = defaults.bool(forKey: Keys.showAppInDock)
         audioInputSelection = Self.decode(AudioInputSelection.self, key: Keys.audioInputSelection, defaults: defaults) ?? defaultAudioInputSelection
     }
 

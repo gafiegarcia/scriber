@@ -76,6 +76,63 @@ final class ScriberUITests: XCTestCase {
         XCTAssertFalse(runningApplication.isTerminated, "Accessory mode must leave background services running.")
     }
 
+    func testShowAppInDockKeepsRegularActivationPolicyAfterClosingWindows() async {
+        let app = await launchApp(additionalArguments: ["--ui-testing-accessory-lifecycle"])
+        defer { app.terminate() }
+        guard let runningApplication = runningApplication(bundleIdentifier: "com.gafiegarcia.scriber") else {
+            XCTFail("The launched app should have a running application instance.")
+            return
+        }
+
+        let settingsRow = element(in: app, identifier: "sidebar-settings")
+        let settingsRowAppeared = await waitForExistence(settingsRow, timeout: 3)
+        XCTAssertTrue(settingsRowAppeared)
+        settingsRow.click()
+
+        let showAppInDock = element(in: app, identifier: "show-app-in-dock-toggle")
+        app.scrollViews.firstMatch.swipeUp()
+        let showAppInDockAppeared = await waitForExistence(showAppInDock, timeout: 3)
+        XCTAssertTrue(showAppInDockAppeared)
+        showAppInDock.click()
+        app.typeKey("w", modifierFlags: .command)
+
+        let stayedRegular = await waitUntil(timeout: 3) {
+            !app.windows.firstMatch.exists && runningApplication.activationPolicy == .regular
+        }
+        XCTAssertTrue(stayedRegular, "The Dock preference should keep Scriber in the Dock and app switcher.")
+        XCTAssertFalse(runningApplication.isTerminated)
+    }
+
+    func testDisablingShowAppInDockKeepsVisibleWindowOpen() async {
+        let app = await launchApp(additionalArguments: ["--ui-testing-accessory-lifecycle"])
+        defer { app.terminate() }
+        guard let runningApplication = runningApplication(bundleIdentifier: "com.gafiegarcia.scriber") else {
+            XCTFail("The launched app should have a running application instance.")
+            return
+        }
+
+        let settingsRow = element(in: app, identifier: "sidebar-settings")
+        let settingsRowAppeared = await waitForExistence(settingsRow, timeout: 3)
+        XCTAssertTrue(settingsRowAppeared)
+        settingsRow.click()
+
+        let showAppInDock = element(in: app, identifier: "show-app-in-dock-toggle")
+        app.scrollViews.firstMatch.swipeUp()
+        let showAppInDockAppeared = await waitForExistence(showAppInDock, timeout: 3)
+        XCTAssertTrue(showAppInDockAppeared)
+        showAppInDock.click()
+        showAppInDock.click()
+
+        XCTAssertTrue(app.windows.firstMatch.exists, "Disabling the Dock preference must not close the visible window.")
+        XCTAssertEqual(runningApplication.activationPolicy, .regular)
+
+        app.typeKey("w", modifierFlags: [.command, .shift])
+        let becameAccessory = await waitUntil(timeout: 3) {
+            runningApplication.activationPolicy == .accessory
+        }
+        XCTAssertTrue(becameAccessory, "Close All Windows should close the visible window and return to accessory mode.")
+    }
+
     func testUpdateKeyForegroundsSettingsAndFocusesAPIKeyField() async {
         let app = await launchApp(additionalArguments: pillLifecycleArguments)
         defer { app.terminate() }

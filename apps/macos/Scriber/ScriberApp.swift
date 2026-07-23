@@ -25,10 +25,11 @@ enum AppLaunchConfiguration {
 private enum AppWindowIdentity {
     static let mainTitle = "Scriber"
     static let onboardingTitle = "Set Up Scriber"
+    private static let mainWindowTitles: Set<String> = [mainTitle, "Dictation", "Settings"]
 
     static func isManagedWindow(_ window: NSWindow) -> Bool {
         guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
-        return window.title == mainTitle || window.title == onboardingTitle
+        return mainWindowTitles.contains(window.title) || window.title == onboardingTitle
     }
 }
 
@@ -97,6 +98,7 @@ struct ScriberApp: App {
             MainWindowView()
                 .environmentObject(runtime)
                 .modelContainer(runtime.container)
+                .task { await promoteApplicationForVisibleWindow() }
         }
         .defaultSize(width: 980, height: 640)
         .commands {
@@ -115,6 +117,7 @@ struct ScriberApp: App {
             OnboardingView()
                 .environmentObject(runtime)
                 .modelContainer(runtime.container)
+                .task { await promoteApplicationForVisibleWindow() }
         }
         .defaultPosition(.center)
         .windowResizability(.contentSize)
@@ -156,6 +159,15 @@ struct ScriberApp: App {
     private func closeAllNormalWindows() {
         NSApp.windows.filter(AppWindowIdentity.isManagedWindow).forEach { $0.performClose(nil) }
     }
+
+    @MainActor
+    private func promoteApplicationForVisibleWindow() async {
+        NSApp.setActivationPolicy(.regular)
+        await Task.yield()
+        guard !Task.isCancelled else { return }
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
 }
 
 private struct MainWindowCommands: Commands {
@@ -174,9 +186,13 @@ private struct MainWindowCommands: Commands {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var observers: [NSObjectProtocol] = []
     private var activationRetryTask: Task<Void, Never>?
+    private var showAppInDock = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(AppLaunchConfiguration.isUITesting ? .regular : .accessory)
+        showAppInDock = AppLaunchConfiguration.isUITesting
+            ? false
+            : UserDefaults.standard.bool(forKey: "showAppInDock")
+        NSApp.setActivationPolicy(AppLaunchConfiguration.keepsRegularActivationPolicy ? .regular : .accessory)
         let center = NotificationCenter.default
         NSApp.windows.filter(AppWindowIdentity.isManagedWindow).forEach { $0.isReleasedWhenClosed = false }
         observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { note in
@@ -206,11 +222,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         observers.append(center.addObserver(forName: .openScriberMainWindow, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.showMainWindow() }
         })
+        observers.append(center.addObserver(forName: .showAppInDockDidChange, object: nil, queue: .main) { [weak self] note in
+            guard let showAppInDock = note.object as? Bool else { return }
+            Task { @MainActor [weak self] in
+                self?.showAppInDock = showAppInDock
+                self?.reconcileActivationPolicy()
+            }
+        })
         Task { @MainActor [weak self] in
-            await Task.yield()
             let onboardingComplete = AppLaunchConfiguration.isUITesting
                 || UserDefaults.standard.bool(forKey: "onboardingComplete")
-            self?.showInitialWindow(onboardingComplete: onboardingComplete)
+            await self?.showInitialWindowWhenAvailable(onboardingComplete: onboardingComplete)
         }
     }
 
@@ -225,14 +247,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         showWindow(titled: AppWindowIdentity.mainTitle)
     }
 
-    private func showInitialWindow(onboardingComplete: Bool) {
-        showWindow(titled: onboardingComplete ? AppWindowIdentity.mainTitle : AppWindowIdentity.onboardingTitle)
+    private func showInitialWindowWhenAvailable(onboardingComplete: Bool) async {
+        let title = onboardingComplete ? AppWindowIdentity.mainTitle : AppWindowIdentity.onboardingTitle
+        for _ in 0..<40 {
+            guard !Task.isCancelled else { return }
+            if showWindow(titled: title) { return }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
     }
 
-    private func showWindow(titled title: String) {
+    @discardableResult
+    private func showWindow(titled title: String) -> Bool {
         guard let window = NSApp.windows.first(where: {
             AppWindowIdentity.isManagedWindow($0) && $0.title == title
-        }) else { return }
+        }) else { return false }
         let previouslyActiveApplication = NSWorkspace.shared.frontmostApplication
         activationRetryTask?.cancel()
         NSApp.setActivationPolicy(.regular)
@@ -255,6 +283,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             if !activationRequested { NSApp.activate() }
             window.makeKeyAndOrderFront(nil)
+            // The app begins as an accessory so a launch with no visible window stays
+            // out of the Dock. Reassert regular mode only after the startup window is
+            // visible: AppKit can otherwise process its initial resign-key transition
+            // after the earlier promotion and leave a visible window without a Dock icon.
+            self.reconcileActivationPolicy()
 
             try? await Task.sleep(for: .milliseconds(50))
             guard !Task.isCancelled else { return }
@@ -263,8 +296,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.activate()
                 window.makeKeyAndOrderFront(nil)
             }
+            self.reconcileActivationPolicy()
             activationRetryTask = nil
         }
+        return true
     }
 
     private var hasVisibleManagedWindow: Bool {
@@ -273,9 +308,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func reconcileActivationPolicy() {
         let policy: NSApplication.ActivationPolicy =
-            hasVisibleManagedWindow || AppLaunchConfiguration.keepsRegularActivationPolicy
+            hasVisibleManagedWindow
+                || showAppInDock
+                || AppLaunchConfiguration.keepsRegularActivationPolicy
             ? .regular
             : .accessory
+        guard NSApp.activationPolicy() != policy else { return }
         NSApp.setActivationPolicy(policy)
     }
 }
