@@ -275,34 +275,35 @@ struct CredentialStateTests {
 
 @Suite("Credential persistence")
 struct CredentialPersistenceTests {
-    @Test("Saves, trims, and updates the protected credential")
-    func savesAndUpdatesProtectedCredential() throws {
+    @Test("Saves, trims, and updates the login credential")
+    func savesAndUpdatesLoginCredential() throws {
         let backend = FakeCredentialStorageBackend()
-        let store = VerifiedCredentialStore(backend: backend)
+        let store = VerifiedCredentialStore(backend: backend, policy: .loginKeychain)
 
         try store.save("  first-key \n")
-        #expect(backend.values[.dataProtection] == "first-key")
+        #expect(backend.values[.legacy] == "first-key")
         try store.save("second-key")
-        #expect(backend.values[.dataProtection] == "second-key")
-        #expect(backend.deleteCounts[.legacy, default: 0] == 0)
+        #expect(backend.values[.legacy] == "second-key")
+        #expect(backend.readCounts[.dataProtection, default: 0] == 0)
+        #expect(backend.deleteCounts[.dataProtection, default: 0] == 0)
     }
 
-    @Test("Rejects a save when protected readback is missing")
+    @Test("Rejects a save when login readback is missing")
     func rejectsMissingReadback() {
         let backend = FakeCredentialStorageBackend()
-        backend.discardProtectedWrites = true
-        let store = VerifiedCredentialStore(backend: backend)
+        backend.discardWrites.insert(.legacy)
+        let store = VerifiedCredentialStore(backend: backend, policy: .loginKeychain)
 
         #expect(throws: CredentialStoreError.persistenceVerificationFailed) {
             try store.save("valid-key")
         }
     }
 
-    @Test("Rejects a save when protected readback differs")
+    @Test("Rejects a save when login readback differs")
     func rejectsMismatchedReadback() {
         let backend = FakeCredentialStorageBackend()
-        backend.protectedWriteReplacement = "different-key"
-        let store = VerifiedCredentialStore(backend: backend)
+        backend.writeReplacements[.legacy] = "different-key"
+        let store = VerifiedCredentialStore(backend: backend, policy: .loginKeychain)
 
         #expect(throws: CredentialStoreError.persistenceVerificationFailed) {
             try store.save("valid-key")
@@ -312,7 +313,7 @@ struct CredentialPersistenceTests {
     @Test("Migrates a legacy credential into protected storage")
     func migratesLegacyCredential() throws {
         let backend = FakeCredentialStorageBackend(values: [.legacy: "legacy-key"])
-        let store = VerifiedCredentialStore(backend: backend)
+        let store = VerifiedCredentialStore(backend: backend, policy: .dataProtectionKeychain)
 
         #expect(try store.read() == "legacy-key")
         #expect(backend.values[.dataProtection] == "legacy-key")
@@ -324,7 +325,7 @@ struct CredentialPersistenceTests {
     func restoresAfterDestructiveLegacyCleanup() throws {
         let backend = FakeCredentialStorageBackend(values: [.legacy: "legacy-key"])
         backend.legacyDeletionAlsoDeletesProtectedValue = true
-        let store = VerifiedCredentialStore(backend: backend)
+        let store = VerifiedCredentialStore(backend: backend, policy: .dataProtectionKeychain)
 
         #expect(try store.read() == "legacy-key")
         #expect(backend.values[.dataProtection] == "legacy-key")
@@ -338,7 +339,7 @@ struct CredentialPersistenceTests {
             .dataProtection: "old-protected-key",
             .legacy: "stale-legacy-key",
         ])
-        let store = VerifiedCredentialStore(backend: backend)
+        let store = VerifiedCredentialStore(backend: backend, policy: .dataProtectionKeychain)
 
         try store.save("replacement-key")
         #expect(backend.values[.dataProtection] == "replacement-key")
@@ -346,26 +347,28 @@ struct CredentialPersistenceTests {
         #expect(backend.deleteCounts[.legacy] == 1)
     }
 
-    @Test("Deletes both storage domains for blank input")
-    func deletesBlankCredential() throws {
+    @Test("Login-mode deletion never touches protected storage")
+    func deletesOnlyLoginCredential() throws {
         let backend = FakeCredentialStorageBackend(values: [
             .dataProtection: "protected-key",
             .legacy: "legacy-key",
         ])
-        let store = VerifiedCredentialStore(backend: backend)
+        let store = VerifiedCredentialStore(backend: backend, policy: .loginKeychain)
 
         try store.save("  \n")
-        #expect(backend.values.isEmpty)
-        #expect(backend.deleteCounts[.dataProtection] == 1)
+        #expect(backend.values[.dataProtection] == "protected-key")
+        #expect(backend.values[.legacy] == nil)
+        #expect(backend.deleteCounts[.dataProtection, default: 0] == 0)
         #expect(backend.deleteCounts[.legacy] == 1)
     }
 }
 
 private final class FakeCredentialStorageBackend: CredentialStorageBackend, @unchecked Sendable {
     var values: [CredentialStorageDomain: String]
+    var readCounts: [CredentialStorageDomain: Int] = [:]
     var deleteCounts: [CredentialStorageDomain: Int] = [:]
-    var discardProtectedWrites = false
-    var protectedWriteReplacement: String?
+    var discardWrites: Set<CredentialStorageDomain> = []
+    var writeReplacements: [CredentialStorageDomain: String] = [:]
     var legacyDeletionAlsoDeletesProtectedValue = false
     private(set) var protectedWriteCount = 0
 
@@ -374,17 +377,16 @@ private final class FakeCredentialStorageBackend: CredentialStorageBackend, @unc
     }
 
     func read(from domain: CredentialStorageDomain) throws -> String? {
-        values[domain]
+        readCounts[domain, default: 0] += 1
+        return values[domain]
     }
 
     func write(_ value: String, to domain: CredentialStorageDomain) throws {
         if domain == .dataProtection {
             protectedWriteCount += 1
-            guard !discardProtectedWrites else { return }
-            values[domain] = protectedWriteReplacement ?? value
-        } else {
-            values[domain] = value
         }
+        guard !discardWrites.contains(domain) else { return }
+        values[domain] = writeReplacements[domain] ?? value
     }
 
     func delete(from domain: CredentialStorageDomain) throws {

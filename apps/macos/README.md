@@ -2,7 +2,7 @@
 
 Scriber is a native macOS menu-bar dictation app powered by ElevenLabs Scribe v2. It records only while a configured shortcut is active, stores the API key in Keychain, saves dictation history locally with SwiftData, and inserts finished text through macOS Accessibility or standard clipboard paste.
 
-The current native line is Scriber `0.7.0` build `3`, frozen as the first personal-use alpha snapshot and targeting Apple silicon on macOS 27. It continues the product lineage from the archived Electron app's `0.6.0`; it is not yet a stable `0.7.0` release. See the repository [versioning policy](../../docs/VERSIONING.md) for the distinction between product maturity, bundle builds, signing, notarization, and Git tags.
+The current native line is Scriber `0.7.0` build `4`, the ad-hoc-signed personal-use candidate for `v0.7.0-alpha.3`, targeting Apple silicon on macOS 27. The last provisioned Data Protection Keychain state is preserved as `v0.7.0-alpha.2`. It continues the product lineage from the archived Electron app's `0.6.0`; it is not yet a stable `0.7.0` release. See the repository [versioning policy](../../docs/VERSIONING.md) for the distinction between product maturity, bundle builds, signing, notarization, and Git tags.
 
 ## Current prerequisites
 
@@ -15,7 +15,7 @@ The current native line is Scriber `0.7.0` build `3`, frozen as the first person
 1. Install Xcode 27 beta and select it in Xcode Settings → Locations → Command Line Tools.
 2. Open `Scriber.xcodeproj`.
 3. Choose the `Scriber` scheme and the local Mac destination.
-4. Configure an Apple Development signing team if Xcode requests one.
+4. Debug and UI-test builds may use an Apple Development signing team. The Release configuration uses an ad-hoc signature so its installed personal-use build has no expiring provisioning profile.
 5. Build and run.
 
 For stable Accessibility and Launch at Login permissions, archive a Release build and keep `Scriber.app` in `/Applications` rather than repeatedly moving it.
@@ -24,7 +24,7 @@ For stable Accessibility and Launch at Login permissions, archive a Release buil
 
 Onboarding asks for:
 
-- The ElevenLabs key, stored under a dedicated Keychain service.
+- The ElevenLabs key, stored under a dedicated service in the encrypted macOS login Keychain.
 - Microphone access for recording.
 - Accessibility access for global shortcuts and cross-app text insertion.
 - Optional Launch at Login registration.

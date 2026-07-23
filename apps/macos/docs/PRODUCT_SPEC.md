@@ -51,7 +51,8 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 ## Persistence and security
 
 - Store Dictation history locally with SwiftData until the user manually deletes it.
-- Store the API key in a dedicated Data Protection Keychain item using app-private access and `WhenUnlockedThisDeviceOnly` protection.
+- Store the API key in the default encrypted macOS login Keychain using modern `SecItem` APIs. This is an interim personal-use workaround for free-team provisioning expiry; never store the key in a plaintext file or `UserDefaults`.
+- Keep the storage policy capable of returning to the Data Protection Keychain. A future provisioned build must prefer and migrate the current login-Keychain value before considering an older protected item.
 - Never log, export, or persist the key elsewhere.
 - Validate credentials without uploading audio or consuming transcription credit before saving them.
 - Normal automated tests must not access production credentials, contact ElevenLabs, or consume API credit.
@@ -71,5 +72,5 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Native Swift 6.4 app using SwiftUI, AppKit, SwiftData, AVFoundation, Accessibility, and Keychain APIs.
 - Toolchain baseline: Xcode 27 beta with Swift 6.4 until a later explicit toolchain decision.
 - Current app target: Apple silicon and macOS 27.
-- Current product line: Scriber `0.7.0` build `3`, frozen as `v0.7.0-alpha.1` for personal use and not yet a stable `0.7.0` release.
+- Current product line: Scriber `0.7.0` build `4`. The final provisioned Data Protection state is preserved as `v0.7.0-alpha.2`; the login-Keychain personal build is the `v0.7.0-alpha.3` candidate and is not yet a stable `0.7.0` release.
 - A real ElevenLabs smoke test is always explicit and opt-in.

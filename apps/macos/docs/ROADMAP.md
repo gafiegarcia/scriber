@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `3` remains the first frozen personal-use alpha snapshot for Apple silicon on macOS 27. The paste-confirmation investigation is resolved for personal use: the signed app correctly recorded Xcode, ChatGPT, and Notion insertions as pasted while detecting an unfocused Zen page as copied recovery, with Raycast clipboard history running. The engine conceals its temporary promised-text item from compatible clipboard-history tools, accepts the destination's request without requiring Accessibility evidence, and republishes ordinary clipboard text only after a no-request timeout. Preserve the rationale and regression guard in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md). Broader formal acceptance and a stable-path installation remain open; Developer ID signing and notarization are future distribution concerns rather than prerequisites for a stable personal-use source release.
+Scriber `0.7.0` build `4` is the `v0.7.0-alpha.3` personal-installation candidate for Apple silicon on macOS 27. The preceding provisioned Data Protection Keychain implementation is preserved by annotated tag `v0.7.0-alpha.2`. Build 4 uses the encrypted login Keychain and an ad-hoc Release signature to avoid free-team provisioning expiry; stable-path installation and manual acceptance remain open. The paste-confirmation investigation remains resolved for personal use and its rationale lives in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md).
 
 ## Milestones
 
@@ -15,15 +15,16 @@ Scriber `0.7.0` build `3` remains the first frozen personal-use alpha snapshot f
 - [x] Integrate documented original app-icon artwork.
 - [ ] Validate bare `Fn` capture and suppression on macOS 27 hardware.
 - [ ] Complete automated and signed manual acceptance checks.
-- [x] Freeze an intentionally identified `0.7.0` personal-use alpha source snapshot.
+- [x] Preserve the final provisioned Data Protection Keychain state as annotated tag `v0.7.0-alpha.2`.
+- [ ] Accept and tag the ad-hoc login-Keychain build as `v0.7.0-alpha.3`.
 - [ ] Install an intentionally identified signed build at a stable path.
 
 ## Open acceptance checks
 
 ### Installation, identity, and lifecycle
 
-- [ ] Build and sign Debug and Release configurations with Xcode 27 beta.
-- [ ] Install a signed Release build at a stable path, preferably `/Applications/Scriber.app`.
+- [x] Build the Apple Development-signed Debug configuration and entitlement-free ad-hoc-signed Release configuration with Xcode 27 beta.
+- [x] Install the verified ad-hoc Release build at `/Applications/Scriber.app`.
 - [ ] Complete fresh onboarding under the `com.gafiegarcia.scriber` identity.
 - [ ] Verify Microphone and Accessibility grants persist for the stable app.
 - [ ] Verify Launch at Login registration, relaunch, and opt-out.
@@ -34,7 +35,7 @@ Scriber `0.7.0` build `3` remains the first frozen personal-use alpha snapshot f
 
 ### Credentials, quota, and transcription
 
-- [ ] Save and read back a real Speech-to-Text-scoped ElevenLabs key across signed builds.
+- [ ] Re-enter, save, and read back a real Speech-to-Text-scoped ElevenLabs key across relaunch and restart from the installed ad-hoc build.
 - [ ] Verify startup handling for valid, revoked, tampered, restricted-scope, and transiently unreachable credentials.
 - [ ] Verify subscription usage for full-scope, Speech-to-Text-only, exhausted, and extended-usage accounts.
 - [ ] Run an explicitly approved real transcription smoke test; never include this in normal automation.
@@ -73,10 +74,10 @@ Run from the repository root with the Xcode 27 beta toolchain:
 swiftc -frontend -parse apps/macos/Scriber/*.swift apps/macos/ScriberCore/*.swift apps/macos/ScriberCoreTests/*.swift apps/macos/ScriberUITests/*.swift
 swiftc -module-cache-path apps/macos/.build/module-cache -typecheck apps/macos/ScriberCore/CoreModels.swift apps/macos/ScriberCore/ScribeClient.swift apps/macos/ScriberCore/CredentialStore.swift
 swift test --package-path apps/macos
-plutil -lint apps/macos/Scriber/Info.plist apps/macos/Scriber/Scriber.entitlements
+plutil -lint apps/macos/Scriber/Info.plist
 ```
 
-Build unsigned Debug and Release configurations from `apps/macos/Scriber.xcodeproj` with Xcode 27 beta.
+Build Debug and Release configurations from `apps/macos/Scriber.xcodeproj` with Xcode 27 beta. Release must use its configured ad-hoc identity and contain neither an embedded provisioning profile nor restricted Keychain entitlements.
 
 Run isolated UI regressions from `apps/macos`:
 
@@ -92,7 +93,7 @@ Before promoting the personal-use line to stable `v0.7.0`:
 
 - [ ] Complete the applicable functional checks above; a stable source release does not require Developer ID signing or notarization.
 - [x] Decide that the remaining formal acceptance gaps are acceptable for the first personal alpha snapshot.
-- [x] Increment the intentionally distinguishable alpha snapshot to bundle build `3`.
+- [x] Increment the login-Keychain personal candidate to bundle build `4`.
 - [ ] Generate artifact-specific third-party notices before publishing a downloadable binary.
 - [ ] Confirm the repository and release artifact contain no credentials, recordings, local data, or machine-specific build output.
 

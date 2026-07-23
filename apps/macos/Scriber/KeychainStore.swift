@@ -22,11 +22,14 @@ struct KeychainStore: Sendable {
     private let store: VerifiedCredentialStore<KeychainStorageBackend>
 
     init() {
-        store = VerifiedCredentialStore(backend: KeychainStorageBackend(
-            service: Self.service,
-            account: Self.account,
-            label: Self.label
-        ))
+        store = VerifiedCredentialStore(
+            backend: KeychainStorageBackend(
+                service: Self.service,
+                account: Self.account,
+                label: Self.label
+            ),
+            policy: .loginKeychain
+        )
     }
 
     func readAPIKey() throws -> String? {
@@ -62,8 +65,7 @@ private struct KeychainStorageBackend: CredentialStorageBackend {
     }
 
     func write(_ value: String, to domain: CredentialStorageDomain) throws {
-        guard domain == .dataProtection,
-              let data = value.data(using: .utf8),
+        guard let data = value.data(using: .utf8),
               !value.isEmpty else {
             throw KeychainError.invalidData
         }
@@ -77,7 +79,9 @@ private struct KeychainStorageBackend: CredentialStorageBackend {
         if update == errSecItemNotFound {
             var add = match
             attributes.forEach { add[$0.key] = $0.value }
-            add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            if domain == .dataProtection {
+                add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            }
             let status = SecItemAdd(add as CFDictionary, nil)
             guard status == errSecSuccess else { throw KeychainError.unexpectedStatus(status) }
         } else if update != errSecSuccess {

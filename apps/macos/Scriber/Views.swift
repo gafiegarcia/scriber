@@ -25,7 +25,7 @@ private enum KeySaveFeedback {
 
     var message: String {
         switch self {
-        case .saved: "API key verified with ElevenLabs and saved securely in Keychain."
+        case .saved: "API key verified with ElevenLabs and saved in your Mac login Keychain."
         case .failed(let message): message
         }
     }
@@ -563,7 +563,7 @@ struct SettingsView: View {
             case .invalid:
                 Label("Invalid", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
             case .unchecked:
-                Label("Stored in Keychain", systemImage: "shield")
+                Label("Stored in Login Keychain", systemImage: "shield")
             }
         }
     }
@@ -715,7 +715,7 @@ struct OnboardingView: View {
                                 Label("Invalid", systemImage: "exclamationmark.triangle.fill")
                                     .foregroundStyle(.red)
                             case .unchecked:
-                                Label("Stored in Keychain", systemImage: "shield")
+                                Label("Stored in Login Keychain", systemImage: "shield")
                                     .foregroundStyle(.secondary)
                             }
                         }

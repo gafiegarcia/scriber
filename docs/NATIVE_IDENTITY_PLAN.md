@@ -127,7 +127,7 @@ Run from the repository root with Xcode 27 beta:
 swiftc -frontend -parse apps/macos/Scriber/*.swift apps/macos/ScriberCore/*.swift apps/macos/ScriberCoreTests/*.swift apps/macos/ScriberUITests/*.swift
 swiftc -module-cache-path apps/macos/.build/module-cache -typecheck apps/macos/ScriberCore/CoreModels.swift apps/macos/ScriberCore/ScribeClient.swift apps/macos/ScriberCore/CredentialStore.swift
 swift test --package-path apps/macos
-plutil -lint apps/macos/Scriber/Info.plist apps/macos/Scriber/Scriber.entitlements
+plutil -lint apps/macos/Scriber/Info.plist
 ```
 
 Build unsigned Debug and Release configurations from `apps/macos/Scriber.xcodeproj`. Run the credit-free UI suite in its isolated test mode. Normal automation must never contact ElevenLabs, access the real Keychain, mutate real SwiftData, or consume API credit.

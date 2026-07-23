@@ -5,6 +5,18 @@ enum CredentialStorageDomain: Hashable, Sendable {
     case legacy
 }
 
+enum CredentialStoragePolicy: Hashable, Sendable {
+    case loginKeychain
+    case dataProtectionKeychain
+
+    var primaryDomain: CredentialStorageDomain {
+        switch self {
+        case .loginKeychain: .legacy
+        case .dataProtectionKeychain: .dataProtection
+        }
+    }
+}
+
 protocol CredentialStorageBackend: Sendable {
     func read(from domain: CredentialStorageDomain) throws -> String?
     func write(_ value: String, to domain: CredentialStorageDomain) throws
@@ -24,19 +36,21 @@ enum CredentialStoreError: Error, Equatable, LocalizedError {
 
 struct VerifiedCredentialStore<Backend: CredentialStorageBackend>: Sendable {
     let backend: Backend
+    let policy: CredentialStoragePolicy
 
     func read() throws -> String? {
-        if let value = try backend.read(from: .dataProtection) {
-            return value
+        switch policy {
+        case .loginKeychain:
+            return try backend.read(from: .legacy)
+        case .dataProtectionKeychain:
+            if let loginValue = try backend.read(from: .legacy) {
+                try persistAndVerify(loginValue, to: .dataProtection)
+                try backend.delete(from: .legacy)
+                try restoreIfNeeded(loginValue, in: .dataProtection)
+                return loginValue
+            }
+            return try backend.read(from: .dataProtection)
         }
-
-        guard let legacyValue = try backend.read(from: .legacy) else {
-            return nil
-        }
-        try persistAndVerify(legacyValue)
-        try backend.delete(from: .legacy)
-        try restoreIfNeeded(legacyValue)
-        return legacyValue
     }
 
     func save(_ value: String) throws {
@@ -46,28 +60,28 @@ struct VerifiedCredentialStore<Backend: CredentialStorageBackend>: Sendable {
             return
         }
 
-        let hasLegacyValue = try backend.read(from: .legacy) != nil
-        try persistAndVerify(trimmed)
-        if hasLegacyValue {
+        let domain = policy.primaryDomain
+        try persistAndVerify(trimmed, to: domain)
+        if policy == .dataProtectionKeychain,
+           try backend.read(from: .legacy) != nil {
             try backend.delete(from: .legacy)
-            try restoreIfNeeded(trimmed)
+            try restoreIfNeeded(trimmed, in: .dataProtection)
         }
     }
 
     func delete() throws {
-        try backend.delete(from: .dataProtection)
-        try backend.delete(from: .legacy)
+        try backend.delete(from: policy.primaryDomain)
     }
 
-    private func persistAndVerify(_ value: String) throws {
-        try backend.write(value, to: .dataProtection)
-        guard try backend.read(from: .dataProtection) == value else {
+    private func persistAndVerify(_ value: String, to domain: CredentialStorageDomain) throws {
+        try backend.write(value, to: domain)
+        guard try backend.read(from: domain) == value else {
             throw CredentialStoreError.persistenceVerificationFailed
         }
     }
 
-    private func restoreIfNeeded(_ expectedValue: String) throws {
-        guard try backend.read(from: .dataProtection) != expectedValue else { return }
-        try persistAndVerify(expectedValue)
+    private func restoreIfNeeded(_ expectedValue: String, in domain: CredentialStorageDomain) throws {
+        guard try backend.read(from: domain) != expectedValue else { return }
+        try persistAndVerify(expectedValue, to: domain)
     }
 }
