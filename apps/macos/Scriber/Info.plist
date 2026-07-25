@@ -18,6 +18,8 @@
     <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>Scriber uses your microphone while testing input during setup and while a dictation shortcut is active.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Scriber temporarily accesses system audio only to silence other apps while you dictate. It does not record or save system audio.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

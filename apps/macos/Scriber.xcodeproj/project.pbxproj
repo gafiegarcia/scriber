@@ -24,6 +24,8 @@
 		A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */; };
 		A10000000000000000000010 /* ../ScriberCore/CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */; };
 		A10000000000000000000011 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* AppIcon.icon */; };
+		A10000000000000000000012 /* RecordingFeedbackSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* RecordingFeedbackSound.swift */; };
+		A10000000000000000000013 /* OtherAudioMuteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* OtherAudioMuteService.swift */; };
 		A20000000000000000000001 /* ScriberUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* ScriberUITests.swift */; };
 /* End PBXBuildFile section */
 
@@ -57,6 +59,8 @@
 		B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CoreModels.swift; sourceTree = "<group>"; };
 		B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CredentialStore.swift; sourceTree = "<group>"; };
 		B10000000000000000000014 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
+		B10000000000000000000015 /* RecordingFeedbackSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingFeedbackSound.swift; sourceTree = "<group>"; };
+		B10000000000000000000016 /* OtherAudioMuteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OtherAudioMuteService.swift; sourceTree = "<group>"; };
 		B20000000000000000000001 /* ScriberUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriberUITests.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* ScriberUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScriberUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -94,6 +98,8 @@
 				B1000000000000000000000B /* ScriberApp.swift */,
 				B10000000000000000000001 /* AppCoordinator.swift */,
 				B10000000000000000000002 /* AudioRecorder.swift */,
+				B10000000000000000000016 /* OtherAudioMuteService.swift */,
+				B10000000000000000000015 /* RecordingFeedbackSound.swift */,
 				B10000000000000000000003 /* GlobalShortcutService.swift */,
 				B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */,
 				B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */,
@@ -237,6 +243,8 @@
 			files = (
 				A10000000000000000000001 /* AppCoordinator.swift in Sources */,
 				A10000000000000000000002 /* AudioRecorder.swift in Sources */,
+				A10000000000000000000013 /* OtherAudioMuteService.swift in Sources */,
+				A10000000000000000000012 /* RecordingFeedbackSound.swift in Sources */,
 				A10000000000000000000003 /* GlobalShortcutService.swift in Sources */,
 				A10000000000000000000004 /* KeychainStore.swift in Sources */,
 				A10000000000000000000005 /* LaunchAtLoginService.swift in Sources */,

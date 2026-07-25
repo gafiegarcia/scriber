@@ -6,14 +6,19 @@ import ScriberCore
 
 struct ShortcutRecorderView: View {
     let title: String
+    let identifier: String
     @Binding var isEnabled: Bool
     @Binding var chord: ShortcutChord
+    @Binding var activeRecorderID: String?
     let conflictingChord: ShortcutChord?
+    let isCaptureAllowed: Bool
 
-    @State private var recording = false
     @State private var monitor: Any?
-    @State private var pendingModifiers: KeyModifiers = []
+    @State private var modifierCapture = ModifierChordCaptureState()
+    @State private var liveChord: ShortcutChord?
     @State private var error: String?
+
+    private var isRecording: Bool { activeRecorderID == identifier }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -21,11 +26,11 @@ struct ShortcutRecorderView: View {
                 Toggle(title, isOn: $isEnabled)
                     .disabled(!isEnabled && conflictingChord == chord)
                 Spacer()
-                Button(recording ? "Press shortcut…" : chord.displayName) {
-                    recording ? stopRecording() : startRecording()
+                Button(isRecording ? (liveChord?.displayName ?? "Press shortcut…") : chord.displayName) {
+                    isRecording ? stopRecording() : startRecording()
                 }
                 .frame(minWidth: 130)
-                .disabled(!isEnabled)
+                .disabled(!isEnabled || !isCaptureAllowed || (activeRecorderID != nil && !isRecording))
             }
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
         }
@@ -33,12 +38,21 @@ struct ShortcutRecorderView: View {
         .onChange(of: isEnabled) { _, enabled in
             if !enabled { stopRecording() }
         }
+        .onChange(of: activeRecorderID) { _, activeRecorderID in
+            if activeRecorderID != identifier { stopMonitoring() }
+        }
+        .onChange(of: isCaptureAllowed) { _, isCaptureAllowed in
+            if !isCaptureAllowed { stopRecording() }
+        }
     }
 
     private func startRecording() {
+        guard isCaptureAllowed else { return }
+        guard activeRecorderID == nil || activeRecorderID == identifier else { return }
         error = nil
-        pendingModifiers = []
-        recording = true
+        modifierCapture.reset()
+        liveChord = nil
+        activeRecorderID = identifier
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { event in
             if event.type == .keyDown, event.keyCode == 53 {
                 stopRecording()
@@ -46,10 +60,12 @@ struct ShortcutRecorderView: View {
             }
             let modifiers = KeyModifiers(event.modifierFlags)
             if event.type == .flagsChanged {
-                if modifiers.isEmpty, !pendingModifiers.isEmpty {
-                    commit(ShortcutChord(modifiers: pendingModifiers, keyCode: nil))
-                } else {
-                    pendingModifiers = modifiers
+                modifierCapture.observe(modifiers)
+                if !modifierCapture.peakModifiers.isEmpty {
+                    liveChord = ShortcutChord(modifiers: modifierCapture.peakModifiers, keyCode: nil)
+                }
+                if let chord = modifierCapture.commitWhenAllModifiersReleased(currentModifiers: modifiers) {
+                    commit(chord)
                 }
                 return nil
             }
@@ -57,7 +73,9 @@ struct ShortcutRecorderView: View {
                 error = "Include at least one modifier."
                 return nil
             }
-            commit(ShortcutChord(modifiers: modifiers, keyCode: event.keyCode))
+            let capturedChord = ShortcutChord(modifiers: modifiers, keyCode: event.keyCode)
+            liveChord = capturedChord
+            commit(capturedChord)
             return nil
         }
     }
@@ -70,10 +88,15 @@ struct ShortcutRecorderView: View {
     }
 
     private func stopRecording() {
+        if activeRecorderID == identifier { activeRecorderID = nil }
+        stopMonitoring()
+    }
+
+    private func stopMonitoring() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
-        recording = false
-        pendingModifiers = []
+        modifierCapture.reset()
+        liveChord = nil
     }
 }
 

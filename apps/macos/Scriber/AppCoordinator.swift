@@ -39,6 +39,7 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var isRefreshingSubscriptionUsage = false
     @Published private(set) var subscriptionUsageError: String?
     @Published private(set) var mainWindowRequest: MainWindowRequest?
+    @Published private(set) var otherAudioMuteStatus: OtherAudioMuteStatus?
 
     let preferences: Preferences
     let modelContext: ModelContext
@@ -53,6 +54,8 @@ final class AppCoordinator: ObservableObject {
     private let login = LaunchAtLoginService()
     private let pill = PillController()
     private let shortcuts: GlobalShortcutService
+    private let feedbackSounds: RecordingFeedbackSoundPlaying
+    private let otherAudioMuting: OtherAudioMuting
     private var meterTask: Task<Void, Never>?
     private var microphoneTestTask: Task<Void, Never>?
     private var currentRecord: DictationRecord?
@@ -70,13 +73,17 @@ final class AppCoordinator: ObservableObject {
         modelContext: ModelContext,
         persistenceAvailable: Bool = true,
         permissionReadinessOverride: PermissionReadiness? = nil,
-        servicesAllowed: Bool = true
+        servicesAllowed: Bool = true,
+        feedbackSounds: RecordingFeedbackSoundPlaying = RecordingFeedbackSoundPlayer(),
+        otherAudioMuting: OtherAudioMuting = OtherAudioMuteService()
     ) {
         self.preferences = preferences
         self.modelContext = modelContext
         self.persistenceAvailable = persistenceAvailable
         self.permissionReadinessOverride = permissionReadinessOverride
         self.servicesAllowed = servicesAllowed
+        self.feedbackSounds = feedbackSounds
+        self.otherAudioMuting = otherAudioMuting
         shortcuts = GlobalShortcutService(
             hold: preferences.holdShortcut,
             toggle: preferences.toggleShortcut,
@@ -111,6 +118,32 @@ final class AppCoordinator: ObservableObject {
                     toggleEnabled: toggleEnabled
                 )
             }
+            .store(in: &cancellables)
+
+        preferences.$muteOtherAudioWhileRecording
+            .dropFirst()
+            .sink { [weak self] enabled in
+                guard let self else { return }
+                if enabled, case .recording = self.phase {
+                    self.beginOtherAudioMuting()
+                } else if !enabled {
+                    self.endOtherAudioMuting()
+                    if self.otherAudioMuteStatus == .unavailableToStart {
+                        self.otherAudioMuteStatus = nil
+                    }
+                }
+            }
+            .store(in: &cancellables)
+
+        preferences.$playRecordingFeedbackSounds
+            .dropFirst()
+            .sink { [weak self] enabled in
+                if !enabled { self?.feedbackSounds.stop() }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
+            .sink { [weak self] _ in self?.endOtherAudioMuting() }
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
@@ -263,6 +296,11 @@ final class AppCoordinator: ObservableObject {
 
     func openMicrophoneSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func openSystemAudioPrivacySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension") else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -461,6 +499,10 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+    func setShortcutConfigurationCaptureActive(_ active: Bool) {
+        shortcuts.setConfigurationCaptureActive(active)
+    }
+
     func startHandsFreeFromMenu() {
         guard preferences.onboardingComplete else { return }
         switch phase {
@@ -589,12 +631,17 @@ final class AppCoordinator: ObservableObject {
             stopMicrophoneTest()
             pill.setPreferredScreen(paste.captureTarget())
             try recorder.start(selection: preferences.audioInputSelection)
+            if preferences.muteOtherAudioWhileRecording { beginOtherAudioMuting() }
+            playFeedback(.recordingStarted)
             shortcuts.setMode(mode == .held ? .held : .locked)
             setPhase(.recording(mode: mode, elapsed: 0, level: -80))
             startMeter(mode: mode)
         } catch AudioRecorderError.inputUnavailable(let name) {
+            endOtherAudioMuting()
+            playFeedback(.terminalFailure)
             showMessage("Microphone “\(name)” is unavailable")
         } catch {
+            endOtherAudioMuting()
             showFailure(error.localizedDescription, transcription: true)
         }
     }
@@ -619,6 +666,7 @@ final class AppCoordinator: ObservableObject {
     private func stopAndTranscribe() {
         meterTask?.cancel()
         meterTask = nil
+        endOtherAudioMuting()
         shortcuts.setMode(.busy)
         Task { [weak self] in
             guard let self else { return }
@@ -713,11 +761,13 @@ final class AppCoordinator: ObservableObject {
                     copy(record)
                     record.errorMessage = message
                     try modelContext.save()
+                    playFeedback(.cancellationOrCopyFallback)
                     setPhase(.dictationCopied(text: transcript, message: message))
                 case .failed(let message):
                     copy(record)
                     record.errorMessage = message
                     try modelContext.save()
+                    playFeedback(.cancellationOrCopyFallback)
                     setPhase(.dictationCopied(text: transcript, message: message))
                 }
             } else {
@@ -728,6 +778,7 @@ final class AppCoordinator: ObservableObject {
             preferences.apiCreditsExhausted = false
             Task { [weak self] in await self?.refreshSubscriptionUsage() }
         } catch {
+            playFeedback(.terminalFailure)
             record.transcriptionState = .failed
             record.errorMessage = error.localizedDescription
             try? modelContext.save()
@@ -756,10 +807,12 @@ final class AppCoordinator: ObservableObject {
         guard case .recording(_, let elapsed, _) = phase else { return }
         meterTask?.cancel()
         meterTask = nil
+        endOtherAudioMuting()
         if elapsed < RecordingCancellationPolicy.recoveryThreshold {
             recorder.cancel()
             paste.clearTarget()
             shortcuts.setMode(.idle)
+            playFeedback(.cancellationOrCopyFallback)
             showMessage("Cancelled")
             return
         }
@@ -790,6 +843,7 @@ final class AppCoordinator: ObservableObject {
             AudioRecorder.delete(relativePath: completed.relativePath)
             paste.clearTarget()
             shortcuts.setMode(.idle)
+            playFeedback(.cancellationOrCopyFallback)
             showMessage("Cancelled")
             return
         }
@@ -806,6 +860,7 @@ final class AppCoordinator: ObservableObject {
             currentRecord = record
             currentRecording = completed
             shortcuts.setMode(.idle)
+            playFeedback(.cancellationOrCopyFallback)
             setPhase(.cancelledTranscript)
         } catch {
             shortcuts.setMode(.idle)
@@ -874,7 +929,8 @@ final class AppCoordinator: ObservableObject {
         guard persistenceAvailable else {
             showFailure(
                 "Dictation history could not be opened. Quit and reopen Scriber.",
-                transcription: true
+                transcription: true,
+                playTerminalFeedback: false
             )
             return false
         }
@@ -897,9 +953,42 @@ final class AppCoordinator: ObservableObject {
         setPhase(.message("Copied"))
     }
 
-    private func showFailure(_ message: String, transcription: Bool) {
+    private func showFailure(
+        _ message: String,
+        transcription: Bool,
+        playTerminalFeedback: Bool = true
+    ) {
+        endOtherAudioMuting()
+        if transcription, playTerminalFeedback { playFeedback(.terminalFailure) }
         shortcuts.setMode(.idle)
         setPhase(transcription ? .transcriptionFailed(message) : .pasteFailed(message))
+    }
+
+    private func playFeedback(_ cue: RecordingFeedbackCue) {
+        guard preferences.playRecordingFeedbackSounds else { return }
+        feedbackSounds.play(cue)
+    }
+
+    private func beginOtherAudioMuting() {
+        switch otherAudioMuting.beginMuting() {
+        case .muted, .alreadyMuted:
+            otherAudioMuteStatus = nil
+        case .unavailable:
+            otherAudioMuteStatus = .unavailableToStart
+        }
+    }
+
+    private func endOtherAudioMuting() {
+        switch otherAudioMuting.endMuting() {
+        case .restored:
+            if otherAudioMuteStatus == .unableToRestore {
+                otherAudioMuteStatus = nil
+            }
+        case .alreadyRestored:
+            break
+        case .unavailable:
+            otherAudioMuteStatus = .unableToRestore
+        }
     }
 
     private func showMessage(_ message: String) {
@@ -922,6 +1011,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func returnToIdle() {
+        endOtherAudioMuting()
         suppressPillForCurrentTranscription = false
         paste.clearTarget()
         pill.setPreferredScreen(nil)

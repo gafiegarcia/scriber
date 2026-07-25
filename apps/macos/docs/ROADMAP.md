@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidate for Apple silicon on macOS 27. The preceding provisioned Data Protection Keychain implementation is preserved by annotated tag `v0.7.0-alpha.2`. Build 7 retains the dedicated `Scriber/History.store` and encrypted login-Keychain policy, while replacing version-specific ad-hoc signing with the long-lived local `Scriber Local Code Signing` identity. This gives rebuilt Release bundles one stable designated requirement without a provisioning profile; the initial identity transition still requires one final permission and Keychain authorization. Reboot acceptance remains open. The paste-confirmation investigation remains resolved for personal use and its rationale lives in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md).
+Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidate for Apple silicon on macOS 27. The preceding provisioned Data Protection Keychain implementation is preserved by annotated tag `v0.7.0-alpha.2`. Build 7 retains the dedicated `Scriber/History.store` and encrypted login-Keychain policy, while replacing version-specific ad-hoc signing with the long-lived local `Scriber Local Code Signing` identity. This gives rebuilt Release bundles one stable designated requirement without a provisioning profile. Live testing shows macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; that authorization then persists across launches and transcriptions of the unchanged installed binary. Reboot acceptance remains open. The paste-confirmation investigation remains resolved for personal use and its rationale lives in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md).
 
 ## Milestones
 
@@ -19,6 +19,7 @@ Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidat
 - [x] Preserve the locally certificate-signed login-Keychain build as `v0.7.0-alpha.6`; live permission and reboot acceptance remains open.
 - [x] Install an intentionally identified signed build at a stable path.
 - [x] Add post-onboarding permission-loss recovery through the Dictation window, menu bar, and actionable pill.
+- [x] Add configurable Frog/Bottle/Morse feedback, recording-time other-audio muting, robust live modifier-chord capture, and shortcut suspension while configuring bindings.
 
 ## Open acceptance checks
 
@@ -46,6 +47,10 @@ Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidat
 ### Recording and shortcuts
 
 - [ ] Test bare `Fn`, `Fn-Space`, and custom `Fn-Control-Option` Hold behavior with competing dictation and global-shortcut tools disabled.
+- [ ] Verify every press/release order records and live-displays `Fn-Control-Option`, only one binding recorder listens at a time, and neither configured shortcut nor global Escape handling fires while a recorder is listening.
+- [ ] Verify Frog plays once after Hold, Toggle, and menu capture starts; Bottle plays once for terminal microphone/transcription failures; Morse plays once for cancellation and copied paste fallback; silence, no-content output, and retries remain silent; confirm the preference disables all feedback.
+- [ ] With Music, Spotify, Safari, and QuickTime, verify other audio advances silently only during capture, newly started audio is also muted, Frog remains audible, output returns immediately on stop/cancel/failure, and disabling the setting leaves audio unchanged.
+- [ ] Verify tap creation with System Audio Recording allowed and denied on macOS 27; denial or Core Audio failure must continue dictation unmuted and report the unavailable state only in Settings.
 - [ ] Verify held-to-hands-free conversion, exact Toggle-only locked-recording stop semantics, and that Hold is ignored while locked.
 - [ ] Verify independently disabling and re-enabling Hold and Toggle preserves each chord and prevents only the disabled keyboard action.
 - [ ] Verify early typing cancellation, short and recoverable Escape cancellation, Undo, History retry, and pill dismissal across other apps and full-screen windows.

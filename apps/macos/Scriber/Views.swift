@@ -70,7 +70,10 @@ struct MainWindowView: View {
             Group {
                 switch section ?? .dictation {
                 case .dictation: DictationHistoryView(searchFocused: $dictationSearchFocused)
-                case .settings: SettingsView()
+                case .settings:
+                    SettingsView(
+                        onShortcutConfigurationCaptureChanged: runtime.coordinator.setShortcutConfigurationCaptureActive
+                    )
                 }
             }
             .navigationTitle(section == .settings ? "Settings" : "Dictation")
@@ -427,12 +430,18 @@ private struct DictationDetailView: View {
 
 struct SettingsView: View {
     @EnvironmentObject private var runtime: AppRuntime
+    let onShortcutConfigurationCaptureChanged: (Bool) -> Void
     @State private var apiKey = ""
     @State private var keyFeedback: KeySaveFeedback?
     @State private var isCheckingAPIKey = false
     @State private var newKeyterm = ""
     @State private var message: String?
     @FocusState private var apiKeyFieldFocused: Bool
+    @State private var activeShortcutRecorderID: String?
+
+    init(onShortcutConfigurationCaptureChanged: @escaping (Bool) -> Void = { _ in }) {
+        self.onShortcutConfigurationCaptureChanged = onShortcutConfigurationCaptureChanged
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -492,18 +501,59 @@ struct SettingsView: View {
             Section("Shortcuts") {
                 ShortcutRecorderView(
                     title: "Hold to Dictate",
+                    identifier: "hold",
                     isEnabled: $runtime.preferences.holdShortcutEnabled,
                     chord: $runtime.preferences.holdShortcut,
-                    conflictingChord: runtime.preferences.toggleShortcutEnabled ? runtime.preferences.toggleShortcut : nil
+                    activeRecorderID: $activeShortcutRecorderID,
+                    conflictingChord: runtime.preferences.toggleShortcutEnabled ? runtime.preferences.toggleShortcut : nil,
+                    isCaptureAllowed: !runtime.coordinator.phase.isBusy
                 )
                 ShortcutRecorderView(
                     title: "Hands-free Toggle",
+                    identifier: "toggle",
                     isEnabled: $runtime.preferences.toggleShortcutEnabled,
                     chord: $runtime.preferences.toggleShortcut,
-                    conflictingChord: runtime.preferences.holdShortcutEnabled ? runtime.preferences.holdShortcut : nil
+                    activeRecorderID: $activeShortcutRecorderID,
+                    conflictingChord: runtime.preferences.holdShortcutEnabled ? runtime.preferences.holdShortcut : nil,
+                    isCaptureAllowed: !runtime.coordinator.phase.isBusy
                 )
                 Text("Modifier-only chords are supported. Press Escape while recording a binding to cancel.")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+            .onChange(of: activeShortcutRecorderID) { _, activeRecorderID in
+                onShortcutConfigurationCaptureChanged(activeRecorderID != nil)
+            }
+            .onChange(of: runtime.coordinator.phase.isBusy) { _, isBusy in
+                if isBusy { activeShortcutRecorderID = nil }
+            }
+            Section("Feedback") {
+                Toggle(
+                    "Play recording feedback sounds",
+                    isOn: $runtime.preferences.playRecordingFeedbackSounds
+                )
+                .accessibilityIdentifier("recording-feedback-sounds-toggle")
+
+                Toggle(
+                    "Mute other audio while recording",
+                    isOn: $runtime.preferences.muteOtherAudioWhileRecording
+                )
+                .accessibilityIdentifier("mute-other-audio-toggle")
+                Text("Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Scriber never records or saves system audio.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let status = runtime.coordinator.otherAudioMuteStatus {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(status.message, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .accessibilityIdentifier("other-audio-mute-status")
+                        Button("Open Privacy & Security") {
+                            runtime.coordinator.openSystemAudioPrivacySettings()
+                        }
+                        .font(.caption)
+                    }
+                }
             }
             Section("Personal Dictionary") {
                 HStack {
@@ -561,6 +611,10 @@ struct SettingsView: View {
             }
             .onChange(of: apiKey) { _, newValue in
                 if !newValue.isEmpty { keyFeedback = nil }
+            }
+            .onDisappear {
+                activeShortcutRecorderID = nil
+                onShortcutConfigurationCaptureChanged(false)
             }
         }
     }
@@ -840,6 +894,13 @@ struct OnboardingView: View {
                 .padding(.vertical, 12)
             }
             VStack(alignment: .leading, spacing: 12) {
+                Toggle(
+                    "Mute other audio while recording",
+                    isOn: $runtime.preferences.muteOtherAudioWhileRecording
+                )
+                Text("Other apps continue playing silently while you dictate. macOS may ask for System Audio Recording access; Scriber never records or saves that audio.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("Launch Scriber when I log in", isOn: $runtime.preferences.launchAtLoginRequested)
                 Text("Defaults: Hold \(runtime.preferences.holdShortcut.displayName) · Toggle \(runtime.preferences.toggleShortcut.displayName)")
                     .font(.caption)

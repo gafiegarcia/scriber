@@ -26,6 +26,7 @@ final class GlobalShortcutService {
     private var holdEnabled: Bool
     private var toggleEnabled: Bool
     private var mode: ShortcutMonitorMode = .idle
+    private var isConfigurationCaptureActive = false
     private var holdLatched = false
     private var toggleLatched = false
     private var suppressedKeyCodes = Set<UInt16>()
@@ -53,6 +54,13 @@ final class GlobalShortcutService {
     func setMode(_ mode: ShortcutMonitorMode) {
         self.mode = mode
         if mode == .idle || mode == .busy { resetLatches() }
+    }
+
+    /// Leaves the event tap running while a Settings shortcut recorder owns
+    /// keyboard input, but passes all events through without interpretation.
+    func setConfigurationCaptureActive(_ active: Bool) {
+        isConfigurationCaptureActive = active
+        resetLatches()
     }
 
     func start() {
@@ -116,6 +124,8 @@ final class GlobalShortcutService {
     }
 
     private func process(_ event: EventSnapshot) -> Bool {
+        guard !isConfigurationCaptureActive else { return false }
+
         if event.type == .keyDown, event.keyCode == 53 {
             return onEscape?() ?? false
         }

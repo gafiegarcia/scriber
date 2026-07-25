@@ -23,6 +23,8 @@ final class Preferences: ObservableObject {
         static let showInMenuBar = "showInMenuBar"
         static let showAppInDock = "showAppInDock"
         static let audioInputSelection = "audioInputSelection"
+        static let playRecordingFeedbackSounds = "playRecordingFeedbackSounds"
+        static let muteOtherAudioWhileRecording = "muteOtherAudioWhileRecording"
     }
 
     private let defaults: UserDefaults
@@ -50,6 +52,12 @@ final class Preferences: ObservableObject {
         }
     }
     @Published var audioInputSelection: AudioInputSelection { didSet { save(audioInputSelection, key: Keys.audioInputSelection) } }
+    @Published var playRecordingFeedbackSounds: Bool {
+        didSet { defaults.set(playRecordingFeedbackSounds, forKey: Keys.playRecordingFeedbackSounds) }
+    }
+    @Published var muteOtherAudioWhileRecording: Bool {
+        didSet { defaults.set(muteOtherAudioWhileRecording, forKey: Keys.muteOtherAudioWhileRecording) }
+    }
 
     init(
         defaults: UserDefaults = .standard,
@@ -72,6 +80,20 @@ final class Preferences: ObservableObject {
         showInMenuBar = defaults.object(forKey: Keys.showInMenuBar) == nil ? true : defaults.bool(forKey: Keys.showInMenuBar)
         showAppInDock = defaults.bool(forKey: Keys.showAppInDock)
         audioInputSelection = Self.decode(AudioInputSelection.self, key: Keys.audioInputSelection, defaults: defaults) ?? defaultAudioInputSelection
+        playRecordingFeedbackSounds = defaults.object(forKey: Keys.playRecordingFeedbackSounds) == nil
+            ? true
+            : defaults.bool(forKey: Keys.playRecordingFeedbackSounds)
+        muteOtherAudioWhileRecording = defaults.object(forKey: Keys.muteOtherAudioWhileRecording) == nil
+            ? true
+            : defaults.bool(forKey: Keys.muteOtherAudioWhileRecording)
+
+        // Materialize opt-in defaults so upgrades and subsequent launches share one explicit value.
+        if defaults.object(forKey: Keys.playRecordingFeedbackSounds) == nil {
+            defaults.set(true, forKey: Keys.playRecordingFeedbackSounds)
+        }
+        if defaults.object(forKey: Keys.muteOtherAudioWhileRecording) == nil {
+            defaults.set(true, forKey: Keys.muteOtherAudioWhileRecording)
+        }
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

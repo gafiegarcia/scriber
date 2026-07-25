@@ -35,6 +35,68 @@ struct ShortcutMatcherTests {
         #expect(!AppPhase.message("Still transcribing").isBusy)
         #expect(!AppPhase.pasteFailed("No target").isBusy)
     }
+
+    @Test("Modifier recorder commits the largest simultaneous snapshot")
+    func modifierRecorderCapturesFullChord() {
+        var capture = ModifierChordCaptureState()
+        capture.observe([.function])
+        capture.observe([.function, .control])
+        capture.observe([.function, .control, .option])
+        capture.observe([.function, .option])
+
+        #expect(capture.commitWhenAllModifiersReleased(currentModifiers: []) == ShortcutChord(
+            modifiers: [.function, .control, .option],
+            keyCode: nil
+        ))
+    }
+
+    @Test("Modifier recorder does not union separate snapshots")
+    func modifierRecorderDoesNotInventChord() {
+        var capture = ModifierChordCaptureState()
+        capture.observe([.function, .control])
+        capture.observe([.function, .option])
+
+        #expect(capture.commitWhenAllModifiersReleased(currentModifiers: []) == ShortcutChord(
+            modifiers: [.function, .control],
+            keyCode: nil
+        ))
+    }
+
+    @Test("Modifier recorder waits until every modifier is released")
+    func modifierRecorderWaitsForRelease() {
+        var capture = ModifierChordCaptureState()
+        capture.observe([.function, .control, .option])
+
+        #expect(capture.commitWhenAllModifiersReleased(currentModifiers: [.function, .control]) == nil)
+        #expect(capture.commitWhenAllModifiersReleased(currentModifiers: []) == ShortcutChord(
+            modifiers: [.function, .control, .option],
+            keyCode: nil
+        ))
+    }
+
+    @Test("Modifier recorder retains the chord through every release order")
+    func modifierRecorderHandlesAllReleaseOrders() {
+        let fullChord: KeyModifiers = [.function, .control, .option]
+        let releaseOrders: [[KeyModifiers]] = [
+            [.function, .control, .option], [.function, .option, .control],
+            [.control, .function, .option], [.control, .option, .function],
+            [.option, .function, .control], [.option, .control, .function]
+        ]
+
+        for releaseOrder in releaseOrders {
+            var capture = ModifierChordCaptureState()
+            capture.observe(fullChord)
+            var remaining = fullChord
+            for modifier in releaseOrder {
+                remaining.remove(modifier)
+                capture.observe(remaining)
+            }
+            #expect(capture.commitWhenAllModifiersReleased(currentModifiers: []) == ShortcutChord(
+                modifiers: fullChord,
+                keyCode: nil
+            ))
+        }
+    }
 }
 
 @Suite("Permission readiness")

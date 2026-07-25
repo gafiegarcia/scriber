@@ -19,6 +19,7 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Default Hold shortcut: hold `Fn` to record; release it to stop and transcribe.
 - Default Toggle shortcut: press `Fn-Space` to start hands-free recording; press the configured Toggle shortcut again to stop and transcribe. Hold never stops a hands-free recording.
 - Both bindings are configurable.
+- While either binding is being configured, all existing global shortcut matching is suspended without removing the Accessibility event tap. Only one shortcut recorder may listen at a time, recognized keys are displayed live, and modifier-only chords preserve the largest combination that was actually held simultaneously.
 - Each binding can be disabled independently without losing its configured chord; both are enabled by default. Menu-started hands-free dictation remains available when its keyboard binding is disabled.
 - A custom Hold chord such as `Fn-Control-Option` must coexist correctly with Toggle.
 - While converting a held recording to hands-free, modifiers used only by Hold are ignored when matching Toggle. Stopping a locked recording requires the exact configured Toggle chord; the Hold chord is ignored while locked.
@@ -29,6 +30,9 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 
 ## Recording and transcription
 
+- Recording feedback sounds are enabled by default and configurable as one setting. Play the built-in macOS Frog sound only after capture starts successfully, Bottle once for a terminal recording or transcription failure, and Morse once when recording is cancelled or automatic paste falls back to a copied transcript. Silence, no-content output, and retry waits remain silent.
+- Muting other app audio while recording is enabled by default and offered during onboarding. A private Core Audio process tap silences all audio except Scriber's while playback continues; destroy the tap as soon as capture stops or is cancelled. Never pause or resume another app, and never read, inspect, log, or persist tap audio.
+- Failure to create the other-audio mute tap must never prevent dictation. Keep recording unmuted and expose the unavailable state in Settings.
 - Use ElevenLabs Scribe v2 batch transcription with `no_verbatim=true` and no secondary rewrite model.
 - Include personal keyterms after validating them against Scribe limits.
 - Retry transient failures up to three total attempts, waiting 3 seconds and then 5 seconds.
@@ -63,6 +67,7 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 
 - Microphone permission is required for recording.
 - Accessibility permission is required for global shortcut interception and cross-app insertion.
+- The system-audio usage description exists solely for optional recording-time muting. Scriber drives its private mute tap with a private aggregate device and an IOProc whose callback discards the buffers untouched; it never inspects, copies, records, or saves system-audio samples.
 - After onboarding, missing or revoked Microphone or Accessibility permission must be visible immediately in the Dictation window and menu bar. Scriber must present an actionable permission pill on launch, when a grant is revoked, and when it can observe an attempted dictation; the pill and in-app warning route to Scriber Settings.
 - Accessibility revocation prevents Scriber from observing the global shortcut itself, so Scriber must monitor permission state independently, stop unavailable shortcut monitoring, and restart it automatically when the grant returns. It must never rely on the blocked keypress as the only warning path.
 - Launch at Login is optional, offered during onboarding, defaults on, and requires explicit consent.

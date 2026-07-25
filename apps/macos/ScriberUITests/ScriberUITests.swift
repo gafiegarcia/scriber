@@ -218,6 +218,33 @@ final class ScriberUITests: XCTestCase {
         )
     }
 
+    func testRecordingFeedbackDefaultsCanBeDisabled() async {
+        let app = await launchApp()
+        defer { app.terminate() }
+
+        let settingsRow = element(in: app, identifier: "sidebar-settings")
+        let settingsAppeared = await waitForExistence(settingsRow, timeout: 3)
+        XCTAssertTrue(settingsAppeared)
+        settingsRow.click()
+
+        let soundToggle = element(in: app, identifier: "recording-feedback-sounds-toggle")
+        let muteToggle = element(in: app, identifier: "mute-other-audio-toggle")
+        app.scrollViews.firstMatch.swipeUp()
+
+        let soundToggleAppeared = await waitForExistence(soundToggle, timeout: 3)
+        let muteToggleAppeared = await waitForExistence(muteToggle, timeout: 3)
+        XCTAssertTrue(soundToggleAppeared)
+        XCTAssertTrue(muteToggleAppeared)
+        XCTAssertEqual(soundToggle.value as? String, "1")
+        XCTAssertEqual(muteToggle.value as? String, "1")
+
+        soundToggle.click()
+        muteToggle.click()
+
+        XCTAssertEqual(soundToggle.value as? String, "0")
+        XCTAssertEqual(muteToggle.value as? String, "0")
+    }
+
     func testMissingPermissionsAreVisibleAndPillRoutesToSettings() async {
         let app = await launchApp(additionalArguments: [
             "--ui-testing-missing-permissions",

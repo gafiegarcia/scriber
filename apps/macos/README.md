@@ -28,8 +28,9 @@ Onboarding asks for:
 - Microphone access for recording.
 - Accessibility access for global shortcuts and cross-app text insertion.
 - Optional Launch at Login registration.
+- Whether to mute all other app audio during recording. This uses a private Core Audio mute tap driven by a private aggregate device; the callback discards every buffer without inspecting, copying, or saving system-audio samples.
 
-Default shortcuts are Hold `Fn` and Toggle `Fn-Space`. If macOS still performs a configured Globe/Fn action during hardware testing, set the Globe/Fn action to “Do Nothing” in System Settings.
+Default shortcuts are Hold `Fn` and Toggle `Fn-Space`. Recording feedback uses the built-in Frog sound for a successful start, Bottle for a terminal failure, and Morse for cancellation or copied paste fallback; feedback sounds and other-audio muting can be disabled in Settings. Shortcut configuration shows the recognized chord as it is pressed. If macOS still performs a configured Globe/Fn action during hardware testing, set the Globe/Fn action to “Do Nothing” in System Settings.
 
 ## Documentation
 

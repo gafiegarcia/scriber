@@ -48,6 +48,37 @@ public struct ShortcutChord: Codable, Hashable, Sendable {
     }
 }
 
+/// Captures a modifier-only shortcut without replacing a complete chord while
+/// its modifiers are released one at a time.
+public struct ModifierChordCaptureState: Equatable, Sendable {
+    public private(set) var peakModifiers: KeyModifiers = []
+
+    public init() {}
+
+    /// Records a simultaneous modifier snapshot. Equal-sized snapshots retain
+    /// the first observed chord rather than combining keys that were never
+    /// held together.
+    public mutating func observe(_ modifiers: KeyModifiers) {
+        guard !modifiers.isEmpty else { return }
+        guard modifiers.rawValue.nonzeroBitCount > peakModifiers.rawValue.nonzeroBitCount else { return }
+        peakModifiers = modifiers
+    }
+
+    /// Returns the complete modifier-only chord once every modifier has been
+    /// released, then resets for the next capture.
+    public mutating func commitWhenAllModifiersReleased(
+        currentModifiers: KeyModifiers
+    ) -> ShortcutChord? {
+        guard currentModifiers.isEmpty, !peakModifiers.isEmpty else { return nil }
+        defer { reset() }
+        return ShortcutChord(modifiers: peakModifiers, keyCode: nil)
+    }
+
+    public mutating func reset() {
+        peakModifiers = []
+    }
+}
+
 public enum KeyCodeNames {
     public static func name(for keyCode: UInt16) -> String {
         switch keyCode {
