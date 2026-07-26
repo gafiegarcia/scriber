@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import os
 import SwiftData
 import SwiftUI
 
@@ -257,6 +258,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var observers: [NSObjectProtocol] = []
     private var activationRetryTask: Task<Void, Never>?
     private var showAppInDock = false
+    /// Set the moment the user closes a managed window, so the startup show
+    /// sequence stops trying to put that window back on screen.
+    private var initialWindowDismissed = false
+
+    // Temporary: traces which path orders the startup window back on screen after
+    // an early Command-W. Records only window titles, booleans, and policies.
+    private static let windowLog = Logger(subsystem: "com.gafiegarcia.scriber", category: "window-lifecycle")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         showAppInDock = AppLaunchConfiguration.isUITesting
@@ -275,6 +283,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         })
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self] note in
             guard let window = note.object as? NSWindow else { return }
+            // Record the dismissal synchronously. `willCloseNotification` is posted on
+            // the main queue, and the startup poll can wake in the very same millisecond
+            // — deferring this to a Task hop loses that race and the window comes back.
+            MainActor.assumeIsolated {
+                guard AppWindowIdentity.isManagedWindow(window) else { return }
+                Self.windowLog.notice("willClose: title=\(window.title, privacy: .public)")
+                self?.initialWindowDismissed = true
+                self?.activationRetryTask?.cancel()
+                self?.activationRetryTask = nil
+            }
             Task { @MainActor [weak self] in
                 guard AppWindowIdentity.isManagedWindow(window) else { return }
                 await Task.yield()
@@ -321,9 +339,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let title = onboardingComplete ? AppWindowIdentity.mainTitle : AppWindowIdentity.onboardingTitle
         for _ in 0..<40 {
             guard !Task.isCancelled else { return }
+            guard !initialWindowDismissed else {
+                Self.windowLog.notice("initialWindowPoll: abandoned, user dismissed the window")
+                return
+            }
             if showWindow(titled: title) { return }
             try? await Task.sleep(for: .milliseconds(50))
         }
+        Self.windowLog.notice("initialWindowPoll: exhausted without finding \(title, privacy: .public)")
     }
 
     @discardableResult
@@ -331,6 +354,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let window = NSApp.windows.first(where: {
             AppWindowIdentity.isManagedWindow($0) && $0.title == title
         }) else { return false }
+        Self.windowLog.notice(
+            "showWindow: ordering front title=\(title, privacy: .public) wasVisible=\(window.isVisible, privacy: .public)"
+        )
         let previouslyActiveApplication = NSWorkspace.shared.frontmostApplication
         activationRetryTask?.cancel()
         NSApp.setActivationPolicy(.regular)
@@ -361,7 +387,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             try? await Task.sleep(for: .milliseconds(50))
             guard !Task.isCancelled else { return }
-            if !currentApplication.isActive {
+            // A window closed between the two activation attempts must stay closed.
+            // Without this visibility check the retry orders a just-dismissed window
+            // back on screen, and the reconcile below then sees it and holds the
+            // process in regular activation policy.
+            if window.isVisible, !currentApplication.isActive {
+                Self.windowLog.notice("retry: reactivating a still-visible startup window")
                 _ = currentApplication.activate(options: [.activateAllWindows])
                 NSApp.activate()
                 window.makeKeyAndOrderFront(nil)
@@ -384,6 +415,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ? .regular
             : .accessory
         guard NSApp.activationPolicy() != policy else { return }
-        NSApp.setActivationPolicy(policy)
+        let applied = NSApp.setActivationPolicy(policy)
+        Self.windowLog.notice(
+            "reconcile: policy=\(policy == .regular ? "regular" : "accessory", privacy: .public) hasVisibleManaged=\(self.hasVisibleManagedWindow, privacy: .public) applied=\(applied, privacy: .public)"
+        )
     }
 }
