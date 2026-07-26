@@ -227,22 +227,35 @@ final class ScriberUITests: XCTestCase {
         XCTAssertTrue(settingsAppeared)
         settingsRow.click()
 
-        let soundToggle = element(in: app, identifier: "recording-feedback-sounds-toggle")
-        let muteToggle = element(in: app, identifier: "mute-other-audio-toggle")
+        // Query the switches directly. A `descendants(matching: .any)` lookup resolves
+        // to the enclosing container, whose `value` is nil rather than the toggle state.
+        let soundToggle = app.switches["recording-feedback-sounds-toggle"].firstMatch
+        let muteToggle = app.switches["mute-other-audio-toggle"].firstMatch
         app.scrollViews.firstMatch.swipeUp()
 
         let soundToggleAppeared = await waitForExistence(soundToggle, timeout: 3)
         let muteToggleAppeared = await waitForExistence(muteToggle, timeout: 3)
         XCTAssertTrue(soundToggleAppeared)
         XCTAssertTrue(muteToggleAppeared)
-        XCTAssertEqual(soundToggle.value as? String, "1")
-        XCTAssertEqual(muteToggle.value as? String, "1")
+        XCTAssertEqual(isOn(soundToggle), true)
+        XCTAssertEqual(isOn(muteToggle), true)
 
         soundToggle.click()
         muteToggle.click()
 
-        XCTAssertEqual(soundToggle.value as? String, "0")
-        XCTAssertEqual(muteToggle.value as? String, "0")
+        XCTAssertEqual(isOn(soundToggle), false)
+        XCTAssertEqual(isOn(muteToggle), false)
+    }
+
+    /// A macOS checkbox reports its state as a boxed `Int` or `Bool`, not the `String`
+    /// an iOS switch returns, so `value as? String` is always nil here.
+    private func isOn(_ element: XCUIElement) -> Bool? {
+        switch element.value {
+        case let flag as Bool: return flag
+        case let number as Int: return number != 0
+        case let text as String: return text == "1"
+        default: return nil
+        }
     }
 
     func testMissingPermissionsAreVisibleAndPillRoutesToSettings() async {
