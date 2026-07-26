@@ -17,6 +17,7 @@ enum MainWindowDestination: Hashable {
     case settings
     case apiKey
     case usage
+    case microphone
 }
 
 struct MainWindowRequest: Equatable {
@@ -108,6 +109,7 @@ final class AppCoordinator: ObservableObject {
         pill.model.onOpenAPIKeySettings = { [weak self] in self?.openAPIKeySettings() }
         pill.model.onOpenUsageSettings = { [weak self] in self?.openUsageSettings() }
         pill.model.onOpenPermissionSettings = { [weak self] in self?.openPermissionSettings() }
+        pill.model.onOpenInputSettings = { [weak self] in self?.openMicrophoneInputSettings() }
         pill.model.onRetry = { [weak self] in self?.retryCurrentFailure() }
         pill.model.onUndo = { [weak self] in self?.undoCancelledDictation() }
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
@@ -242,6 +244,7 @@ final class AppCoordinator: ObservableObject {
         case .credentialsUnusable(let readiness): readiness.title
         case .pasteFailed: "Paste failed"
         case .transcriptionFailed: "Transcription failed"
+        case .noSpeechDetected: "No words detected"
         case .message(let value): value
         }
     }
@@ -594,7 +597,7 @@ final class AppCoordinator: ObservableObject {
         guard preferences.onboardingComplete else { return }
         switch phase {
         case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
-             .credentialsUnusable, .pasteFailed, .transcriptionFailed:
+             .credentialsUnusable, .pasteFailed, .transcriptionFailed, .noSpeechDetected:
             startRecording(mode: .locked)
         case .recording:
             stopAndTranscribe()
@@ -883,13 +886,28 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+    /// ElevenLabs returned a transcript with no words in it. The dictation is
+    /// discarded as before — nothing useful was captured and an empty history row
+    /// would be noise — but it no longer happens silently. A dead or wrongly
+    /// selected input is the likeliest cause, and a user who cannot tell the
+    /// difference between "no words" and "nothing happened" has no way to find it.
     private func discardNoContent(record: DictationRecord, recording: CompletedRecording) {
         AudioRecorder.delete(relativePath: recording.relativePath)
         modelContext.delete(record)
         try? modelContext.save()
         currentRecord = nil
         currentRecording = nil
-        returnToIdle()
+        endOtherAudioMuting()
+        paste.clearTarget()
+        pill.setPreferredScreen(nil)
+        shortcuts.setMode(.idle)
+        playFeedback(.terminalFailure)
+        suppressPillForCurrentTranscription = false
+        setPhase(.noSpeechDetected)
+    }
+
+    func openMicrophoneInputSettings() {
+        openMainWindow(destination: .microphone)
     }
 
     private func cancelRecording() {

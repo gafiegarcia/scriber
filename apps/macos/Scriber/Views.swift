@@ -97,7 +97,7 @@ struct MainWindowView: View {
 
     private func focusSidebarIfAppropriate() {
         switch runtime.coordinator.mainWindowRequest?.destination {
-        case .apiKey, .usage:
+        case .apiKey, .usage, .microphone:
             return
         case .dictation, .settings, nil:
             DispatchQueue.main.async { sidebarFocused = true }
@@ -733,6 +733,7 @@ struct SettingsView: View {
                     microphonePermissionButton
                 }
                 MicrophonePicker()
+                    .id(MainWindowDestination.microphone)
             }
             if let message { Text(message).foregroundStyle(.secondary) }
             }
@@ -775,6 +776,9 @@ struct SettingsView: View {
         case .usage:
             apiKeyFieldFocused = false
             proxy.scrollTo(MainWindowDestination.usage, anchor: .center)
+        case .microphone:
+            apiKeyFieldFocused = false
+            proxy.scrollTo(MainWindowDestination.microphone, anchor: .center)
         case .dictation, .settings:
             apiKeyFieldFocused = false
         }

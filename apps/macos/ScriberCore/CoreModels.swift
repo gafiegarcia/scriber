@@ -294,6 +294,9 @@ public enum AppPhase: Equatable, Sendable {
     case credentialsUnusable(CredentialReadiness)
     case pasteFailed(String)
     case transcriptionFailed(String)
+    /// The transcription succeeded but contained no words. Usually a misconfigured
+    /// or dead input rather than a genuine silence, so it routes to input settings.
+    case noSpeechDetected
     case message(String)
 
     public var isBusy: Bool {
@@ -416,7 +419,7 @@ public extension AppPhase {
         case .recording: .cancelRecording
         case .transcribing: .hideTranscription
         case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
-             .pasteFailed, .transcriptionFailed, .message: .dismiss
+             .pasteFailed, .transcriptionFailed, .noSpeechDetected, .message: .dismiss
         }
     }
 }

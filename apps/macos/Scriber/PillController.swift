@@ -44,6 +44,7 @@ final class PillModel: ObservableObject {
     var onOpenAPIKeySettings: (() -> Void)?
     var onOpenUsageSettings: (() -> Void)?
     var onOpenPermissionSettings: (() -> Void)?
+    var onOpenInputSettings: (() -> Void)?
     var onRetry: (() -> Void)?
     var onUndo: (() -> Void)?
     var onDismiss: (() -> Void)?
@@ -197,7 +198,8 @@ final class PillController {
             8
         case .dictationCopied:
             5
-        case .cancelledTranscript, .credentialsUnusable, .pasteFailed, .transcriptionFailed:
+        case .cancelledTranscript, .credentialsUnusable, .pasteFailed, .transcriptionFailed,
+             .noSpeechDetected:
             6
         default:
             nil
@@ -216,6 +218,8 @@ final class PillController {
             NSSize(width: 430, height: 60)
         case .pasteFailed, .transcriptionFailed:
             NSSize(width: 390, height: 60)
+        case .noSpeechDetected:
+            NSSize(width: 430, height: 60)
         default:
             NSSize(width: 280, height: 52)
         }
@@ -472,6 +476,8 @@ private struct PillView: View {
             ProgressView().controlSize(.small)
         case .dictationCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+        case .noSpeechDetected:
+            Image(systemName: "mic.slash.fill").foregroundStyle(.orange)
         case .cancelledTranscript, .permissionsRequired, .credentialsUnusable,
              .pasteFailed, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -493,6 +499,7 @@ private struct PillView: View {
         case .credentialsUnusable(let readiness): readiness.title
         case .pasteFailed: "Couldn't paste automatically"
         case .transcriptionFailed: "Transcription failed"
+        case .noSpeechDetected: "No words detected"
         case .message(let value): value
         }
     }
@@ -506,6 +513,7 @@ private struct PillView: View {
         case .permissionsRequired(let missing):
             PermissionReadiness(missingPermissions: missing).recoveryMessage
         case .dictationCopied(_, let message), .pasteFailed(let message), .transcriptionFailed(let message): message
+        case .noSpeechDetected: "Check that the right microphone is selected and picking up sound"
         default: nil
         }
     }
@@ -535,6 +543,11 @@ private struct PillView: View {
         case .transcriptionFailed:
             Button("Retry") { model.onRetry?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("Open") { model.onOpen?() }.controlSize(.small)
+            dismissButton
+        case .noSpeechDetected:
+            Button("Check Input") { model.onOpenInputSettings?() }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
             dismissButton
         default:
             EmptyView()
