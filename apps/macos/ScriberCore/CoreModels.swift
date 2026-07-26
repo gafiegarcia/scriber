@@ -454,6 +454,35 @@ public enum TextInputTargetPolicy {
     }
 }
 
+public enum KeyboardFocusRedirectPolicy {
+    /// Whether delivery should follow keyboard focus into a process other than
+    /// the frontmost one.
+    ///
+    /// An accessory (`LSUIElement`) app can present a nonactivating panel that
+    /// takes keyboard focus without ever becoming frontmost. Raycast's command
+    /// bar does this, and so does Scriber's own pill. Typing follows keyboard
+    /// focus, so dictation must too — otherwise the transcript lands in the
+    /// window the user visibly left behind.
+    ///
+    /// Redirection is deliberately narrow. It requires a different process that
+    /// genuinely exposes a focused text input, so an ordinary app whose focus and
+    /// frontmost status agree is never affected.
+    ///
+    /// Scriber never redirects to itself. That keeps the pill from becoming its
+    /// own paste target without blocking Scriber's ordinary windows, which are
+    /// frontmost when focused and therefore need no redirect.
+    public static func redirects(
+        focusOwnerPID: Int32,
+        frontmostPID: Int32,
+        scriberPID: Int32,
+        focusExposesTextInput: Bool
+    ) -> Bool {
+        focusOwnerPID != frontmostPID
+            && focusOwnerPID != scriberPID
+            && focusExposesTextInput
+    }
+}
+
 public enum PasteConfirmationPolicy {
     public static func confirmsInsertion(
         accessibilityMutationObserved: Bool,

@@ -238,6 +238,64 @@ struct PillShapeTests {
     }
 }
 
+@Suite("Keyboard focus redirect")
+struct KeyboardFocusRedirectPolicyTests {
+    private let scriber: Int32 = 100
+    private let frontmost: Int32 = 200
+    private let panelOwner: Int32 = 300
+
+    @Test("Follows focus into a nonactivating panel that owns a text field")
+    func followsFocusIntoPanel() {
+        // Observed live: Raycast's command bar is an AXTextField owned by an
+        // LSUIElement process, while Finder remained frontmost.
+        #expect(KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: panelOwner,
+            frontmostPID: frontmost,
+            scriberPID: scriber,
+            focusExposesTextInput: true
+        ))
+    }
+
+    @Test("Leaves an ordinary app alone")
+    func ordinaryAppIsUnaffected() {
+        #expect(!KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: frontmost,
+            frontmostPID: frontmost,
+            scriberPID: scriber,
+            focusExposesTextInput: true
+        ))
+    }
+
+    @Test("Never redirects into a focus with no text input")
+    func requiresTextInput() {
+        #expect(!KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: panelOwner,
+            frontmostPID: frontmost,
+            scriberPID: scriber,
+            focusExposesTextInput: false
+        ))
+    }
+
+    @Test("Never redirects into Scriber itself")
+    func neverTargetsScriber() {
+        // Scriber's pill is the same species of nonactivating panel. Its own
+        // windows need no redirect: they are frontmost when focused, so the
+        // Dictation search field stays reachable.
+        #expect(!KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: scriber,
+            frontmostPID: frontmost,
+            scriberPID: scriber,
+            focusExposesTextInput: true
+        ))
+        #expect(!KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: scriber,
+            frontmostPID: scriber,
+            scriberPID: scriber,
+            focusExposesTextInput: true
+        ))
+    }
+}
+
 @Suite("Paste confirmation")
 struct PasteConfirmationTests {
     @Test("Confirms an observable Accessibility mutation")

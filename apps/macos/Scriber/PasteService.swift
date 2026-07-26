@@ -142,8 +142,7 @@ final class PasteService {
     // MARK: - Target discovery
 
     private func currentFocusedPasteTarget() -> FocusedTextTarget? {
-        guard let runningApplication = NSWorkspace.shared.frontmostApplication else { return nil }
-        let pid = runningApplication.processIdentifier
+        guard let pid = currentTargetPID() else { return nil }
         let application = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(application, Self.accessibilityMessagingTimeout)
 
@@ -161,6 +160,32 @@ final class PasteService {
             observationElements: observationElements,
             focusContainsTextInput: !observationElements.isEmpty
         )
+    }
+
+    /// The process delivery should paste into.
+    ///
+    /// Normally the frontmost application, but keyboard focus wins when the two
+    /// disagree. An accessory app presenting a nonactivating panel — Raycast's
+    /// command bar, and Scriber's own pill — holds focus without ever becoming
+    /// frontmost, and delivery must follow the caret the user can actually see.
+    private func currentTargetPID() -> pid_t? {
+        guard let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier else { return nil }
+        return keyboardFocusOwner(frontmostPID: frontmostPID) ?? frontmostPID
+    }
+
+    private func keyboardFocusOwner(frontmostPID: pid_t) -> pid_t? {
+        let systemWide = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(systemWide, Self.accessibilityMessagingTimeout)
+        guard let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) else { return nil }
+        var focusOwnerPID: pid_t = 0
+        guard AXUIElementGetPid(focused, &focusOwnerPID) == .success else { return nil }
+        guard KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: focusOwnerPID,
+            frontmostPID: frontmostPID,
+            scriberPID: ProcessInfo.processInfo.processIdentifier,
+            focusExposesTextInput: containsTextInput(ancestry(of: focused))
+        ) else { return nil }
+        return focusOwnerPID
     }
 
     /// The focused element's bounded ancestry, but only when that focus actually
@@ -256,7 +281,9 @@ final class PasteService {
     // MARK: - Delivery
 
     private func pasteAtCurrentSelection(_ text: String, into currentTarget: FocusedTextTarget) async -> PasteResult {
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == currentTarget.pid else {
+        // Re-resolve rather than comparing against the frontmost app: when focus
+        // sits in a nonactivating panel the target is deliberately not frontmost.
+        guard currentTargetPID() == currentTarget.pid else {
             return .failed("The focused app changed before Scriber could paste.")
         }
 
