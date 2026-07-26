@@ -232,9 +232,9 @@ struct DictationHistoryView: View {
             // inside the card, which is deliberately tight.
             .listRowInsets(EdgeInsets(
                 top: 10,
-                leading: DictationHistoryGroupBackground.horizontalInset + 10,
+                leading: DictationHistoryGroupBackground.horizontalInset + 8,
                 bottom: 10,
-                trailing: DictationHistoryGroupBackground.horizontalInset + 10
+                trailing: DictationHistoryGroupBackground.horizontalInset + 8
             ))
             // The card and the gaps between groups carry the grouping. Row rules
             // inside a bordered card only added a second, competing division.
@@ -327,11 +327,13 @@ struct DictationHistoryView: View {
                             .foregroundStyle(.primary)
                             .padding(.top, 26)
                             .padding(.bottom, 14)
+                            // Exactly the card inset, so the label's leading edge
+                            // lines up with the card edge below it.
                             .listRowInsets(EdgeInsets(
                                 top: 0,
-                                leading: DictationHistoryGroupBackground.horizontalInset + 4,
+                                leading: DictationHistoryGroupBackground.horizontalInset,
                                 bottom: 0,
-                                trailing: DictationHistoryGroupBackground.horizontalInset + 4
+                                trailing: DictationHistoryGroupBackground.horizontalInset
                             ))
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
@@ -497,6 +499,18 @@ private struct DictationHistoryGroupBackground: View {
         // `windowBackgroundColor` is nearly identical in dark mode.
         shape
             .fill(Color.primary.opacity(0.06))
+            // Drawn here rather than through `listRowSeparator`, which spans the
+            // whole row and would run past the card onto the page. This one is
+            // clipped to the card and crosses the full width, including under the
+            // time, so an entry is divided from the one above it rather than
+            // having its timestamp float free.
+            .overlay(alignment: .bottom) {
+                if !isLast {
+                    Rectangle()
+                        .fill(.separator)
+                        .frame(height: 1)
+                }
+            }
             .padding(.horizontal, Self.horizontalInset)
     }
 }
@@ -523,7 +537,7 @@ private struct DictationHistoryRow: View {
     // stranding a gap after it. Kept narrow and monospaced-digit: trailing
     // alignment moves any slack to the card edge instead, where it reads as
     // excess padding.
-    fileprivate static let timeColumnWidth: CGFloat = 44
+    fileprivate static let timeColumnWidth: CGFloat = 38
 
     private var timeColumnWidth: CGFloat { Self.timeColumnWidth }
 
