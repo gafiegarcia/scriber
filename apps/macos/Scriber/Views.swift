@@ -231,10 +231,10 @@ struct DictationHistoryView: View {
             // Leading/trailing clear the card inset first, then add the padding
             // inside the card, which is deliberately tight.
             .listRowInsets(EdgeInsets(
-                top: 14,
+                top: 10,
                 leading: DictationHistoryGroupBackground.horizontalInset
                     + DictationHistoryGroupBackground.contentInset,
-                bottom: 14,
+                bottom: 10,
                 trailing: DictationHistoryGroupBackground.horizontalInset
                     + DictationHistoryGroupBackground.contentInset
             ))
@@ -623,9 +623,10 @@ private struct DictationHistoryRow: View {
                     .controlSize(.small)
                     .frame(minWidth: 48)
             } else if record.isRetryable, record.pendingAudioRelativePath != nil {
+                // Regular size: at `.small` the button looked undersized once the
+                // transcript grew to 14pt and the rows opened up around it.
                 Button("Retry") { runtime.coordinator.retry(record) }
                     .buttonStyle(.bordered)
-                    .controlSize(.small)
                     .disabled(runtime.coordinator.phase.isBusy)
             }
             Menu {
@@ -637,7 +638,7 @@ private struct DictationHistoryRow: View {
             .menuIndicator(.hidden)
             .frame(width: 24)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         // Full-width within the card. Insetting past the time column left the
         // time visually unseparated from the entry above it.
         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
