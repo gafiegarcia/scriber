@@ -251,11 +251,26 @@ private struct MainWindowCommands: Commands {
             Button("Settings…") { openSettings() }
                 .keyboardShortcut(",", modifiers: .command)
         }
+        CommandGroup(replacing: .sidebar) {
+            Button("Toggle Sidebar") { toggleSidebar() }
+                .keyboardShortcut(".", modifiers: .command)
+        }
         CommandGroup(after: .textEditing) {
             Button("Search Dictations") { searchDictationHistory?() }
                 .keyboardShortcut("f", modifiers: .command)
                 .disabled(searchDictationHistory == nil)
         }
+    }
+
+    /// SwiftUI builds the split view controller behind `NavigationSplitView`, so
+    /// there is no reference to hold. Sending the selector down the responder
+    /// chain reaches it wherever it ended up.
+    @MainActor
+    private func toggleSidebar() {
+        NSApp.keyWindow?.firstResponder?.tryToPerform(
+            #selector(NSSplitViewController.toggleSidebar(_:)),
+            with: nil
+        )
     }
 
     /// Scriber has no SwiftUI `Settings` scene; Settings is a section of the main
