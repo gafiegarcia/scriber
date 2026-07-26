@@ -441,6 +441,73 @@ struct SettingsView: View {
     var body: some View {
         ScrollViewReader { proxy in
             Form {
+            Section("General") {
+                ShortcutRecorderView(
+                    title: "Hold to Dictate",
+                    identifier: "hold",
+                    isEnabled: $runtime.preferences.holdShortcutEnabled,
+                    chord: $runtime.preferences.holdShortcut,
+                    activeRecorderID: $activeShortcutRecorderID,
+                    conflictingChord: runtime.preferences.toggleShortcutEnabled ? runtime.preferences.toggleShortcut : nil,
+                    isCaptureAllowed: !runtime.coordinator.phase.isBusy
+                )
+                ShortcutRecorderView(
+                    title: "Hands-free Toggle",
+                    identifier: "toggle",
+                    isEnabled: $runtime.preferences.toggleShortcutEnabled,
+                    chord: $runtime.preferences.toggleShortcut,
+                    activeRecorderID: $activeShortcutRecorderID,
+                    conflictingChord: runtime.preferences.holdShortcutEnabled ? runtime.preferences.holdShortcut : nil,
+                    isCaptureAllowed: !runtime.coordinator.phase.isBusy
+                )
+                Text("Modifier-only chords are supported. Press Escape while recording a binding to cancel.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Launch at Login", isOn: Binding(
+                    get: { runtime.preferences.launchAtLoginRequested },
+                    set: { enabled in
+                        do { try runtime.coordinator.setLaunchAtLogin(enabled) }
+                        catch { message = error.localizedDescription }
+                    }
+                ))
+                Toggle("Show in Menu Bar", isOn: $runtime.preferences.showInMenuBar)
+                Toggle("Show app in Dock", isOn: $runtime.preferences.showAppInDock)
+                    .accessibilityIdentifier("show-app-in-dock-toggle")
+            }
+            .onChange(of: activeShortcutRecorderID) { _, activeRecorderID in
+                onShortcutConfigurationCaptureChanged(activeRecorderID != nil)
+            }
+            .onChange(of: runtime.coordinator.phase.isBusy) { _, isBusy in
+                if isBusy { activeShortcutRecorderID = nil }
+            }
+            Section("Feedback") {
+                Toggle(
+                    "Play recording feedback sounds",
+                    isOn: $runtime.preferences.playRecordingFeedbackSounds
+                )
+                .accessibilityIdentifier("recording-feedback-sounds-toggle")
+
+                Toggle(
+                    "Mute other audio while recording",
+                    isOn: $runtime.preferences.muteOtherAudioWhileRecording
+                )
+                .accessibilityIdentifier("mute-other-audio-toggle")
+                Text("Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Scriber never records or saves system audio.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let status = runtime.coordinator.otherAudioMuteStatus {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(status.message, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .accessibilityIdentifier("other-audio-mute-status")
+                        Button("Open Privacy & Security") {
+                            runtime.coordinator.openSystemAudioPrivacySettings()
+                        }
+                        .font(.caption)
+                    }
+                }
+            }
             Section("ElevenLabs") {
                 VStack(alignment: .leading, spacing: 10) {
                     SecureField(
@@ -486,69 +553,23 @@ struct SettingsView: View {
                 }
                 subscriptionUsageView
                     .id(MainWindowDestination.usage)
+            }
+            Section("Dictation") {
                 Picker("Language", selection: $runtime.preferences.languageCode) {
                     Text("Automatic").tag("auto")
                     Text("English").tag("en")
                     Text("Indonesian").tag("id")
                 }
                 Toggle("Remove filler words and false starts", isOn: $runtime.preferences.noVerbatim)
-            }
-            Section("Shortcuts") {
-                ShortcutRecorderView(
-                    title: "Hold to Dictate",
-                    identifier: "hold",
-                    isEnabled: $runtime.preferences.holdShortcutEnabled,
-                    chord: $runtime.preferences.holdShortcut,
-                    activeRecorderID: $activeShortcutRecorderID,
-                    conflictingChord: runtime.preferences.toggleShortcutEnabled ? runtime.preferences.toggleShortcut : nil,
-                    isCaptureAllowed: !runtime.coordinator.phase.isBusy
-                )
-                ShortcutRecorderView(
-                    title: "Hands-free Toggle",
-                    identifier: "toggle",
-                    isEnabled: $runtime.preferences.toggleShortcutEnabled,
-                    chord: $runtime.preferences.toggleShortcut,
-                    activeRecorderID: $activeShortcutRecorderID,
-                    conflictingChord: runtime.preferences.holdShortcutEnabled ? runtime.preferences.holdShortcut : nil,
-                    isCaptureAllowed: !runtime.coordinator.phase.isBusy
-                )
-                Text("Modifier-only chords are supported. Press Escape while recording a binding to cancel.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            .onChange(of: activeShortcutRecorderID) { _, activeRecorderID in
-                onShortcutConfigurationCaptureChanged(activeRecorderID != nil)
-            }
-            .onChange(of: runtime.coordinator.phase.isBusy) { _, isBusy in
-                if isBusy { activeShortcutRecorderID = nil }
-            }
-            Section("Feedback") {
-                Toggle(
-                    "Play recording feedback sounds",
-                    isOn: $runtime.preferences.playRecordingFeedbackSounds
-                )
-                .accessibilityIdentifier("recording-feedback-sounds-toggle")
-
-                Toggle(
-                    "Mute other audio while recording",
-                    isOn: $runtime.preferences.muteOtherAudioWhileRecording
-                )
-                .accessibilityIdentifier("mute-other-audio-toggle")
-                Text("Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Scriber never records or saves system audio.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if let status = runtime.coordinator.otherAudioMuteStatus {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label(status.message, systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                            .accessibilityIdentifier("other-audio-mute-status")
-                        Button("Open Privacy & Security") {
-                            runtime.coordinator.openSystemAudioPrivacySettings()
-                        }
-                        .font(.caption)
-                    }
+                HStack {
+                    TextField("Name or term", text: $newKeyterm)
+                    Button("Add") { addKeyterm() }.disabled(newKeyterm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+                ForEach(runtime.preferences.keyterms, id: \.self) { term in
+                    HStack { Text(term); Spacer(); Button { removeKeyterm(term) } label: { Image(systemName: "minus.circle") }.buttonStyle(.plain) }
+                }
+                Text("ElevenLabs applies an additional usage charge when keyterms are sent.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Dictation History") {
                 Toggle(
@@ -560,27 +581,7 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Section("Personal Dictionary") {
-                HStack {
-                    TextField("Name or term", text: $newKeyterm)
-                    Button("Add") { addKeyterm() }.disabled(newKeyterm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-                ForEach(runtime.preferences.keyterms, id: \.self) { term in
-                    HStack { Text(term); Spacer(); Button { removeKeyterm(term) } label: { Image(systemName: "minus.circle") }.buttonStyle(.plain) }
-                }
-                Text("ElevenLabs applies an additional usage charge when keyterms are sent.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section("Permissions and Startup") {
-                PermissionStatusRow(
-                    title: "Microphone",
-                    systemImage: "mic",
-                    allowed: runtime.coordinator.microphoneGranted
-                ) {
-                    microphonePermissionButton
-                }
-                MicrophonePicker()
-
+            Section("Permissions and Input") {
                 PermissionStatusRow(
                     title: "Accessibility",
                     systemImage: "keyboard",
@@ -590,16 +591,15 @@ struct SettingsView: View {
                         Button("Allow") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
                     }
                 }
-                Toggle("Launch at Login", isOn: Binding(
-                    get: { runtime.preferences.launchAtLoginRequested },
-                    set: { enabled in
-                        do { try runtime.coordinator.setLaunchAtLogin(enabled) }
-                        catch { message = error.localizedDescription }
-                    }
-                ))
-                Toggle("Show in Menu Bar", isOn: $runtime.preferences.showInMenuBar)
-                Toggle("Show app in Dock", isOn: $runtime.preferences.showAppInDock)
-                    .accessibilityIdentifier("show-app-in-dock-toggle")
+
+                PermissionStatusRow(
+                    title: "Microphone",
+                    systemImage: "mic",
+                    allowed: runtime.coordinator.microphoneGranted
+                ) {
+                    microphonePermissionButton
+                }
+                MicrophonePicker()
             }
             if let message { Text(message).foregroundStyle(.secondary) }
             }
