@@ -12,12 +12,12 @@ The archived Electron implementation reached `0.6.0`. The native macOS implement
 
 The original native `0.1.0` value describes an early Scriber Dictate prototype baseline. It remains valid in historical progress notes, but it is not the active Scriber version.
 
-Current native status: `0.7.0` build `11`, the locally certificate-signed candidate carrying the 2026-07-26 review pass, preserved as `v0.7.0-alpha.7`. Build `7` remains the `v0.7.0-alpha.6` snapshot. Builds `8` and `10` were same-day intermediates and were never tagged. The final provisioned Data Protection Keychain state is preserved as `v0.7.0-alpha.2`.
+Current native status: `0.7.0` build `14`, the locally certificate-signed candidate fixing the startup window reopening after an early Command-W. It is installed and untagged. Build `11`, carrying the 2026-07-26 review pass, is preserved as `v0.7.0-alpha.7`; build `7` remains the `v0.7.0-alpha.6` snapshot. Builds `8` and `10` were same-day intermediates, and builds `12` and `13` were Keychain test vehicles with no source change; none were tagged. The final provisioned Data Protection Keychain state is preserved as `v0.7.0-alpha.2`.
 
 ## Three separate identifiers
 
 - **Marketing version — `0.7.0`:** the user-facing product release line. It carries the product lineage forward from Electron `0.6.0`.
-- **Bundle build — `7`:** the internal `CFBundleVersion` identifying a particular app bundle. It does not communicate alpha, beta, or stable maturity, and ordinary local Debug or Release-configuration recompiles do not require a new number. Increment it when producing another intentionally identified installable, distributed, or uploaded build that needs to be distinguished from an earlier one.
+- **Bundle build — `14`:** the internal `CFBundleVersion` identifying a particular app bundle. It does not communicate alpha, beta, or stable maturity, and ordinary local Debug or Release-configuration recompiles do not require a new number. Increment it when producing another intentionally identified installable, distributed, or uploaded build that needs to be distinguished from an earlier one.
 - **Prerelease label — alpha or beta:** the maturity of an intentionally identified snapshot. Use Git tags such as `v0.7.0-alpha.1`, then `v0.7.0-alpha.2` or `v0.7.0-beta.1`, only when preserving a specific known-good source state, tester build, or distribution.
 
 An Xcode **Release** configuration is an optimized build configuration. Building it does not by itself make that app a stable Scriber release.
@@ -43,13 +43,14 @@ Do not tag every development commit or ordinary local build.
 - `v0.7.0-alpha.5` identifies the build-6 candidate with a dedicated Scriber history store and orphaned-audio recovery.
 - `v0.7.0-alpha.6` identifies the build-7 candidate signed by the long-lived local Scriber identity so privacy permissions and login-Keychain authorization can persist across rebuilt Release bundles.
 - `v0.7.0-alpha.7` identifies the build-11 candidate carrying the 2026-07-26 review pass: live-cursor delivery, keyboard-focus target selection, launch-time credential reporting, and 30-day retained-audio expiry.
+- Builds `12` through `14` are untagged. Builds `12` and `13` carried no source change; build `14` fixes the startup-window reopen and is the current installed candidate. Tag it as `v0.7.0-alpha.8` only if that state is worth preserving on its own.
 - Advance the prerelease sequence when another distinct testing snapshot is worth preserving.
 - Create the final `v0.7.0` tag when the documented personal-use behavior is genuinely accepted as stable; do not block that source tag solely on Developer ID signing or notarization.
 - Treat release tags as immutable; corrections receive a new prerelease or patch version rather than moving an existing tag.
 
 ## Implementation boundaries
 
-- Keep the native Xcode marketing version at `0.7.0` and bundle build at `11` until the next intentionally distinguishable build.
+- Keep the native Xcode marketing version at `0.7.0` and bundle build at `14` until the next intentionally distinguishable build.
 - Keep the archived Electron snapshot and its package metadata at historical version `0.6.0` unless active Electron development resumes.
 - Do not reset the native product to `0.1.0` merely because its implementation was rewritten or its bundle identity was reset.
 - Product-wide version progression does not imply that both platform implementations ship every numbered release.
