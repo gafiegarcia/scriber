@@ -539,7 +539,27 @@ private struct DictationHistoryRow: View {
     // stranding a gap after it. Kept narrow and monospaced-digit: trailing
     // alignment moves any slack to the card edge instead, where it reads as
     // excess padding.
-    fileprivate static let timeColumnWidth: CGFloat = 38
+    /// Exactly as wide as the widest time this locale can render, and no wider.
+    ///
+    /// A hardcoded width is either too loose — parking slack beside every short
+    /// time — or too tight for locales that do not use a 24-hour clock: `16.26`
+    /// is five characters here, while a 12-hour locale produces `11:59 PM`.
+    /// Measuring the formatter's own output covers both.
+    fileprivate static let timeColumnWidth: CGFloat = {
+        let pointSize = NSFont.preferredFont(forTextStyle: .callout).pointSize
+        let font = NSFont.monospacedDigitSystemFont(ofSize: pointSize, weight: .regular)
+        let calendar = Calendar.autoupdatingCurrent
+        // Late-evening and late-morning both, so the measurement covers whichever
+        // of the 24-hour and 12-hour renderings this locale uses, including its
+        // day-period suffix.
+        let candidates = [DateComponents(hour: 23, minute: 59), DateComponents(hour: 11, minute: 59)]
+        let widest = candidates
+            .compactMap { calendar.date(from: $0) }
+            .map { $0.formatted(date: .omitted, time: .shortened) }
+            .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
+            .max() ?? 44
+        return ceil(widest)
+    }()
 
     private var timeColumnWidth: CGFloat { Self.timeColumnWidth }
 
@@ -553,13 +573,11 @@ private struct DictationHistoryRow: View {
                 .font(.callout)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
-                // Leading, so the time starts exactly at the card's padding edge.
-                // Trailing alignment parked the column's unused width to the left
-                // of the time, which read as extra padding that no padding value
-                // could remove. The column stays fixed-width, so transcripts still
-                // line up; only the times differ in length now, and the
-                // monospaced digits keep that tidy.
-                .frame(width: timeColumnWidth, alignment: .leading)
+                // Trailing, so the minutes line up down the column. That only
+                // works once the column is no wider than the longest time it can
+                // hold — otherwise the surplus sits to the left of every short
+                // time and reads as padding.
+                .frame(width: timeColumnWidth, alignment: .trailing)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(rowText)
