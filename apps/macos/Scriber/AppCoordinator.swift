@@ -968,6 +968,10 @@ final class AppCoordinator: ObservableObject {
         record.transcriptionState = .transcribing
         record.errorMessage = nil
         try? modelContext.save()
+        // Marks the record as a deliberate re-transcription rather than a fresh
+        // one, so history keeps showing the row it already had instead of hiding
+        // it for the duration. Cleared by `transcribeCurrentRecord`.
+        retryingRecordID = record.id
         shortcuts.setMode(.busy)
         setPhase(.transcribing(attempt: 1, retryDelay: nil))
         Task { await transcribeCurrentRecord(delivery: .automaticPaste) }

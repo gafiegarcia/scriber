@@ -193,9 +193,22 @@ struct DictationHistoryView: View {
     @State private var search = ""
     @State private var confirmClear = false
 
+    /// A record is inserted before its transcription starts, so that an interrupted
+    /// job keeps its audio and can be recovered at the next launch. Until the
+    /// outcome is known there is nothing truthful to show for it — the row would
+    /// read "Transcription failed." purely because no text or error exists yet — so
+    /// in-flight dictations stay out of the list. A record the user explicitly
+    /// retried is exempt: it was already on screen and keeps its "Retrying" label.
+    private var visibleRecords: [DictationRecord] {
+        records.filter {
+            $0.transcriptionState != .transcribing
+                || runtime.coordinator.retryingRecordID == $0.id
+        }
+    }
+
     private var filtered: [DictationRecord] {
-        guard !search.isEmpty else { return records }
-        return records.filter { ($0.text ?? "").localizedCaseInsensitiveContains(search) }
+        guard !search.isEmpty else { return visibleRecords }
+        return visibleRecords.filter { ($0.text ?? "").localizedCaseInsensitiveContains(search) }
     }
 
     private var sections: [DictationHistorySection] {
@@ -233,13 +246,13 @@ struct DictationHistoryView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("\(records.count) \(records.count == 1 ? "dictation" : "dictations")")
+                Text("\(visibleRecords.count) \(visibleRecords.count == 1 ? "dictation" : "dictations")")
                     .foregroundStyle(.secondary)
                 Spacer()
                 TrailingAlignedMenuButton(
                     systemImage: "ellipsis.circle",
                     help: "Dictation history actions",
-                    isEnabled: !records.isEmpty,
+                    isEnabled: !visibleRecords.isEmpty,
                     items: [
                         TrailingAlignedMenuButton.Item(title: "Clear Dictation History…") {
                             confirmClear = true
@@ -284,7 +297,7 @@ struct DictationHistoryView: View {
                 }
             }
 
-            if records.isEmpty {
+            if visibleRecords.isEmpty {
                 ContentUnavailableView(
                     "No Dictations Yet",
                     systemImage: "waveform",
@@ -313,7 +326,7 @@ struct DictationHistoryView: View {
         .searchable(text: $search, prompt: DictationHistoryView.searchPrompt)
         .searchFocused(searchFocused)
         .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
-            Button("Delete All", role: .destructive) { runtime.coordinator.clearDictationHistory(records) }
+            Button("Delete All", role: .destructive) { runtime.coordinator.clearDictationHistory(visibleRecords) }
         } message: {
             Text("This permanently removes transcripts and any retained failed recordings.")
         }
