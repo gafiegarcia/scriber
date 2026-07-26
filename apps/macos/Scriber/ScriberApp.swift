@@ -149,7 +149,24 @@ final class AppRuntime: ObservableObject {
         coordinator.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
-        if !isUITesting { coordinator.startServices() }
+        // Deferred by one main-actor turn rather than called directly.
+        //
+        // `@StateObject` builds this object lazily, in the middle of SwiftUI's
+        // scene-graph update. `startServices` refreshes permissions, and when a
+        // permission is missing it presents the recovery pill immediately — which
+        // resizes an AppKit panel and provokes a nested SwiftUI render. That is a
+        // value being set while the graph is mid-update, and AttributeGraph aborts
+        // the process for it.
+        //
+        // It only reproduces when a permission is genuinely missing at launch, so
+        // the installed app never showed it while a freshly built binary — which
+        // macOS has not granted Accessibility — crashed on every run.
+        //
+        // `startServices` is already re-entrant; `MenuBarContent.onAppear` calls it
+        // too. Waiting for the current update to finish costs nothing.
+        if !isUITesting {
+            Task { @MainActor [coordinator] in coordinator.startServices() }
+        }
     }
 }
 
