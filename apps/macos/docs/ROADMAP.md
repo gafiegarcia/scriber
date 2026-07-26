@@ -38,6 +38,10 @@ Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidat
 
 ### Credentials, quota, and transcription
 
+- [ ] Remove or corrupt the stored key, relaunch, and confirm Scriber reports it on its own — pill, Dictation banner, and menu bar — without waiting for a dictation attempt.
+- [ ] Confirm the same for exhausted credits, and that recovery routes to the usage panel rather than the key field.
+- [ ] Confirm retained audio older than 30 days is removed at launch while its history entry, transcript, and failure reason survive, and that disabling the preference stops the sweep.
+
 - [ ] Re-enter, save, and read back a real Speech-to-Text-scoped ElevenLabs key across relaunch and restart from the installed locally signed build.
 - [ ] Verify startup handling for valid, revoked, tampered, restricted-scope, and transiently unreachable credentials.
 - [ ] Verify subscription usage for full-scope, Speech-to-Text-only, exhausted, and extended-usage accounts.
@@ -58,6 +62,10 @@ Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidat
 - [ ] Confirm the configured macOS Globe/Fn action does not interfere; use “Do Nothing” during testing if necessary.
 
 ### Insertion and fallback
+
+- [ ] Confirm recording now starts immediately in the apps that previously took two to three seconds, and that delivery still lands at the cursor focused when the transcript arrives rather than the one focused at record start.
+- [ ] Confirm moving focus to a different app or field during transcription delivers to the final cursor.
+- [ ] Confirm the pill still appears on the screen holding the app that was frontmost at record start, now that its screen comes from the window server rather than Accessibility.
 
 - [x] Close the paste-confirmation regression with Raycast running: Xcode, ChatGPT, and Notion confirm success without a false recovery panel, while Zen with no focused text box produces copied recovery.
 - [ ] Verify target capture, selection restoration, confirmed insertion, clipboard restoration, and copied fallback in TextEdit.
@@ -93,6 +101,18 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -projec
 ```
 
 The first UI-test run requires a signed test host and macOS UI Automation approval. Automated tests must use isolated data and services and must never access the real Keychain, mutate real SwiftData, contact ElevenLabs, or consume API credit.
+
+## Deferred review findings
+
+Raised by the 2026-07-26 full-codebase review and deliberately not acted on. None
+of these is known to affect current behavior; each is recorded so it does not have
+to be rediscovered.
+
+- `AppCoordinator` is roughly 1,150 lines covering permissions, credentials, recording, transcription, delivery, persistence, muting, and pill state. It is coherent rather than tangled, but it is the file where the next feature will hurt. History recovery and retention are the most separable pieces.
+- `DictationHistoryStore.makePersistentContainer` sleeps on the main thread between open attempts. The happy path has a zero delay, so this only blocks a launch that is already failing to open the store; making it async would mean restructuring `AppRuntime.init`.
+- `DictationHistoryView` regroups every record by day on each body evaluation, and `clearDictationHistory` saves once per deleted record. Both are irrelevant at present history sizes and would matter in the thousands.
+- The global event tap swallows an `Escape` key-down while a pill is visible but lets its key-up through, so the foreground app can see an unmatched key-up. No observed consequence.
+- The Release configuration does not enable Hardened Runtime. That is correct for the current entitlement-free local signing and becomes a prerequisite only for notarized distribution.
 
 ## Release gates
 
