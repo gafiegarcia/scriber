@@ -12,13 +12,59 @@ The current native line is Scriber `0.7.0` build `11`, a locally certificate-sig
 
 ## Build
 
-1. Install Xcode 27 beta and select it in Xcode Settings → Locations → Command Line Tools.
-2. Open `Scriber.xcodeproj`.
-3. Choose the `Scriber` scheme and the local Mac destination.
-4. Debug and UI-test builds may use an Apple Development signing team. The Release configuration uses the long-lived `Scriber Local Code Signing` identity from the login Keychain so rebuilt personal-use apps retain one designated requirement without an expiring provisioning profile. Keep the identity's password-protected `.p12` backup private and outside the repository.
-5. Build and run.
+Debug and UI-test builds may use an Apple Development signing team. The Release configuration uses the long-lived `Scriber Local Code Signing` identity from the login Keychain so rebuilt personal-use apps retain one designated requirement without an expiring provisioning profile. Keep the identity's password-protected `.p12` backup private and outside the repository.
 
-For stable Accessibility and Launch at Login permissions, archive a Release build and keep `Scriber.app` in `/Applications` rather than repeatedly moving it.
+Bump the bundle build number first. `CURRENT_PROJECT_VERSION` appears in both the Debug and Release configurations of the `Scriber` target, and the target's **General → Identity → Build** field updates both. Two installed builds sharing a build number are difficult to tell apart afterwards.
+
+### With Xcode
+
+1. Install Xcode 27 beta and select it in Xcode Settings → Locations → Command Line Tools.
+2. Open `Scriber.xcodeproj` and choose the `Scriber` scheme.
+3. `⌘<` → **Run** → **Info** → set **Build Configuration** to **Release**. Only Release uses the local signing identity. Set this back to **Debug** when returning to normal development.
+4. **Product → Clean Build Folder** (`⇧⌘K`), then **Product → Build** (`⌘B`).
+5. Reveal the product: **Products** group → right-click `Scriber.app` → **Show in Finder**.
+
+### With the command line
+
+Run from `apps/macos`:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -project Scriber.xcodeproj -scheme Scriber -configuration Release -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode-release clean build
+```
+
+The product lands at `.build/xcode-release/Build/Products/Release/Scriber.app`. Without `-derivedDataPath` it goes to Xcode's shared DerivedData instead; either location works, but keep track of which one is being verified and installed.
+
+Do not set the build number by passing `CURRENT_PROJECT_VERSION=<n>` on the command line. That overrides the value for one invocation, never writes back to `project.pbxproj`, and applies to every target in the build, so the installed app and the repository end up disagreeing about what was built.
+
+## Verify before installing
+
+```bash
+codesign -d -r- <built>/Scriber.app
+codesign --verify --strict --verbose=2 <built>/Scriber.app
+```
+
+The designated requirement must be exactly:
+
+```
+identifier "com.gafiegarcia.scriber" and certificate root = H"fb7719074d66edfec627e3108437cbe34e7b7bfd"
+```
+
+That hash is the `Scriber Local Code Signing` certificate, valid until 2036. Every Release build must reproduce this same requirement even though its `CDHash` changes, which is what lets macOS recognise a rebuilt bundle as the same app. A `cdhash`-based requirement instead means the build fell back to ad-hoc signing and macOS will treat it as a different app, discarding existing permission grants.
+
+## Install
+
+Replace the copy in `/Applications` rather than running the build product where it was built. Accessibility, Microphone, Launch at Login, and the Keychain ACL are all recorded against `/Applications/Scriber.app`.
+
+```bash
+osascript -e 'quit app "Scriber"'
+trash /Applications/Scriber.app
+ditto <built>/Scriber.app /Applications/Scriber.app
+open -a Scriber
+```
+
+`ditto` is used because it preserves extended attributes, ACLs, and hard links unconditionally and behaves the same across volumes; `mv` and `cp -R` also preserve a signed bundle correctly on current macOS. Never rename an `.app` bundle — a renamed bundle fails signature verification outright.
+
+macOS asks for the login Keychain password once per newly installed binary before releasing the ElevenLabs API key. Choose **Always Allow**; the grant then persists for that binary across launches and transcriptions. This is expected, and is not fixable while the signing certificate carries no Team ID. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## First launch
 
