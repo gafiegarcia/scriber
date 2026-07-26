@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `14` is the current personal-installation candidate for Apple silicon on macOS 27, and is the installed app. It fixes the startup window reopening after an early Command-W and carries a `window-lifecycle` diagnostic log. It is preserved as `v0.7.0-alpha.8`. Build `11`, which carries the 2026-07-26 review pass, is preserved as `v0.7.0-alpha.7`. Builds `12` and `13` carry no source change and exist only as test vehicles for the Keychain re-authorization investigation below.
+Scriber `0.7.0` build `15` is the current personal-installation candidate for Apple silicon on macOS 27. It carries the bug-and-polish track consolidated from the Notion sprint list and the loose notes: the settings regrouping, the history cards, the trailing-aligned overflow menu, in-flight dictations hidden from history, the no-words warning, the static menu-bar icon, and the Command-comma and Command-period bindings. It is **not yet installed or manually verified** — see the checks below. Build `14`, which fixes the startup window reopening after an early Command-W and carries a `window-lifecycle` diagnostic log, is preserved as `v0.7.0-alpha.8` and is the installed app. Build `11`, which carries the 2026-07-26 review pass, is preserved as `v0.7.0-alpha.7`. Builds `12` and `13` carry no source change and exist only as test vehicles for the Keychain re-authorization investigation below.
 
 Carried forward from build 7, which is preserved as `v0.7.0-alpha.6`: the dedicated `Scriber/History.store`, the encrypted login-Keychain policy, and the long-lived local `Scriber Local Code Signing` identity that gives rebuilt Release bundles one stable designated requirement without a provisioning profile. macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; it then persists across launches and transcriptions of that unchanged binary. Reboot acceptance remains open. The preceding provisioned Data Protection Keychain implementation is preserved as `v0.7.0-alpha.2`.
 
@@ -29,6 +29,20 @@ Builds 8 through 11 carry the 2026-07-26 review pass. Build 8 moved delivery to 
 - [ ] On moving to a Developer ID identity, collapse the free-tier signing workarounds: return credential storage to the Data Protection Keychain as [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) already requires, drop the per-build “Always Allow” authorization, and simplify the build and install instructions in [`../README.md`](../README.md). The recorded designated requirement, the manual signature check, the `/Applications`-only install, and the Keychain-prompt caveat exist solely to work around signing without a Team ID; none of them survives that transition.
 
 ## Open acceptance checks
+
+### Build 15 interface changes
+
+None of these need a real API key except where noted.
+
+- [ ] Settings shows General, Feedback, ElevenLabs, Dictation, Dictation History, and Permissions and Input in that order, with Accessibility above Microphone.
+- [ ] Command-comma opens Settings both with the main window open and with every window closed.
+- [ ] Command-period collapses and expands the sidebar, and the View menu shows it in place of Control-Command-S. Then confirm Command-period still cancels the Clear Dictation History dialog rather than toggling the sidebar behind it — Command-period is macOS's conventional Cancel, and this binding shadows it.
+- [ ] Command-F still focuses search, and the placeholder carries the hint.
+- [ ] The overflow menu opens fully inside the window with the window at its default width near the right edge of the screen.
+- [ ] Day groups render as rounded cards, legibly, in both light and dark appearance.
+- [ ] Start a dictation and watch history through the wait: no row appears until the outcome lands. Then retry a failed entry and confirm its row stays visible with the Retrying label.
+- [ ] **Needs a real key.** Mute or unplug the selected input, dictate for several seconds, and confirm the no-words pill appears with the failure sound, dismisses after about six seconds, and its button scrolls Settings to the microphone picker. Confirm no history row is left behind.
+- [ ] The menu bar icon matches its neighbours in size, holds steady through a full record, transcribe, and paste cycle, switches to the warning symbol when the API key is removed, and returns to the app mark when it is restored — without relaunching.
 
 ### Installation, identity, and lifecycle
 
@@ -115,8 +129,31 @@ The first UI-test run requires a signed test host and macOS UI Automation approv
 
 The suite has never been fully green, and earlier log entries recording "all UI tests pass" describe a four-test suite that has since grown to eleven. The first end-to-end run was 2026-07-26 on build 14: **eight pass, three fail**. The same three fail identically at `d183b4d`, so they predate the 2026-07-26 review pass. Do not read these as regressions from recent work.
 
+**The suite has not been run against build 15.** A run was started and abandoned: it seizes the pointer and keyboard for its whole duration, and the three known failures each burn a full timeout first, so it is not something to start while the Mac is in use. Build 15 moves the controls two of the tests query, and changes the search field's prompt, which `ScriberUITests` uses to locate it — that string was updated alongside. Expect the same three failures; a **fourth** is a real regression, and the settings identifiers are the first place to look.
+
 - `testEscapeDismissesPersistentPill` **cannot pass unattended.** Escape reaches the app through `GlobalShortcutService`'s `CGEvent` tap, which needs Accessibility trust. The test host is a throwaway binary in `.build/`, not `/Applications/Scriber.app`, so it is untrusted and the tap never arms. Fixing this means granting a DerivedData binary Accessibility, which is worse than the failure. Treat it as manual-only.
 - `testClosingFinalWindowUsesAccessoryActivationPolicy` and `testUpdateKeyForegroundsSettingsAndFocusesAPIKeyField` both fail on the same assertion: the process does not drop to `.accessory` after Command-W. **The product behavior is correct** — verified by hand on build 14, where the Dock icon disappears. The unconfirmed hypothesis is that `reconcileActivationPolicy` discards the `Bool` from `setActivationPolicy`, and macOS refuses to demote the frontmost application; under XCUITest the runner holds Scriber active, while a manual close hands focus to another app. Confirm that return value before changing anything here — an unverified "fix" to activation policy risks the Dock-icon bugs this code was written to prevent.
+
+## Planned work
+
+Deliberately not built with the build 15 track, and recorded here so the Notion
+notes they came from are no longer the source of truth.
+
+- **Hands-free pill controls.** The hands-free pill should read as distinct from
+  hold-to-dictate, carrying a confirm and a cancel button so a locked recording can
+  be stopped or discarded from the pill itself. **Decided: confirm on the trailing
+  edge, cancel on the leading edge, invariant.** The failed-paste pill's trailing
+  dismiss button does not conflict — that is a dismiss, not a destructive
+  alternative to a confirm. A hold that converts to hands-free is the normal case
+  with the default `Fn` then `Fn-Space` binding, so the pill must animate the two
+  buttons in at its edges as it widens rather than swapping layouts. Touches
+  `pillSize`, `applyLayout`, and `actions` in [`PillController.swift`](../Scriber/PillController.swift).
+- **Pill position setting.** Let the user place the pill at the bottom, as today, or
+  at the top just under the notch. Placement is computed in `PillController` from
+  `screen.visibleFrame`; a top variant anchors to `maxY` rather than `minY`. Needs a
+  `Preferences` key and a control in the General settings section. Low priority.
+  Turning the notch itself into the pill is a separate and much larger idea; it is
+  recorded, not scoped.
 
 ## Deferred review findings
 
@@ -139,6 +176,7 @@ Before promoting the personal-use line to stable `v0.7.0`:
 - [x] Decide that the remaining formal acceptance gaps are acceptable for the first personal alpha snapshot.
 - [x] Increment the login-Keychain personal candidate to bundle build `7`.
 - [x] Increment the review-pass candidate through bundle builds `8` to `11`, ending with the keyboard-focus delivery fix.
+- [x] Increment to bundle build `15` for the consolidated bug-and-polish track.
 - [ ] Generate artifact-specific third-party notices before publishing a downloadable binary.
 - [ ] Confirm the repository and release artifact contain no credentials, recordings, local data, or machine-specific build output.
 
