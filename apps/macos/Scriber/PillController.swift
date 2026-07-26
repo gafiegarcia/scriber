@@ -219,7 +219,7 @@ final class PillController {
         case .pasteFailed, .transcriptionFailed:
             NSSize(width: 390, height: 60)
         case .noSpeechDetected:
-            NSSize(width: 430, height: 60)
+            NSSize(width: 460, height: 60)
         default:
             NSSize(width: 280, height: 52)
         }
@@ -513,7 +513,11 @@ private struct PillView: View {
         case .permissionsRequired(let missing):
             PermissionReadiness(missingPermissions: missing).recoveryMessage
         case .dictationCopied(_, let message), .pasteFailed(let message), .transcriptionFailed(let message): message
-        case .noSpeechDetected: "Check that the right microphone is selected and picking up sound"
+        // Kept short deliberately: the compact pill gives its subtitle one line
+        // and truncates, and this phase also carries a countdown, an action, and
+        // a dismiss control on the same row. The cause goes here; the fix is the
+        // button.
+        case .noSpeechDetected: "The selected microphone may be muted"
         default: nil
         }
     }
