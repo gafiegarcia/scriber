@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidate for Apple silicon on macOS 27. The preceding provisioned Data Protection Keychain implementation is preserved by annotated tag `v0.7.0-alpha.2`. Build 7 retains the dedicated `Scriber/History.store` and encrypted login-Keychain policy, while replacing version-specific ad-hoc signing with the long-lived local `Scriber Local Code Signing` identity. This gives rebuilt Release bundles one stable designated requirement without a provisioning profile. Live testing shows macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; that authorization then persists across launches and transcriptions of the unchanged installed binary. Reboot acceptance remains open. The paste-confirmation investigation remains resolved for personal use and its rationale lives in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md).
+Scriber `0.7.0` build `8` is the current personal-installation candidate for Apple silicon on macOS 27, carrying the 2026-07-26 review pass; it is installed for live testing and not yet tagged. Build `7` is preserved as `v0.7.0-alpha.6`. The preceding provisioned Data Protection Keychain implementation is preserved by annotated tag `v0.7.0-alpha.2`. Build 7 retains the dedicated `Scriber/History.store` and encrypted login-Keychain policy, while replacing version-specific ad-hoc signing with the long-lived local `Scriber Local Code Signing` identity. This gives rebuilt Release bundles one stable designated requirement without a provisioning profile. Live testing shows macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; that authorization then persists across launches and transcriptions of the unchanged installed binary. Reboot acceptance remains open. The paste-confirmation investigation remains resolved for personal use and its rationale lives in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md).
 
 ## Milestones
 
@@ -121,6 +121,7 @@ Before promoting the personal-use line to stable `v0.7.0`:
 - [ ] Complete the applicable functional checks above; a stable source release does not require Developer ID signing or notarization.
 - [x] Decide that the remaining formal acceptance gaps are acceptable for the first personal alpha snapshot.
 - [x] Increment the login-Keychain personal candidate to bundle build `7`.
+- [x] Increment the review-pass candidate to bundle build `8`.
 - [ ] Generate artifact-specific third-party notices before publishing a downloadable binary.
 - [ ] Confirm the repository and release artifact contain no credentials, recordings, local data, or machine-specific build output.
 

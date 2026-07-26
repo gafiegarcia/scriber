@@ -83,5 +83,5 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Toolchain baseline: Xcode 27 beta with Swift 6.4 until a later explicit toolchain decision.
 - Current app target: Apple silicon and macOS 27.
 - Personal Release builds use the long-lived `Scriber Local Code Signing` identity from the login Keychain, with no provisioning profile or restricted entitlements. Its private-key backup remains outside the repository; Developer ID signing and notarization remain separate future distribution work.
-- Current product line: Scriber `0.7.0` build `7`. The final provisioned Data Protection state is preserved as `v0.7.0-alpha.2`; the locally certificate-signed login-Keychain build is the `v0.7.0-alpha.6` candidate and is not yet a stable `0.7.0` release.
+- Current product line: Scriber `0.7.0` build `8`, an untagged candidate carrying the 2026-07-26 review pass. The final provisioned Data Protection state is preserved as `v0.7.0-alpha.2`; the locally certificate-signed login-Keychain build is the `v0.7.0-alpha.6` candidate and is not yet a stable `0.7.0` release.
 - A real ElevenLabs smoke test is always explicit and opt-in.
