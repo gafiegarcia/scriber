@@ -2,6 +2,7 @@
 import ApplicationServices
 import CoreGraphics
 import Foundation
+import os
 #if SWIFT_PACKAGE
 import ScriberCore
 #endif
@@ -67,10 +68,75 @@ final class PasteService {
 
     func insert(_ text: String) async -> PasteResult {
         guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
-        guard let target = currentFocusedPasteTarget() else {
+        let target = currentFocusedPasteTarget()
+        logDeliveryContext(chosen: target)
+        guard let target else {
+            logDeliveryOutcome("noEditableTarget-noTarget")
             return .noEditableTarget(PasteResult.noEditableTargetMessage)
         }
-        return await pasteAtCurrentSelection(text, into: target)
+        let result = await pasteAtCurrentSelection(text, into: target)
+        switch result {
+        case .inserted: logDeliveryOutcome("inserted")
+        case .noEditableTarget: logDeliveryOutcome("noEditableTarget")
+        case .failed: logDeliveryOutcome("failed")
+        }
+        return result
+    }
+
+    // MARK: - Delivery diagnostics
+    //
+    // Temporary instrumentation for the Raycast target-selection investigation.
+    // Scriber picks its paste target with `NSWorkspace.frontmostApplication`, but
+    // an LSUIElement app presenting a nonactivating panel — Raycast, and Scriber's
+    // own pill — takes keyboard focus without becoming frontmost. This records
+    // whether `AXFocusedApplication` distinguishes the two.
+    //
+    // Only process identities and Accessibility roles are recorded. Transcript
+    // text is never logged: keeping in-flight dictation private is the entire
+    // point of the concealed-pasteboard design, and a log would undo it.
+
+    private static let diagnosticLog = Logger(
+        subsystem: "com.gafiegarcia.scriber",
+        category: "paste-target"
+    )
+
+    private func logDeliveryContext(chosen: FocusedTextTarget?) {
+        let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        let systemWide = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(systemWide, Self.accessibilityMessagingTimeout)
+
+        var focusedApplicationPID: pid_t = 0
+        if let focusedApplication = elementAttribute(systemWide, named: kAXFocusedApplicationAttribute) {
+            AXUIElementGetPid(focusedApplication, &focusedApplicationPID)
+        }
+
+        var focusedElementPID: pid_t = 0
+        var role = "-"
+        var subrole = "-"
+        if let focusedElement = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) {
+            AXUIElementGetPid(focusedElement, &focusedElementPID)
+            role = stringAttribute(focusedElement, named: kAXRoleAttribute) ?? "-"
+            subrole = stringAttribute(focusedElement, named: kAXSubroleAttribute) ?? "-"
+        }
+
+        Self.diagnosticLog.info("""
+        delivery frontmost=\(Self.identity(of: frontmost), privacy: .public) \
+        focusedApp=\(Self.identity(of: focusedApplicationPID), privacy: .public) \
+        focusedElement=\(Self.identity(of: focusedElementPID), privacy: .public) \
+        role=\(role, privacy: .public) subrole=\(subrole, privacy: .public) \
+        chosen=\(Self.identity(of: chosen?.pid), privacy: .public) \
+        qualifiedTextFocus=\(chosen?.focusContainsTextInput ?? false, privacy: .public)
+        """)
+    }
+
+    private func logDeliveryOutcome(_ outcome: String) {
+        Self.diagnosticLog.info("delivery outcome=\(outcome, privacy: .public)")
+    }
+
+    private static func identity(of pid: pid_t?) -> String {
+        guard let pid, pid != 0 else { return "none" }
+        let application = NSRunningApplication(processIdentifier: pid)
+        return "\(application?.bundleIdentifier ?? "unknown")(\(pid))"
     }
 
     // MARK: - Target discovery
