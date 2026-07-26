@@ -124,13 +124,23 @@ struct MenuBarContent: View {
 
     var body: some View {
         Group {
-            Button("Open Scriber") { openMain(section: .dictation) }
-            Button("Settings") { openMain(section: .settings) }
-            if runtime.preferences.onboardingComplete,
-               !runtime.coordinator.permissionReadiness.isReady {
-                Divider()
-                Button { openMain(section: .settings) } label: {
-                    Label("Permissions Required…", systemImage: "exclamationmark.triangle.fill")
+            Button("Open Scriber") { openMain(destination: .dictation) }
+            Button("Settings") { openMain(destination: .settings) }
+            if runtime.preferences.onboardingComplete {
+                if !runtime.coordinator.permissionReadiness.isReady {
+                    Divider()
+                    Button { openMain(destination: .settings) } label: {
+                        Label("Permissions Required…", systemImage: "exclamationmark.triangle.fill")
+                    }
+                }
+                let credentials = runtime.coordinator.credentialReadiness
+                if !credentials.isReady {
+                    Divider()
+                    Button {
+                        openMain(destination: credentials.resolvesInUsageSettings ? .usage : .apiKey)
+                    } label: {
+                        Label("\(credentials.title)…", systemImage: "exclamationmark.triangle.fill")
+                    }
                 }
             }
             Divider()
@@ -163,8 +173,8 @@ struct MenuBarContent: View {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func openMain(section: MainSection) {
-        runtime.coordinator.selectMainWindowDestination(section == .dictation ? .dictation : .settings)
+    private func openMain(destination: MainWindowDestination) {
+        runtime.coordinator.selectMainWindowDestination(destination)
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "main")
         NSApp.activate(ignoringOtherApps: true)
@@ -213,12 +223,34 @@ struct DictationHistoryView: View {
 
             Divider()
 
-            if runtime.preferences.onboardingComplete,
-               !runtime.coordinator.permissionReadiness.isReady {
-                PermissionRecoveryBanner(readiness: runtime.coordinator.permissionReadiness) {
-                    runtime.coordinator.selectMainWindowDestination(.settings)
+            if runtime.preferences.onboardingComplete {
+                if !runtime.coordinator.permissionReadiness.isReady {
+                    RecoveryBanner(
+                        title: "Dictation is unavailable",
+                        message: runtime.coordinator.permissionReadiness.recoveryMessage,
+                        actionTitle: "Review Permissions",
+                        identifier: "permission-recovery-banner"
+                    ) {
+                        runtime.coordinator.selectMainWindowDestination(.settings)
+                    }
+                    Divider()
                 }
-                Divider()
+                // Setup can complete and then stop being sufficient. A revoked or
+                // replaced key leaves Scriber silently non-functional otherwise.
+                let credentials = runtime.coordinator.credentialReadiness
+                if !credentials.isReady {
+                    RecoveryBanner(
+                        title: credentials.title,
+                        message: credentials.recoveryMessage,
+                        actionTitle: credentials.resolvesInUsageSettings ? "View Usage" : "Update Key",
+                        identifier: "credential-recovery-banner"
+                    ) {
+                        runtime.coordinator.selectMainWindowDestination(
+                            credentials.resolvesInUsageSettings ? .usage : .apiKey
+                        )
+                    }
+                    Divider()
+                }
             }
 
             if records.isEmpty {
@@ -264,9 +296,12 @@ struct DictationHistoryView: View {
     }
 }
 
-private struct PermissionRecoveryBanner: View {
-    let readiness: PermissionReadiness
-    let reviewPermissions: () -> Void
+private struct RecoveryBanner: View {
+    let title: String
+    let message: String
+    let actionTitle: String
+    let identifier: String
+    let action: () -> Void
 
     var body: some View {
         HStack(spacing: 14) {
@@ -275,17 +310,17 @@ private struct PermissionRecoveryBanner: View {
                 .foregroundStyle(.orange)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("Dictation is unavailable")
+                Text(title)
                     .font(.headline)
-                    .accessibilityIdentifier("permission-recovery-banner")
-                Text(readiness.recoveryMessage)
+                    .accessibilityIdentifier(identifier)
+                Text(message)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
 
             Spacer(minLength: 12)
 
-            Button("Review Permissions", action: reviewPermissions)
+            Button(actionTitle, action: action)
                 .buttonStyle(.borderedProminent)
         }
         .padding(.horizontal, 16)

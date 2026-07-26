@@ -370,21 +370,99 @@ struct CredentialStateTests {
 
     @Test("Clears credential pills only after the replacement is configured and valid")
     func resolvesCredentialPills() {
-        #expect(AppPhase.apiKeyInvalid.resolvingCredentialBlock(
+        #expect(AppPhase.credentialsUnusable(.invalidAPIKey).resolvingCredentialBlock(
             apiKeyConfigured: true,
             apiKeyValidity: .valid,
             apiCreditsExhausted: false
         ) == .idle)
-        #expect(AppPhase.apiKeyInvalid.resolvingCredentialBlock(
+        #expect(AppPhase.credentialsUnusable(.creditsExhausted).resolvingCredentialBlock(
+            apiKeyConfigured: true,
+            apiKeyValidity: .valid,
+            apiCreditsExhausted: false
+        ) == .idle)
+    }
+
+    @Test("Restates a credential block whose reason changed")
+    func restatesChangedCredentialBlock() {
+        #expect(AppPhase.credentialsUnusable(.invalidAPIKey).resolvingCredentialBlock(
             apiKeyConfigured: false,
             apiKeyValidity: .valid,
             apiCreditsExhausted: false
-        ) == .apiKeyInvalid)
-        #expect(AppPhase.apiCreditsExhausted.resolvingCredentialBlock(
+        ) == .credentialsUnusable(.missingAPIKey))
+    }
+
+    @Test("Leaves unrelated phases untouched")
+    func ignoresUnrelatedPhases() {
+        #expect(AppPhase.transcriptionFailed("Offline").resolvingCredentialBlock(
             apiKeyConfigured: true,
             apiKeyValidity: .valid,
             apiCreditsExhausted: false
-        ) == .idle)
+        ) == .transcriptionFailed("Offline"))
+    }
+}
+
+@Suite("Credential readiness")
+struct CredentialReadinessTests {
+    @Test("Classifies each way a credential can block dictation")
+    func classifiesBlockingStates() {
+        #expect(CredentialReadiness(
+            apiKeyConfigured: false, apiKeyValidity: .unchecked, apiCreditsExhausted: false
+        ) == .missingAPIKey)
+        #expect(CredentialReadiness(
+            apiKeyConfigured: true, apiKeyValidity: .invalid, apiCreditsExhausted: false
+        ) == .invalidAPIKey)
+        #expect(CredentialReadiness(
+            apiKeyConfigured: true, apiKeyValidity: .valid, apiCreditsExhausted: true
+        ) == .creditsExhausted)
+        #expect(CredentialReadiness(
+            apiKeyConfigured: true, apiKeyValidity: .valid, apiCreditsExhausted: false
+        ) == .ready)
+    }
+
+    @Test("An unreachable check is not a credential problem")
+    func uncheckedKeyStaysReady() {
+        // Validation could not reach ElevenLabs. Blocking here would strand the
+        // user offline with a key that is probably fine.
+        #expect(CredentialReadiness(
+            apiKeyConfigured: true, apiKeyValidity: .unchecked, apiCreditsExhausted: false
+        ) == .ready)
+    }
+
+    @Test("Only exhausted credits route to the usage panel")
+    func routesRecoveryToTheRightPlace() {
+        #expect(CredentialReadiness.creditsExhausted.resolvesInUsageSettings)
+        #expect(!CredentialReadiness.missingAPIKey.resolvesInUsageSettings)
+        #expect(!CredentialReadiness.invalidAPIKey.resolvesInUsageSettings)
+    }
+
+    @Test("Presents a launch-time problem that never changed state")
+    func presentsUnchangedProblemOnLaunch() {
+        // The stored key was already invalid when Scriber started, so nothing
+        // transitions. Without the forced check the user is never told.
+        #expect(CredentialRecoveryPolicy.shouldPresent(
+            previous: .invalidAPIKey,
+            current: .invalidAPIKey,
+            onboardingComplete: true,
+            force: true
+        ))
+        #expect(!CredentialRecoveryPolicy.shouldPresent(
+            previous: .invalidAPIKey,
+            current: .invalidAPIKey,
+            onboardingComplete: true,
+            force: false
+        ))
+        #expect(!CredentialRecoveryPolicy.shouldPresent(
+            previous: .ready,
+            current: .ready,
+            onboardingComplete: true,
+            force: true
+        ))
+        #expect(!CredentialRecoveryPolicy.shouldPresent(
+            previous: .ready,
+            current: .invalidAPIKey,
+            onboardingComplete: false,
+            force: true
+        ))
     }
 }
 

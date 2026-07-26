@@ -190,6 +190,67 @@ public struct PermissionReadiness: Equatable, Sendable {
     }
 }
 
+/// Why Scriber cannot currently reach ElevenLabs, if it cannot.
+///
+/// Onboarding can complete and then stop being sufficient: a key is revoked,
+/// replaced at ElevenLabs, or the account runs out of credits. Scriber must say
+/// so on its own rather than waiting for a dictation attempt to fail.
+public enum CredentialReadiness: Equatable, Sendable {
+    case ready
+    case missingAPIKey
+    case invalidAPIKey
+    case creditsExhausted
+
+    public init(apiKeyConfigured: Bool, apiKeyValidity: APIKeyValidity, apiCreditsExhausted: Bool) {
+        if !apiKeyConfigured {
+            self = .missingAPIKey
+        } else if apiKeyValidity == .invalid {
+            self = .invalidAPIKey
+        } else if apiCreditsExhausted {
+            self = .creditsExhausted
+        } else {
+            // An unchecked key is not a known problem. Validation could not reach
+            // ElevenLabs, and the last definitive result must not be invented here.
+            self = .ready
+        }
+    }
+
+    public var isReady: Bool { self == .ready }
+
+    public var title: String {
+        switch self {
+        case .ready: "Ready"
+        case .missingAPIKey: "ElevenLabs API key is missing"
+        case .invalidAPIKey: "ElevenLabs API key is invalid"
+        case .creditsExhausted: "ElevenLabs credits exhausted"
+        }
+    }
+
+    public var recoveryMessage: String {
+        switch self {
+        case .ready: "Scriber is ready to dictate."
+        case .missingAPIKey: "Add your key in Settings to start dictating."
+        case .invalidAPIKey: "Add or update the key in Settings."
+        case .creditsExhausted: "Add credits or wait for your quota to reset."
+        }
+    }
+
+    /// Exhausted credits are resolved at ElevenLabs, so that state routes to the
+    /// usage panel. Every other block is resolved in Scriber's own key field.
+    public var resolvesInUsageSettings: Bool { self == .creditsExhausted }
+}
+
+public enum CredentialRecoveryPolicy {
+    public static func shouldPresent(
+        previous: CredentialReadiness,
+        current: CredentialReadiness,
+        onboardingComplete: Bool,
+        force: Bool
+    ) -> Bool {
+        onboardingComplete && !current.isReady && (force || current != previous)
+    }
+}
+
 public enum PermissionRecoveryPolicy {
     public static func shouldPresent(
         previous: PermissionReadiness,
@@ -222,8 +283,7 @@ public enum AppPhase: Equatable, Sendable {
     case cancelledTranscript
     case dictationCopied(text: String, message: String)
     case permissionsRequired([ScriberPermission])
-    case apiKeyInvalid
-    case apiCreditsExhausted
+    case credentialsUnusable(CredentialReadiness)
     case pasteFailed(String)
     case transcriptionFailed(String)
     case message(String)
@@ -235,20 +295,21 @@ public enum AppPhase: Equatable, Sendable {
         }
     }
 
+    /// Returns idle once the credential block is resolved, and otherwise restates
+    /// the block with its current reason so a stale message cannot survive a
+    /// change from, say, a missing key to an invalid replacement.
     func resolvingCredentialBlock(
         apiKeyConfigured: Bool,
         apiKeyValidity: APIKeyValidity,
         apiCreditsExhausted: Bool
     ) -> AppPhase {
-        switch self {
-        case .apiKeyInvalid where apiKeyConfigured && apiKeyValidity == .valid:
-            .idle
-        case .apiCreditsExhausted
-            where apiKeyConfigured && apiKeyValidity == .valid && !apiCreditsExhausted:
-            .idle
-        default:
-            self
-        }
+        guard case .credentialsUnusable = self else { return self }
+        let readiness = CredentialReadiness(
+            apiKeyConfigured: apiKeyConfigured,
+            apiKeyValidity: apiKeyValidity,
+            apiCreditsExhausted: apiCreditsExhausted
+        )
+        return readiness.isReady ? .idle : .credentialsUnusable(readiness)
     }
 }
 
@@ -325,7 +386,7 @@ public extension AppPhase {
         case .idle: .passThrough
         case .recording: .cancelRecording
         case .transcribing: .hideTranscription
-        case .cancelledTranscript, .dictationCopied, .permissionsRequired, .apiKeyInvalid, .apiCreditsExhausted,
+        case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
              .pasteFailed, .transcriptionFailed, .message: .dismiss
         }
     }

@@ -66,6 +66,8 @@ final class AppCoordinator: ObservableObject {
     private var credentialRevision = CredentialRevision()
     private var suppressPillForCurrentTranscription = false
     private var permissionRecoveryPresentationPending = false
+    private var credentialRecoveryPresentationPending = false
+    private var lastObservedCredentialReadiness: CredentialReadiness = .ready
     private var cancellables = Set<AnyCancellable>()
 
     init(
@@ -183,6 +185,7 @@ final class AppCoordinator: ObservableObject {
         .store(in: &cancellables)
 
         if persistenceAvailable, servicesAllowed { recoverPersistedAndOrphanedRecords() }
+        lastObservedCredentialReadiness = credentialReadiness
         refreshPermissions(promptForAccessibility: false)
     }
 
@@ -197,8 +200,7 @@ final class AppCoordinator: ObservableObject {
         case .cancelledTranscript: "Cancelled"
         case .dictationCopied: "Copied"
         case .permissionsRequired: "Permissions required"
-        case .apiKeyInvalid: "API key invalid"
-        case .apiCreditsExhausted: "Credits exhausted"
+        case .credentialsUnusable(let readiness): readiness.title
         case .pasteFailed: "Paste failed"
         case .transcriptionFailed: "Transcription failed"
         case .message(let value): value
@@ -209,6 +211,14 @@ final class AppCoordinator: ObservableObject {
         PermissionReadiness(
             microphoneGranted: microphoneGranted,
             accessibilityGranted: accessibilityGranted
+        )
+    }
+
+    var credentialReadiness: CredentialReadiness {
+        CredentialReadiness(
+            apiKeyConfigured: preferences.apiKeyConfigured,
+            apiKeyValidity: preferences.apiKeyValidity,
+            apiCreditsExhausted: preferences.apiCreditsExhausted
         )
     }
 
@@ -346,7 +356,7 @@ final class AppCoordinator: ObservableObject {
             preferences.apiCreditsExhausted = false
             subscriptionUsageUnavailable = false
             subscriptionUsageError = nil
-            clearResolvedCredentialBlock()
+            refreshCredentialRecovery(force: false)
             return
         }
 #endif
@@ -365,7 +375,7 @@ final class AppCoordinator: ObservableObject {
         subscriptionUsageError = result.subscriptionUsageUnavailable
             ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
             : nil
-        clearResolvedCredentialBlock()
+        refreshCredentialRecovery(force: false)
     }
 
     private func validateStoredAPIKeyOnce() {
@@ -379,6 +389,7 @@ final class AppCoordinator: ObservableObject {
                 if credentialRevision.matches(validationRevision) {
                     isCheckingStoredAPIKey = false
                     storedAPIKeyValidationTask = nil
+                    refreshCredentialRecovery(force: true)
                 }
             }
             do {
@@ -401,7 +412,6 @@ final class AppCoordinator: ObservableObject {
                 subscriptionUsageError = result.subscriptionUsageUnavailable
                     ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
                     : nil
-                clearResolvedCredentialBlock()
             } catch let error as ScribeError where error.invalidatesAPIKey {
                 guard !Task.isCancelled, credentialRevision.matches(validationRevision) else { return }
                 preferences.apiKeyValidity = .invalid
@@ -428,7 +438,7 @@ final class AppCoordinator: ObservableObject {
             preferences.apiCreditsExhausted = usage.shouldBlockDictation
             subscriptionUsageUnavailable = false
             subscriptionUsageError = nil
-            clearResolvedCredentialBlock()
+            refreshCredentialRecovery(force: false)
         } catch let error as ScribeError where error.invalidatesAPIKey {
             guard !Task.isCancelled, credentialRevision.matches(refreshRevision) else { return }
             // Subscription access has a separate optional scope. A rejection here
@@ -448,15 +458,50 @@ final class AppCoordinator: ObservableObject {
             : "Credit usage is temporarily unavailable. Try refreshing again."
     }
 
-    private func clearResolvedCredentialBlock() {
+    /// Reconciles the credential block after anything that could change it.
+    ///
+    /// `force` presents the current problem even when it has not changed, which is
+    /// what the once-per-launch check needs: onboarding can be complete while the
+    /// stored key has since been revoked or replaced, and the user has to learn
+    /// that from Scriber rather than from a dictation that quietly does nothing.
+    private func refreshCredentialRecovery(force: Bool) {
+        let previous = lastObservedCredentialReadiness
+        let current = credentialReadiness
+        lastObservedCredentialReadiness = current
+
         let resolvedPhase = phase.resolvingCredentialBlock(
             apiKeyConfigured: preferences.apiKeyConfigured,
             apiKeyValidity: preferences.apiKeyValidity,
             apiCreditsExhausted: preferences.apiCreditsExhausted
         )
-        if resolvedPhase == .idle, phase != .idle {
-            returnToIdle()
+        if resolvedPhase != phase {
+            if resolvedPhase == .idle { returnToIdle() } else { setPhase(resolvedPhase) }
         }
+
+        guard CredentialRecoveryPolicy.shouldPresent(
+            previous: previous,
+            current: current,
+            onboardingComplete: preferences.onboardingComplete,
+            force: force
+        ) else { return }
+        credentialRecoveryPresentationPending = true
+        presentPendingCredentialRecoveryIfPossible()
+    }
+
+    /// Missing permissions outrank an unusable credential: without Microphone or
+    /// Accessibility there is nothing for a working key to do. The Dictation window
+    /// and menu bar surface both conditions at once, so nothing is lost by waiting.
+    private func presentPendingCredentialRecoveryIfPossible() {
+        let readiness = credentialReadiness
+        guard credentialRecoveryPresentationPending,
+              preferences.onboardingComplete,
+              !readiness.isReady,
+              !phase.isBusy,
+              permissionReadiness.isReady,
+              !permissionRecoveryPresentationPending else { return }
+        credentialRecoveryPresentationPending = false
+        suppressPillForCurrentTranscription = false
+        setPhase(.credentialsUnusable(readiness))
     }
 
     func setLaunchAtLogin(_ enabled: Bool) throws {
@@ -470,7 +515,7 @@ final class AppCoordinator: ObservableObject {
         case .holdPressed:
             switch phase {
             case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
-                 .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+                 .credentialsUnusable, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .held)
             case .transcribing:
                 showTransientMessage("Still transcribing")
@@ -482,7 +527,7 @@ final class AppCoordinator: ObservableObject {
         case .togglePressed:
             switch phase {
             case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
-                 .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+                 .credentialsUnusable, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .locked)
             case .recording(let mode, let elapsed, let level) where mode == .held:
                 shortcuts.setMode(.locked)
@@ -507,7 +552,7 @@ final class AppCoordinator: ObservableObject {
         guard preferences.onboardingComplete else { return }
         switch phase {
         case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
-             .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+             .credentialsUnusable, .pasteFailed, .transcriptionFailed:
             startRecording(mode: .locked)
         case .recording:
             stopAndTranscribe()
@@ -603,7 +648,7 @@ final class AppCoordinator: ObservableObject {
 
     func presentInvalidAPIKeyPillForUITesting() {
         guard !servicesAllowed else { return }
-        setPhase(.apiKeyInvalid)
+        setPhase(.credentialsUnusable(.invalidAPIKey))
     }
 
     func presentPermissionRecoveryPillForUITesting() {
@@ -784,10 +829,12 @@ final class AppCoordinator: ObservableObject {
             try? modelContext.save()
             if let scribeError = error as? ScribeError, scribeError.invalidatesAPIKey {
                 preferences.apiKeyValidity = .invalid
-                setPhase(.apiKeyInvalid)
+                lastObservedCredentialReadiness = credentialReadiness
+                setPhase(.credentialsUnusable(credentialReadiness))
             } else if case ScribeError.insufficientCredits = error {
                 preferences.apiCreditsExhausted = true
-                setPhase(.apiCreditsExhausted)
+                lastObservedCredentialReadiness = credentialReadiness
+                setPhase(.credentialsUnusable(credentialReadiness))
             } else {
                 setPhase(.transcriptionFailed(error.localizedDescription))
             }
@@ -906,20 +953,18 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func canUseConfiguredAPIKey() -> Bool {
-        guard preferences.apiKeyConfigured else {
-            setPhase(.apiKeyInvalid)
-            return false
-        }
         guard !isCheckingStoredAPIKey else {
             showMessage("Checking API key…")
             return false
         }
-        guard preferences.apiKeyValidity != .invalid else {
-            setPhase(.apiKeyInvalid)
-            return false
-        }
-        guard !preferences.apiCreditsExhausted else {
-            setPhase(.apiCreditsExhausted)
+        let readiness = credentialReadiness
+        guard readiness.isReady else {
+            // An attempted dictation always reports its own blocker, even while a
+            // permission problem is outranking the credential pill elsewhere.
+            credentialRecoveryPresentationPending = false
+            lastObservedCredentialReadiness = readiness
+            suppressPillForCurrentTranscription = false
+            setPhase(.credentialsUnusable(readiness))
             return false
         }
         return true
