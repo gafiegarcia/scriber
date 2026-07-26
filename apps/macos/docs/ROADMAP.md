@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `14` is the current personal-installation candidate for Apple silicon on macOS 27, and is the installed app. It fixes the startup window reopening after an early Command-W and carries a `window-lifecycle` diagnostic log. It is untagged: the most recent preserved snapshot is `v0.7.0-alpha.7` at build `11`, which carries the 2026-07-26 review pass. Builds `12` and `13` carry no source change and exist only as test vehicles for the Keychain re-authorization investigation below.
+Scriber `0.7.0` build `14` is the current personal-installation candidate for Apple silicon on macOS 27, and is the installed app. It fixes the startup window reopening after an early Command-W and carries a `window-lifecycle` diagnostic log. It is preserved as `v0.7.0-alpha.8`. Build `11`, which carries the 2026-07-26 review pass, is preserved as `v0.7.0-alpha.7`. Builds `12` and `13` carry no source change and exist only as test vehicles for the Keychain re-authorization investigation below.
 
 Carried forward from build 7, which is preserved as `v0.7.0-alpha.6`: the dedicated `Scriber/History.store`, the encrypted login-Keychain policy, and the long-lived local `Scriber Local Code Signing` identity that gives rebuilt Release bundles one stable designated requirement without a provisioning profile. macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; it then persists across launches and transcriptions of that unchanged binary. Reboot acceptance remains open. The preceding provisioned Data Protection Keychain implementation is preserved as `v0.7.0-alpha.2`.
 
