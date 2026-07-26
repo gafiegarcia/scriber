@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `11` is the current personal-installation candidate for Apple silicon on macOS 27, preserved as `v0.7.0-alpha.7`. The installed app is build `13`; builds `12` and `13` carry no source change and exist only as test vehicles for the Keychain re-authorization investigation below.
+Scriber `0.7.0` build `11` is the current personal-installation candidate for Apple silicon on macOS 27, preserved as `v0.7.0-alpha.7`. The installed app is build `14`, which fixes the startup window reopening after an early Command-W and carries a `window-lifecycle` diagnostic log. Builds `12` and `13` carry no source change and exist only as test vehicles for the Keychain re-authorization investigation below.
 
 Carried forward from build 7, which is preserved as `v0.7.0-alpha.6`: the dedicated `Scriber/History.store`, the encrypted login-Keychain policy, and the long-lived local `Scriber Local Code Signing` identity that gives rebuilt Release bundles one stable designated requirement without a provisioning profile. macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; it then persists across launches and transcriptions of that unchanged binary. Reboot acceptance remains open. The preceding provisioned Data Protection Keychain implementation is preserved as `v0.7.0-alpha.2`.
 
@@ -111,6 +111,13 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -projec
 
 The first UI-test run requires a signed test host and macOS UI Automation approval. Automated tests must use isolated data and services and must never access the real Keychain, mutate real SwiftData, contact ElevenLabs, or consume API credit.
 
+### Known state of the UI suite
+
+The suite has never been fully green, and earlier log entries recording "all UI tests pass" describe a four-test suite that has since grown to eleven. The first end-to-end run was 2026-07-26 on build 14: **eight pass, three fail**. The same three fail identically at `d183b4d`, so they predate the 2026-07-26 review pass. Do not read these as regressions from recent work.
+
+- `testEscapeDismissesPersistentPill` **cannot pass unattended.** Escape reaches the app through `GlobalShortcutService`'s `CGEvent` tap, which needs Accessibility trust. The test host is a throwaway binary in `.build/`, not `/Applications/Scriber.app`, so it is untrusted and the tap never arms. Fixing this means granting a DerivedData binary Accessibility, which is worse than the failure. Treat it as manual-only.
+- `testClosingFinalWindowUsesAccessoryActivationPolicy` and `testUpdateKeyForegroundsSettingsAndFocusesAPIKeyField` both fail on the same assertion: the process does not drop to `.accessory` after Command-W. **The product behavior is correct** — verified by hand on build 14, where the Dock icon disappears. The unconfirmed hypothesis is that `reconcileActivationPolicy` discards the `Bool` from `setActivationPolicy`, and macOS refuses to demote the frontmost application; under XCUITest the runner holds Scriber active, while a manual close hands focus to another app. Confirm that return value before changing anything here — an unverified "fix" to activation policy risks the Dock-icon bugs this code was written to prevent.
+
 ## Deferred review findings
 
 Raised by the 2026-07-26 full-codebase review and deliberately not acted on. None
@@ -122,6 +129,7 @@ to be rediscovered.
 - `DictationHistoryView` regroups every record by day on each body evaluation, and `clearDictationHistory` saves once per deleted record. Both are irrelevant at present history sizes and would matter in the thousands.
 - The global event tap swallows an `Escape` key-down while a pill is visible but lets its key-up through, so the foreground app can see an unmatched key-up. No observed consequence.
 - The Release configuration does not enable Hardened Runtime. That is correct for the current entitlement-free local signing and becomes a prerequisite only for notarized distribution.
+- `showInitialWindowWhenAvailable` polls for the startup window by title for up to two seconds. A 2026-07-26 unified-log trace showed it exhausting all 40 attempts without ever matching on one launch — the window was on screen anyway, placed there by SwiftUI — while on other launches it matched at attempt 5 or 16. So it is inert on some launches and, before the dismissal guard, actively raced the user on others. Removing it needs evidence about which launches still depend on it; the comment above `reconcileActivationPolicy` records the Dock-icon failure it was written to prevent.
 
 ## Release gates
 
