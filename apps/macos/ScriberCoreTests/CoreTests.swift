@@ -36,6 +36,17 @@ struct ShortcutMatcherTests {
         #expect(!AppPhase.pasteFailed("No target").isBusy)
     }
 
+    @Test("Names every key a shortcut can realistically bind")
+    func namesBoundKeys() {
+        #expect(ShortcutChord(modifiers: [.function], keyCode: 49).displayName == "fn+Space")
+        #expect(ShortcutChord(modifiers: [.command, .shift], keyCode: 12).displayName == "⇧+⌘+Q")
+        #expect(KeyCodeNames.name(for: 122) == "F1")
+        #expect(KeyCodeNames.name(for: 43) == ",")
+        #expect(KeyCodeNames.name(for: 126) == "↑")
+        // Anything unmapped still produces a stable, if ugly, label.
+        #expect(KeyCodeNames.name(for: 250) == "Key 250")
+    }
+
     @Test("Modifier recorder commits the largest simultaneous snapshot")
     func modifierRecorderCapturesFullChord() {
         var capture = ModifierChordCaptureState()
@@ -227,6 +238,64 @@ struct PillShapeTests {
     }
 }
 
+@Suite("Keyboard focus redirect")
+struct KeyboardFocusRedirectPolicyTests {
+    private let scriber: Int32 = 100
+    private let frontmost: Int32 = 200
+    private let panelOwner: Int32 = 300
+
+    @Test("Follows focus into a nonactivating panel that owns a text field")
+    func followsFocusIntoPanel() {
+        // Observed live: Raycast's command bar is an AXTextField owned by an
+        // LSUIElement process, while Finder remained frontmost.
+        #expect(KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: panelOwner,
+            frontmostPID: frontmost,
+            scriberPID: scriber,
+            focusExposesTextInput: true
+        ))
+    }
+
+    @Test("Leaves an ordinary app alone")
+    func ordinaryAppIsUnaffected() {
+        #expect(!KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: frontmost,
+            frontmostPID: frontmost,
+            scriberPID: scriber,
+            focusExposesTextInput: true
+        ))
+    }
+
+    @Test("Never redirects into a focus with no text input")
+    func requiresTextInput() {
+        #expect(!KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: panelOwner,
+            frontmostPID: frontmost,
+            scriberPID: scriber,
+            focusExposesTextInput: false
+        ))
+    }
+
+    @Test("Never redirects into Scriber itself")
+    func neverTargetsScriber() {
+        // Scriber's pill is the same species of nonactivating panel. Its own
+        // windows need no redirect: they are frontmost when focused, so the
+        // Dictation search field stays reachable.
+        #expect(!KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: scriber,
+            frontmostPID: frontmost,
+            scriberPID: scriber,
+            focusExposesTextInput: true
+        ))
+        #expect(!KeyboardFocusRedirectPolicy.redirects(
+            focusOwnerPID: scriber,
+            frontmostPID: scriber,
+            scriberPID: scriber,
+            focusExposesTextInput: true
+        ))
+    }
+}
+
 @Suite("Paste confirmation")
 struct PasteConfirmationTests {
     @Test("Confirms an observable Accessibility mutation")
@@ -249,6 +318,38 @@ struct PasteConfirmationTests {
     func noConsumptionOrMutation() {
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
+            pasteboardDataRequested: false
+        ))
+    }
+
+    @Test("State drift on a non-text focus is not evidence")
+    func rejectsDriftOnNonTextFocus() {
+        #expect(!PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
+            focusContainsTextInput: false,
+            mutationObserved: true
+        ))
+        #expect(PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
+            focusContainsTextInput: true,
+            mutationObserved: true
+        ))
+        #expect(!PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
+            focusContainsTextInput: true,
+            mutationObserved: false
+        ))
+    }
+
+    @Test("A live page with no focused text box is still a failed paste")
+    func livePageWithoutTextBoxStillFails() {
+        // Observed live on claude.ai in Zen: the page reports a focused element
+        // that is not text input, and its own accessibility state drifts between
+        // the before and after snapshots. Counting that drift reported a paste
+        // that never happened and suppressed the copied-result recovery.
+        let accessibilityEvidence = PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
+            focusContainsTextInput: false,
+            mutationObserved: true
+        )
+        #expect(!PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: accessibilityEvidence,
             pasteboardDataRequested: false
         ))
     }
@@ -370,21 +471,99 @@ struct CredentialStateTests {
 
     @Test("Clears credential pills only after the replacement is configured and valid")
     func resolvesCredentialPills() {
-        #expect(AppPhase.apiKeyInvalid.resolvingCredentialBlock(
+        #expect(AppPhase.credentialsUnusable(.invalidAPIKey).resolvingCredentialBlock(
             apiKeyConfigured: true,
             apiKeyValidity: .valid,
             apiCreditsExhausted: false
         ) == .idle)
-        #expect(AppPhase.apiKeyInvalid.resolvingCredentialBlock(
+        #expect(AppPhase.credentialsUnusable(.creditsExhausted).resolvingCredentialBlock(
+            apiKeyConfigured: true,
+            apiKeyValidity: .valid,
+            apiCreditsExhausted: false
+        ) == .idle)
+    }
+
+    @Test("Restates a credential block whose reason changed")
+    func restatesChangedCredentialBlock() {
+        #expect(AppPhase.credentialsUnusable(.invalidAPIKey).resolvingCredentialBlock(
             apiKeyConfigured: false,
             apiKeyValidity: .valid,
             apiCreditsExhausted: false
-        ) == .apiKeyInvalid)
-        #expect(AppPhase.apiCreditsExhausted.resolvingCredentialBlock(
+        ) == .credentialsUnusable(.missingAPIKey))
+    }
+
+    @Test("Leaves unrelated phases untouched")
+    func ignoresUnrelatedPhases() {
+        #expect(AppPhase.transcriptionFailed("Offline").resolvingCredentialBlock(
             apiKeyConfigured: true,
             apiKeyValidity: .valid,
             apiCreditsExhausted: false
-        ) == .idle)
+        ) == .transcriptionFailed("Offline"))
+    }
+}
+
+@Suite("Credential readiness")
+struct CredentialReadinessTests {
+    @Test("Classifies each way a credential can block dictation")
+    func classifiesBlockingStates() {
+        #expect(CredentialReadiness(
+            apiKeyConfigured: false, apiKeyValidity: .unchecked, apiCreditsExhausted: false
+        ) == .missingAPIKey)
+        #expect(CredentialReadiness(
+            apiKeyConfigured: true, apiKeyValidity: .invalid, apiCreditsExhausted: false
+        ) == .invalidAPIKey)
+        #expect(CredentialReadiness(
+            apiKeyConfigured: true, apiKeyValidity: .valid, apiCreditsExhausted: true
+        ) == .creditsExhausted)
+        #expect(CredentialReadiness(
+            apiKeyConfigured: true, apiKeyValidity: .valid, apiCreditsExhausted: false
+        ) == .ready)
+    }
+
+    @Test("An unreachable check is not a credential problem")
+    func uncheckedKeyStaysReady() {
+        // Validation could not reach ElevenLabs. Blocking here would strand the
+        // user offline with a key that is probably fine.
+        #expect(CredentialReadiness(
+            apiKeyConfigured: true, apiKeyValidity: .unchecked, apiCreditsExhausted: false
+        ) == .ready)
+    }
+
+    @Test("Only exhausted credits route to the usage panel")
+    func routesRecoveryToTheRightPlace() {
+        #expect(CredentialReadiness.creditsExhausted.resolvesInUsageSettings)
+        #expect(!CredentialReadiness.missingAPIKey.resolvesInUsageSettings)
+        #expect(!CredentialReadiness.invalidAPIKey.resolvesInUsageSettings)
+    }
+
+    @Test("Presents a launch-time problem that never changed state")
+    func presentsUnchangedProblemOnLaunch() {
+        // The stored key was already invalid when Scriber started, so nothing
+        // transitions. Without the forced check the user is never told.
+        #expect(CredentialRecoveryPolicy.shouldPresent(
+            previous: .invalidAPIKey,
+            current: .invalidAPIKey,
+            onboardingComplete: true,
+            force: true
+        ))
+        #expect(!CredentialRecoveryPolicy.shouldPresent(
+            previous: .invalidAPIKey,
+            current: .invalidAPIKey,
+            onboardingComplete: true,
+            force: false
+        ))
+        #expect(!CredentialRecoveryPolicy.shouldPresent(
+            previous: .ready,
+            current: .ready,
+            onboardingComplete: true,
+            force: true
+        ))
+        #expect(!CredentialRecoveryPolicy.shouldPresent(
+            previous: .ready,
+            current: .invalidAPIKey,
+            onboardingComplete: false,
+            force: true
+        ))
     }
 }
 
@@ -513,6 +692,78 @@ private final class FakeCredentialStorageBackend: CredentialStorageBackend, @unc
     }
 }
 
+@Suite("Retained audio retention")
+struct RetainedAudioRetentionPolicyTests {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    @Test("Expires only at the full retention period")
+    func retentionBoundary() {
+        let period = RetainedAudioRetentionPolicy.retentionPeriod
+        #expect(!RetainedAudioRetentionPolicy.hasExpired(
+            createdAt: now.addingTimeInterval(-period + 1), now: now
+        ))
+        #expect(RetainedAudioRetentionPolicy.hasExpired(
+            createdAt: now.addingTimeInterval(-period), now: now
+        ))
+        #expect(!RetainedAudioRetentionPolicy.hasExpired(createdAt: now, now: now))
+    }
+
+    @Test("Keeps why the dictation failed alongside why its audio is gone")
+    func preservesExistingFailureReason() {
+        let combined = RetainedAudioRetentionPolicy.expiredMessage(
+            appendingTo: "Cancelled before transcription."
+        )
+        #expect(combined.hasPrefix("Cancelled before transcription."))
+        #expect(combined.hasSuffix(RetainedAudioRetentionPolicy.expiryMessage))
+    }
+
+    @Test("Stands alone when nothing explained the failure")
+    func standsAloneWithoutAReason() {
+        #expect(RetainedAudioRetentionPolicy.expiredMessage(appendingTo: nil)
+            == RetainedAudioRetentionPolicy.expiryMessage)
+        #expect(RetainedAudioRetentionPolicy.expiredMessage(appendingTo: "")
+            == RetainedAudioRetentionPolicy.expiryMessage)
+    }
+}
+
+@Suite("Orphaned audio import")
+struct OrphanedAudioImportPolicyTests {
+    private let recordingID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
+    private var relativePath: String { "\(recordingID.uuidString).m4a" }
+
+    @Test("Imports a recording no dictation can account for")
+    func importsUnknownRecording() {
+        #expect(OrphanedAudioImportPolicy.shouldImport(
+            recordingID: recordingID,
+            relativePath: relativePath,
+            knownRecordIDs: [],
+            referencedAudioPaths: []
+        ))
+    }
+
+    @Test("Never reimports audio a dictation already references")
+    func skipsReferencedRecording() {
+        #expect(!OrphanedAudioImportPolicy.shouldImport(
+            recordingID: recordingID,
+            relativePath: relativePath,
+            knownRecordIDs: [recordingID],
+            referencedAudioPaths: [relativePath]
+        ))
+    }
+
+    @Test("Never reimports audio left behind by a succeeded dictation")
+    func protectsSavedTranscriptFromUpsert() {
+        // The record dropped its audio reference after saving its transcript, but
+        // deleting the file failed. Reimporting would upsert over that record.
+        #expect(!OrphanedAudioImportPolicy.shouldImport(
+            recordingID: recordingID,
+            relativePath: relativePath,
+            knownRecordIDs: [recordingID],
+            referencedAudioPaths: []
+        ))
+    }
+}
+
 @Suite("Transcript content")
 struct TranscriptContentTests {
     @Test("Rejects empty and punctuation-only results")
@@ -615,49 +866,6 @@ struct TextInputTargetPolicyTests {
             selectedTextSettable: false,
             exposesCharacterCount: false,
             enabled: true
-        ))
-    }
-}
-
-@Suite("Captured text selection")
-struct CapturedSelectionRestorePolicyTests {
-    @Test("Restores a captured range when the original text is unchanged")
-    func restoresUnchangedText() {
-        #expect(CapturedSelectionRestorePolicy.canRestore(
-            capturedText: "A note",
-            currentText: "A note",
-            capturedRange: NSRange(location: 2, length: 0),
-            currentRange: NSRange(location: 0, length: 0),
-            isOriginalTargetFocused: false
-        ))
-    }
-
-    @Test("Falls back to the current insertion point when text changed")
-    func rejectsChangedText() {
-        #expect(!CapturedSelectionRestorePolicy.canRestore(
-            capturedText: "A note",
-            currentText: "An edited note",
-            capturedRange: NSRange(location: 2, length: 0),
-            currentRange: NSRange(location: 2, length: 0),
-            isOriginalTargetFocused: true
-        ))
-    }
-
-    @Test("Needs the original focused range without observable text")
-    func requiresFocusedMatchingRangeWithoutText() {
-        #expect(CapturedSelectionRestorePolicy.canRestore(
-            capturedText: nil,
-            currentText: nil,
-            capturedRange: NSRange(location: 2, length: 1),
-            currentRange: NSRange(location: 2, length: 1),
-            isOriginalTargetFocused: true
-        ))
-        #expect(!CapturedSelectionRestorePolicy.canRestore(
-            capturedText: nil,
-            currentText: nil,
-            capturedRange: NSRange(location: 2, length: 1),
-            currentRange: NSRange(location: 2, length: 1),
-            isOriginalTargetFocused: false
         ))
     }
 }

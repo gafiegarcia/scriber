@@ -80,18 +80,31 @@ public struct ModifierChordCaptureState: Equatable, Sendable {
 }
 
 public enum KeyCodeNames {
+    /// Virtual key codes for the standard ANSI layout, matching Carbon's
+    /// `kVK_` constants. Codes are positional, so this names the key by where it
+    /// sits rather than by what a remapped layout produces — good enough for a
+    /// shortcut label, and it avoids pulling Carbon into this UI-free module.
+    private static let names: [UInt16: String] = [
+        0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
+        11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T",
+        18: "1", 19: "2", 20: "3", 21: "4", 22: "6", 23: "5", 25: "9", 26: "7", 28: "8", 29: "0",
+        24: "=", 27: "-", 30: "]", 33: "[", 39: "'", 41: ";", 42: "\\", 43: ",", 44: "/", 47: ".",
+        50: "`",
+        31: "O", 32: "U", 34: "I", 35: "P", 37: "L", 38: "J", 40: "K", 45: "N", 46: "M",
+        36: "Return", 48: "Tab", 49: "Space", 51: "Delete", 53: "Escape",
+        65: "Keypad .", 67: "Keypad *", 69: "Keypad +", 71: "Keypad Clear", 75: "Keypad /",
+        76: "Keypad Enter", 78: "Keypad -", 81: "Keypad =",
+        82: "Keypad 0", 83: "Keypad 1", 84: "Keypad 2", 85: "Keypad 3", 86: "Keypad 4",
+        87: "Keypad 5", 88: "Keypad 6", 89: "Keypad 7", 91: "Keypad 8", 92: "Keypad 9",
+        96: "F5", 97: "F6", 98: "F7", 99: "F3", 100: "F8", 101: "F9", 103: "F11",
+        105: "F13", 106: "F16", 107: "F14", 109: "F10", 111: "F12", 113: "F15",
+        114: "Help", 115: "Home", 116: "Page Up", 117: "Forward Delete",
+        118: "F4", 119: "End", 120: "F2", 121: "Page Down", 122: "F1",
+        123: "←", 124: "→", 125: "↓", 126: "↑",
+    ]
+
     public static func name(for keyCode: UInt16) -> String {
-        switch keyCode {
-        case 49: return "Space"
-        case 53: return "Escape"
-        case 36: return "Return"
-        case 48: return "Tab"
-        case 123: return "←"
-        case 124: return "→"
-        case 125: return "↓"
-        case 126: return "↑"
-        default: return "Key \(keyCode)"
-        }
+        names[keyCode] ?? "Key \(keyCode)"
     }
 }
 
@@ -115,11 +128,6 @@ public struct AudioInputDeviceDescriptor: Identifiable, Codable, Equatable, Hash
 public enum AudioInputSelection: Codable, Equatable, Hashable, Sendable {
     case automatic
     case device(id: String, name: String)
-
-    public var deviceID: String? {
-        guard case .device(let id, _) = self else { return nil }
-        return id
-    }
 
     public static func initialSelection(from devices: [AudioInputDeviceDescriptor]) -> AudioInputSelection {
         guard let builtIn = devices.first(where: \AudioInputDeviceDescriptor.isBuiltIn) else { return .automatic }
@@ -190,6 +198,67 @@ public struct PermissionReadiness: Equatable, Sendable {
     }
 }
 
+/// Why Scriber cannot currently reach ElevenLabs, if it cannot.
+///
+/// Onboarding can complete and then stop being sufficient: a key is revoked,
+/// replaced at ElevenLabs, or the account runs out of credits. Scriber must say
+/// so on its own rather than waiting for a dictation attempt to fail.
+public enum CredentialReadiness: Equatable, Sendable {
+    case ready
+    case missingAPIKey
+    case invalidAPIKey
+    case creditsExhausted
+
+    public init(apiKeyConfigured: Bool, apiKeyValidity: APIKeyValidity, apiCreditsExhausted: Bool) {
+        if !apiKeyConfigured {
+            self = .missingAPIKey
+        } else if apiKeyValidity == .invalid {
+            self = .invalidAPIKey
+        } else if apiCreditsExhausted {
+            self = .creditsExhausted
+        } else {
+            // An unchecked key is not a known problem. Validation could not reach
+            // ElevenLabs, and the last definitive result must not be invented here.
+            self = .ready
+        }
+    }
+
+    public var isReady: Bool { self == .ready }
+
+    public var title: String {
+        switch self {
+        case .ready: "Ready"
+        case .missingAPIKey: "ElevenLabs API key is missing"
+        case .invalidAPIKey: "ElevenLabs API key is invalid"
+        case .creditsExhausted: "ElevenLabs credits exhausted"
+        }
+    }
+
+    public var recoveryMessage: String {
+        switch self {
+        case .ready: "Scriber is ready to dictate."
+        case .missingAPIKey: "Add your key in Settings to start dictating."
+        case .invalidAPIKey: "Add or update the key in Settings."
+        case .creditsExhausted: "Add credits or wait for your quota to reset."
+        }
+    }
+
+    /// Exhausted credits are resolved at ElevenLabs, so that state routes to the
+    /// usage panel. Every other block is resolved in Scriber's own key field.
+    public var resolvesInUsageSettings: Bool { self == .creditsExhausted }
+}
+
+public enum CredentialRecoveryPolicy {
+    public static func shouldPresent(
+        previous: CredentialReadiness,
+        current: CredentialReadiness,
+        onboardingComplete: Bool,
+        force: Bool
+    ) -> Bool {
+        onboardingComplete && !current.isReady && (force || current != previous)
+    }
+}
+
 public enum PermissionRecoveryPolicy {
     public static func shouldPresent(
         previous: PermissionReadiness,
@@ -222,8 +291,7 @@ public enum AppPhase: Equatable, Sendable {
     case cancelledTranscript
     case dictationCopied(text: String, message: String)
     case permissionsRequired([ScriberPermission])
-    case apiKeyInvalid
-    case apiCreditsExhausted
+    case credentialsUnusable(CredentialReadiness)
     case pasteFailed(String)
     case transcriptionFailed(String)
     case message(String)
@@ -235,20 +303,21 @@ public enum AppPhase: Equatable, Sendable {
         }
     }
 
+    /// Returns idle once the credential block is resolved, and otherwise restates
+    /// the block with its current reason so a stale message cannot survive a
+    /// change from, say, a missing key to an invalid replacement.
     func resolvingCredentialBlock(
         apiKeyConfigured: Bool,
         apiKeyValidity: APIKeyValidity,
         apiCreditsExhausted: Bool
     ) -> AppPhase {
-        switch self {
-        case .apiKeyInvalid where apiKeyConfigured && apiKeyValidity == .valid:
-            .idle
-        case .apiCreditsExhausted
-            where apiKeyConfigured && apiKeyValidity == .valid && !apiCreditsExhausted:
-            .idle
-        default:
-            self
-        }
+        guard case .credentialsUnusable = self else { return self }
+        let readiness = CredentialReadiness(
+            apiKeyConfigured: apiKeyConfigured,
+            apiKeyValidity: apiKeyValidity,
+            apiCreditsExhausted: apiCreditsExhausted
+        )
+        return readiness.isReady ? .idle : .credentialsUnusable(readiness)
     }
 }
 
@@ -285,6 +354,42 @@ public enum RecordingCancellationPolicy {
     }
 }
 
+/// When Scriber stops keeping the audio behind a failed or cancelled dictation.
+///
+/// Retained recordings exist so a dictation can be retried, but nothing ever
+/// collected them, so unretried audio accumulated in Application Support for the
+/// life of the install. That is a privacy cost as much as a disk one.
+public enum RetainedAudioRetentionPolicy {
+    public static let retentionPeriod: TimeInterval = 30 * 24 * 60 * 60
+
+    public static let expiryMessage = "The retained recording was removed after 30 days and can no longer be retried."
+
+    public static func hasExpired(createdAt: Date, now: Date = .now) -> Bool {
+        now.timeIntervalSince(createdAt) >= retentionPeriod
+    }
+
+    /// Keeps why the dictation failed alongside why its audio is gone.
+    public static func expiredMessage(appendingTo existing: String?) -> String {
+        guard let existing, !existing.isEmpty else { return expiryMessage }
+        return "\(existing) \(expiryMessage)"
+    }
+}
+
+public enum OrphanedAudioImportPolicy {
+    /// A retained recording is named for its dictation's ID, and that ID is unique
+    /// in the store, so importing a file whose ID already exists would upsert over
+    /// the original record and replace a saved transcript with an empty failed
+    /// entry. Import only recordings that no existing dictation can account for.
+    public static func shouldImport(
+        recordingID: UUID,
+        relativePath: String,
+        knownRecordIDs: Set<UUID>,
+        referencedAudioPaths: Set<String>
+    ) -> Bool {
+        !referencedAudioPaths.contains(relativePath) && !knownRecordIDs.contains(recordingID)
+    }
+}
+
 public enum PillShapeStyle: Equatable, Sendable {
     case capsule
     case roundedRectangle
@@ -310,7 +415,7 @@ public extension AppPhase {
         case .idle: .passThrough
         case .recording: .cancelRecording
         case .transcribing: .hideTranscription
-        case .cancelledTranscript, .dictationCopied, .permissionsRequired, .apiKeyInvalid, .apiCreditsExhausted,
+        case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
              .pasteFailed, .transcriptionFailed, .message: .dismiss
         }
     }
@@ -349,20 +454,32 @@ public enum TextInputTargetPolicy {
     }
 }
 
-public enum CapturedSelectionRestorePolicy {
-    /// Restoring a saved AX selection range is only safe when the text has not
-    /// changed, or when the original control remains focused at that same range.
-    /// Otherwise the caller should paste at the current insertion point instead.
-    public static func canRestore(
-        capturedText: String?,
-        currentText: String?,
-        capturedRange: NSRange?,
-        currentRange: NSRange?,
-        isOriginalTargetFocused: Bool
+public enum KeyboardFocusRedirectPolicy {
+    /// Whether delivery should follow keyboard focus into a process other than
+    /// the frontmost one.
+    ///
+    /// An accessory (`LSUIElement`) app can present a nonactivating panel that
+    /// takes keyboard focus without ever becoming frontmost. Raycast's command
+    /// bar does this, and so does Scriber's own pill. Typing follows keyboard
+    /// focus, so dictation must too — otherwise the transcript lands in the
+    /// window the user visibly left behind.
+    ///
+    /// Redirection is deliberately narrow. It requires a different process that
+    /// genuinely exposes a focused text input, so an ordinary app whose focus and
+    /// frontmost status agree is never affected.
+    ///
+    /// Scriber never redirects to itself. That keeps the pill from becoming its
+    /// own paste target without blocking Scriber's ordinary windows, which are
+    /// frontmost when focused and therefore need no redirect.
+    public static func redirects(
+        focusOwnerPID: Int32,
+        frontmostPID: Int32,
+        scriberPID: Int32,
+        focusExposesTextInput: Bool
     ) -> Bool {
-        guard let capturedRange else { return false }
-        if let capturedText { return currentText == capturedText }
-        return isOriginalTargetFocused && currentRange == capturedRange
+        focusOwnerPID != frontmostPID
+            && focusOwnerPID != scriberPID
+            && focusExposesTextInput
     }
 }
 
@@ -372,6 +489,21 @@ public enum PasteConfirmationPolicy {
         pasteboardDataRequested: Bool
     ) -> Bool {
         accessibilityMutationObserved || pasteboardDataRequested
+    }
+
+    /// Accessibility state only counts as evidence when it was observed on a focus
+    /// that genuinely looks like text input.
+    ///
+    /// A live web page with no focused text box changes its own accessibility
+    /// state through carets, timers, and streaming content. Watching an unrelated
+    /// focused element therefore manufactures confirmations at random, which is
+    /// worse than having no Accessibility evidence at all: a failed paste is
+    /// reported as delivered and the transcript is never offered for recovery.
+    public static func qualifiesAsAccessibilityEvidence(
+        focusContainsTextInput: Bool,
+        mutationObserved: Bool
+    ) -> Bool {
+        focusContainsTextInput && mutationObserved
     }
 }
 

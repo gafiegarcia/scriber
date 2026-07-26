@@ -32,16 +32,20 @@ struct KeychainStore: Sendable {
         )
     }
 
-    func readAPIKey() throws -> String? {
-        try store.read()
+    // Security framework calls are synchronous and unbounded: macOS may have to
+    // consult the user before releasing a protected item, and a locally signed
+    // build is re-authorized after every reinstall. Performing them on the main
+    // actor freezes the whole interface, including the dictation pill, so every
+    // access runs off the main actor.
+
+    func readAPIKey() async throws -> String? {
+        let store = store
+        return try await Task.detached(priority: .userInitiated) { try store.read() }.value
     }
 
-    func saveAPIKey(_ value: String) throws {
-        try store.save(value)
-    }
-
-    func deleteAPIKey() throws {
-        try store.delete()
+    func saveAPIKey(_ value: String) async throws {
+        let store = store
+        try await Task.detached(priority: .userInitiated) { try store.save(value) }.value
     }
 }
 

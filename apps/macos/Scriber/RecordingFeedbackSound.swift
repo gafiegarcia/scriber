@@ -45,9 +45,3 @@ final class RecordingFeedbackSoundPlayer: RecordingFeedbackSoundPlaying {
         cancellationOrCopyFallbackSound?.stop()
     }
 }
-
-@MainActor
-final class NoopRecordingFeedbackSoundPlayer: RecordingFeedbackSoundPlaying {
-    func play(_ cue: RecordingFeedbackCue) {}
-    func stop() {}
-}

@@ -101,7 +101,10 @@ final class PillController {
         model.onHoverChanged = { [weak self] isHovering in self?.setHovering(isHovering) }
     }
 
-    func update(_ phase: AppPhase) {
+    /// `autoDismiss` is disabled when the caller owns the pill's lifetime, so a
+    /// controller countdown and a caller countdown of the same length cannot race
+    /// and produce a hide immediately followed by a show.
+    func update(_ phase: AppPhase, autoDismiss: Bool = true) {
         clearAutoDismissal()
         guard phase != .idle else {
             isHovering = false
@@ -112,7 +115,8 @@ final class PillController {
         applyLayout(for: phase)
         model.phase = phase
         show()
-        if !autoDismissalDisabledForUITesting,
+        if autoDismiss,
+           !autoDismissalDisabledForUITesting,
            let delay = dismissalDelay(for: phase) {
             startAutoDismissal(after: delay)
         }
@@ -193,7 +197,7 @@ final class PillController {
             8
         case .dictationCopied:
             5
-        case .cancelledTranscript, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+        case .cancelledTranscript, .credentialsUnusable, .pasteFailed, .transcriptionFailed:
             6
         default:
             nil
@@ -208,8 +212,8 @@ final class PillController {
             NSSize(width: 430, height: 104)
         case .permissionsRequired:
             NSSize(width: 450, height: 60)
-        case .apiKeyInvalid, .apiCreditsExhausted:
-            NSSize(width: 410, height: 60)
+        case .credentialsUnusable:
+            NSSize(width: 430, height: 60)
         case .pasteFailed, .transcriptionFailed:
             NSSize(width: 390, height: 60)
         default:
@@ -468,7 +472,7 @@ private struct PillView: View {
             ProgressView().controlSize(.small)
         case .dictationCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case .cancelledTranscript, .permissionsRequired, .apiKeyInvalid, .apiCreditsExhausted,
+        case .cancelledTranscript, .permissionsRequired, .credentialsUnusable,
              .pasteFailed, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         default:
@@ -486,8 +490,7 @@ private struct PillView: View {
         case .dictationCopied: "Copied"
         case .cancelledTranscript: "You can recover your cancelled transcript"
         case .permissionsRequired: "Permissions required"
-        case .apiKeyInvalid: "ElevenLabs API key is invalid"
-        case .apiCreditsExhausted: "ElevenLabs credits exhausted"
+        case .credentialsUnusable(let readiness): readiness.title
         case .pasteFailed: "Couldn't paste automatically"
         case .transcriptionFailed: "Transcription failed"
         case .message(let value): value
@@ -498,8 +501,7 @@ private struct PillView: View {
         switch model.phase {
         case .transcribing(_, let delay):
             delay.map { "Trying again in \(Int($0)) seconds" }
-        case .apiKeyInvalid: "Add or update the key in Settings"
-        case .apiCreditsExhausted: "Add credits or wait for your quota to reset"
+        case .credentialsUnusable(let readiness): readiness.recoveryMessage
         case .cancelledTranscript: "We noticed you cancelled your transcription"
         case .permissionsRequired(let missing):
             PermissionReadiness(missingPermissions: missing).recoveryMessage
@@ -515,15 +517,16 @@ private struct PillView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
             dismissButton
-        case .apiKeyInvalid:
-            Button("Update Key") { model.onOpenAPIKeySettings?() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            dismissButton
-        case .apiCreditsExhausted:
-            Button("View Usage") { model.onOpenUsageSettings?() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+        case .credentialsUnusable(let readiness):
+            if readiness.resolvesInUsageSettings {
+                Button("View Usage") { model.onOpenUsageSettings?() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            } else {
+                Button("Update Key") { model.onOpenAPIKeySettings?() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
             dismissButton
         case .pasteFailed:
             Button("Copy") { model.onCopy?() }.buttonStyle(.borderedProminent).controlSize(.small)

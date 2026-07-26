@@ -2,7 +2,11 @@
 
 ## Current status
 
-Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidate for Apple silicon on macOS 27. The preceding provisioned Data Protection Keychain implementation is preserved by annotated tag `v0.7.0-alpha.2`. Build 7 retains the dedicated `Scriber/History.store` and encrypted login-Keychain policy, while replacing version-specific ad-hoc signing with the long-lived local `Scriber Local Code Signing` identity. This gives rebuilt Release bundles one stable designated requirement without a provisioning profile. Live testing shows macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; that authorization then persists across launches and transcriptions of the unchanged installed binary. Reboot acceptance remains open. The paste-confirmation investigation remains resolved for personal use and its rationale lives in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md).
+Scriber `0.7.0` build `11` is the current personal-installation candidate for Apple silicon on macOS 27, preserved as `v0.7.0-alpha.7`.
+
+Carried forward from build 7, which is preserved as `v0.7.0-alpha.6`: the dedicated `Scriber/History.store`, the encrypted login-Keychain policy, and the long-lived local `Scriber Local Code Signing` identity that gives rebuilt Release bundles one stable designated requirement without a provisioning profile. macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; it then persists across launches and transcriptions of that unchanged binary. Reboot acceptance remains open. The preceding provisioned Data Protection Keychain implementation is preserved as `v0.7.0-alpha.2`.
+
+Builds 8 through 11 carry the 2026-07-26 review pass. Build 8 moved delivery to the live cursor and took Accessibility off the record-start path; build 9 fixed the false-success regression that shipped with it; build 11 made delivery follow keyboard focus so dictation reaches nonactivating panels such as Raycast. The paste engine's rationale, its standing constraints, and its regression baseline live in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md) — read it before changing delivery, target selection, or confirmation.
 
 ## Milestones
 
@@ -38,6 +42,10 @@ Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidat
 
 ### Credentials, quota, and transcription
 
+- [ ] Remove or corrupt the stored key, relaunch, and confirm Scriber reports it on its own — pill, Dictation banner, and menu bar — without waiting for a dictation attempt.
+- [ ] Confirm the same for exhausted credits, and that recovery routes to the usage panel rather than the key field.
+- [ ] Confirm retained audio older than 30 days is removed at launch while its history entry, transcript, and failure reason survive, and that disabling the preference stops the sweep.
+
 - [ ] Re-enter, save, and read back a real Speech-to-Text-scoped ElevenLabs key across relaunch and restart from the installed locally signed build.
 - [ ] Verify startup handling for valid, revoked, tampered, restricted-scope, and transiently unreachable credentials.
 - [ ] Verify subscription usage for full-scope, Speech-to-Text-only, exhausted, and extended-usage accounts.
@@ -59,9 +67,15 @@ Scriber `0.7.0` build `7` is the `v0.7.0-alpha.6` personal-installation candidat
 
 ### Insertion and fallback
 
+- [x] Confirm recording starts immediately in the apps that previously took two to three seconds. Verified on build 8 in ChatGPT, Notion, and Zen.
+- [x] Confirm delivery lands at the cursor focused when the transcript arrives. Verified on build 8: ChatGPT `pasted`, Notion `pasted`, Zen with a focused field `pasted`, Zen on `x.com` without one `copied`.
+- [x] Close the build 8 false-success regression. Build 9 classified 14 consecutive dictations correctly across `claude.ai`, the Claude desktop app, ChatGPT, Notion, `x.com`, and Finder, including the no-focused-field case on both a live page and a native app. The table in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md) is the regression baseline.
+- [ ] Confirm moving focus to a different app or field during transcription delivers to the final cursor.
+- [ ] Confirm the pill still appears on the screen holding the app that was frontmost at record start, now that its screen comes from the window server rather than Accessibility.
+
 - [x] Close the paste-confirmation regression with Raycast running: Xcode, ChatGPT, and Notion confirm success without a false recovery panel, while Zen with no focused text box produces copied recovery.
 - [ ] Verify target capture, selection restoration, confirmed insertion, clipboard restoration, and copied fallback in TextEdit.
-- [ ] Repeat insertion checks in Ghostty, Raycast, Zen with a focused field, Zen without a focused field, VS Code, Zed, Notion, ChatGPT, and Codex without treating missing Accessibility evidence as failure.
+- [x] Repeat insertion checks in Ghostty, Raycast, VS Code, and Zed. Raycast needed the build 11 keyboard-focus fix; its command bar and its Notes window both deliver correctly now. Codex remains unchecked.
 - [ ] Verify behavior when the focused target disappears, moves its selection, is secure/disabled, or exposes no focused Accessibility element.
 - [ ] Verify menu-command and PID-targeted paste fallbacks without false success reporting, including with Raycast clipboard history running and the transient/concealed markers honored.
 
@@ -94,6 +108,18 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -projec
 
 The first UI-test run requires a signed test host and macOS UI Automation approval. Automated tests must use isolated data and services and must never access the real Keychain, mutate real SwiftData, contact ElevenLabs, or consume API credit.
 
+## Deferred review findings
+
+Raised by the 2026-07-26 full-codebase review and deliberately not acted on. None
+of these is known to affect current behavior; each is recorded so it does not have
+to be rediscovered.
+
+- `AppCoordinator` is roughly 1,150 lines covering permissions, credentials, recording, transcription, delivery, persistence, muting, and pill state. It is coherent rather than tangled, but it is the file where the next feature will hurt. History recovery and retention are the most separable pieces.
+- `DictationHistoryStore.makePersistentContainer` sleeps on the main thread between open attempts. The happy path has a zero delay, so this only blocks a launch that is already failing to open the store; making it async would mean restructuring `AppRuntime.init`.
+- `DictationHistoryView` regroups every record by day on each body evaluation, and `clearDictationHistory` saves once per deleted record. Both are irrelevant at present history sizes and would matter in the thousands.
+- The global event tap swallows an `Escape` key-down while a pill is visible but lets its key-up through, so the foreground app can see an unmatched key-up. No observed consequence.
+- The Release configuration does not enable Hardened Runtime. That is correct for the current entitlement-free local signing and becomes a prerequisite only for notarized distribution.
+
 ## Release gates
 
 Before promoting the personal-use line to stable `v0.7.0`:
@@ -101,6 +127,7 @@ Before promoting the personal-use line to stable `v0.7.0`:
 - [ ] Complete the applicable functional checks above; a stable source release does not require Developer ID signing or notarization.
 - [x] Decide that the remaining formal acceptance gaps are acceptable for the first personal alpha snapshot.
 - [x] Increment the login-Keychain personal candidate to bundle build `7`.
+- [x] Increment the review-pass candidate through bundle builds `8` to `11`, ending with the keyboard-focus delivery fix.
 - [ ] Generate artifact-specific third-party notices before publishing a downloadable binary.
 - [ ] Confirm the repository and release artifact contain no credentials, recordings, local data, or machine-specific build output.
 

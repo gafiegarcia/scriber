@@ -211,7 +211,8 @@ struct ScriberApp: App {
 
     private var menuBarSymbol: String {
         if runtime.preferences.onboardingComplete,
-           !runtime.coordinator.permissionReadiness.isReady {
+           !runtime.coordinator.permissionReadiness.isReady
+            || !runtime.coordinator.credentialReadiness.isReady {
             return "exclamationmark.circle"
         }
         return switch runtime.coordinator.phase {
@@ -219,7 +220,7 @@ struct ScriberApp: App {
         case .transcribing: "ellipsis.circle"
         case .cancelledTranscript: "exclamationmark.circle"
         case .dictationCopied: "checkmark.circle"
-        case .permissionsRequired, .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+        case .permissionsRequired, .credentialsUnusable, .pasteFailed, .transcriptionFailed:
             "exclamationmark.circle"
         default: "waveform.circle"
         }

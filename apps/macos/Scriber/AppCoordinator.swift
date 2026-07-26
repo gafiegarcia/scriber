@@ -26,6 +26,12 @@ struct MainWindowRequest: Equatable {
 
 @MainActor
 final class AppCoordinator: ObservableObject {
+    /// Fallback cadence for permission state that macOS does not announce. This
+    /// runs for the whole life of a menu-bar app, so it is deliberately slow; the
+    /// Accessibility hint and the activation refresh cover the cases a user can
+    /// actually notice.
+    private static let permissionPollInterval: TimeInterval = 5
+
     @Published private(set) var phase: AppPhase = .idle
     @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
     @Published private(set) var microphoneGranted = AudioRecorder.microphoneAuthorized
@@ -66,6 +72,8 @@ final class AppCoordinator: ObservableObject {
     private var credentialRevision = CredentialRevision()
     private var suppressPillForCurrentTranscription = false
     private var permissionRecoveryPresentationPending = false
+    private var credentialRecoveryPresentationPending = false
+    private var lastObservedCredentialReadiness: CredentialReadiness = .ready
     private var cancellables = Set<AnyCancellable>()
 
     init(
@@ -159,7 +167,30 @@ final class AppCoordinator: ObservableObject {
             .store(in: &cancellables)
 
         if servicesAllowed {
-            Timer.publish(every: 1, on: .main, in: .common)
+            // Neither Accessibility trust nor microphone authorization publishes a
+            // documented change notification, and revoked Accessibility is exactly the
+            // case Scriber cannot detect from a keypress, because it stops seeing the
+            // keypress at all. macOS does post the long-standing private
+            // `com.apple.accessibility.api` distributed notification when the trust
+            // database changes, so that is used as a hint to check promptly. It is
+            // undocumented and its new value is not readable at post time, so
+            // correctness still rests on the slow fallback poll and the activation
+            // refresh below; the hint only removes the delay.
+            DistributedNotificationCenter.default()
+                .publisher(for: Notification.Name("com.apple.accessibility.api"))
+                .sink { [weak self] _ in
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(250))
+                        self?.refreshPermissions(
+                            promptForAccessibility: false,
+                            presentRecoveryWhenMissing: false,
+                            refreshAudioInputs: false
+                        )
+                    }
+                }
+                .store(in: &cancellables)
+
+            Timer.publish(every: Self.permissionPollInterval, on: .main, in: .common)
                 .autoconnect()
                 .sink { [weak self] _ in
                     Task { @MainActor in
@@ -182,7 +213,18 @@ final class AppCoordinator: ObservableObject {
         }
         .store(in: &cancellables)
 
-        if persistenceAvailable, servicesAllowed { recoverPersistedAndOrphanedRecords() }
+        preferences.$deletesExpiredRetainedAudio
+            .dropFirst()
+            .sink { [weak self] enabled in
+                if enabled { self?.expireRetainedAudio() }
+            }
+            .store(in: &cancellables)
+
+        if persistenceAvailable, servicesAllowed {
+            recoverPersistedAndOrphanedRecords()
+            expireRetainedAudio()
+        }
+        lastObservedCredentialReadiness = credentialReadiness
         refreshPermissions(promptForAccessibility: false)
     }
 
@@ -197,8 +239,7 @@ final class AppCoordinator: ObservableObject {
         case .cancelledTranscript: "Cancelled"
         case .dictationCopied: "Copied"
         case .permissionsRequired: "Permissions required"
-        case .apiKeyInvalid: "API key invalid"
-        case .apiCreditsExhausted: "Credits exhausted"
+        case .credentialsUnusable(let readiness): readiness.title
         case .pasteFailed: "Paste failed"
         case .transcriptionFailed: "Transcription failed"
         case .message(let value): value
@@ -209,6 +250,14 @@ final class AppCoordinator: ObservableObject {
         PermissionReadiness(
             microphoneGranted: microphoneGranted,
             accessibilityGranted: accessibilityGranted
+        )
+    }
+
+    var credentialReadiness: CredentialReadiness {
+        CredentialReadiness(
+            apiKeyConfigured: preferences.apiKeyConfigured,
+            apiKeyValidity: preferences.apiKeyValidity,
+            apiCreditsExhausted: preferences.apiCreditsExhausted
         )
     }
 
@@ -346,7 +395,7 @@ final class AppCoordinator: ObservableObject {
             preferences.apiCreditsExhausted = false
             subscriptionUsageUnavailable = false
             subscriptionUsageError = nil
-            clearResolvedCredentialBlock()
+            refreshCredentialRecovery(force: false)
             return
         }
 #endif
@@ -356,7 +405,7 @@ final class AppCoordinator: ObservableObject {
         storedAPIKeyValidationTask = nil
         isCheckingStoredAPIKey = false
         isRefreshingSubscriptionUsage = false
-        try keychain.saveAPIKey(value)
+        try await keychain.saveAPIKey(value)
         preferences.apiKeyConfigured = true
         preferences.apiKeyValidity = .valid
         preferences.subscriptionUsage = result.subscriptionUsage
@@ -365,7 +414,7 @@ final class AppCoordinator: ObservableObject {
         subscriptionUsageError = result.subscriptionUsageUnavailable
             ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
             : nil
-        clearResolvedCredentialBlock()
+        refreshCredentialRecovery(force: false)
     }
 
     private func validateStoredAPIKeyOnce() {
@@ -379,10 +428,11 @@ final class AppCoordinator: ObservableObject {
                 if credentialRevision.matches(validationRevision) {
                     isCheckingStoredAPIKey = false
                     storedAPIKeyValidationTask = nil
+                    refreshCredentialRecovery(force: true)
                 }
             }
             do {
-                guard let apiKey = try keychain.readAPIKey(), !apiKey.isEmpty else {
+                guard let apiKey = try await keychain.readAPIKey(), !apiKey.isEmpty else {
                     guard !Task.isCancelled, credentialRevision.matches(validationRevision) else { return }
                     preferences.apiKeyConfigured = false
                     preferences.apiKeyValidity = .unchecked
@@ -401,7 +451,6 @@ final class AppCoordinator: ObservableObject {
                 subscriptionUsageError = result.subscriptionUsageUnavailable
                     ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
                     : nil
-                clearResolvedCredentialBlock()
             } catch let error as ScribeError where error.invalidatesAPIKey {
                 guard !Task.isCancelled, credentialRevision.matches(validationRevision) else { return }
                 preferences.apiKeyValidity = .invalid
@@ -413,7 +462,7 @@ final class AppCoordinator: ObservableObject {
 
     func refreshSubscriptionUsage() async {
         guard !isRefreshingSubscriptionUsage else { return }
-        guard let apiKey = try? keychain.readAPIKey(), !apiKey.isEmpty else { return }
+        guard let apiKey = try? await keychain.readAPIKey(), !apiKey.isEmpty else { return }
         let refreshRevision = credentialRevision.current
         isRefreshingSubscriptionUsage = true
         defer {
@@ -428,7 +477,7 @@ final class AppCoordinator: ObservableObject {
             preferences.apiCreditsExhausted = usage.shouldBlockDictation
             subscriptionUsageUnavailable = false
             subscriptionUsageError = nil
-            clearResolvedCredentialBlock()
+            refreshCredentialRecovery(force: false)
         } catch let error as ScribeError where error.invalidatesAPIKey {
             guard !Task.isCancelled, credentialRevision.matches(refreshRevision) else { return }
             // Subscription access has a separate optional scope. A rejection here
@@ -448,15 +497,50 @@ final class AppCoordinator: ObservableObject {
             : "Credit usage is temporarily unavailable. Try refreshing again."
     }
 
-    private func clearResolvedCredentialBlock() {
+    /// Reconciles the credential block after anything that could change it.
+    ///
+    /// `force` presents the current problem even when it has not changed, which is
+    /// what the once-per-launch check needs: onboarding can be complete while the
+    /// stored key has since been revoked or replaced, and the user has to learn
+    /// that from Scriber rather than from a dictation that quietly does nothing.
+    private func refreshCredentialRecovery(force: Bool) {
+        let previous = lastObservedCredentialReadiness
+        let current = credentialReadiness
+        lastObservedCredentialReadiness = current
+
         let resolvedPhase = phase.resolvingCredentialBlock(
             apiKeyConfigured: preferences.apiKeyConfigured,
             apiKeyValidity: preferences.apiKeyValidity,
             apiCreditsExhausted: preferences.apiCreditsExhausted
         )
-        if resolvedPhase == .idle, phase != .idle {
-            returnToIdle()
+        if resolvedPhase != phase {
+            if resolvedPhase == .idle { returnToIdle() } else { setPhase(resolvedPhase) }
         }
+
+        guard CredentialRecoveryPolicy.shouldPresent(
+            previous: previous,
+            current: current,
+            onboardingComplete: preferences.onboardingComplete,
+            force: force
+        ) else { return }
+        credentialRecoveryPresentationPending = true
+        presentPendingCredentialRecoveryIfPossible()
+    }
+
+    /// Missing permissions outrank an unusable credential: without Microphone or
+    /// Accessibility there is nothing for a working key to do. The Dictation window
+    /// and menu bar surface both conditions at once, so nothing is lost by waiting.
+    private func presentPendingCredentialRecoveryIfPossible() {
+        let readiness = credentialReadiness
+        guard credentialRecoveryPresentationPending,
+              preferences.onboardingComplete,
+              !readiness.isReady,
+              !phase.isBusy,
+              permissionReadiness.isReady,
+              !permissionRecoveryPresentationPending else { return }
+        credentialRecoveryPresentationPending = false
+        suppressPillForCurrentTranscription = false
+        setPhase(.credentialsUnusable(readiness))
     }
 
     func setLaunchAtLogin(_ enabled: Bool) throws {
@@ -470,7 +554,7 @@ final class AppCoordinator: ObservableObject {
         case .holdPressed:
             switch phase {
             case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
-                 .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+                 .credentialsUnusable, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .held)
             case .transcribing:
                 showTransientMessage("Still transcribing")
@@ -478,16 +562,19 @@ final class AppCoordinator: ObservableObject {
                 break
             }
         case .holdReleased:
-            if case .recording(let mode, _, _) = phase, mode == .held { stopAndTranscribe() }
+            if case .recording(let mode, _, _) = phase,
+               ShortcutAction.holdReleased.stopsRecording(mode: mode) {
+                stopAndTranscribe()
+            }
         case .togglePressed:
             switch phase {
             case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
-                 .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+                 .credentialsUnusable, .pasteFailed, .transcriptionFailed:
                 startRecording(mode: .locked)
             case .recording(let mode, let elapsed, let level) where mode == .held:
                 shortcuts.setMode(.locked)
                 setPhase(.recording(mode: .locked, elapsed: elapsed, level: level))
-            case .recording(let mode, _, _) where mode == .locked:
+            case .recording(let mode, _, _) where ShortcutAction.togglePressed.stopsRecording(mode: mode):
                 stopAndTranscribe()
             case .transcribing:
                 showTransientMessage("Still transcribing")
@@ -507,7 +594,7 @@ final class AppCoordinator: ObservableObject {
         guard preferences.onboardingComplete else { return }
         switch phase {
         case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
-             .apiKeyInvalid, .apiCreditsExhausted, .pasteFailed, .transcriptionFailed:
+             .credentialsUnusable, .pasteFailed, .transcriptionFailed:
             startRecording(mode: .locked)
         case .recording:
             stopAndTranscribe()
@@ -603,7 +690,7 @@ final class AppCoordinator: ObservableObject {
 
     func presentInvalidAPIKeyPillForUITesting() {
         guard !servicesAllowed else { return }
-        setPhase(.apiKeyInvalid)
+        setPhase(.credentialsUnusable(.invalidAPIKey))
     }
 
     func presentPermissionRecoveryPillForUITesting() {
@@ -724,7 +811,7 @@ final class AppCoordinator: ObservableObject {
             shortcuts.setMode(.idle)
         }
         do {
-            guard let apiKey = try keychain.readAPIKey(), !apiKey.isEmpty else { throw ScribeError.authentication }
+            guard let apiKey = try await keychain.readAPIKey(), !apiKey.isEmpty else { throw ScribeError.authentication }
             let request = ScribeRequest(
                 audioURL: recording.url,
                 apiKey: apiKey,
@@ -784,10 +871,12 @@ final class AppCoordinator: ObservableObject {
             try? modelContext.save()
             if let scribeError = error as? ScribeError, scribeError.invalidatesAPIKey {
                 preferences.apiKeyValidity = .invalid
-                setPhase(.apiKeyInvalid)
+                lastObservedCredentialReadiness = credentialReadiness
+                setPhase(.credentialsUnusable(credentialReadiness))
             } else if case ScribeError.insufficientCredits = error {
                 preferences.apiCreditsExhausted = true
-                setPhase(.apiCreditsExhausted)
+                lastObservedCredentialReadiness = credentialReadiness
+                setPhase(.credentialsUnusable(credentialReadiness))
             } else {
                 setPhase(.transcriptionFailed(error.localizedDescription))
             }
@@ -906,20 +995,18 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func canUseConfiguredAPIKey() -> Bool {
-        guard preferences.apiKeyConfigured else {
-            setPhase(.apiKeyInvalid)
-            return false
-        }
         guard !isCheckingStoredAPIKey else {
             showMessage("Checking API key…")
             return false
         }
-        guard preferences.apiKeyValidity != .invalid else {
-            setPhase(.apiKeyInvalid)
-            return false
-        }
-        guard !preferences.apiCreditsExhausted else {
-            setPhase(.apiCreditsExhausted)
+        let readiness = credentialReadiness
+        guard readiness.isReady else {
+            // An attempted dictation always reports its own blocker, even while a
+            // permission problem is outranking the credential pill elsewhere.
+            credentialRecoveryPresentationPending = false
+            lastObservedCredentialReadiness = readiness
+            suppressPillForCurrentTranscription = false
+            setPhase(.credentialsUnusable(readiness))
             return false
         }
         return true
@@ -998,7 +1085,7 @@ final class AppCoordinator: ObservableObject {
     private func showTransientMessage(_ message: String) {
         suppressPillForCurrentTranscription = false
         let retainedPhase = phase
-        pill.update(.message(message))
+        pill.update(.message(message), autoDismiss: false)
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.5))
             guard let self, self.phase == retainedPhase else { return }
@@ -1037,11 +1124,21 @@ final class AppCoordinator: ObservableObject {
                 : "The app stopped before this dictation completed. Retry when ready."
         }
 
+        // Removing a transcribed recording can fail, leaving the file behind after its
+        // record reference was cleared. Such a file must not be reimported: it would
+        // upsert over a succeeded dictation and destroy the saved transcript.
         let referencedAudio = Set(records.compactMap(\.pendingAudioRelativePath))
+        let knownRecordIDs = Set(records.map(\.id))
         if let files = try? AudioRecorder.recoverableAudioFiles() {
-            for file in files where !referencedAudio.contains(file.lastPathComponent) {
+            for file in files {
                 let values = try? file.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
                 let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent) ?? UUID()
+                guard OrphanedAudioImportPolicy.shouldImport(
+                    recordingID: id,
+                    relativePath: file.lastPathComponent,
+                    knownRecordIDs: knownRecordIDs,
+                    referencedAudioPaths: referencedAudio
+                ) else { continue }
                 modelContext.insert(DictationRecord(
                     id: id,
                     createdAt: values?.creationDate ?? values?.contentModificationDate ?? .now,
@@ -1053,5 +1150,38 @@ final class AppCoordinator: ObservableObject {
             }
         }
         try? modelContext.save()
+    }
+
+    /// Removes retained dictation audio older than the retention period.
+    ///
+    /// Only the recording goes. The history row, its transcript, and why it failed
+    /// are preserved, so the user keeps the record of what happened and loses only
+    /// the ability to retry a month-old dictation.
+    private func expireRetainedAudio() {
+        guard preferences.deletesExpiredRetainedAudio,
+              let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
+
+        var didExpireRecord = false
+        for record in records {
+            guard let relativePath = record.pendingAudioRelativePath,
+                  RetainedAudioRetentionPolicy.hasExpired(createdAt: record.createdAt) else { continue }
+            AudioRecorder.delete(relativePath: relativePath)
+            record.pendingAudioRelativePath = nil
+            record.errorMessage = RetainedAudioRetentionPolicy.expiredMessage(
+                appendingTo: record.errorMessage
+            )
+            didExpireRecord = true
+        }
+        if didExpireRecord { try? modelContext.save() }
+
+        // Anything left that no dictation references is stale by construction,
+        // including the files orphan recovery deliberately refuses to reimport.
+        let referencedAudio = Set(records.compactMap(\.pendingAudioRelativePath))
+        guard let files = try? AudioRecorder.recoverableAudioFiles() else { return }
+        for file in files where !referencedAudio.contains(file.lastPathComponent) {
+            let createdAt = (try? file.resourceValues(forKeys: [.creationDateKey]))?.creationDate
+            guard RetainedAudioRetentionPolicy.hasExpired(createdAt: createdAt ?? .distantPast) else { continue }
+            try? FileManager.default.removeItem(at: file)
+        }
     }
 }
