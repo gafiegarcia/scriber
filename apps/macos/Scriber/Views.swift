@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 import SwiftData
 import SwiftUI
 #if SWIFT_PACKAGE
@@ -421,45 +420,6 @@ private struct DictationHistoryRow: View {
 private extension DictationRecord {
     var isRetryable: Bool {
         transcriptionState == .failed || transcriptionState == .cancelled
-    }
-}
-
-private struct DictationDetailView: View {
-    @EnvironmentObject private var runtime: AppRuntime
-    @Bindable var record: DictationRecord
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(record.createdAt.formatted(date: .abbreviated, time: .shortened)).font(.headline)
-                    Text(metadata).font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                if let text = record.text {
-                    Button("Copy") { runtime.coordinator.copy(record) }
-                        .disabled(text.isEmpty)
-                }
-                if record.isRetryable, record.pendingAudioRelativePath != nil {
-                    Button("Retry") { runtime.coordinator.retry(record) }.buttonStyle(.borderedProminent)
-                }
-                Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
-            }
-            Divider()
-            if let text = record.text {
-                ScrollView { Text(text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
-            } else {
-                ContentUnavailableView("No Transcript", systemImage: "exclamationmark.waveform", description: Text(record.errorMessage ?? "Transcription did not complete."))
-            }
-        }
-        .padding(24)
-    }
-
-    private var metadata: String {
-        var parts = [record.durationSeconds.formatted(.number.precision(.fractionLength(1))) + " seconds"]
-        if let language = record.detectedLanguageCode { parts.append(language.uppercased()) }
-        parts.append(record.deliveryStateRaw.replacingOccurrences(of: "Failed", with: " failed"))
-        return parts.joined(separator: " · ")
     }
 }
 

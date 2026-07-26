@@ -4,7 +4,9 @@ import PackageDescription
 
 let package = Package(
     name: "Scriber",
-    platforms: [.macOS(.v15)],
+    // Matches the app target's deployment target so ScriberCore cannot compile
+    // against an older SDK than the app that embeds its sources.
+    platforms: [.macOS("27.0")],
     products: [
         .library(name: "ScriberCore", targets: ["ScriberCore"])
     ],

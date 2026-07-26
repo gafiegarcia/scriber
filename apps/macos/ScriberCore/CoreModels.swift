@@ -129,11 +129,6 @@ public enum AudioInputSelection: Codable, Equatable, Hashable, Sendable {
     case automatic
     case device(id: String, name: String)
 
-    public var deviceID: String? {
-        guard case .device(let id, _) = self else { return nil }
-        return id
-    }
-
     public static func initialSelection(from devices: [AudioInputDeviceDescriptor]) -> AudioInputSelection {
         guard let builtIn = devices.first(where: \AudioInputDeviceDescriptor.isBuiltIn) else { return .automatic }
         return .device(id: builtIn.id, name: builtIn.name)

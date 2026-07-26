@@ -37,8 +37,6 @@ final class GlobalShortcutService {
         self.toggleEnabled = toggleEnabled
     }
 
-    var isTrusted: Bool { AXIsProcessTrusted() }
-
     func requestAccessibility() {
         let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
         AXIsProcessTrustedWithOptions([key: true] as CFDictionary)

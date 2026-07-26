@@ -39,10 +39,6 @@ public struct ElevenLabsSubscriptionUsage: Codable, Equatable, Sendable {
     public let fetchedAt: Date
 
     public var remainingCredits: Int { max(0, totalCredits - usedCredits) }
-    public var usedFraction: Double {
-        guard totalCredits > 0 else { return 1 }
-        return min(1, max(0, Double(usedCredits) / Double(totalCredits)))
-    }
     public var shouldBlockDictation: Bool {
         remainingCredits == 0 && !canExtendCredits
     }
