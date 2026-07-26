@@ -144,6 +144,24 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -projec
 
 Raised from live use of build 15 on 2026-07-27 and not yet acted on.
 
+- **Menu bar icon is still too small, and must use the real app artwork.** Build 15
+  moved off `MenuBarExtra(systemImage:)` to a label view and raised the frame to
+  22pt, and Gaf reports no visible change — still small enough to need a squint next
+  to neighbouring items. So **`.frame()` on a `MenuBarExtra` label is not what sizes
+  it**; do not simply raise the number again. The likely route is
+  `MenuBarExtra(_:image:)` backed by an `NSImage` with an explicit `size` and
+  `isTemplate = true`, since `NSImage.size` is what `NSStatusItem` actually honours.
+  Verify by measuring against a neighbour, not by eye alone.
+  The artwork must come from the mark inside `Scriber/AppIcon.icon`
+  (`Assets/ScriberIcon-Transparent 1.svg`) rather than a separate copy, downscaled
+  properly. Build 15 added a `menuBarIcon` imageset sourced from
+  `Branding/ScriberIcon-Transparent.svg`; confirm that is the same artwork and
+  collapse the duplication if so. Note the warning branch and the normal branch must
+  stay the same size, so the icon does not resize when Scriber starts needing
+  attention — that bug was fixed in build 15 and should not regress.
+  Also worth knowing: a Debug build can never show the normal icon, because it never
+  holds permissions, so it always renders the warning state. Checking the app mark
+  needs an installed Release build.
 - **Sticky date-group header.** The date label is small and easy to miss where it
   sits. Move it into the row that currently holds the dictation count, transitioning
   in place as the user scrolls between day groups, and move the permission and
