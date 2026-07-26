@@ -201,6 +201,30 @@ struct DictationHistoryView: View {
         }
     }
 
+    /// Broken out of the `List` builder deliberately. Inlining the row insets,
+    /// separator, group background, and context menu in one closure pushed the
+    /// expression past the type checker's budget.
+    @ViewBuilder
+    private func row(_ record: DictationRecord, at index: Int, of count: Int) -> some View {
+        let isFirst: Bool = index == 0
+        let isLast: Bool = index == count - 1
+
+        DictationHistoryRow(record: record)
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            .listRowSeparator(isLast ? .hidden : .visible)
+            .listRowBackground(DictationHistoryGroupBackground(isFirst: isFirst, isLast: isLast))
+            .contextMenu {
+                if let text = record.text, !text.isEmpty {
+                    Button("Copy") { runtime.coordinator.copy(record) }
+                }
+                if record.isRetryable, record.pendingAudioRelativePath != nil {
+                    Button("Retry") { runtime.coordinator.retry(record) }
+                }
+                Divider()
+                Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+            }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -264,23 +288,16 @@ struct DictationHistoryView: View {
                 List {
                     ForEach(sections) { section in
                         Section(section.title) {
-                            ForEach(section.records) { record in
-                                DictationHistoryRow(record: record)
-                                    .contextMenu {
-                                        if let text = record.text, !text.isEmpty {
-                                            Button("Copy") { runtime.coordinator.copy(record) }
-                                        }
-                                        if record.isRetryable, record.pendingAudioRelativePath != nil {
-                                            Button("Retry") { runtime.coordinator.retry(record) }
-                                        }
-                                        Divider()
-                                        Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
-                                    }
+                            ForEach(Array(section.records.enumerated()), id: \.element.id) { pair in
+                                row(pair.element, at: pair.offset, of: section.records.count)
                             }
                         }
                     }
                 }
                 .listStyle(.inset)
+                .contentMargins(.horizontal, 20, for: .scrollContent)
+                .scrollContentBackground(.hidden)
+                .background(Color(nsColor: .windowBackgroundColor))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -329,6 +346,26 @@ private struct RecoveryBanner: View {
     }
 }
 
+/// Draws one day group as a single rounded card. Each row paints its own slice,
+/// so only the group's outermost corners are rounded and the rows in between
+/// join into one continuous shape.
+private struct DictationHistoryGroupBackground: View {
+    let isFirst: Bool
+    let isLast: Bool
+
+    private let radius: CGFloat = 10
+
+    var body: some View {
+        UnevenRoundedRectangle(
+            topLeadingRadius: isFirst ? radius : 0,
+            bottomLeadingRadius: isLast ? radius : 0,
+            bottomTrailingRadius: isLast ? radius : 0,
+            topTrailingRadius: isFirst ? radius : 0
+        )
+        .fill(Color(nsColor: .controlBackgroundColor))
+    }
+}
+
 private struct DictationHistorySection: Identifiable {
     let date: Date
     let records: [DictationRecord]
@@ -347,6 +384,10 @@ private struct DictationHistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
 
+    fileprivate static let timeColumnWidth: CGFloat = 72
+
+    private var timeColumnWidth: CGFloat { Self.timeColumnWidth }
+
     private var isRetrying: Bool {
         runtime.coordinator.retryingRecordID == record.id
     }
@@ -356,7 +397,7 @@ private struct DictationHistoryRow: View {
             Text(record.createdAt.formatted(date: .omitted, time: .shortened))
                 .font(.callout)
                 .foregroundStyle(.secondary)
-                .frame(width: 72, alignment: .leading)
+                .frame(width: timeColumnWidth, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(rowText)
@@ -407,8 +448,11 @@ private struct DictationHistoryRow: View {
             .menuIndicator(.hidden)
             .frame(width: 24)
         }
-        .padding(.vertical, 8)
-        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+        .padding(.vertical, 4)
+        // Start the separator at the transcript rather than the card edge: the
+        // time column reads as a leading accessory, the way grouped macOS tables
+        // inset their separators past a leading icon.
+        .alignmentGuide(.listRowSeparatorLeading) { _ in timeColumnWidth + 16 }
     }
 
     private var rowText: String {
