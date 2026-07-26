@@ -310,18 +310,22 @@ struct DictationHistoryView: View {
             } else {
                 List {
                     ForEach(sections) { section in
-                        Section {
-                            ForEach(Array(section.records.enumerated()), id: \.element.id) { pair in
-                                row(pair.element, at: pair.offset, of: section.records.count)
-                            }
-                        } header: {
-                            Text(section.title)
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(.primary)
-                                .textCase(nil)
-                                // The default header carries its own separator,
-                                // which read as a stray inset rule above each card.
-                                .listRowSeparator(.hidden)
+                        // Emitted as an ordinary row rather than a `Section` header.
+                        // A real header draws a rule beneath itself that neither
+                        // `listRowSeparator` nor the macOS-unavailable
+                        // `listSectionSeparator` removes, and it fixes its own
+                        // padding, which left the enlarged label cramped.
+                        Text(section.title)
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(.primary)
+                            .padding(.top, 26)
+                            .padding(.bottom, 10)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+
+                        ForEach(Array(section.records.enumerated()), id: \.element.id) { pair in
+                            row(pair.element, at: pair.offset, of: section.records.count)
                         }
                     }
                 }
@@ -377,7 +381,10 @@ private struct RecoveryBanner: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
-        .padding(16)
+        // Matches the history List's own horizontal padding, so the banner's
+        // rounded edge lines up with the day cards below it.
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
     }
 }
 
@@ -468,12 +475,13 @@ private struct DictationHistoryGroupBackground: View {
     }
 
     var body: some View {
-        // `controlBackgroundColor` over `windowBackgroundColor` is nearly
-        // indistinguishable in dark mode, so the fill alone did not read as a
-        // card. A hairline border carries the shape in both appearances.
-        shape
-            .fill(.quinary)
-            .overlay(shape.strokeBorder(.separator, lineWidth: 1))
+        // Fill only, no border. Each row draws its own slice of the group, so a
+        // stroked border put a line on every interior row's top and bottom edge —
+        // reintroducing exactly the separators the card was meant to replace.
+        // The fill has to carry the shape alone, so it is a fixed tint rather than
+        // a system background colour: `controlBackgroundColor` over
+        // `windowBackgroundColor` is nearly identical in dark mode.
+        shape.fill(Color.primary.opacity(0.06))
     }
 }
 
@@ -495,7 +503,9 @@ private struct DictationHistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
 
-    fileprivate static let timeColumnWidth: CGFloat = 72
+    // Trailing-aligned in a narrower column, so a short time sits next to the
+    // transcript instead of stranding a wide gap after it.
+    fileprivate static let timeColumnWidth: CGFloat = 52
 
     private var timeColumnWidth: CGFloat { Self.timeColumnWidth }
 
@@ -504,18 +514,20 @@ private struct DictationHistoryRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: 14) {
             Text(record.createdAt.formatted(date: .omitted, time: .shortened))
                 .font(.callout)
                 .foregroundStyle(.secondary)
-                .frame(width: timeColumnWidth, alignment: .leading)
+                .frame(width: timeColumnWidth, alignment: .trailing)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(rowText)
                     .lineLimit(4)
                     .textSelection(.enabled)
-                HStack(spacing: 6) {
-                    Text(record.durationSeconds.formatted(.number.precision(.fractionLength(1))) + "s")
+                // Duration is gone. A dictation's length is not something the user
+                // came here for — the transcript is — and it cost every row a
+                // second line even when there was nothing else to report.
+                Group {
                     if isRetrying {
                         Label("Retrying", systemImage: "arrow.clockwise")
                             .foregroundStyle(.secondary)
@@ -528,7 +540,6 @@ private struct DictationHistoryRow: View {
                     }
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
             }
 
             Spacer(minLength: 12)
