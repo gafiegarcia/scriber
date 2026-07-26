@@ -167,7 +167,7 @@ struct ScriberApp: App {
         }
         .defaultSize(width: 980, height: 640)
         .commands {
-            MainWindowCommands()
+            MainWindowCommands(runtime: runtime)
             CommandGroup(replacing: .appTermination) {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
@@ -242,14 +242,32 @@ struct ScriberApp: App {
 }
 
 private struct MainWindowCommands: Commands {
+    let runtime: AppRuntime
+
     @FocusedValue(\.searchDictationHistoryAction) private var searchDictationHistory
 
     var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") { openSettings() }
+                .keyboardShortcut(",", modifiers: .command)
+        }
         CommandGroup(after: .textEditing) {
             Button("Search Dictations") { searchDictationHistory?() }
                 .keyboardShortcut("f", modifiers: .command)
                 .disabled(searchDictationHistory == nil)
         }
+    }
+
+    /// Scriber has no SwiftUI `Settings` scene; Settings is a section of the main
+    /// window. Select the destination before asking for the window so the window
+    /// comes up already showing it, and go through the notification rather than
+    /// `openWindow` so this still works with every window closed.
+    @MainActor
+    private func openSettings() {
+        runtime.coordinator.selectMainWindowDestination(.settings)
+        NSApp.setActivationPolicy(.regular)
+        NotificationCenter.default.post(name: .openScriberMainWindow, object: nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
 
