@@ -170,9 +170,26 @@ Live use showed some apps taking two to three seconds to begin recording while m
 
 Gaf's product decision resolves this rather than tuning it: deliver to whatever cursor is focused when the transcript arrives, which is the Wispr delivery model already documented above. The captured element, captured selection range, and `CapturedSelectionRestorePolicy` are removed. Record start now touches no Accessibility API at all — the pill's screen comes from `CGWindowListCopyWindowInfo`, a window-server query.
 
-The confirmation model is deliberately unchanged. Delivery still dispatches Paste to the frontmost process, still succeeds on either a concealed-item data request or an observable editable-target mutation, and still classifies an unrequested, unobserved attempt as no editable target. Removing the breadth-first search does not weaken the unfocused-browser case, because that case was never classified by focus discovery: the resolved design already dispatches Paste when no focused element is found, and Zen was classified `copied` by the request timeout.
+The confirmation rule itself is unchanged. Delivery still dispatches Paste to the frontmost process, still succeeds on either a concealed-item data request or an observable editable-target mutation, and still classifies an unrequested, unobserved attempt as no editable target. Removing the breadth-first search does not weaken the unfocused-browser case, because that case was never classified by focus discovery: the resolved design already dispatches Paste when no focused element is found, and Zen was classified `copied` by the request timeout.
 
 Remaining Accessibility work at delivery time is bounded three ways: an explicit 0.2-second `AXUIElementSetMessagingTimeout` on the application and system-wide elements, an eight-level ancestor cap, and a 256-element cap on the Paste menu-item search whose work queue can no longer grow past that bound. The request timeout is raised from 1.25 to 2.5 seconds, which is only ever paid on the failing path.
+
+### Non-text focus must contribute no evidence (2026-07-26)
+
+The change above initially shipped with a regression, and the shape of it is the durable lesson.
+
+Removing the tree search also removed the gate that had travelled with it. The old focus lookup returned an element only when that element or its ancestry looked like text input; the rewrite accepted whatever macOS reported as focused. On a page with no text box, the observation set therefore became the page itself. A live page mutates its own accessibility state through carets, timers, and streaming content, so when that drift landed inside the before/after window it was read as a paste mutation.
+
+Live evidence, same signed build and same scenario, dictating in Zen on `claude.ai` after clicking empty space:
+
+- run 1: `pasted` — false success;
+- run 2: `copied` — correct.
+
+Intermittent false success is the worse direction and must be weighted accordingly. A confirmed insertion schedules the previous clipboard to be restored 500 ms later, so a paste that never happened also removes the transcript from the clipboard, leaving Dictation history as the only surviving copy. A false `copied` merely shows an unnecessary panel over text the user can still paste.
+
+The fix qualifies the focus before observing its ancestry: a focus that does not look like text input yields an empty observation set and contributes nothing, which `PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence` states explicitly so a future widening of that set cannot silently reintroduce the bug. This needs no tree search, and the tree search would make it worse by widening the set that can drift.
+
+The distinction this restores is the one already recorded under “Previous Scriber behavior and failure”: a positively reported noneditable focus and a destination hiding its editor are materially different situations. The first must produce no Accessibility evidence; the second must still fall through to the pasteboard probe.
 
 ## Signed live validation
 
@@ -187,6 +204,10 @@ This is the required result on both sides of the original failure: opaque editor
 
 Broader app coverage, clipboard-restoration races, and non-Latin IMEs remain useful general acceptance checks, but they no longer keep this specific investigation open. If a new ambiguous consumer appears, capture privacy-safe evidence before changing the confirmation model again.
 
+### Build 8 revalidation (2026-07-26)
+
+After moving delivery to the live cursor, the same signed-build check recorded: ChatGPT prompt `pasted`, Notion `pasted`, Zen with a focused field `pasted`, Zen on `x.com` with no focused field `copied`. Recording start became immediate in the Electron apps that previously took two to three seconds. `claude.ai` with no focused field produced the false success described above and is the reason build 9 exists; it needs repeated live runs on that specific page before this is called closed again.
+
 ## Rejected or unsafe shortcuts
 
 - Do not accept a dispatched Paste command as proof of insertion.
@@ -195,3 +216,5 @@ Broader app coverage, clipboard-restoration races, and non-Latin IMEs remain use
 - Do not add per-app role exceptions without captured evidence and a clear capability boundary.
 - Do not destructively select/copy/undo destination text to verify insertion; that risks corrupting user state and behaves differently across editors.
 - Do not call an unobservable attempt `failed` merely to retain a binary result type.
+- Do not observe Accessibility state on a focus that is not text input. A live page changes its own state, so this manufactures false successes rather than adding evidence.
+- Do not restore Accessibility work to the record-start path. Target discovery belongs to delivery time; record start must send no Accessibility message at all.

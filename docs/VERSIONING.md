@@ -12,7 +12,7 @@ The archived Electron implementation reached `0.6.0`. The native macOS implement
 
 The original native `0.1.0` value describes an early Scriber Dictate prototype baseline. It remains valid in historical progress notes, but it is not the active Scriber version.
 
-Current native status: `0.7.0` build `8`, the untagged locally certificate-signed candidate carrying the 2026-07-26 review pass. Build `7` remains the `v0.7.0-alpha.6` snapshot. The final provisioned Data Protection Keychain state is preserved as `v0.7.0-alpha.2`.
+Current native status: `0.7.0` build `9`, the untagged locally certificate-signed candidate carrying the 2026-07-26 review pass. Build `7` remains the `v0.7.0-alpha.6` snapshot; build `8` was superseded within the same day by a paste-confirmation fix and was never tagged. The final provisioned Data Protection Keychain state is preserved as `v0.7.0-alpha.2`.
 
 ## Three separate identifiers
 
@@ -48,7 +48,7 @@ Do not tag every development commit or ordinary local build.
 
 ## Implementation boundaries
 
-- Keep the native Xcode marketing version at `0.7.0` and bundle build at `8` until the next intentionally distinguishable build.
+- Keep the native Xcode marketing version at `0.7.0` and bundle build at `9` until the next intentionally distinguishable build.
 - Keep the archived Electron snapshot and its package metadata at historical version `0.6.0` unless active Electron development resumes.
 - Do not reset the native product to `0.1.0` merely because its implementation was rewritten or its bundle identity was reset.
 - Product-wide version progression does not imply that both platform implementations ship every numbered release.

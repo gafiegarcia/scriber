@@ -2,7 +2,11 @@
 
 ## Current status
 
-Scriber `0.7.0` build `8` is the current personal-installation candidate for Apple silicon on macOS 27, carrying the 2026-07-26 review pass; it is installed for live testing and not yet tagged. Build `7` is preserved as `v0.7.0-alpha.6`. The preceding provisioned Data Protection Keychain implementation is preserved by annotated tag `v0.7.0-alpha.2`. Build 7 retains the dedicated `Scriber/History.store` and encrypted login-Keychain policy, while replacing version-specific ad-hoc signing with the long-lived local `Scriber Local Code Signing` identity. This gives rebuilt Release bundles one stable designated requirement without a provisioning profile. Live testing shows macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; that authorization then persists across launches and transcriptions of the unchanged installed binary. Reboot acceptance remains open. The paste-confirmation investigation remains resolved for personal use and its rationale lives in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md).
+Scriber `0.7.0` build `9` is the current personal-installation candidate for Apple silicon on macOS 27. It is installed for live testing and deliberately untagged.
+
+Carried forward from build 7, which is preserved as `v0.7.0-alpha.6`: the dedicated `Scriber/History.store`, the encrypted login-Keychain policy, and the long-lived local `Scriber Local Code Signing` identity that gives rebuilt Release bundles one stable designated requirement without a provisioning profile. macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; it then persists across launches and transcriptions of that unchanged binary. Reboot acceptance remains open. The preceding provisioned Data Protection Keychain implementation is preserved as `v0.7.0-alpha.2`.
+
+Builds 8 and 9 carry the 2026-07-26 review pass. Build 8 moved delivery to the live cursor and took Accessibility off the record-start path; build 9 fixes the false-success regression that shipped with it. The paste engine's rationale and its standing constraints live in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md) — read it before changing delivery or confirmation.
 
 ## Milestones
 
@@ -63,7 +67,9 @@ Scriber `0.7.0` build `8` is the current personal-installation candidate for App
 
 ### Insertion and fallback
 
-- [ ] Confirm recording now starts immediately in the apps that previously took two to three seconds, and that delivery still lands at the cursor focused when the transcript arrives rather than the one focused at record start.
+- [x] Confirm recording starts immediately in the apps that previously took two to three seconds. Verified on build 8 in ChatGPT, Notion, and Zen.
+- [x] Confirm delivery lands at the cursor focused when the transcript arrives. Verified on build 8: ChatGPT `pasted`, Notion `pasted`, Zen with a focused field `pasted`, Zen on `x.com` without one `copied`.
+- [ ] Repeat the no-focused-field check on `claude.ai` in Zen several times on build 9. Build 8 produced one false `pasted` and one correct `copied` there; a single clean run does not close this.
 - [ ] Confirm moving focus to a different app or field during transcription delivers to the final cursor.
 - [ ] Confirm the pill still appears on the screen holding the app that was frontmost at record start, now that its screen comes from the window server rather than Accessibility.
 
@@ -121,7 +127,7 @@ Before promoting the personal-use line to stable `v0.7.0`:
 - [ ] Complete the applicable functional checks above; a stable source release does not require Developer ID signing or notarization.
 - [x] Decide that the remaining formal acceptance gaps are acceptable for the first personal alpha snapshot.
 - [x] Increment the login-Keychain personal candidate to bundle build `7`.
-- [x] Increment the review-pass candidate to bundle build `8`.
+- [x] Increment the review-pass candidate to bundle build `8`, then to `9` for the paste-confirmation fix.
 - [ ] Generate artifact-specific third-party notices before publishing a downloadable binary.
 - [ ] Confirm the repository and release artifact contain no credentials, recordings, local data, or machine-specific build output.
 
