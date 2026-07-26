@@ -191,7 +191,13 @@ The fix qualifies the focus before observing its ancestry: a focus that does not
 
 The distinction this restores is the one already recorded under “Previous Scriber behavior and failure”: a positively reported noneditable focus and a destination hiding its editor are materially different situations. The first must produce no Accessibility evidence; the second must still fall through to the pasteboard probe.
 
-Confirmed live on build 9 across web, Electron, and native destinations — see the revalidation table below.
+#### Parked: web areas still qualify, and that is deliberate for now
+
+The gate narrowed this mechanism but did not remove it. Build 10 instrumentation showed a bare `AXWebArea` still satisfies `TextInputTargetPolicy`, because exposing a character count is on its own sufficient. A page with no focused text box therefore still yields a non-empty observation set, and page-driven state drift could in principle still be read as a paste mutation.
+
+It has not recurred in normal use since — roughly twenty deliveries across the revalidation below and daily use.
+
+**Do not act on this without a fresh reproduction.** Tightening `TextInputTargetPolicy` would touch every destination that relies on the character-count signal, and that clause exists specifically for terminals and launchers that accept keyboard input without exposing writable text values. Trading that away to chase a single unreproduced incident is how this engine oscillated before. If a false `pasted` appears again, capture the delivery log line first — it names the focused role and the chosen target, which is the evidence needed to decide whether the drift theory is even right.
 
 ## Signed live validation
 
@@ -205,6 +211,42 @@ With Raycast clipboard history running, the signed app's persisted Dictation his
 This is the required result on both sides of the original failure: opaque editors no longer show a false recovery panel, and a browser page with nowhere to insert still preserves the transcript and shows recovery. Gaf accepted the issue as closed on 2026-07-23.
 
 Broader app coverage, clipboard-restoration races, and non-Latin IMEs remain useful general acceptance checks, but they no longer keep this specific investigation open. If a new ambiguous consumer appears, capture privacy-safe evidence before changing the confirmation model again.
+
+### Delivery follows keyboard focus, not the frontmost app (2026-07-26)
+
+Everything above concerns *whether* a paste succeeded. This concerns *where* it goes, and it is a separate failure class that the earlier investigation never touched.
+
+Scriber chose its target with `NSWorkspace.frontmostApplication`. An accessory (`LSUIElement`) app presenting a nonactivating panel takes keyboard focus without ever becoming frontmost — Raycast's command bar does this, and so does Scriber's own pill. The user sees two blinking carets: the window underneath never resigned first responder, while the panel receives the keystrokes. Typing follows keyboard focus; Scriber followed frontmost.
+
+The result was the worst outcome available. Dictation was inserted into whatever document was focused before the panel opened, and delivery reported success, so no recovery pill fired and the transcript was silently placed somewhere the user never chose.
+
+Instrumentation settled it in one line:
+
+```
+frontmost=com.apple.finder(689) focusedApp=com.raycast-x.macos(861)
+focusedElement=com.raycast-x.macos(861) role=AXTextField
+chosen=com.apple.finder(689) -> outcome=noEditableTarget
+```
+
+Raycast's bar is an ordinary `AXTextField`. Nothing about it was hard to reach; Scriber simply never looked at it.
+
+`KeyboardFocusRedirectPolicy` now lets delivery follow keyboard focus, deliberately narrowly. Redirection requires a *different* process that *genuinely exposes a focused text input*, so an ordinary app — where focus and frontmost agree — is never affected. That narrowness is what preserves the build 9 revalidation baseline.
+
+Scriber never redirects into itself. This protects the pill, which is the same species of nonactivating panel and renders selectable transcript text that can look editable, without blocking Scriber's own windows: those are frontmost when focused, so the Dictation search field needs no redirect and keeps working. Verified in the log as `frontmost == focusedApp == scriber`, `subrole=AXSearchField`, `inserted`.
+
+Note that the pre-paste target-still-valid guard must re-resolve through the same rule. Comparing against the frontmost app would reject every panel delivery.
+
+### Reading the delivery log
+
+`PasteService` records one line per delivery under subsystem `com.gafiegarcia.scriber`, category `paste-target`: the frontmost app, the focus owner, the focused element's role and subrole, the chosen target, and whether that focus qualified as text input. No transcript text is ever logged.
+
+It is emitted at `.info`, so nothing is written to disk unless asked for:
+
+```bash
+log show --last 30m --info --predicate 'subsystem == "com.gafiegarcia.scriber"' --style compact
+```
+
+This is the first thing to capture for any future delivery complaint. It converted two speculative arguments into immediate answers, and it is the reason the Raycast fix was written once rather than guessed at.
 
 ### 2026-07-26 revalidation, builds 8 and 9
 
@@ -226,7 +268,19 @@ Build 9 was then exercised across three engine families in one signed session. E
 
 Finder matters beyond coverage: it is a native AppKit target, so the focus-qualification gate is confirmed to behave on a normal accessibility tree and not only on web content. The three no-focus rows are the regression case, now correct on both a live page and a native app.
 
-Gaf accepted the paste engine as working on 2026-07-26. Treat the table above as the regression baseline: a change to delivery or confirmation should reproduce it before being accepted.
+Build 11 added the keyboard-focus redirect and was verified against the same baseline plus the cases it exists for:
+
+| Destination | Focus | Redirect | Result |
+| --- | --- | --- | --- |
+| Raycast command bar | `AXTextField`, Claude desktop frontmost | yes | `pasted` |
+| Raycast Notes | `AXTextArea`, Claude desktop frontmost | yes | `pasted` |
+| Scriber Dictation search | `AXSearchField`, Scriber frontmost | no | `pasted` |
+| Zen | `AXComboBox`, `AXTextArea` | no | `pasted` |
+| Zen | `AXWebArea`, no text box | no | `copied` |
+
+Raycast Notes is a separate floating window from the command bar and reports a different role, so the redirect is confirmed general to the nonactivating-panel mechanism rather than tuned to one window. Every non-redirect row shows `focusedApp == frontmost`, which is the direct evidence that ordinary destinations are unaffected.
+
+Gaf accepted the paste engine as working on 2026-07-26. Treat both tables as the regression baseline: a change to delivery, target selection, or confirmation should reproduce them before being accepted.
 
 ## Rejected or unsafe shortcuts
 
@@ -238,3 +292,5 @@ Gaf accepted the paste engine as working on 2026-07-26. Treat the table above as
 - Do not call an unobservable attempt `failed` merely to retain a binary result type.
 - Do not observe Accessibility state on a focus that is not text input. A live page changes its own state, so this manufactures false successes rather than adding evidence.
 - Do not restore Accessibility work to the record-start path. Target discovery belongs to delivery time; record start must send no Accessibility message at all.
+- Do not select the paste target from the frontmost application alone. Keyboard focus can live in a nonactivating panel owned by another process, and delivery must follow the caret the user can see.
+- Do not let Scriber redirect delivery into itself. Its pill is a nonactivating panel; its ordinary windows are frontmost when focused and need no redirect.

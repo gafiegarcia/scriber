@@ -2,11 +2,11 @@
 
 ## Current status
 
-Scriber `0.7.0` build `9` is the current personal-installation candidate for Apple silicon on macOS 27. It is installed for live testing and deliberately untagged.
+Scriber `0.7.0` build `11` is the current personal-installation candidate for Apple silicon on macOS 27, preserved as `v0.7.0-alpha.7`.
 
 Carried forward from build 7, which is preserved as `v0.7.0-alpha.6`: the dedicated `Scriber/History.store`, the encrypted login-Keychain policy, and the long-lived local `Scriber Local Code Signing` identity that gives rebuilt Release bundles one stable designated requirement without a provisioning profile. macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; it then persists across launches and transcriptions of that unchanged binary. Reboot acceptance remains open. The preceding provisioned Data Protection Keychain implementation is preserved as `v0.7.0-alpha.2`.
 
-Builds 8 and 9 carry the 2026-07-26 review pass. Build 8 moved delivery to the live cursor and took Accessibility off the record-start path; build 9 fixes the false-success regression that shipped with it and was accepted after live revalidation across web, Electron, and native destinations. The paste engine's rationale, its standing constraints, and that regression baseline live in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md) — read it before changing delivery or confirmation.
+Builds 8 through 11 carry the 2026-07-26 review pass. Build 8 moved delivery to the live cursor and took Accessibility off the record-start path; build 9 fixed the false-success regression that shipped with it; build 11 made delivery follow keyboard focus so dictation reaches nonactivating panels such as Raycast. The paste engine's rationale, its standing constraints, and its regression baseline live in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md) — read it before changing delivery, target selection, or confirmation.
 
 ## Milestones
 
@@ -75,7 +75,7 @@ Builds 8 and 9 carry the 2026-07-26 review pass. Build 8 moved delivery to the l
 
 - [x] Close the paste-confirmation regression with Raycast running: Xcode, ChatGPT, and Notion confirm success without a false recovery panel, while Zen with no focused text box produces copied recovery.
 - [ ] Verify target capture, selection restoration, confirmed insertion, clipboard restoration, and copied fallback in TextEdit.
-- [ ] Repeat insertion checks in Ghostty, Raycast, VS Code, Zed, and Codex without treating missing Accessibility evidence as failure. Zen with and without a focused field, Notion, ChatGPT, the Claude desktop app, and Finder are covered by the build 9 revalidation.
+- [x] Repeat insertion checks in Ghostty, Raycast, VS Code, and Zed. Raycast needed the build 11 keyboard-focus fix; its command bar and its Notes window both deliver correctly now. Codex remains unchecked.
 - [ ] Verify behavior when the focused target disappears, moves its selection, is secure/disabled, or exposes no focused Accessibility element.
 - [ ] Verify menu-command and PID-targeted paste fallbacks without false success reporting, including with Raycast clipboard history running and the transient/concealed markers honored.
 
@@ -127,7 +127,7 @@ Before promoting the personal-use line to stable `v0.7.0`:
 - [ ] Complete the applicable functional checks above; a stable source release does not require Developer ID signing or notarization.
 - [x] Decide that the remaining formal acceptance gaps are acceptable for the first personal alpha snapshot.
 - [x] Increment the login-Keychain personal candidate to bundle build `7`.
-- [x] Increment the review-pass candidate to bundle build `8`, then to `9` for the paste-confirmation fix.
+- [x] Increment the review-pass candidate through bundle builds `8` to `11`, ending with the keyboard-focus delivery fix.
 - [ ] Generate artifact-specific third-party notices before publishing a downloadable binary.
 - [ ] Confirm the repository and release artifact contain no credentials, recordings, local data, or machine-specific build output.
 
