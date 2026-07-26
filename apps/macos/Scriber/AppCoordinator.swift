@@ -26,6 +26,12 @@ struct MainWindowRequest: Equatable {
 
 @MainActor
 final class AppCoordinator: ObservableObject {
+    /// Fallback cadence for permission state that macOS does not announce. This
+    /// runs for the whole life of a menu-bar app, so it is deliberately slow; the
+    /// Accessibility hint and the activation refresh cover the cases a user can
+    /// actually notice.
+    private static let permissionPollInterval: TimeInterval = 5
+
     @Published private(set) var phase: AppPhase = .idle
     @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
     @Published private(set) var microphoneGranted = AudioRecorder.microphoneAuthorized
@@ -161,7 +167,30 @@ final class AppCoordinator: ObservableObject {
             .store(in: &cancellables)
 
         if servicesAllowed {
-            Timer.publish(every: 1, on: .main, in: .common)
+            // Neither Accessibility trust nor microphone authorization publishes a
+            // documented change notification, and revoked Accessibility is exactly the
+            // case Scriber cannot detect from a keypress, because it stops seeing the
+            // keypress at all. macOS does post the long-standing private
+            // `com.apple.accessibility.api` distributed notification when the trust
+            // database changes, so that is used as a hint to check promptly. It is
+            // undocumented and its new value is not readable at post time, so
+            // correctness still rests on the slow fallback poll and the activation
+            // refresh below; the hint only removes the delay.
+            DistributedNotificationCenter.default()
+                .publisher(for: Notification.Name("com.apple.accessibility.api"))
+                .sink { [weak self] _ in
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(250))
+                        self?.refreshPermissions(
+                            promptForAccessibility: false,
+                            presentRecoveryWhenMissing: false,
+                            refreshAudioInputs: false
+                        )
+                    }
+                }
+                .store(in: &cancellables)
+
+            Timer.publish(every: Self.permissionPollInterval, on: .main, in: .common)
                 .autoconnect()
                 .sink { [weak self] _ in
                     Task { @MainActor in
