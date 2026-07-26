@@ -285,6 +285,21 @@ public enum RecordingCancellationPolicy {
     }
 }
 
+public enum OrphanedAudioImportPolicy {
+    /// A retained recording is named for its dictation's ID, and that ID is unique
+    /// in the store, so importing a file whose ID already exists would upsert over
+    /// the original record and replace a saved transcript with an empty failed
+    /// entry. Import only recordings that no existing dictation can account for.
+    public static func shouldImport(
+        recordingID: UUID,
+        relativePath: String,
+        knownRecordIDs: Set<UUID>,
+        referencedAudioPaths: Set<String>
+    ) -> Bool {
+        !referencedAudioPaths.contains(relativePath) && !knownRecordIDs.contains(recordingID)
+    }
+}
+
 public enum PillShapeStyle: Equatable, Sendable {
     case capsule
     case roundedRectangle

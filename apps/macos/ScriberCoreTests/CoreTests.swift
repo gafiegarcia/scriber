@@ -513,6 +513,44 @@ private final class FakeCredentialStorageBackend: CredentialStorageBackend, @unc
     }
 }
 
+@Suite("Orphaned audio import")
+struct OrphanedAudioImportPolicyTests {
+    private let recordingID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
+    private var relativePath: String { "\(recordingID.uuidString).m4a" }
+
+    @Test("Imports a recording no dictation can account for")
+    func importsUnknownRecording() {
+        #expect(OrphanedAudioImportPolicy.shouldImport(
+            recordingID: recordingID,
+            relativePath: relativePath,
+            knownRecordIDs: [],
+            referencedAudioPaths: []
+        ))
+    }
+
+    @Test("Never reimports audio a dictation already references")
+    func skipsReferencedRecording() {
+        #expect(!OrphanedAudioImportPolicy.shouldImport(
+            recordingID: recordingID,
+            relativePath: relativePath,
+            knownRecordIDs: [recordingID],
+            referencedAudioPaths: [relativePath]
+        ))
+    }
+
+    @Test("Never reimports audio left behind by a succeeded dictation")
+    func protectsSavedTranscriptFromUpsert() {
+        // The record dropped its audio reference after saving its transcript, but
+        // deleting the file failed. Reimporting would upsert over that record.
+        #expect(!OrphanedAudioImportPolicy.shouldImport(
+            recordingID: recordingID,
+            relativePath: relativePath,
+            knownRecordIDs: [recordingID],
+            referencedAudioPaths: []
+        ))
+    }
+}
+
 @Suite("Transcript content")
 struct TranscriptContentTests {
     @Test("Rejects empty and punctuation-only results")

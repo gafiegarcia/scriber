@@ -1037,11 +1037,21 @@ final class AppCoordinator: ObservableObject {
                 : "The app stopped before this dictation completed. Retry when ready."
         }
 
+        // Removing a transcribed recording can fail, leaving the file behind after its
+        // record reference was cleared. Such a file must not be reimported: it would
+        // upsert over a succeeded dictation and destroy the saved transcript.
         let referencedAudio = Set(records.compactMap(\.pendingAudioRelativePath))
+        let knownRecordIDs = Set(records.map(\.id))
         if let files = try? AudioRecorder.recoverableAudioFiles() {
-            for file in files where !referencedAudio.contains(file.lastPathComponent) {
+            for file in files {
                 let values = try? file.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
                 let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent) ?? UUID()
+                guard OrphanedAudioImportPolicy.shouldImport(
+                    recordingID: id,
+                    relativePath: file.lastPathComponent,
+                    knownRecordIDs: knownRecordIDs,
+                    referencedAudioPaths: referencedAudio
+                ) else { continue }
                 modelContext.insert(DictationRecord(
                     id: id,
                     createdAt: values?.creationDate ?? values?.contentModificationDate ?? .now,
