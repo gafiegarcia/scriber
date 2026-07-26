@@ -546,7 +546,7 @@ private struct DictationHistoryRow: View {
 
     /// Transcript size. Larger than `.body`, which read as small next to the
     /// generous type Flow uses for the same content.
-    fileprivate static let transcriptPointSize: CGFloat = 15
+    fileprivate static let transcriptPointSize: CGFloat = 14
     fileprivate static let timePointSize: CGFloat = 13
 
     /// Exactly as wide as the widest time this locale can render, and no wider.
