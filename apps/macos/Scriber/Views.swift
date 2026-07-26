@@ -228,8 +228,10 @@ struct DictationHistoryView: View {
         let isLast: Bool = index == count - 1
 
         DictationHistoryRow(record: record)
-            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-            .listRowSeparator(isLast ? .hidden : .visible)
+            .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+            // The card and the gaps between groups carry the grouping. Row rules
+            // inside a bordered card only added a second, competing division.
+            .listRowSeparator(.hidden)
             .listRowBackground(DictationHistoryGroupBackground(isFirst: isFirst, isLast: isLast))
             .contextMenu {
                 if let text = record.text, !text.isEmpty {
@@ -314,8 +316,8 @@ struct DictationHistoryView: View {
                             }
                         } header: {
                             Text(section.title)
-                                .font(.headline)
-                                .foregroundStyle(.secondary)
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(.primary)
                                 .textCase(nil)
                                 // The default header carries its own separator,
                                 // which read as a stray inset rule above each card.
@@ -324,8 +326,12 @@ struct DictationHistoryView: View {
                     }
                 }
                 .listStyle(.inset)
-                .contentMargins(.horizontal, 20, for: .scrollContent)
                 .scrollContentBackground(.hidden)
+                // Padding on the List, not `contentMargins`. The latter insets the
+                // scrolled content but not the row backgrounds, so the cards ran
+                // edge to edge while their contents sat 36pt in — no outer margin
+                // and far too much inner padding at the same time.
+                .padding(.horizontal, 20)
                 .background(Color(nsColor: .windowBackgroundColor))
             }
         }
