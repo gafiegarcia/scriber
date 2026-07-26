@@ -238,18 +238,23 @@ struct ScriberApp: App {
     private var menuBarLabel: some View {
         if needsAttention {
             Image(systemName: "exclamationmark.circle")
+                .resizable()
+                .scaledToFit()
+                .frame(width: Self.menuBarIconSize, height: Self.menuBarIconSize)
                 .accessibilityLabel("Scriber needs attention")
         } else {
-            // 18pt in the 22pt menu bar matches the system's own items. The
-            // `systemImage:` initialiser rendered noticeably smaller than every
-            // neighbouring icon.
             Image(.menuBarIcon)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 18, height: 18)
+                .frame(width: Self.menuBarIconSize, height: Self.menuBarIconSize)
                 .accessibilityLabel("Scriber")
         }
     }
+
+    /// Both branches share this so the icon does not change size when Scriber
+    /// starts or stops needing attention. The `systemImage:` initialiser rendered
+    /// well under the size of neighbouring menu bar items.
+    private static let menuBarIconSize: CGFloat = 22
 
     private var needsAttention: Bool {
         guard runtime.preferences.onboardingComplete else { return false }

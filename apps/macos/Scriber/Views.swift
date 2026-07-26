@@ -308,10 +308,18 @@ struct DictationHistoryView: View {
             } else {
                 List {
                     ForEach(sections) { section in
-                        Section(section.title) {
+                        Section {
                             ForEach(Array(section.records.enumerated()), id: \.element.id) { pair in
                                 row(pair.element, at: pair.offset, of: section.records.count)
                             }
+                        } header: {
+                            Text(section.title)
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                                .textCase(nil)
+                                // The default header carries its own separator,
+                                // which read as a stray inset rule above each card.
+                                .listRowSeparator(.hidden)
                         }
                     }
                 }
@@ -444,14 +452,22 @@ private struct DictationHistoryGroupBackground: View {
 
     private let radius: CGFloat = 10
 
-    var body: some View {
+    private var shape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(
             topLeadingRadius: isFirst ? radius : 0,
             bottomLeadingRadius: isLast ? radius : 0,
             bottomTrailingRadius: isLast ? radius : 0,
             topTrailingRadius: isFirst ? radius : 0
         )
-        .fill(Color(nsColor: .controlBackgroundColor))
+    }
+
+    var body: some View {
+        // `controlBackgroundColor` over `windowBackgroundColor` is nearly
+        // indistinguishable in dark mode, so the fill alone did not read as a
+        // card. A hairline border carries the shape in both appearances.
+        shape
+            .fill(.quinary)
+            .overlay(shape.strokeBorder(.separator, lineWidth: 1))
     }
 }
 
@@ -538,10 +554,9 @@ private struct DictationHistoryRow: View {
             .frame(width: 24)
         }
         .padding(.vertical, 4)
-        // Start the separator at the transcript rather than the card edge: the
-        // time column reads as a leading accessory, the way grouped macOS tables
-        // inset their separators past a leading icon.
-        .alignmentGuide(.listRowSeparatorLeading) { _ in timeColumnWidth + 16 }
+        // Full-width within the card. Insetting past the time column left the
+        // time visually unseparated from the entry above it.
+        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
     }
 
     private var rowText: String {
