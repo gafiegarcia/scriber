@@ -142,6 +142,31 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcodebuild -projec
 
 ## Planned work
 
+Raised from live use of build 15 on 2026-07-27 and not yet acted on.
+
+- **Sticky date-group header.** The date label is small and easy to miss where it
+  sits. Move it into the row that currently holds the dictation count, transitioning
+  in place as the user scrolls between day groups, and move the permission and
+  credential warning banners above it — directly under the title and search row.
+  This restructures `DictationHistoryView`'s header and its `List` together and is
+  the largest of these; do it as its own change, not folded into a polish pass.
+- **Pill "Review" does not fully arrive.** From the permissions pill, Review opens
+  the window and selects Settings, but it does not bring Scriber forward when the
+  window is already open behind another app, and it does not scroll to Permissions
+  and Input, which sits at the bottom of a long Settings pane. The scroll needs a
+  `MainWindowDestination` case anchored on that section, matching how `.apiKey` and
+  `.microphone` already work. The activation half needs diagnosis first —
+  `AppDelegate.showWindow` does call `activate`, so establish why it does not take
+  effect before changing it.
+- **Sidebar toggle tooltip.** Should read "Hide Sidebar (⌘.)" / "Show Sidebar (⌘.)".
+  The control is supplied by `NavigationSplitView`, so this likely means providing
+  a toolbar item rather than configuring the built-in one.
+- **Sidebar toggle button flickers** when switching between Dictation and Settings,
+  as though the toolbar is torn down and rebuilt on each selection change.
+  Long-standing, cosmetic, cause unknown.
+
+### Deferred to a later track
+
 Deliberately not built with the build 15 track, and recorded here so the Notion
 notes they came from are no longer the source of truth.
 
