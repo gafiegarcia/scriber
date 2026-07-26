@@ -80,18 +80,31 @@ public struct ModifierChordCaptureState: Equatable, Sendable {
 }
 
 public enum KeyCodeNames {
+    /// Virtual key codes for the standard ANSI layout, matching Carbon's
+    /// `kVK_` constants. Codes are positional, so this names the key by where it
+    /// sits rather than by what a remapped layout produces — good enough for a
+    /// shortcut label, and it avoids pulling Carbon into this UI-free module.
+    private static let names: [UInt16: String] = [
+        0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
+        11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T",
+        18: "1", 19: "2", 20: "3", 21: "4", 22: "6", 23: "5", 25: "9", 26: "7", 28: "8", 29: "0",
+        24: "=", 27: "-", 30: "]", 33: "[", 39: "'", 41: ";", 42: "\\", 43: ",", 44: "/", 47: ".",
+        50: "`",
+        31: "O", 32: "U", 34: "I", 35: "P", 37: "L", 38: "J", 40: "K", 45: "N", 46: "M",
+        36: "Return", 48: "Tab", 49: "Space", 51: "Delete", 53: "Escape",
+        65: "Keypad .", 67: "Keypad *", 69: "Keypad +", 71: "Keypad Clear", 75: "Keypad /",
+        76: "Keypad Enter", 78: "Keypad -", 81: "Keypad =",
+        82: "Keypad 0", 83: "Keypad 1", 84: "Keypad 2", 85: "Keypad 3", 86: "Keypad 4",
+        87: "Keypad 5", 88: "Keypad 6", 89: "Keypad 7", 91: "Keypad 8", 92: "Keypad 9",
+        96: "F5", 97: "F6", 98: "F7", 99: "F3", 100: "F8", 101: "F9", 103: "F11",
+        105: "F13", 106: "F16", 107: "F14", 109: "F10", 111: "F12", 113: "F15",
+        114: "Help", 115: "Home", 116: "Page Up", 117: "Forward Delete",
+        118: "F4", 119: "End", 120: "F2", 121: "Page Down", 122: "F1",
+        123: "←", 124: "→", 125: "↓", 126: "↑",
+    ]
+
     public static func name(for keyCode: UInt16) -> String {
-        switch keyCode {
-        case 49: return "Space"
-        case 53: return "Escape"
-        case 36: return "Return"
-        case 48: return "Tab"
-        case 123: return "←"
-        case 124: return "→"
-        case 125: return "↓"
-        case 126: return "↑"
-        default: return "Key \(keyCode)"
-        }
+        names[keyCode] ?? "Key \(keyCode)"
     }
 }
 

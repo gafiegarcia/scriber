@@ -101,7 +101,10 @@ final class PillController {
         model.onHoverChanged = { [weak self] isHovering in self?.setHovering(isHovering) }
     }
 
-    func update(_ phase: AppPhase) {
+    /// `autoDismiss` is disabled when the caller owns the pill's lifetime, so a
+    /// controller countdown and a caller countdown of the same length cannot race
+    /// and produce a hide immediately followed by a show.
+    func update(_ phase: AppPhase, autoDismiss: Bool = true) {
         clearAutoDismissal()
         guard phase != .idle else {
             isHovering = false
@@ -112,7 +115,8 @@ final class PillController {
         applyLayout(for: phase)
         model.phase = phase
         show()
-        if !autoDismissalDisabledForUITesting,
+        if autoDismiss,
+           !autoDismissalDisabledForUITesting,
            let delay = dismissalDelay(for: phase) {
             startAutoDismissal(after: delay)
         }

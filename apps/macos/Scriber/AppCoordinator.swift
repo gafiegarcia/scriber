@@ -562,7 +562,10 @@ final class AppCoordinator: ObservableObject {
                 break
             }
         case .holdReleased:
-            if case .recording(let mode, _, _) = phase, mode == .held { stopAndTranscribe() }
+            if case .recording(let mode, _, _) = phase,
+               ShortcutAction.holdReleased.stopsRecording(mode: mode) {
+                stopAndTranscribe()
+            }
         case .togglePressed:
             switch phase {
             case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
@@ -571,7 +574,7 @@ final class AppCoordinator: ObservableObject {
             case .recording(let mode, let elapsed, let level) where mode == .held:
                 shortcuts.setMode(.locked)
                 setPhase(.recording(mode: .locked, elapsed: elapsed, level: level))
-            case .recording(let mode, _, _) where mode == .locked:
+            case .recording(let mode, _, _) where ShortcutAction.togglePressed.stopsRecording(mode: mode):
                 stopAndTranscribe()
             case .transcribing:
                 showTransientMessage("Still transcribing")
@@ -1082,7 +1085,7 @@ final class AppCoordinator: ObservableObject {
     private func showTransientMessage(_ message: String) {
         suppressPillForCurrentTranscription = false
         let retainedPhase = phase
-        pill.update(.message(message))
+        pill.update(.message(message), autoDismiss: false)
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.5))
             guard let self, self.phase == retainedPhase else { return }

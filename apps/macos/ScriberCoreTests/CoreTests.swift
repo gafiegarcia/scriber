@@ -36,6 +36,17 @@ struct ShortcutMatcherTests {
         #expect(!AppPhase.pasteFailed("No target").isBusy)
     }
 
+    @Test("Names every key a shortcut can realistically bind")
+    func namesBoundKeys() {
+        #expect(ShortcutChord(modifiers: [.function], keyCode: 49).displayName == "fn+Space")
+        #expect(ShortcutChord(modifiers: [.command, .shift], keyCode: 12).displayName == "⇧+⌘+Q")
+        #expect(KeyCodeNames.name(for: 122) == "F1")
+        #expect(KeyCodeNames.name(for: 43) == ",")
+        #expect(KeyCodeNames.name(for: 126) == "↑")
+        // Anything unmapped still produces a stable, if ugly, label.
+        #expect(KeyCodeNames.name(for: 250) == "Key 250")
+    }
+
     @Test("Modifier recorder commits the largest simultaneous snapshot")
     func modifierRecorderCapturesFullChord() {
         var capture = ModifierChordCaptureState()
