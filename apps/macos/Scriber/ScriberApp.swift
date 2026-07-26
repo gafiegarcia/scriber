@@ -194,8 +194,6 @@ struct ScriberApp: App {
         }
 
         MenuBarExtra(
-            "Scriber",
-            systemImage: menuBarSymbol,
             isInserted: Binding(
                 get: { runtime.preferences.showInMenuBar },
                 set: { isInserted in
@@ -207,24 +205,39 @@ struct ScriberApp: App {
             )
         ) {
             MenuBarContent().environmentObject(runtime)
+        } label: {
+            menuBarLabel
         }
     }
 
-    private var menuBarSymbol: String {
-        if runtime.preferences.onboardingComplete,
-           !runtime.coordinator.permissionReadiness.isReady
-            || !runtime.coordinator.credentialReadiness.isReady {
-            return "exclamationmark.circle"
+    /// The icon reports configuration problems and nothing else.
+    ///
+    /// It used to track the dictation phase, but the pill and the sounds already
+    /// narrate a dictation, and a menu bar icon that animates through every
+    /// recording is a distraction rather than information. What the menu bar is
+    /// good at is the state the user cannot otherwise see: Scriber is installed,
+    /// running, and unable to work until something is fixed.
+    @ViewBuilder
+    private var menuBarLabel: some View {
+        if needsAttention {
+            Image(systemName: "exclamationmark.circle")
+                .accessibilityLabel("Scriber needs attention")
+        } else {
+            // 18pt in the 22pt menu bar matches the system's own items. The
+            // `systemImage:` initialiser rendered noticeably smaller than every
+            // neighbouring icon.
+            Image(.menuBarIcon)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
+                .accessibilityLabel("Scriber")
         }
-        return switch runtime.coordinator.phase {
-        case .recording: "waveform.circle.fill"
-        case .transcribing: "ellipsis.circle"
-        case .cancelledTranscript: "exclamationmark.circle"
-        case .dictationCopied: "checkmark.circle"
-        case .permissionsRequired, .credentialsUnusable, .pasteFailed, .transcriptionFailed:
-            "exclamationmark.circle"
-        default: "waveform.circle"
-        }
+    }
+
+    private var needsAttention: Bool {
+        guard runtime.preferences.onboardingComplete else { return false }
+        return !runtime.coordinator.permissionReadiness.isReady
+            || !runtime.coordinator.credentialReadiness.isReady
     }
 
     private func closeAllNormalWindows() {
