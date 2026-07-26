@@ -6,7 +6,7 @@ Scriber `0.7.0` build `9` is the current personal-installation candidate for App
 
 Carried forward from build 7, which is preserved as `v0.7.0-alpha.6`: the dedicated `Scriber/History.store`, the encrypted login-Keychain policy, and the long-lived local `Scriber Local Code Signing` identity that gives rebuilt Release bundles one stable designated requirement without a provisioning profile. macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; it then persists across launches and transcriptions of that unchanged binary. Reboot acceptance remains open. The preceding provisioned Data Protection Keychain implementation is preserved as `v0.7.0-alpha.2`.
 
-Builds 8 and 9 carry the 2026-07-26 review pass. Build 8 moved delivery to the live cursor and took Accessibility off the record-start path; build 9 fixes the false-success regression that shipped with it. The paste engine's rationale and its standing constraints live in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md) — read it before changing delivery or confirmation.
+Builds 8 and 9 carry the 2026-07-26 review pass. Build 8 moved delivery to the live cursor and took Accessibility off the record-start path; build 9 fixes the false-success regression that shipped with it and was accepted after live revalidation across web, Electron, and native destinations. The paste engine's rationale, its standing constraints, and that regression baseline live in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md) — read it before changing delivery or confirmation.
 
 ## Milestones
 
@@ -69,13 +69,13 @@ Builds 8 and 9 carry the 2026-07-26 review pass. Build 8 moved delivery to the l
 
 - [x] Confirm recording starts immediately in the apps that previously took two to three seconds. Verified on build 8 in ChatGPT, Notion, and Zen.
 - [x] Confirm delivery lands at the cursor focused when the transcript arrives. Verified on build 8: ChatGPT `pasted`, Notion `pasted`, Zen with a focused field `pasted`, Zen on `x.com` without one `copied`.
-- [ ] Repeat the no-focused-field check on `claude.ai` in Zen several times on build 9. Build 8 produced one false `pasted` and one correct `copied` there; a single clean run does not close this.
+- [x] Close the build 8 false-success regression. Build 9 classified 14 consecutive dictations correctly across `claude.ai`, the Claude desktop app, ChatGPT, Notion, `x.com`, and Finder, including the no-focused-field case on both a live page and a native app. The table in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md) is the regression baseline.
 - [ ] Confirm moving focus to a different app or field during transcription delivers to the final cursor.
 - [ ] Confirm the pill still appears on the screen holding the app that was frontmost at record start, now that its screen comes from the window server rather than Accessibility.
 
 - [x] Close the paste-confirmation regression with Raycast running: Xcode, ChatGPT, and Notion confirm success without a false recovery panel, while Zen with no focused text box produces copied recovery.
 - [ ] Verify target capture, selection restoration, confirmed insertion, clipboard restoration, and copied fallback in TextEdit.
-- [ ] Repeat insertion checks in Ghostty, Raycast, Zen with a focused field, Zen without a focused field, VS Code, Zed, Notion, ChatGPT, and Codex without treating missing Accessibility evidence as failure.
+- [ ] Repeat insertion checks in Ghostty, Raycast, VS Code, Zed, and Codex without treating missing Accessibility evidence as failure. Zen with and without a focused field, Notion, ChatGPT, the Claude desktop app, and Finder are covered by the build 9 revalidation.
 - [ ] Verify behavior when the focused target disappears, moves its selection, is secure/disabled, or exposes no focused Accessibility element.
 - [ ] Verify menu-command and PID-targeted paste fallbacks without false success reporting, including with Raycast clipboard history running and the transient/concealed markers honored.
 

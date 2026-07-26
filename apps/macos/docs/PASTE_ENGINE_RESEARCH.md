@@ -191,6 +191,8 @@ The fix qualifies the focus before observing its ancestry: a focus that does not
 
 The distinction this restores is the one already recorded under “Previous Scriber behavior and failure”: a positively reported noneditable focus and a destination hiding its editor are materially different situations. The first must produce no Accessibility evidence; the second must still fall through to the pasteboard probe.
 
+Confirmed live on build 9 across web, Electron, and native destinations — see the revalidation table below.
+
 ## Signed live validation
 
 With Raycast clipboard history running, the signed app's persisted Dictation history recorded the final controlled sequence as:
@@ -204,9 +206,27 @@ This is the required result on both sides of the original failure: opaque editor
 
 Broader app coverage, clipboard-restoration races, and non-Latin IMEs remain useful general acceptance checks, but they no longer keep this specific investigation open. If a new ambiguous consumer appears, capture privacy-safe evidence before changing the confirmation model again.
 
-### Build 8 revalidation (2026-07-26)
+### 2026-07-26 revalidation, builds 8 and 9
 
-After moving delivery to the live cursor, the same signed-build check recorded: ChatGPT prompt `pasted`, Notion `pasted`, Zen with a focused field `pasted`, Zen on `x.com` with no focused field `copied`. Recording start became immediate in the Electron apps that previously took two to three seconds. `claude.ai` with no focused field produced the false success described above and is the reason build 9 exists; it needs repeated live runs on that specific page before this is called closed again.
+Build 8 moved delivery to the live cursor. Recording start became immediate in the Electron apps that previously took two to three seconds, and delivery classified ChatGPT, Notion, and a focused Zen field as `pasted` and `x.com` with no focused field as `copied`. `claude.ai` with no focused field produced the intermittent false success described above, which build 9 fixes.
+
+Build 9 was then exercised across three engine families in one signed session. Every classification was correct, with no false success and no false failure:
+
+| Destination | Focus | Result |
+| --- | --- | --- |
+| `claude.ai` in Zen | prompt box | `pasted` |
+| `claude.ai` in Zen | none | `copied` |
+| Claude desktop app | prompt box | `pasted` |
+| ChatGPT app | prompt box | `pasted` |
+| Notion | editor | `pasted` (×3) |
+| `x.com` in Zen | search bar, post box | `pasted` |
+| `x.com` in Zen | none | `copied` |
+| Finder | search bar, rename field | `pasted` |
+| Finder | none | `copied` |
+
+Finder matters beyond coverage: it is a native AppKit target, so the focus-qualification gate is confirmed to behave on a normal accessibility tree and not only on web content. The three no-focus rows are the regression case, now correct on both a live page and a native app.
+
+Gaf accepted the paste engine as working on 2026-07-26. Treat the table above as the regression baseline: a change to delivery or confirmation should reproduce it before being accepted.
 
 ## Rejected or unsafe shortcuts
 
