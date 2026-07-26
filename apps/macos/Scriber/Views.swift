@@ -231,10 +231,12 @@ struct DictationHistoryView: View {
             // Leading/trailing clear the card inset first, then add the padding
             // inside the card, which is deliberately tight.
             .listRowInsets(EdgeInsets(
-                top: 10,
-                leading: DictationHistoryGroupBackground.horizontalInset + 10,
-                bottom: 10,
-                trailing: DictationHistoryGroupBackground.horizontalInset + 10
+                top: 14,
+                leading: DictationHistoryGroupBackground.horizontalInset
+                    + DictationHistoryGroupBackground.contentInset,
+                bottom: 14,
+                trailing: DictationHistoryGroupBackground.horizontalInset
+                    + DictationHistoryGroupBackground.contentInset
             ))
             // The card and the gaps between groups carry the grouping. Row rules
             // inside a bordered card only added a second, competing division.
@@ -271,7 +273,7 @@ struct DictationHistoryView: View {
                 .frame(width: 24, height: 24)
                 .accessibilityIdentifier("dictation-history-actions")
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, DictationHistoryGroupBackground.horizontalInset)
             .padding(.vertical, 14)
 
             Divider()
@@ -394,7 +396,7 @@ private struct RecoveryBanner: View {
         .background(.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
         // Matches the history List's own horizontal padding, so the banner's
         // rounded edge lines up with the day cards below it.
-        .padding(.horizontal, 20)
+        .padding(.horizontal, DictationHistoryGroupBackground.horizontalInset)
         .padding(.vertical, 12)
     }
 }
@@ -485,10 +487,17 @@ private struct DictationHistoryGroupBackground: View {
         )
     }
 
-    /// Distance from the window edge to the card edge. Lives here rather than on
-    /// the `List`, because padding the List moves its scroll indicator inward too
-    /// and leaves the scroll bar floating away from the window edge.
-    static let horizontalInset: CGFloat = 20
+    /// Distance from the window edge to the card edge, and the Dictation page's
+    /// horizontal rhythm generally — the count row and the warning banner take it
+    /// too, so every leading edge on the page lines up.
+    ///
+    /// Lives here rather than on the `List`, because padding the List moves its
+    /// scroll indicator inward too and leaves the scroll bar floating away from
+    /// the window edge.
+    static let horizontalInset: CGFloat = 32
+
+    /// Padding inside the card, between its edge and the row's content.
+    static let contentInset: CGFloat = 20
 
     var body: some View {
         // Fill only, no border. Each row draws its own slice of the group, so a
@@ -535,19 +544,21 @@ private struct DictationHistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
 
-    // Trailing-aligned, so a short time sits next to the transcript instead of
-    // stranding a gap after it. Kept narrow and monospaced-digit: trailing
-    // alignment moves any slack to the card edge instead, where it reads as
-    // excess padding.
+    /// Transcript size. Larger than `.body`, which read as small next to the
+    /// generous type Flow uses for the same content.
+    fileprivate static let transcriptPointSize: CGFloat = 15
+    fileprivate static let timePointSize: CGFloat = 13
+
     /// Exactly as wide as the widest time this locale can render, and no wider.
     ///
     /// A hardcoded width is either too loose — parking slack beside every short
     /// time — or too tight for locales that do not use a 24-hour clock: `16.26`
     /// is five characters here, while a 12-hour locale produces `11:59 PM`.
-    /// Measuring the formatter's own output covers both.
+    /// Measuring the formatter's own output covers both. Kept in step with
+    /// `timePointSize`; measuring a different size than the label renders is how
+    /// this silently starts clipping.
     fileprivate static let timeColumnWidth: CGFloat = {
-        let pointSize = NSFont.preferredFont(forTextStyle: .callout).pointSize
-        let font = NSFont.monospacedDigitSystemFont(ofSize: pointSize, weight: .regular)
+        let font = NSFont.monospacedDigitSystemFont(ofSize: timePointSize, weight: .regular)
         let calendar = Calendar.autoupdatingCurrent
         // Late-evening and late-morning both, so the measurement covers whichever
         // of the 24-hour and 12-hour renderings this locale uses, including its
@@ -568,19 +579,16 @@ private struct DictationHistoryRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
+        HStack(alignment: .center, spacing: 28) {
             Text(record.createdAt.formatted(date: .omitted, time: .shortened))
-                .font(.callout)
+                .font(.system(size: Self.timePointSize))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
-                // Trailing, so the minutes line up down the column. That only
-                // works once the column is no wider than the longest time it can
-                // hold — otherwise the surplus sits to the left of every short
-                // time and reads as padding.
-                .frame(width: timeColumnWidth, alignment: .trailing)
+                .frame(width: timeColumnWidth, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(rowText)
+                    .font(.system(size: Self.transcriptPointSize))
                     .lineLimit(4)
                     .textSelection(.enabled)
                 // Duration is gone. A dictation's length is not something the user
@@ -629,7 +637,7 @@ private struct DictationHistoryRow: View {
             .menuIndicator(.hidden)
             .frame(width: 24)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         // Full-width within the card. Insetting past the time column left the
         // time visually unseparated from the entry above it.
         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
