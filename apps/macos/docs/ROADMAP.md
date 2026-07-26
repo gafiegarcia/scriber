@@ -162,6 +162,14 @@ Raised from live use of build 15 on 2026-07-27 and not yet acted on.
   Also worth knowing: a Debug build can never show the normal icon, because it never
   holds permissions, so it always renders the warning state. Checking the app mark
   needs an installed Release build.
+- **History entries need hover states, and should copy on click.** Nothing in a
+  history row responds to the pointer today: the copy button, the overflow menu,
+  and the row itself all sit inert until clicked. Each needs a hover treatment, and
+  the row as a whole should be clickable — clicking anywhere on an entry copies its
+  transcript, so reaching the small copy button is an option rather than the only
+  route. Note the interaction this has to avoid: the row already carries a context
+  menu and `textSelection(.enabled)` on the transcript, so a row-wide click target
+  must not swallow text selection or right-click.
 - **Sticky date-group header.** The date label is small and easy to miss where it
   sits. Move it into the row that currently holds the dictation count, transitioning
   in place as the user scrolls between day groups, and move the permission and
