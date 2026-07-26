@@ -356,7 +356,7 @@ final class AppCoordinator: ObservableObject {
         storedAPIKeyValidationTask = nil
         isCheckingStoredAPIKey = false
         isRefreshingSubscriptionUsage = false
-        try keychain.saveAPIKey(value)
+        try await keychain.saveAPIKey(value)
         preferences.apiKeyConfigured = true
         preferences.apiKeyValidity = .valid
         preferences.subscriptionUsage = result.subscriptionUsage
@@ -382,7 +382,7 @@ final class AppCoordinator: ObservableObject {
                 }
             }
             do {
-                guard let apiKey = try keychain.readAPIKey(), !apiKey.isEmpty else {
+                guard let apiKey = try await keychain.readAPIKey(), !apiKey.isEmpty else {
                     guard !Task.isCancelled, credentialRevision.matches(validationRevision) else { return }
                     preferences.apiKeyConfigured = false
                     preferences.apiKeyValidity = .unchecked
@@ -413,7 +413,7 @@ final class AppCoordinator: ObservableObject {
 
     func refreshSubscriptionUsage() async {
         guard !isRefreshingSubscriptionUsage else { return }
-        guard let apiKey = try? keychain.readAPIKey(), !apiKey.isEmpty else { return }
+        guard let apiKey = try? await keychain.readAPIKey(), !apiKey.isEmpty else { return }
         let refreshRevision = credentialRevision.current
         isRefreshingSubscriptionUsage = true
         defer {
@@ -724,7 +724,7 @@ final class AppCoordinator: ObservableObject {
             shortcuts.setMode(.idle)
         }
         do {
-            guard let apiKey = try keychain.readAPIKey(), !apiKey.isEmpty else { throw ScribeError.authentication }
+            guard let apiKey = try await keychain.readAPIKey(), !apiKey.isEmpty else { throw ScribeError.authentication }
             let request = ScribeRequest(
                 audioURL: recording.url,
                 apiKey: apiKey,
