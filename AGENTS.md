@@ -20,3 +20,4 @@
 - Update the roadmap when milestones or release gates change. Add only meaningful completed work or verification results to the development log.
 - Do not push or publish unless Gaf explicitly asks.
 - Never use `rm`; use `trash`. If `trash` is unavailable, ask before permanently deleting anything.
+- `CLAUDE.md` is a symlink to this file. Apply edits to `AGENTS.md`; tools that refuse to write through symlinks will reject the `CLAUDE.md` path.
