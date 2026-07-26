@@ -231,15 +231,18 @@ struct DictationHistoryView: View {
                 Text("\(records.count) \(records.count == 1 ? "dictation" : "dictations")")
                     .foregroundStyle(.secondary)
                 Spacer()
-                Menu {
-                    Button("Clear Dictation History…", role: .destructive) { confirmClear = true }
-                        .disabled(records.isEmpty)
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .help("Dictation history actions")
+                TrailingAlignedMenuButton(
+                    systemImage: "ellipsis.circle",
+                    help: "Dictation history actions",
+                    isEnabled: !records.isEmpty,
+                    items: [
+                        TrailingAlignedMenuButton.Item(title: "Clear Dictation History…") {
+                            confirmClear = true
+                        }
+                    ]
+                )
+                .frame(width: 24, height: 24)
+                .accessibilityIdentifier("dictation-history-actions")
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 14)
@@ -343,6 +346,74 @@ private struct RecoveryBanner: View {
         .padding(.vertical, 12)
         .background(.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
         .padding(16)
+    }
+}
+
+/// A trailing-edge overflow button whose menu opens toward the leading edge.
+///
+/// SwiftUI's `Menu` offers no control over which edge its popup grows from, so a
+/// control near the window's trailing edge spills its menu outside the window and
+/// only flips once it would leave the *screen*. Hosting an `NSMenu` lets the menu
+/// be positioned explicitly, with its trailing edge aligned to the button's.
+private struct TrailingAlignedMenuButton: NSViewRepresentable {
+    struct Item {
+        let title: String
+        let action: () -> Void
+    }
+
+    let systemImage: String
+    let help: String
+    let isEnabled: Bool
+    let items: [Item]
+
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton(title: "", target: context.coordinator, action: #selector(Coordinator.present(_:)))
+        button.isBordered = false
+        button.bezelStyle = .accessoryBar
+        button.imagePosition = .imageOnly
+        button.setButtonType(.momentaryChange)
+        return button
+    }
+
+    func updateNSView(_ button: NSButton, context: Context) {
+        button.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: help)
+        button.toolTip = help
+        button.isEnabled = isEnabled
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.present(_:))
+        context.coordinator.items = items
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(items: items)
+    }
+
+    final class Coordinator: NSObject {
+        var items: [Item]
+
+        init(items: [Item]) {
+            self.items = items
+        }
+
+        @objc func present(_ sender: NSButton) {
+            let menu = NSMenu()
+            for (index, item) in items.enumerated() {
+                let menuItem = NSMenuItem(title: item.title, action: #selector(invoke(_:)), keyEquivalent: "")
+                menuItem.target = self
+                menuItem.tag = index
+                menu.addItem(menuItem)
+            }
+            // `menu.size` forces the menu to lay out, which is what makes the
+            // trailing alignment exact rather than an estimate. The button is not
+            // flipped, so its `minY` is the bottom edge and the menu drops below it.
+            let origin = NSPoint(x: sender.bounds.maxX - menu.size.width, y: sender.bounds.minY)
+            menu.popUp(positioning: nil, at: origin, in: sender)
+        }
+
+        @objc private func invoke(_ sender: NSMenuItem) {
+            guard items.indices.contains(sender.tag) else { return }
+            items[sender.tag].action()
+        }
     }
 }
 
