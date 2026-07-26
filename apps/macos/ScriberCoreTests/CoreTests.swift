@@ -591,6 +591,40 @@ private final class FakeCredentialStorageBackend: CredentialStorageBackend, @unc
     }
 }
 
+@Suite("Retained audio retention")
+struct RetainedAudioRetentionPolicyTests {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    @Test("Expires only at the full retention period")
+    func retentionBoundary() {
+        let period = RetainedAudioRetentionPolicy.retentionPeriod
+        #expect(!RetainedAudioRetentionPolicy.hasExpired(
+            createdAt: now.addingTimeInterval(-period + 1), now: now
+        ))
+        #expect(RetainedAudioRetentionPolicy.hasExpired(
+            createdAt: now.addingTimeInterval(-period), now: now
+        ))
+        #expect(!RetainedAudioRetentionPolicy.hasExpired(createdAt: now, now: now))
+    }
+
+    @Test("Keeps why the dictation failed alongside why its audio is gone")
+    func preservesExistingFailureReason() {
+        let combined = RetainedAudioRetentionPolicy.expiredMessage(
+            appendingTo: "Cancelled before transcription."
+        )
+        #expect(combined.hasPrefix("Cancelled before transcription."))
+        #expect(combined.hasSuffix(RetainedAudioRetentionPolicy.expiryMessage))
+    }
+
+    @Test("Stands alone when nothing explained the failure")
+    func standsAloneWithoutAReason() {
+        #expect(RetainedAudioRetentionPolicy.expiredMessage(appendingTo: nil)
+            == RetainedAudioRetentionPolicy.expiryMessage)
+        #expect(RetainedAudioRetentionPolicy.expiredMessage(appendingTo: "")
+            == RetainedAudioRetentionPolicy.expiryMessage)
+    }
+}
+
 @Suite("Orphaned audio import")
 struct OrphanedAudioImportPolicyTests {
     private let recordingID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!

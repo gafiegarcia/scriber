@@ -346,6 +346,27 @@ public enum RecordingCancellationPolicy {
     }
 }
 
+/// When Scriber stops keeping the audio behind a failed or cancelled dictation.
+///
+/// Retained recordings exist so a dictation can be retried, but nothing ever
+/// collected them, so unretried audio accumulated in Application Support for the
+/// life of the install. That is a privacy cost as much as a disk one.
+public enum RetainedAudioRetentionPolicy {
+    public static let retentionPeriod: TimeInterval = 30 * 24 * 60 * 60
+
+    public static let expiryMessage = "The retained recording was removed after 30 days and can no longer be retried."
+
+    public static func hasExpired(createdAt: Date, now: Date = .now) -> Bool {
+        now.timeIntervalSince(createdAt) >= retentionPeriod
+    }
+
+    /// Keeps why the dictation failed alongside why its audio is gone.
+    public static func expiredMessage(appendingTo existing: String?) -> String {
+        guard let existing, !existing.isEmpty else { return expiryMessage }
+        return "\(existing) \(expiryMessage)"
+    }
+}
+
 public enum OrphanedAudioImportPolicy {
     /// A retained recording is named for its dictation's ID, and that ID is unique
     /// in the store, so importing a file whose ID already exists would upsert over

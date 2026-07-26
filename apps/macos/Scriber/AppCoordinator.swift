@@ -213,7 +213,17 @@ final class AppCoordinator: ObservableObject {
         }
         .store(in: &cancellables)
 
-        if persistenceAvailable, servicesAllowed { recoverPersistedAndOrphanedRecords() }
+        preferences.$deletesExpiredRetainedAudio
+            .dropFirst()
+            .sink { [weak self] enabled in
+                if enabled { self?.expireRetainedAudio() }
+            }
+            .store(in: &cancellables)
+
+        if persistenceAvailable, servicesAllowed {
+            recoverPersistedAndOrphanedRecords()
+            expireRetainedAudio()
+        }
         lastObservedCredentialReadiness = credentialReadiness
         refreshPermissions(promptForAccessibility: false)
     }
@@ -1137,5 +1147,38 @@ final class AppCoordinator: ObservableObject {
             }
         }
         try? modelContext.save()
+    }
+
+    /// Removes retained dictation audio older than the retention period.
+    ///
+    /// Only the recording goes. The history row, its transcript, and why it failed
+    /// are preserved, so the user keeps the record of what happened and loses only
+    /// the ability to retry a month-old dictation.
+    private func expireRetainedAudio() {
+        guard preferences.deletesExpiredRetainedAudio,
+              let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
+
+        var didExpireRecord = false
+        for record in records {
+            guard let relativePath = record.pendingAudioRelativePath,
+                  RetainedAudioRetentionPolicy.hasExpired(createdAt: record.createdAt) else { continue }
+            AudioRecorder.delete(relativePath: relativePath)
+            record.pendingAudioRelativePath = nil
+            record.errorMessage = RetainedAudioRetentionPolicy.expiredMessage(
+                appendingTo: record.errorMessage
+            )
+            didExpireRecord = true
+        }
+        if didExpireRecord { try? modelContext.save() }
+
+        // Anything left that no dictation references is stale by construction,
+        // including the files orphan recovery deliberately refuses to reimport.
+        let referencedAudio = Set(records.compactMap(\.pendingAudioRelativePath))
+        guard let files = try? AudioRecorder.recoverableAudioFiles() else { return }
+        for file in files where !referencedAudio.contains(file.lastPathComponent) {
+            let createdAt = (try? file.resourceValues(forKeys: [.creationDateKey]))?.creationDate
+            guard RetainedAudioRetentionPolicy.hasExpired(createdAt: createdAt ?? .distantPast) else { continue }
+            try? FileManager.default.removeItem(at: file)
+        }
     }
 }

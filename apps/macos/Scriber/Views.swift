@@ -590,6 +590,16 @@ struct SettingsView: View {
                     }
                 }
             }
+            Section("Dictation History") {
+                Toggle(
+                    "Delete unused recordings after 30 days",
+                    isOn: $runtime.preferences.deletesExpiredRetainedAudio
+                )
+                .accessibilityIdentifier("delete-expired-audio-toggle")
+                Text("Failed and cancelled dictations keep their audio so you can retry them. Transcripts and history entries are always kept; only the unused recording is removed.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Personal Dictionary") {
                 HStack {
                     TextField("Name or term", text: $newKeyterm)

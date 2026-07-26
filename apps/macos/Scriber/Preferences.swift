@@ -25,6 +25,7 @@ final class Preferences: ObservableObject {
         static let audioInputSelection = "audioInputSelection"
         static let playRecordingFeedbackSounds = "playRecordingFeedbackSounds"
         static let muteOtherAudioWhileRecording = "muteOtherAudioWhileRecording"
+        static let deletesExpiredRetainedAudio = "deletesExpiredRetainedAudio"
     }
 
     private let defaults: UserDefaults
@@ -58,6 +59,9 @@ final class Preferences: ObservableObject {
     @Published var muteOtherAudioWhileRecording: Bool {
         didSet { defaults.set(muteOtherAudioWhileRecording, forKey: Keys.muteOtherAudioWhileRecording) }
     }
+    @Published var deletesExpiredRetainedAudio: Bool {
+        didSet { defaults.set(deletesExpiredRetainedAudio, forKey: Keys.deletesExpiredRetainedAudio) }
+    }
 
     init(
         defaults: UserDefaults = .standard,
@@ -86,6 +90,9 @@ final class Preferences: ObservableObject {
         muteOtherAudioWhileRecording = defaults.object(forKey: Keys.muteOtherAudioWhileRecording) == nil
             ? true
             : defaults.bool(forKey: Keys.muteOtherAudioWhileRecording)
+        deletesExpiredRetainedAudio = defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil
+            ? true
+            : defaults.bool(forKey: Keys.deletesExpiredRetainedAudio)
 
         // Materialize opt-in defaults so upgrades and subsequent launches share one explicit value.
         if defaults.object(forKey: Keys.playRecordingFeedbackSounds) == nil {
@@ -93,6 +100,9 @@ final class Preferences: ObservableObject {
         }
         if defaults.object(forKey: Keys.muteOtherAudioWhileRecording) == nil {
             defaults.set(true, forKey: Keys.muteOtherAudioWhileRecording)
+        }
+        if defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil {
+            defaults.set(true, forKey: Keys.deletesExpiredRetainedAudio)
         }
     }
 
