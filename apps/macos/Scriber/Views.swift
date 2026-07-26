@@ -232,9 +232,9 @@ struct DictationHistoryView: View {
             // inside the card, which is deliberately tight.
             .listRowInsets(EdgeInsets(
                 top: 10,
-                leading: DictationHistoryGroupBackground.horizontalInset + 8,
+                leading: DictationHistoryGroupBackground.horizontalInset + 10,
                 bottom: 10,
-                trailing: DictationHistoryGroupBackground.horizontalInset + 8
+                trailing: DictationHistoryGroupBackground.horizontalInset + 10
             ))
             // The card and the gaps between groups carry the grouping. Row rules
             // inside a bordered card only added a second, competing division.
@@ -506,9 +506,11 @@ private struct DictationHistoryGroupBackground: View {
             // having its timestamp float free.
             .overlay(alignment: .bottom) {
                 if !isLast {
+                    // Hairline. A full point renders as two device pixels on a
+                    // Retina display, which is heavier than the card needs.
                     Rectangle()
                         .fill(.separator)
-                        .frame(height: 1)
+                        .frame(height: 0.5)
                 }
             }
             .padding(.horizontal, Self.horizontalInset)
@@ -551,7 +553,13 @@ private struct DictationHistoryRow: View {
                 .font(.callout)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
-                .frame(width: timeColumnWidth, alignment: .trailing)
+                // Leading, so the time starts exactly at the card's padding edge.
+                // Trailing alignment parked the column's unused width to the left
+                // of the time, which read as extra padding that no padding value
+                // could remove. The column stays fixed-width, so transcripts still
+                // line up; only the times differ in length now, and the
+                // monospaced digits keep that tidy.
+                .frame(width: timeColumnWidth, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(rowText)
