@@ -1,0 +1,21 @@
+// Signing team for the Debug and UI-test configurations.
+//
+// The Release configuration signs with the local `Scriber Local Code Signing`
+// identity and deliberately carries no team, so it overrides this file.
+//
+// To build Debug or run the UI tests, create `Signing.local.xcconfig` beside
+// this file containing your own Apple Developer Team ID:
+//
+//     DEVELOPMENT_TEAM = ABCDE12345
+//
+// Xcode shows the Team ID in Settings → Accounts → Manage Certificates, and
+// the target's Signing & Capabilities tab lists the teams available to you.
+// `Signing.local.xcconfig` is gitignored, so no personal team identifier
+// reaches the repository.
+//
+// Without that file the team stays unset and Xcode reports that signing
+// requires a development team. Release builds are unaffected.
+
+DEVELOPMENT_TEAM =
+
+#include? "Signing.local.xcconfig"

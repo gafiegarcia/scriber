@@ -61,6 +61,7 @@
 		B10000000000000000000014 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		B10000000000000000000015 /* RecordingFeedbackSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingFeedbackSound.swift; sourceTree = "<group>"; };
 		B10000000000000000000016 /* OtherAudioMuteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OtherAudioMuteService.swift; sourceTree = "<group>"; };
+		B10000000000000000000017 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		B20000000000000000000001 /* ScriberUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriberUITests.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* ScriberUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScriberUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -88,6 +89,7 @@
 			children = (
 				D10000000000000000000002 /* Scriber */,
 				D20000000000000000000001 /* ScriberUITests */,
+				B10000000000000000000017 /* Signing.xcconfig */,
 				D10000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -282,6 +284,7 @@
 /* Begin XCBuildConfiguration section */
 		F10000000000000000000010 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000017 /* Signing.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
 				SDKROOT = macosx;
@@ -292,6 +295,7 @@
 		};
 		F10000000000000000000011 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000017 /* Signing.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
 				SDKROOT = macosx;
@@ -309,7 +313,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 13;
-				DEVELOPMENT_TEAM = 24U8BM54A3;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Scriber/Info.plist;
@@ -358,7 +361,6 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = 24U8BM54A3;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber.ui-tests";
@@ -374,7 +376,6 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = 24U8BM54A3;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.gafiegarcia.scriber.ui-tests";

@@ -12,7 +12,15 @@ The current native line is Scriber `0.7.0` build `11`, a locally certificate-sig
 
 ## Build
 
-Debug and UI-test builds may use an Apple Development signing team. The Release configuration uses the long-lived `Scriber Local Code Signing` identity from the login Keychain so rebuilt personal-use apps retain one designated requirement without an expiring provisioning profile. Keep the identity's password-protected `.p12` backup private and outside the repository.
+Debug and UI-test builds require an Apple Development signing team, supplied through `Signing.xcconfig`. Create `Signing.local.xcconfig` beside it holding your own team identifier:
+
+```
+DEVELOPMENT_TEAM = ABCDE12345
+```
+
+That file is gitignored, so no personal team identifier reaches the repository, and it is optional at the project level — its absence leaves the team empty rather than breaking the build. Xcode reports which teams are available in the target's Signing & Capabilities tab.
+
+The Release configuration takes no team. It uses the long-lived `Scriber Local Code Signing` identity from the login Keychain so rebuilt personal-use apps retain one designated requirement without an expiring provisioning profile. Keep the identity's password-protected `.p12` backup private and outside the repository. A free Apple ID can sign Debug builds, but its provisioning profile expires after seven days; the Release path exists precisely to avoid that.
 
 Bump the bundle build number first. `CURRENT_PROJECT_VERSION` appears in both the Debug and Release configurations of the `Scriber` target, and the target's **General → Identity → Build** field updates both. Two installed builds sharing a build number are difficult to tell apart afterwards.
 
