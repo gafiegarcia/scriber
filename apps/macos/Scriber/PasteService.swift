@@ -84,27 +84,48 @@ final class PasteService {
         // A destination may keep its real editor outside the Accessibility tree.
         // An empty inspection set is expected there, and process-level paste stays
         // safe because success is confirmed independently by the pasteboard probe.
-        let inspected = focusedElement(in: application, pid: pid).map(ancestry(of:)) ?? []
+        let inspected = focusedTextAncestry(in: application, pid: pid)
         // A focused secure field is the one case Scriber positively refuses:
         // dictation must never be pasted into a password box.
         guard !inspected.contains(where: isSecureTextElement) else { return nil }
+        let observationElements = inspected.filter(isEditableTextElement)
         return FocusedTextTarget(
             application: application,
             pid: pid,
-            observationElements: inspected.filter(isEditableTextElement)
+            observationElements: observationElements,
+            focusContainsTextInput: !observationElements.isEmpty
         )
     }
 
-    private func focusedElement(in application: AXUIElement, pid: pid_t) -> AXUIElement? {
+    /// The focused element's bounded ancestry, but only when that focus actually
+    /// looks like text input.
+    ///
+    /// When macOS positively reports a focused element that is *not* text — a web
+    /// page with no focused text box — Scriber must record no Accessibility
+    /// evidence at all. A live page mutates its own accessibility state between
+    /// the before and after snapshots through carets, timers, and streaming
+    /// content, and reading that drift as a paste mutation confirms insertions
+    /// that never happened.
+    ///
+    /// An empty result is not a failure. Delivery still dispatches Paste, and
+    /// confirmation falls to the pasteboard probe alone, which is the documented
+    /// path for destinations that hide their editor from Accessibility.
+    private func focusedTextAncestry(in application: AXUIElement, pid: pid_t) -> [AXUIElement] {
         if let focused = elementAttribute(application, named: kAXFocusedUIElementAttribute) {
-            return focused
+            let ancestry = ancestry(of: focused)
+            if containsTextInput(ancestry) { return ancestry }
         }
         let systemWide = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemWide, Self.accessibilityMessagingTimeout)
-        guard let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) else { return nil }
+        guard let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) else { return [] }
         var focusedPID: pid_t = 0
-        guard AXUIElementGetPid(focused, &focusedPID) == .success, focusedPID == pid else { return nil }
-        return focused
+        guard AXUIElementGetPid(focused, &focusedPID) == .success, focusedPID == pid else { return [] }
+        let ancestry = ancestry(of: focused)
+        return containsTextInput(ancestry) ? ancestry : []
+    }
+
+    private func containsTextInput(_ ancestry: [AXUIElement]) -> Bool {
+        ancestry.contains { isEditableTextElement($0) || isSecureTextElement($0) }
     }
 
     /// The focused element plus a bounded ancestor chain. Web-backed apps expose
@@ -201,8 +222,12 @@ final class PasteService {
             ? observableTextStates(of: stateAfterPaste?.observationElements ?? [])
             : []
         let pasteboardDataRequested = pasteboardReadProbe.wasRequested
-        let accessibilityConfirmed = (!statesBeforePaste.isEmpty || !statesAfterPaste.isEmpty)
-            && statesBeforePaste != statesAfterPaste
+        let accessibilityConfirmed = PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
+            focusContainsTextInput: currentTarget.focusContainsTextInput
+                || (stateAfterPaste?.focusContainsTextInput ?? false),
+            mutationObserved: (!statesBeforePaste.isEmpty || !statesAfterPaste.isEmpty)
+                && statesBeforePaste != statesAfterPaste
+        )
         guard PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: accessibilityConfirmed,
             pasteboardDataRequested: pasteboardDataRequested
@@ -420,6 +445,9 @@ private struct FocusedTextTarget {
     let application: AXUIElement
     let pid: pid_t
     let observationElements: [AXUIElement]
+    /// False when macOS reported a focused element that is not text input, which
+    /// disqualifies any state change observed on it from counting as evidence.
+    let focusContainsTextInput: Bool
 }
 
 private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider, @unchecked Sendable {

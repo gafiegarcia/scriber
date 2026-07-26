@@ -263,6 +263,38 @@ struct PasteConfirmationTests {
             pasteboardDataRequested: false
         ))
     }
+
+    @Test("State drift on a non-text focus is not evidence")
+    func rejectsDriftOnNonTextFocus() {
+        #expect(!PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
+            focusContainsTextInput: false,
+            mutationObserved: true
+        ))
+        #expect(PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
+            focusContainsTextInput: true,
+            mutationObserved: true
+        ))
+        #expect(!PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
+            focusContainsTextInput: true,
+            mutationObserved: false
+        ))
+    }
+
+    @Test("A live page with no focused text box is still a failed paste")
+    func livePageWithoutTextBoxStillFails() {
+        // Observed live on claude.ai in Zen: the page reports a focused element
+        // that is not text input, and its own accessibility state drifts between
+        // the before and after snapshots. Counting that drift reported a paste
+        // that never happened and suppressed the copied-result recovery.
+        let accessibilityEvidence = PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
+            focusContainsTextInput: false,
+            mutationObserved: true
+        )
+        #expect(!PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: accessibilityEvidence,
+            pasteboardDataRequested: false
+        ))
+    }
 }
 
 @Suite("Scribe validation")

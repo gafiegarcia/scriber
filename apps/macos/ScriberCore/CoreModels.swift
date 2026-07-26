@@ -461,6 +461,21 @@ public enum PasteConfirmationPolicy {
     ) -> Bool {
         accessibilityMutationObserved || pasteboardDataRequested
     }
+
+    /// Accessibility state only counts as evidence when it was observed on a focus
+    /// that genuinely looks like text input.
+    ///
+    /// A live web page with no focused text box changes its own accessibility
+    /// state through carets, timers, and streaming content. Watching an unrelated
+    /// focused element therefore manufactures confirmations at random, which is
+    /// worse than having no Accessibility evidence at all: a failed paste is
+    /// reported as delivered and the transcript is never offered for recovery.
+    public static func qualifiesAsAccessibilityEvidence(
+        focusContainsTextInput: Bool,
+        mutationObserved: Bool
+    ) -> Bool {
+        focusContainsTextInput && mutationObserved
+    }
 }
 
 public struct ShortcutMatcher: Sendable {
