@@ -308,7 +308,7 @@ final class ScriberUITests: XCTestCase {
     }
 
     private func dictationSearchField(in app: XCUIApplication) -> XCUIElement {
-        app.searchFields["Search past transcripts"].firstMatch
+        app.searchFields["Search past transcripts (⌘F)"].firstMatch
     }
 
     private func runningApplication(bundleIdentifier: String) -> NSRunningApplication? {

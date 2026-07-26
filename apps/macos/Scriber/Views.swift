@@ -182,6 +182,11 @@ struct MenuBarContent: View {
 }
 
 struct DictationHistoryView: View {
+    /// `.searchable` cannot right-align a hint or hide it on focus, so the
+    /// shortcut is appended to the prompt. `ScriberUITests` locates the search
+    /// field by this exact string and must be updated alongside it.
+    static let searchPrompt = "Search past transcripts (⌘F)"
+
     @EnvironmentObject private var runtime: AppRuntime
     @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
     let searchFocused: FocusState<Bool>.Binding
@@ -305,7 +310,7 @@ struct DictationHistoryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("dictation-history-view")
-        .searchable(text: $search, prompt: "Search past transcripts")
+        .searchable(text: $search, prompt: DictationHistoryView.searchPrompt)
         .searchFocused(searchFocused)
         .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
             Button("Delete All", role: .destructive) { runtime.coordinator.clearDictationHistory(records) }
