@@ -2,7 +2,7 @@
 
 ## Current status
 
-Scriber `0.7.0` build `16` is the current personal-installation candidate for Apple silicon on macOS 27. It carries the bug-and-polish track consolidated from the Notion sprint list and the loose notes: the settings regrouping, the history cards, the trailing-aligned overflow menu, in-flight dictations hidden from history, the no-words warning, the static menu-bar icon, and the Command-comma and Command-period bindings. It is installed at `/Applications/Scriber.app` and under manual verification; the no-words warning is confirmed firing live. Build `15` was the same work with a truncating pill message and was superseded before verification finished. Build `14`, which fixes the startup window reopening after an early Command-W and carries a `window-lifecycle` diagnostic log, is preserved as `v0.7.0-alpha.8` and is the installed app. Build `11`, which carries the 2026-07-26 review pass, is preserved as `v0.7.0-alpha.7`. Builds `12` and `13` carry no source change and exist only as test vehicles for the Keychain re-authorization investigation below.
+Scriber `0.7.0` build `16` is the current personal-installation candidate for Apple silicon on macOS 27. It carries the bug-and-polish track consolidated from the Notion sprint list and the loose notes: the settings regrouping, the history cards, the trailing-aligned overflow menu, in-flight dictations hidden from history, the no-words warning, the static menu-bar icon, and the Command-comma and Command-period bindings. It is installed at `/Applications/Scriber.app` and under manual verification; the no-words warning is confirmed firing live. Build `15` was the same work with a truncating pill message and was superseded before verification finished. Build `14`, which fixes the startup window reopening after an early Command-W and carries a `window-lifecycle` diagnostic log, is preserved as `v0.7.0-alpha.8` and was the installed app until build 16 replaced it. Build `11`, which carries the 2026-07-26 review pass, is preserved as `v0.7.0-alpha.7`. Builds `12` and `13` carry no source change and exist only as test vehicles for the Keychain re-authorization investigation below.
 
 Carried forward from build 7, which is preserved as `v0.7.0-alpha.6`: the dedicated `Scriber/History.store`, the encrypted login-Keychain policy, and the long-lived local `Scriber Local Code Signing` identity that gives rebuilt Release bundles one stable designated requirement without a provisioning profile. macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; it then persists across launches and transcriptions of that unchanged binary. Reboot acceptance remains open. The preceding provisioned Data Protection Keychain implementation is preserved as `v0.7.0-alpha.2`.
 
@@ -30,7 +30,7 @@ Builds 8 through 11 carry the 2026-07-26 review pass. Build 8 moved delivery to 
 
 ## Open acceptance checks
 
-### Build 15 interface changes
+### Build 16 interface changes
 
 None of these need a real API key except where noted.
 
