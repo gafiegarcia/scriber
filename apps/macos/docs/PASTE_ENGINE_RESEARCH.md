@@ -2,7 +2,7 @@
 
 This is the durable working note for Scriber's automatic-insertion investigation. Update it with evidence, rejected assumptions, live-test results, and decisions so the reasoning survives context compaction and handoff.
 
-Last updated: 2026-07-23
+Last updated: 2026-07-26
 
 Status: resolved and accepted for personal use after signed live testing. Preserve this note as the rationale and regression guard for the paste engine.
 
@@ -162,7 +162,17 @@ The core UX constraint remains:
 
 ### Accessibility remains supplementary
 
-Accessibility remains useful for safe captured-selection insertion and observable before/after mutation. It must not be restored as a required confirmation gate for clipboard fallback. The Zen/Wispr/Raycast result provides a stronger explanation of Scriber's former ambiguity than another focused-role classifier.
+Accessibility remains useful for observable before/after mutation on an element Scriber recognizes as editable. It must not be restored as a required confirmation gate for clipboard fallback. The Zen/Wispr/Raycast result provides a stronger explanation of Scriber's former ambiguity than another focused-role classifier.
+
+### Accessibility must stay off the record-start path (2026-07-26)
+
+Live use showed some apps taking two to three seconds to begin recording while most began instantly. The cause was target capture at record start: `captureTarget()` resolved the frontmost app's focused element, and when an app did not expose `AXFocusedUIElement` it breadth-first searched up to 1,024 descendants, walking up to 24 ancestors per candidate. Every one of those is a synchronous cross-process Accessibility message, and macOS defaults to a six-second per-message timeout. Electron and Chromium apps, which have the largest trees and the weakest focus reporting, were exactly the slow cases.
+
+Gaf's product decision resolves this rather than tuning it: deliver to whatever cursor is focused when the transcript arrives, which is the Wispr delivery model already documented above. The captured element, captured selection range, and `CapturedSelectionRestorePolicy` are removed. Record start now touches no Accessibility API at all — the pill's screen comes from `CGWindowListCopyWindowInfo`, a window-server query.
+
+The confirmation model is deliberately unchanged. Delivery still dispatches Paste to the frontmost process, still succeeds on either a concealed-item data request or an observable editable-target mutation, and still classifies an unrequested, unobserved attempt as no editable target. Removing the breadth-first search does not weaken the unfocused-browser case, because that case was never classified by focus discovery: the resolved design already dispatches Paste when no focused element is found, and Zen was classified `copied` by the request timeout.
+
+Remaining Accessibility work at delivery time is bounded three ways: an explicit 0.2-second `AXUIElementSetMessagingTimeout` on the application and system-wide elements, an eight-level ancestor cap, and a 256-element cap on the Paste menu-item search whose work queue can no longer grow past that bound. The request timeout is raised from 1.25 to 2.5 seconds, which is only ever paid on the failing path.
 
 ## Signed live validation
 

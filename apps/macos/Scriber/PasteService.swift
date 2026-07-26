@@ -14,9 +14,32 @@ enum PasteResult: Sendable {
     case failed(String)
 }
 
+/// Delivers a finished transcript to whatever text cursor is focused when
+/// transcription completes.
+///
+/// Two rules shape this type:
+///
+/// 1. Starting a recording must stay instantaneous. Nothing on the record-start
+///    path may send an Accessibility message, because those are synchronous
+///    cross-process calls whose cost is set by the destination app, not by
+///    Scriber. Target discovery therefore happens only at delivery time.
+/// 2. Confirmation is allowed to be slow. Delivery is confirmed when the
+///    destination requests the concealed in-flight pasteboard item, or when an
+///    editable Accessibility target visibly mutates. Missing Accessibility
+///    evidence is never treated as failure — see `docs/PASTE_ENGINE_RESEARCH.md`.
 @MainActor
 final class PasteService {
-    private static let pasteRequestTimeout = Duration.milliseconds(1_250)
+    /// Accessibility messages block the caller. macOS defaults to a 6-second
+    /// per-message timeout, and an unresponsive destination can spend all of it
+    /// while Scriber's main actor waits. Delivery never depends on Accessibility
+    /// succeeding, so every message is capped low enough to stay imperceptible.
+    private static let accessibilityMessagingTimeout: Float = 0.2
+    private static let maximumInspectedAncestors = 8
+    private static let maximumInspectedMenuItems = 256
+    /// A destination may request the promised transcript well after the Paste
+    /// command lands. Waiting longer is strictly better than reporting a false
+    /// failure, and this delay is only ever paid on the failing path.
+    private static let pasteRequestTimeout = Duration.milliseconds(2_500)
     private static let clipboardRestoreDelay = Duration.milliseconds(500)
     private static let transientPasteboardTypes = [
         NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
@@ -25,56 +48,85 @@ final class PasteService {
         NSPasteboard.PasteboardType("de.petermaurer.TransientPasteboardType")
     ]
 
-    private var target: AXUIElement?
-    private var focusAnchor: AXUIElement?
-    private var targetPID: pid_t = 0
-    private var capturedTextState: TextElementState?
     private(set) var targetScreen: NSScreen?
 
+    /// Records only where the floating pill should appear. The frontmost window
+    /// rectangle comes from the window server, so this performs no Accessibility
+    /// traversal and adds no measurable latency to starting a recording.
     @discardableResult
     func captureTarget() -> NSScreen? {
-        target = nil
-        focusAnchor = nil
-        targetPID = 0
-        capturedTextState = nil
         targetScreen = nil
         guard let runningApplication = NSWorkspace.shared.frontmostApplication else { return nil }
-        let pid = runningApplication.processIdentifier
-        let application = AXUIElementCreateApplication(pid)
-        guard let focused = focusedElement(in: application, pid: pid) else {
-            // Retain the process so delivery can retry focus discovery after
-            // transcription; web-backed apps can publish focus inconsistently.
-            targetPID = pid
-            return nil
-        }
-        let candidates = candidateElements(startingAt: focused)
-        guard !candidates.contains(where: isSecureTextElement) else { return nil }
-        target = candidates.first(where: isEditableTextElement)
-        focusAnchor = focused
-        targetPID = pid
-        capturedTextState = target.map { self.textState(of: $0) }
-        targetScreen = candidates.lazy.compactMap { self.screen(containing: $0) }.first
+        targetScreen = Self.screenContainingFrontmostWindow(ownedBy: runningApplication.processIdentifier)
         return targetScreen
     }
 
-    private func candidateElements(startingAt focused: AXUIElement) -> [AXUIElement] {
+    func clearTarget() {
+        targetScreen = nil
+    }
+
+    func insert(_ text: String) async -> PasteResult {
+        guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
+        guard let target = currentFocusedPasteTarget() else {
+            return .noEditableTarget(PasteResult.noEditableTargetMessage)
+        }
+        return await pasteAtCurrentSelection(text, into: target)
+    }
+
+    // MARK: - Target discovery
+
+    private func currentFocusedPasteTarget() -> FocusedTextTarget? {
+        guard let runningApplication = NSWorkspace.shared.frontmostApplication else { return nil }
+        let pid = runningApplication.processIdentifier
+        let application = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(application, Self.accessibilityMessagingTimeout)
+
+        // A destination may keep its real editor outside the Accessibility tree.
+        // An empty inspection set is expected there, and process-level paste stays
+        // safe because success is confirmed independently by the pasteboard probe.
+        let inspected = focusedElement(in: application, pid: pid).map(ancestry(of:)) ?? []
+        // A focused secure field is the one case Scriber positively refuses:
+        // dictation must never be pasted into a password box.
+        guard !inspected.contains(where: isSecureTextElement) else { return nil }
+        return FocusedTextTarget(
+            application: application,
+            pid: pid,
+            observationElements: inspected.filter(isEditableTextElement)
+        )
+    }
+
+    private func focusedElement(in application: AXUIElement, pid: pid_t) -> AXUIElement? {
+        if let focused = elementAttribute(application, named: kAXFocusedUIElementAttribute) {
+            return focused
+        }
+        let systemWide = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(systemWide, Self.accessibilityMessagingTimeout)
+        guard let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) else { return nil }
+        var focusedPID: pid_t = 0
+        guard AXUIElementGetPid(focused, &focusedPID) == .success, focusedPID == pid else { return nil }
+        return focused
+    }
+
+    /// The focused element plus a bounded ancestor chain. Web-backed apps expose
+    /// the real editor as an editable ancestor rather than the focused node, so
+    /// both editable-ancestor attributes are consulted directly.
+    private func ancestry(of focused: AXUIElement) -> [AXUIElement] {
         var ancestry = [focused]
         var current = focused
-        for _ in 0..<24 {
+        for _ in 0..<Self.maximumInspectedAncestors {
             guard let parent = elementAttribute(current, named: kAXParentAttribute),
                   !ancestry.contains(where: { CFEqual($0, parent) }) else { break }
             ancestry.append(parent)
             current = parent
         }
 
-        var candidates = ancestry
         for attribute in ["AXEditableAncestor", "AXHighestEditableAncestor"] {
             if let editableAncestor = elementAttribute(focused, named: attribute),
-               !candidates.contains(where: { CFEqual($0, editableAncestor) }) {
-                candidates.insert(editableAncestor, at: 1)
+               !ancestry.contains(where: { CFEqual($0, editableAncestor) }) {
+                ancestry.insert(editableAncestor, at: 1)
             }
         }
-        return candidates
+        return ancestry
     }
 
     private func isSecureTextElement(_ element: AXUIElement) -> Bool {
@@ -114,134 +166,7 @@ final class PasteService {
         )
     }
 
-    private func elementAttribute(_ element: AXUIElement, named name: String) -> AXUIElement? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success,
-              let value,
-              CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
-        return unsafeDowncast(value, to: AXUIElement.self)
-    }
-
-    private func stringAttribute(_ element: AXUIElement, named name: String) -> String? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
-        return value as? String
-    }
-
-    private func boolAttribute(_ element: AXUIElement, named name: String) -> Bool? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
-        return value as? Bool
-    }
-
-    func clearTarget() {
-        target = nil
-        focusAnchor = nil
-        targetPID = 0
-        capturedTextState = nil
-        targetScreen = nil
-    }
-
-    func insert(_ text: String) async -> PasteResult {
-        guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
-
-        if await insertAtCapturedSelection(text) { return .inserted }
-        guard let currentTarget = currentFocusedPasteTarget() else {
-            return .noEditableTarget(PasteResult.noEditableTargetMessage)
-        }
-        return await pasteAtCurrentSelection(text, into: currentTarget)
-    }
-
-    private func insertAtCapturedSelection(_ text: String) async -> Bool {
-        guard let target, let capturedTextState else { return false }
-        let currentState = textState(of: target)
-        let isOriginalTargetFocused = NSWorkspace.shared.frontmostApplication?.processIdentifier == targetPID
-            && focusedElementStillMatches(focusAnchor ?? target)
-        guard CapturedSelectionRestorePolicy.canRestore(
-            capturedText: capturedTextState.value,
-            currentText: currentState.value,
-            capturedRange: capturedTextState.selectedRange,
-            currentRange: currentState.selectedRange,
-            isOriginalTargetFocused: isOriginalTargetFocused
-        ), let capturedRange = capturedTextState.selectedRange,
-           setSelectedTextRange(capturedRange, on: target),
-           textState(of: target).selectedRange == capturedRange,
-           isSelectedTextSettable(on: target) else { return false }
-
-        let stateBeforeInsertion = textState(of: target)
-        guard AXUIElementSetAttributeValue(
-            target,
-            kAXSelectedTextAttribute as CFString,
-            text as CFString
-        ) == .success else { return false }
-        try? await Task.sleep(for: .milliseconds(100))
-        let stateAfterInsertion = textState(of: target)
-        return stateAfterInsertion.hasObservableValue
-            && stateAfterInsertion != stateBeforeInsertion
-    }
-
-    private func currentFocusedPasteTarget() -> FocusedTextTarget? {
-        guard let runningApplication = NSWorkspace.shared.frontmostApplication else { return nil }
-        let pid = runningApplication.processIdentifier
-        let application = AXUIElementCreateApplication(pid)
-        let observationElements: [AXUIElement]
-        if let focused = focusedElement(in: application, pid: pid) {
-            let candidates = candidateElements(startingAt: focused)
-            guard !candidates.contains(where: isSecureTextElement) else { return nil }
-            observationElements = candidates
-        } else {
-            // The destination may keep a real editor outside its Accessibility
-            // tree. Process-level paste remains safe to try because success is
-            // confirmed independently by target mutation or pasteboard access.
-            observationElements = []
-        }
-        return FocusedTextTarget(
-            application: application,
-            pid: pid,
-            observationElements: observationElements
-        )
-    }
-
-    private func focusedElement(in application: AXUIElement, pid: pid_t) -> AXUIElement? {
-        if let focused = elementAttribute(application, named: kAXFocusedUIElementAttribute),
-           isPotentialTextFocus(focused) {
-            return focused
-        }
-
-        let systemWide = AXUIElementCreateSystemWide()
-        if let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) {
-            var focusedPID: pid_t = 0
-            if AXUIElementGetPid(focused, &focusedPID) == .success,
-               focusedPID == pid,
-               isPotentialTextFocus(focused) {
-                return focused
-            }
-        }
-
-        // Web-backed apps sometimes omit AXFocusedUIElement while still marking
-        // the actual DOM-backed control as focused in their Accessibility tree.
-        var queue = [application]
-        var index = 0
-        while index < queue.count, index < 1_024 {
-            let element = queue[index]
-            index += 1
-            if boolAttribute(element, named: kAXFocusedAttribute) == true,
-               isPotentialTextFocus(element) {
-                return element
-            }
-            let remainingCapacity = 1_024 - queue.count
-            if remainingCapacity > 0 {
-                queue.append(contentsOf: elementArrayAttribute(element, named: kAXChildrenAttribute).prefix(remainingCapacity))
-            }
-        }
-        return nil
-    }
-
-    private func isPotentialTextFocus(_ element: AXUIElement) -> Bool {
-        candidateElements(startingAt: element).contains {
-            isEditableTextElement($0) || isSecureTextElement($0)
-        }
-    }
+    // MARK: - Delivery
 
     private func pasteAtCurrentSelection(_ text: String, into currentTarget: FocusedTextTarget) async -> PasteResult {
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier == currentTarget.pid else {
@@ -255,11 +180,13 @@ final class PasteService {
         let pasteboardReadProbe = PasteboardReadProbe(text: text)
         let transcriptItem = NSPasteboardItem()
         guard transcriptItem.setDataProvider(pasteboardReadProbe, forTypes: [.string]) else {
+            snapshot.restore(pasteboard)
             return .failed("The transcription could not be prepared for pasting.")
         }
         guard Self.transientPasteboardTypes.allSatisfy({
             transcriptItem.setString("", forType: $0)
         }), pasteboard.writeObjects([transcriptItem]) else {
+            snapshot.restore(pasteboard)
             return .failed("The transcription could not be placed on the clipboard.")
         }
         let transcriptChangeCount = pasteboard.changeCount
@@ -326,7 +253,7 @@ final class PasteService {
     private func pasteMenuItem(in root: AXUIElement) -> AXUIElement? {
         var queue = [root]
         var index = 0
-        while index < queue.count, index < 256 {
+        while index < queue.count, index < Self.maximumInspectedMenuItems {
             let element = queue[index]
             index += 1
             if stringAttribute(element, named: kAXRoleAttribute) == "AXMenuItem",
@@ -334,7 +261,13 @@ final class PasteService {
                isStandardPasteMenuItem(element) {
                 return element
             }
-            queue.append(contentsOf: elementArrayAttribute(element, named: kAXChildrenAttribute))
+            let remainingCapacity = Self.maximumInspectedMenuItems - queue.count
+            if remainingCapacity > 0 {
+                queue.append(
+                    contentsOf: elementArrayAttribute(element, named: kAXChildrenAttribute)
+                        .prefix(remainingCapacity)
+                )
+            }
         }
         return nil
     }
@@ -345,6 +278,46 @@ final class PasteService {
         let commandCharacter = stringAttribute(element, named: "AXMenuItemCmdChar")?.lowercased()
         let commandModifiers = numberAttribute(element, named: "AXMenuItemCmdModifiers")?.intValue
         return commandCharacter == "v" && commandModifiers == 0
+    }
+
+    private func postPasteShortcut(to pid: pid_t) async -> Bool {
+        guard let source = CGEventSource(stateID: .combinedSessionState),
+              let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else { return false }
+        down.flags = .maskCommand
+        up.flags = .maskCommand
+        down.postToPid(pid)
+        try? await Task.sleep(for: .milliseconds(12))
+        up.postToPid(pid)
+        return true
+    }
+
+    // MARK: - Accessibility attribute readers
+
+    private func elementAttribute(_ element: AXUIElement, named name: String) -> AXUIElement? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success,
+              let value,
+              CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+        return unsafeDowncast(value, to: AXUIElement.self)
+    }
+
+    private func stringAttribute(_ element: AXUIElement, named name: String) -> String? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        return value as? String
+    }
+
+    private func boolAttribute(_ element: AXUIElement, named name: String) -> Bool? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        return value as? Bool
+    }
+
+    private func numberAttribute(_ element: AXUIElement, named name: String) -> NSNumber? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        return value as? NSNumber
     }
 
     private func elementArrayAttribute(_ element: AXUIElement, named name: String) -> [AXUIElement] {
@@ -358,47 +331,8 @@ final class PasteService {
         }
     }
 
-    private func numberAttribute(_ element: AXUIElement, named name: String) -> NSNumber? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
-        return value as? NSNumber
-    }
-
     private func observableTextStates(of elements: [AXUIElement]) -> [TextElementState] {
         elements.map { self.textState(of: $0) }.filter(\.hasObservableValue)
-    }
-
-    private func isSelectedTextSettable(on element: AXUIElement) -> Bool {
-        var settable = DarwinBoolean(false)
-        return AXUIElementIsAttributeSettable(
-            element,
-            kAXSelectedTextAttribute as CFString,
-            &settable
-        ) == .success && settable.boolValue
-    }
-
-    private func setSelectedTextRange(_ range: NSRange, on element: AXUIElement) -> Bool {
-        var settable = DarwinBoolean(false)
-        guard AXUIElementIsAttributeSettable(
-            element,
-            kAXSelectedTextRangeAttribute as CFString,
-            &settable
-        ) == .success, settable.boolValue else { return false }
-        var accessibilityRange = CFRange(location: range.location, length: range.length)
-        guard let rangeValue = AXValueCreate(.cfRange, &accessibilityRange) else { return false }
-        return AXUIElementSetAttributeValue(
-            element,
-            kAXSelectedTextRangeAttribute as CFString,
-            rangeValue
-        ) == .success
-    }
-
-    private func focusedElementStillMatches(_ expected: AXUIElement) -> Bool {
-        let system = AXUIElementCreateSystemWide()
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &value) == .success,
-              let current = value else { return false }
-        return CFEqual(current, expected)
     }
 
     private func textState(of element: AXUIElement) -> TextElementState {
@@ -441,36 +375,36 @@ final class PasteService {
         return TextElementState(value: value, selectedRange: selectedRange, characterCount: characterCount)
     }
 
-    private func screen(containing element: AXUIElement) -> NSScreen? {
-        var positionReference: CFTypeRef?
-        var sizeReference: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionReference) == .success,
-              AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeReference) == .success,
-              let positionReference, let sizeReference,
-              CFGetTypeID(positionReference) == AXValueGetTypeID(),
-              CFGetTypeID(sizeReference) == AXValueGetTypeID() else { return nil }
-        let positionValue = unsafeDowncast(positionReference, to: AXValue.self)
-        let sizeValue = unsafeDowncast(sizeReference, to: AXValue.self)
-        var point = CGPoint.zero
-        var size = CGSize.zero
-        guard AXValueGetValue(positionValue, .cgPoint, &point),
-              AXValueGetValue(sizeValue, .cgSize, &size) else { return nil }
-        let accessibilityCenter = CGPoint(x: point.x + size.width / 2, y: point.y + size.height / 2)
-        let primaryTop = NSScreen.screens.first?.frame.maxY ?? 0
-        let appKitCenter = CGPoint(x: accessibilityCenter.x, y: primaryTop - accessibilityCenter.y)
-        return NSScreen.screens.first { $0.frame.contains(appKitCenter) }
+    // MARK: - Screen placement
+
+    /// Resolves the pill's screen from the window server rather than from
+    /// Accessibility. `CGWindowListCopyWindowInfo` returns windows front to back
+    /// and exposes bounds without Screen Recording access.
+    private static func screenContainingFrontmostWindow(ownedBy pid: pid_t) -> NSScreen? {
+        guard let windows = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[String: Any]] else { return nil }
+
+        for window in windows {
+            guard window[kCGWindowOwnerPID as String] as? pid_t == pid,
+                  window[kCGWindowLayer as String] as? Int == 0,
+                  let bounds = window[kCGWindowBounds as String] as? NSDictionary,
+                  let frame = CGRect(dictionaryRepresentation: bounds) else { continue }
+            return screen(containingQuartzRect: frame)
+        }
+        return nil
     }
 
-    private func postPasteShortcut(to pid: pid_t) async -> Bool {
-        guard let source = CGEventSource(stateID: .combinedSessionState),
-              let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else { return false }
-        down.flags = .maskCommand
-        up.flags = .maskCommand
-        down.postToPid(pid)
-        try? await Task.sleep(for: .milliseconds(12))
-        up.postToPid(pid)
-        return true
+    private static func screen(containingQuartzRect rect: CGRect) -> NSScreen? {
+        // Quartz measures from the top of the primary display downwards, while
+        // AppKit measures from its bottom upwards.
+        let primaryTop = NSScreen.screens.first?.frame.maxY ?? 0
+        let center = CGPoint(
+            x: rect.midX,
+            y: primaryTop - rect.midY
+        )
+        return NSScreen.screens.first { $0.frame.contains(center) }
     }
 }
 
@@ -526,9 +460,20 @@ private struct PasteboardSnapshot {
         return PasteboardSnapshot(items: items)
     }
 
+    /// Used when Scriber has already cleared the pasteboard but never published
+    /// a transcript, so the user's own clipboard would otherwise be lost.
+    func restore(_ pasteboard: NSPasteboard) {
+        pasteboard.clearContents()
+        write(to: pasteboard)
+    }
+
     func restoreIfUnchanged(_ pasteboard: NSPasteboard, expectedChangeCount: Int) {
         guard pasteboard.changeCount == expectedChangeCount else { return }
         pasteboard.clearContents()
+        write(to: pasteboard)
+    }
+
+    private func write(to pasteboard: NSPasteboard) {
         let restored = items.map { values -> NSPasteboardItem in
             let item = NSPasteboardItem()
             for (type, data) in values { item.setData(data, forType: type) }

@@ -349,23 +349,6 @@ public enum TextInputTargetPolicy {
     }
 }
 
-public enum CapturedSelectionRestorePolicy {
-    /// Restoring a saved AX selection range is only safe when the text has not
-    /// changed, or when the original control remains focused at that same range.
-    /// Otherwise the caller should paste at the current insertion point instead.
-    public static func canRestore(
-        capturedText: String?,
-        currentText: String?,
-        capturedRange: NSRange?,
-        currentRange: NSRange?,
-        isOriginalTargetFocused: Bool
-    ) -> Bool {
-        guard let capturedRange else { return false }
-        if let capturedText { return currentText == capturedText }
-        return isOriginalTargetFocused && currentRange == capturedRange
-    }
-}
-
 public enum PasteConfirmationPolicy {
     public static func confirmsInsertion(
         accessibilityMutationObserved: Bool,
