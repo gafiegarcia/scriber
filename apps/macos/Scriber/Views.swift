@@ -228,7 +228,14 @@ struct DictationHistoryView: View {
         let isLast: Bool = index == count - 1
 
         DictationHistoryRow(record: record)
-            .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+            // Leading/trailing clear the card inset first, then add the padding
+            // inside the card, which is deliberately tight.
+            .listRowInsets(EdgeInsets(
+                top: 10,
+                leading: DictationHistoryGroupBackground.horizontalInset + 10,
+                bottom: 10,
+                trailing: DictationHistoryGroupBackground.horizontalInset + 10
+            ))
             // The card and the gaps between groups carry the grouping. Row rules
             // inside a bordered card only added a second, competing division.
             .listRowSeparator(.hidden)
@@ -319,8 +326,13 @@ struct DictationHistoryView: View {
                             .font(.title2.weight(.bold))
                             .foregroundStyle(.primary)
                             .padding(.top, 26)
-                            .padding(.bottom, 10)
-                            .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+                            .padding(.bottom, 14)
+                            .listRowInsets(EdgeInsets(
+                                top: 0,
+                                leading: DictationHistoryGroupBackground.horizontalInset + 4,
+                                bottom: 0,
+                                trailing: DictationHistoryGroupBackground.horizontalInset + 4
+                            ))
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
 
@@ -329,13 +341,10 @@ struct DictationHistoryView: View {
                         }
                     }
                 }
-                .listStyle(.inset)
+                // `.plain` rather than `.inset`: the card inset is drawn by the row
+                // background now, and `.inset` would add its own on top of it.
+                .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                // Padding on the List, not `contentMargins`. The latter insets the
-                // scrolled content but not the row backgrounds, so the cards ran
-                // edge to edge while their contents sat 36pt in — no outer margin
-                // and far too much inner padding at the same time.
-                .padding(.horizontal, 20)
                 .background(Color(nsColor: .windowBackgroundColor))
             }
         }
@@ -474,6 +483,11 @@ private struct DictationHistoryGroupBackground: View {
         )
     }
 
+    /// Distance from the window edge to the card edge. Lives here rather than on
+    /// the `List`, because padding the List moves its scroll indicator inward too
+    /// and leaves the scroll bar floating away from the window edge.
+    static let horizontalInset: CGFloat = 20
+
     var body: some View {
         // Fill only, no border. Each row draws its own slice of the group, so a
         // stroked border put a line on every interior row's top and bottom edge —
@@ -481,7 +495,9 @@ private struct DictationHistoryGroupBackground: View {
         // The fill has to carry the shape alone, so it is a fixed tint rather than
         // a system background colour: `controlBackgroundColor` over
         // `windowBackgroundColor` is nearly identical in dark mode.
-        shape.fill(Color.primary.opacity(0.06))
+        shape
+            .fill(Color.primary.opacity(0.06))
+            .padding(.horizontal, Self.horizontalInset)
     }
 }
 
@@ -503,9 +519,11 @@ private struct DictationHistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
 
-    // Trailing-aligned in a narrower column, so a short time sits next to the
-    // transcript instead of stranding a wide gap after it.
-    fileprivate static let timeColumnWidth: CGFloat = 52
+    // Trailing-aligned, so a short time sits next to the transcript instead of
+    // stranding a gap after it. Kept narrow and monospaced-digit: trailing
+    // alignment moves any slack to the card edge instead, where it reads as
+    // excess padding.
+    fileprivate static let timeColumnWidth: CGFloat = 44
 
     private var timeColumnWidth: CGFloat { Self.timeColumnWidth }
 
@@ -517,6 +535,7 @@ private struct DictationHistoryRow: View {
         HStack(alignment: .center, spacing: 14) {
             Text(record.createdAt.formatted(date: .omitted, time: .shortened))
                 .font(.callout)
+                .monospacedDigit()
                 .foregroundStyle(.secondary)
                 .frame(width: timeColumnWidth, alignment: .trailing)
 
