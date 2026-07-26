@@ -2,9 +2,11 @@
 
 ## Current status
 
-Scriber `0.7.0` build `11` is the current personal-installation candidate for Apple silicon on macOS 27, preserved as `v0.7.0-alpha.7`.
+Scriber `0.7.0` build `11` is the current personal-installation candidate for Apple silicon on macOS 27, preserved as `v0.7.0-alpha.7`. The installed app is build `13`; builds `12` and `13` carry no source change and exist only as test vehicles for the Keychain re-authorization investigation below.
 
 Carried forward from build 7, which is preserved as `v0.7.0-alpha.6`: the dedicated `Scriber/History.store`, the encrypted login-Keychain policy, and the long-lived local `Scriber Local Code Signing` identity that gives rebuilt Release bundles one stable designated requirement without a provisioning profile. macOS still requires one new “Always Allow” authorization for the login-Keychain API-key item after each rebuilt binary is installed; it then persists across launches and transcriptions of that unchanged binary. Reboot acceptance remains open. The preceding provisioned Data Protection Keychain implementation is preserved as `v0.7.0-alpha.2`.
+
+That re-authorization is settled and is not worth reinvestigating. The ACL trusted-application list has been ruled out twice — once with an item recreated by a certificate-signed build, once with the application re-added through Keychain Access, which uses the API that records a signed app's designated requirement. Neither survived a rebuild carrying a byte-identical designated requirement. The remaining gate is the Keychain partition list, and because the local signing certificate carries no Team ID there is no stable partition identifier to name, so no change to `KeychainStore` can remove the prompt. Accepted as the cost of free-tier signing; a paid Developer ID would resolve it structurally, along with notarization. Evidence is in [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md) under 2026-07-26.
 
 Builds 8 through 11 carry the 2026-07-26 review pass. Build 8 moved delivery to the live cursor and took Accessibility off the record-start path; build 9 fixed the false-success regression that shipped with it; build 11 made delivery follow keyboard focus so dictation reaches nonactivating panels such as Raycast. The paste engine's rationale, its standing constraints, and its regression baseline live in [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md) — read it before changing delivery, target selection, or confirmation.
 
@@ -24,6 +26,7 @@ Builds 8 through 11 carry the 2026-07-26 review pass. Build 8 moved delivery to 
 - [x] Install an intentionally identified signed build at a stable path.
 - [x] Add post-onboarding permission-loss recovery through the Dictation window, menu bar, and actionable pill.
 - [x] Add configurable Frog/Bottle/Morse feedback, recording-time other-audio muting, robust live modifier-chord capture, and shortcut suspension while configuring bindings.
+- [ ] On moving to a Developer ID identity, collapse the free-tier signing workarounds: return credential storage to the Data Protection Keychain as [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) already requires, drop the per-build “Always Allow” authorization, and simplify the build and install instructions in [`../README.md`](../README.md). The recorded designated requirement, the manual signature check, the `/Applications`-only install, and the Keychain-prompt caveat exist solely to work around signing without a Team ID; none of them survives that transition.
 
 ## Open acceptance checks
 
