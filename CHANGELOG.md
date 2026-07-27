@@ -7,6 +7,9 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ### Changed
 
+- Deleting a single dictation now asks for confirmation, matching Clear Dictation
+  History. A transcript has no undo, and deleting one entry was the only
+  destructive action in the app that happened on a single click.
 - Reworked Dictation history into calmer day-grouped cards, moved Clear
   Dictation History into Settings, and refined row controls and spacing through
   live review.

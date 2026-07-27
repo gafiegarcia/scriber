@@ -7,10 +7,25 @@ checks in [Acceptance](ACCEPTANCE.md), and machine checks in
 
 ## Current position
 
-The native feature track planned for `v0.7.0` is complete. Verification—not a
-known blocking implementation task—is what remains. The Xcode project is the
-source of truth for the current bundle build, and the root
-[changelog](../../../CHANGELOG.md) lists only snapshots that were actually
+The native feature track planned for `v0.7.0` is complete. Verification is most
+of what remains, and the interface half of it is now done: the machine-drivable
+checks in [`ACCEPTANCE.md`](ACCEPTANCE.md) were closed against a seeded build,
+which left three findings and one open design question rather than a clean pass.
+
+One of those findings is a real implementation task, contrary to the previous
+claim here that none remained: **the floating day label never appears while
+scrolling**, at any offset. It is cosmetic and it is the only interface behavior
+known to be broken rather than merely unverified. The other two findings are a
+dead Command-period inside the Clear Dictation History dialog and a menu bar item
+that macOS is hiding while Scriber's own preference says it is shown — the last of
+which blocks every menu-bar icon check until it is restored.
+
+What is left beyond that needs a person: a real key, real permission grants, real
+hardware for `Fn`, a reboot, a light-appearance look, and one supervised XCUITest
+run. [`ACCEPTANCE.md`](ACCEPTANCE.md) groups all of it into sessions.
+
+The Xcode project is the source of truth for the current bundle build, and the
+root [changelog](../../../CHANGELOG.md) lists only snapshots that were actually
 tagged.
 
 ## Milestones
@@ -24,8 +39,15 @@ tagged.
 - [x] Complete the clean Scriber identity reset, local persistence, icon
       provenance, and personal-install signing path.
 - [x] Complete the planned `v0.7.0` interface and polish track.
+- [x] Confirm before deleting history, one entry or all of it.
+- [x] Close the machine-drivable interface checks in
+      [`ACCEPTANCE.md`](ACCEPTANCE.md), which required seeding a test build's
+      history so the Dictation list could be inspected without risking real
+      entries or spending credit.
+- [ ] Fix the floating day label, which never appears while scrolling. See the
+      findings in [`ACCEPTANCE.md`](ACCEPTANCE.md) for the leading diagnosis.
 - [ ] Validate bare `Fn` capture and suppression on macOS 27 hardware.
-- [ ] Complete the manual acceptance checks in
+- [ ] Complete the acceptance sessions that need a person, in
       [`ACCEPTANCE.md`](ACCEPTANCE.md).
 
 ## Non-blocking deferred work
@@ -88,9 +110,15 @@ Before creating `v0.7.0`:
 - [ ] Run the XCUITest suite end to end once. Gaf must start it because it takes
       over the pointer and keyboard; see [`TESTING.md`](TESTING.md).
 - [ ] Generate artifact-specific third-party notices before publishing a
-      downloadable binary.
-- [ ] Confirm the repository and release artifact contain no credentials,
-      recordings, local data, or machine-specific build output.
+      downloadable binary. Not a gate on a source tag: the native app declares no
+      third-party Swift package dependency, so
+      [`THIRD_PARTY_NOTICES.md`](../../../THIRD_PARTY_NOTICES.md) is already the
+      complete inventory for it. This becomes real work only when a binary ships.
+- [x] Confirm the repository and release artifact contain no credentials,
+      recordings, local data, or machine-specific build output. Checked on build
+      28: no key-shaped literals in tracked content, `.gitignore` covers audio,
+      local signing config, and every build root, and the Release bundle carries
+      no entitlements and no provisioning profile.
 
 The tag is reserved for behavior accepted for personal use, and claims nothing
 beyond that. A supported downloadable binary is a separate distribution
