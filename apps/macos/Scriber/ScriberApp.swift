@@ -14,7 +14,9 @@ enum AppLaunchConfiguration {
     }
 
     static var keepsRegularActivationPolicy: Bool {
-        isUITesting && !ProcessInfo.processInfo.arguments.contains("--ui-testing-accessory-lifecycle")
+        isUITesting
+            && !ProcessInfo.processInfo.arguments.contains("--ui-testing-accessory-lifecycle")
+            && !launchesWithoutActivating
     }
 
     static var presentsInvalidKeyPill: Bool {
@@ -23,6 +25,14 @@ enum AppLaunchConfiguration {
 
     static var simulatesMissingPermissions: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-missing-permissions")
+    }
+
+    /// The launch smoke check's flag. The app still builds and renders its window —
+    /// that is the path the check exists to exercise — but never activates, so it
+    /// does not steal the front from whatever Gaf is doing. Only the smoke check
+    /// passes this; XCUITest needs the real activation behaviour.
+    static var launchesWithoutActivating: Bool {
+        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-no-activate")
     }
 
     static var permissionReadinessOverride: PermissionReadiness? {
@@ -212,7 +222,11 @@ struct ScriberApp: App {
 
         MenuBarExtra(
             isInserted: Binding(
-                get: { runtime.preferences.showInMenuBar },
+                // `--ui-testing` launches (the smoke check included) never show a menu
+                // bar icon: the throwaway defaults suite always starts `showInMenuBar`
+                // true, and nothing under automated launch reads the icon, so it would
+                // only sit as a second, unexplained mark next to the real app's.
+                get: { runtime.preferences.showInMenuBar && !AppLaunchConfiguration.isUITesting },
                 set: { isInserted in
                     Task { @MainActor in
                         guard runtime.preferences.showInMenuBar != isInserted else { return }
@@ -308,6 +322,7 @@ struct ScriberApp: App {
 
     @MainActor
     private func promoteApplicationForVisibleWindow() async {
+        guard !AppLaunchConfiguration.launchesWithoutActivating else { return }
         NSApp.setActivationPolicy(.regular)
         await Task.yield()
         guard !Task.isCancelled else { return }

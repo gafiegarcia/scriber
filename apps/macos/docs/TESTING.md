@@ -47,11 +47,36 @@ catches launch crashes, hangs, and startup regressions in about 20 seconds
 without touching the keyboard: launch each `--ui-testing-*` configuration,
 confirm the process is alive and *not* spinning, then kill it.
 
+**It must stay invisible.** A second Scriber appearing over Gaf's work — window,
+Dock icon, or menu bar mark — is the single most disruptive thing this check can
+do, and all three are now suppressed. `--ui-testing-no-activate` skips
+`promoteApplicationForVisibleWindow`, which otherwise calls
+`NSApp.activate(ignoringOtherApps: true)` and yanks the build to the front past
+any `open` flag; it also drops the app to `.accessory`, so no Dock icon. The
+menu bar icon is off for every `--ui-testing` launch. The window is still
+created and rendered — that is the path the check exists to exercise — it simply
+never comes forward.
+
+**Run it exactly as written.** `open -a` needs an *absolute* path: given a
+relative one it fails on stderr while the script keeps going, and the
+`pgrep` below then matches Gaf's **installed** Scriber and kills it. That is not
+hypothetical — it happened twice on 2026-07-27. The `before_pid` guard is what
+makes the `kill` safe, so do not drop it.
+
 ```bash
-apps/macos/.build/xcode-ui-tests/Build/Products/Debug/Scriber.app/Contents/MacOS/Scriber --ui-testing --ui-testing-invalid-key-pill & sleep 6; ps -p $! -o pid,%cpu,command; kill $!
+cd /Users/gafiegarcia/Developer/scriber
+before_pid=$(pgrep -n -x Scriber || true)
+APP_PATH="$(pwd)/apps/macos/.build/xcode-ui-tests/Build/Products/Debug/Scriber.app"
+open -g -j -n -a "$APP_PATH" --args --ui-testing --ui-testing-no-activate --ui-testing-invalid-key-pill
+sleep 6
+pid=$(pgrep -n -x Scriber)
+if [ "$pid" = "$before_pid" ]; then echo "REFUSING: the test build never launched" >&2; exit 1; fi
+ps -p "$pid" -o pid,%cpu,command
+kill "$pid"
 ```
 
-Healthy is single-digit CPU. A pegged CPU, or a UI test that hangs for minutes,
+Healthy is roughly 10% CPU while the window builds, settling to near zero once
+idle. A pegged CPU, or a UI test that hangs for minutes,
 is evidence about **the app**, not the harness. `sample <pid>` the app under test
 before believing a test's account of why it failed, and read its log — note `log`
 is a zsh builtin, so the absolute path is required:
@@ -62,29 +87,29 @@ is a zsh builtin, so the absolute path is required:
 
 ## Looking at the app without taking it over
 
-A visual check does not need the UI suite, and it must never need a full-screen
-`screencapture` — that puts Gaf's own windows and files into a transcript.
-[`../Tools/window-shot.swift`](../Tools/window-shot.swift) captures one named
-app's frontmost window and nothing else:
+A visual check does not need the UI suite, and it must never need a plain
+full-screen `screencapture` — that puts Gaf's own windows and files into a
+transcript.
 
-```bash
-DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer swift apps/macos/Tools/window-shot.swift Scriber /tmp/scriber.png
-```
+Use Claude Code's computer-use tools. `request_access` with just `Scriber`
+grants that one app; every other running app is then excluded from screenshots
+at the compositor level, so a capture shows Scriber and the desktop and nothing
+else. This replaced a bespoke `window-shot.swift` on 2026-07-27 — the tool
+predated computer-use being available here and did a worse job of the same
+thing, since it could only reach one window.
 
-It does not move the pointer, take focus, or touch the keyboard, so it is safe
-while the Mac is in use and the app does not have to be frontmost. It needs
-Screen Recording permission for whatever runs it.
+Unlike that tool, this *can* move the pointer and press keys, so it reaches what
+a still screenshot never could: hover states, menus, scroll-driven behaviour, a
+collapsed sidebar. It also reaches the menu bar, which is not a window and was
+permanently out of the old tool's range — though status items are frequently
+collapsed behind a `«` chevron, so a missing icon there is not evidence of a
+missing icon.
 
-What this can settle on its own: layout, spacing, alignment, type sizes, light
-and dark rendering, which controls are present, and what a page looks like at
-rest. What it cannot: anything behind a pointer or a keystroke — hover states,
-tooltips, scroll-driven behavior, menus, or a collapsed sidebar. Those need Gaf,
-or the UI suite, and are written down in [`ACCEPTANCE.md`](ACCEPTANCE.md) rather
-than guessed at.
-
-Note that the menu bar is not a window and this cannot reach it. Status items
-are also frequently collapsed behind a `«` chevron, so the menu bar icon is a
-manual check whatever the route.
+Two things to keep in mind. It drives the *real* pointer, so it takes the Mac
+over for the duration — brief, but not something to start while Gaf is typing.
+And what it shows is whatever is actually on screen: check which Scriber a
+window belongs to before drawing conclusions, since the installed app and a
+test build look nearly identical apart from their history.
 
 ## The XCUITest suite
 

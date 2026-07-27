@@ -17,7 +17,8 @@
 
 - **Never start the XCUITest suite unprompted** — it seizes Gaf's pointer and keyboard for its whole duration. Ask, or leave it to him. Package tests, builds, `build-for-testing`, and bumping and installing a build need no permission; do not stop to ask for those.
 - The suite runs with services disabled and no Accessibility trust, so it covers the SwiftUI shell only. Never treat its failures as evidence about dictation, insertion, shortcuts, or credentials. Read `apps/macos/docs/TESTING.md` before acting on one.
-- **Never take a full-screen `screencapture`.** It puts Gaf's own windows and files into the transcript. To look at the app, use `apps/macos/Tools/window-shot.swift`, which captures one named app's window and nothing else. The menu bar is not a window and is a manual check.
+- **Never take a plain full-screen `screencapture`.** It puts Gaf's own windows and files into the transcript. To look at the app, use the computer-use tools and `request_access` for `Scriber` alone — every other app is then excluded from the capture at the compositor level. See `apps/macos/docs/TESTING.md`.
+- **The launch smoke check must never surface a second Scriber.** Run it exactly as written in `TESTING.md`: an absolute `APP_PATH`, `--ui-testing-no-activate`, and the `before_pid` guard. A relative path fails silently and the `kill` then lands on Gaf's installed app.
 - Run the launch smoke check in `TESTING.md` after any change that touches startup, the pill, or an `NSViewRepresentable`. It has caught a main-thread wedge that no test did.
 
 ## Workflow
