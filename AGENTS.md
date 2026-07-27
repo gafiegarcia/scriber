@@ -23,10 +23,11 @@
 
 ## Workflow
 
-- Before changing native behavior, read `apps/macos/docs/PRODUCT_SPEC.md` and the relevant part of `apps/macos/docs/ROADMAP.md`. Consult `DEVELOPMENT_LOG.md` only when historical context is useful.
-- Use the toolchain and verification commands documented in `apps/macos/README.md` and `apps/macos/docs/TESTING.md`.
-- Keep the four native docs to their jobs, and resist letting the roadmap reabsorb them: `ROADMAP.md` is what is left to do, `ACCEPTANCE.md` is what a person must check by hand, `TESTING.md` is what a machine checks and what it cannot, `DEVELOPMENT_LOG.md` is what happened. Findings and post-mortems belong in the last two, not the first.
-- Update the roadmap when milestones or release gates change. Add only meaningful completed work or verification results to the development log.
+- Before changing native behavior, read `apps/macos/docs/PRODUCT_SPEC.md` and the relevant part of `apps/macos/docs/ROADMAP.md`. Read `apps/macos/docs/PASTE_ENGINE.md` before changing cross-app text delivery.
+- Use `apps/macos/README.md` for setup, building, and installation. Use `apps/macos/docs/TESTING.md` for machine verification and its safety boundaries.
+- Keep each document to one job: `PRODUCT_SPEC.md` defines required behavior, `ROADMAP.md` tracks remaining work and release gates, `ACCEPTANCE.md` covers human verification, `TESTING.md` covers machine verification and its limits, and `PASTE_ENGINE.md` records the current paste architecture.
+- Git commits are the engineering history. Do not create or rebuild a development diary. Put only user-relevant tagged release history in the root `CHANGELOG.md`.
+- Update the roadmap when milestones or release gates change. Do not copy the current bundle build into prose; the Xcode project is its source of truth.
 - Do not push or publish unless Gaf explicitly asks.
 - Never use `rm`; use `trash`. If `trash` is unavailable, ask before permanently deleting anything.
 - `CLAUDE.md` is a symlink to this file. Apply edits to `AGENTS.md`; tools that refuse to write through symlinks will reject the `CLAUDE.md` path.

@@ -6,6 +6,13 @@ Except where a file or component states otherwise, original Scriber source code 
 
 Third-party software, fonts, icons, media, and other assets are not relicensed by this notice. They retain the licenses and attribution requirements stated by their respective copyright holders. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and the app-specific dependency manifests and distribution notes.
 
+AI-assisted material is licensed only to the extent that Gafie Garcia holds
+rights that can be granted, including protectable human selection, arrangement,
+editing, documentation, and other original contributions. Copyrightability of
+AI-generated output depends on applicable law. This license neither creates
+rights in unprotectable material nor relicenses third-party material that may
+appear in an output.
+
 ## Name and logo
 
 The GPL grants copyright permissions for covered material. It does not grant trademark rights in the Scriber name or logo, permission to imply that a modified version is the original Scriber product, or permission to imply endorsement by Gafie Garcia. This notice does not claim that the name or logo is registered as a trademark, and it does not restrict descriptive references that applicable law otherwise permits.

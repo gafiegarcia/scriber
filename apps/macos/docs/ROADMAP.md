@@ -1,165 +1,109 @@
 # Native macOS Roadmap
 
-What is left to do, and what has to be true before `v0.7.0` is called stable.
+What remains before the personal-use line can be called stable `v0.7.0`.
+Required behavior belongs in [Product specification](PRODUCT_SPEC.md), human
+checks in [Acceptance](ACCEPTANCE.md), and machine checks in
+[Testing](TESTING.md). Git is the engineering history.
 
-This file used to also hold the manual acceptance checklist, the verification
-commands, and a running account of what each build got wrong. Those are now
-[`ACCEPTANCE.md`](ACCEPTANCE.md), [`TESTING.md`](TESTING.md), and
-[`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md).
+## Current position
 
-## Where the app is
-
-Scriber `0.7.0` build `19` is installed at `/Applications/Scriber.app` and is the
-current personal-use candidate. It carries the build 15 bug-and-polish track, the
-build 16 pill and settings work, and the planned-work list that had accumulated
-from live use: the menu bar icon, the sticky day header, pill activation and
-permission routing, and history row polish. Build 17 shipped that track and was
-corrected within the hour on live use — the menu bar icon was sized so badly it
-pushed every other status item into the overflow, row click-to-copy could not be
-made honest alongside selectable text, and a replacement sidebar toggle could not
-be placed where AppKit puts the real one. Build 17 is superseded and should not be
-installed. Build 18 carried those corrections; build 19 tunes the menu bar mark
-to 15pt and centres the overflow menu's hover background. Build 18 is also where
-the AttributeGraph fix for the launch-pill wedge first reached an installed
-binary; build 16 was installed before that was found.
-
-Nothing on the interface track is outstanding. What stands between here and
-stable is verification, not code: [`ACCEPTANCE.md`](ACCEPTANCE.md) is the list,
-and most of it needs Gaf, an installed build, and in a few cases a real API key.
-
-Preserved snapshots: `v0.7.0-alpha.8` (build 14), `v0.7.0-alpha.7` (build 11),
-`v0.7.0-alpha.6` (build 7, the login-Keychain and local signing state),
-`v0.7.0-alpha.2` (the provisioned Data Protection Keychain implementation).
+The native feature track planned for `v0.7.0` is complete. Verification—not a
+known blocking implementation task—is what remains. The Xcode project is the
+source of truth for the current bundle build, and the root
+[changelog](../../../CHANGELOG.md) lists only snapshots that were actually
+tagged.
 
 ## Milestones
 
 - [x] Capture product behavior and locked native decisions.
-- [x] Scaffold and compile the native app.
 - [x] Implement recording, transcription, retries, and interrupted-job recovery.
-- [x] Implement Accessibility insertion and clipboard-preserving fallback.
-- [x] Implement menu-bar, pill, Dictation, Settings, onboarding, and Dock lifecycle.
-- [x] Complete the Scriber identity reset and internal rename.
-- [x] Integrate documented original app-icon artwork.
-- [x] Install an intentionally identified signed build at a stable path.
-- [x] Add post-onboarding permission-loss recovery through the Dictation window,
-      menu bar, and actionable pill.
-- [x] Add configurable Frog/Bottle/Morse feedback, recording-time other-audio
-      muting, robust live modifier-chord capture, and shortcut suspension while
-      configuring bindings.
-- [x] Clear the interface backlog raised from live use of builds 15 and 16, and
-      the corrections that live use of build 17 raised against it.
+- [x] Implement live-cursor insertion, clipboard-preserving fallback, and the
+      cross-app regression baseline.
+- [x] Implement the menu bar, pill, Dictation, Settings, onboarding, permissions,
+      Dock lifecycle, feedback, other-audio muting, and configurable shortcuts.
+- [x] Complete the clean Scriber identity reset, local persistence, icon
+      provenance, and personal-install signing path.
+- [x] Complete the planned `v0.7.0` interface and polish track.
 - [ ] Validate bare `Fn` capture and suppression on macOS 27 hardware.
-- [ ] Complete the manual acceptance checks in [`ACCEPTANCE.md`](ACCEPTANCE.md).
+- [ ] Complete the manual acceptance checks in
+      [`ACCEPTANCE.md`](ACCEPTANCE.md).
 
-## Planned work
+## Non-blocking deferred work
 
-One open bug, then two features that were deliberately deferred rather than
-dropped and are the natural next track when one is wanted.
+These items are deliberately outside the stable `v0.7.0` gate. They remain
+recorded so they are not mistaken for forgotten release blockers.
 
-- **Sidebar toggle flickers switching Settings → Dictation**, but not the other
-  way. Long-standing and cosmetic. The one-directional asymmetry is the clue and
-  it was not available before: **only Dictation puts a search field in the
-  toolbar**, through `.searchable` on `DictationHistoryView`, so that direction
-  restructures the toolbar and the other only tears an item out. Untested. The
-  obvious fix — hoisting `.searchable` to `MainWindowView` so the toolbar's shape
-  never changes — would show a search field on Settings, where it means nothing,
-  so it needs a better idea than that. Do not solve it by replacing the toggle:
-  that was tried in build 17 and there is no public toolbar placement that puts a
-  custom item where AppKit puts the real one.
-
-- **Hands-free pill controls.** The hands-free pill should read as distinct from
-  hold-to-dictate, carrying a confirm and a cancel button so a locked recording
-  can be stopped or discarded from the pill itself. **Decided: confirm on the
-  trailing edge, cancel on the leading edge, invariant.** The failed-paste pill's
-  trailing dismiss button does not conflict — that is a dismiss, not a
-  destructive alternative to a confirm. A hold that converts to hands-free is the
-  normal case with the default `Fn` then `Fn-Space` binding, so the pill must
-  animate the two buttons in at its edges as it widens rather than swapping
-  layouts. Touches `pillSize`, `applyLayout`, and `actions` in
-  [`PillController.swift`](../Scriber/PillController.swift).
-- **Pill position setting.** Let the user place the pill at the bottom, as today,
-  or at the top just under the notch. Placement is computed in `PillController`
-  from `screen.visibleFrame`; a top variant anchors to `maxY` rather than `minY`.
-  Needs a `Preferences` key and a control in the General settings section. Low
-  priority. Turning the notch itself into the pill is a separate and much larger
-  idea; it is recorded, not scoped.
+- **Sidebar-toggle flicker:** Settings → Dictation briefly flickers while the
+  reverse transition does not. Only Dictation contributes a `.searchable`
+  toolbar item, so that direction changes toolbar structure. Hoisting search to
+  the shared window would incorrectly expose it in Settings, and replacing the
+  native sidebar control cannot reproduce AppKit's placement. Keep this cosmetic
+  issue deferred until there is a better design.
+- **Hands-free pill controls:** add a confirm control on the trailing edge and a
+  cancel control on the leading edge; that ordering is invariant. When Hold is
+  converted to hands-free, widen the existing pill and animate both controls in
+  rather than swapping layouts.
+- **Pill position:** offer bottom placement, as today, or top placement beneath
+  the notch. A pill integrated into the notch is a separate, larger idea and is
+  not scoped here.
 
 ## Known and accepted
 
-Things that look like bugs, are understood, and are not going to be fixed on this
-line. Recorded so they are not rediscovered and reinvestigated.
+- A newly installed locally signed binary requires one login-Keychain password
+  prompt for the ElevenLabs item. Choosing **Always Allow** persists for that
+  unchanged binary, but a rebuild prompts again because the local certificate
+  has no Team ID suitable for a stable Keychain partition. This is the accepted
+  cost of the personal signing path, not an open `KeychainStore` investigation.
+- Reboot acceptance for the Keychain grant remains open and is covered by the
+  installation checks in [`ACCEPTANCE.md`](ACCEPTANCE.md).
 
-- **One "Always Allow" per installed binary.** macOS requires a fresh
-  login-Keychain authorization for the API-key item after each rebuilt binary is
-  installed; it then persists across launches and transcriptions of that unchanged
-  binary. This is settled and **not worth reinvestigating.** The ACL trusted-
-  application list was ruled out twice, once with an item recreated by a
-  certificate-signed build and once with the application re-added through Keychain
-  Access, which uses the API that records a signed app's designated requirement.
-  Neither survived a rebuild carrying a byte-identical designated requirement. The
-  remaining gate is the Keychain partition list, and because the local signing
-  certificate carries no Team ID there is no stable partition identifier to name —
-  so no change to `KeychainStore` can remove the prompt. Accepted as the cost of
-  free-tier signing. Evidence is in [`DEVELOPMENT_LOG.md`](DEVELOPMENT_LOG.md)
-  under 2026-07-26.
-- **Reboot acceptance for the Keychain grant is still open**, separately from the
-  above.
+## Deferred technical work
 
-## Deferred review findings
+None of these findings is known to affect current behavior.
 
-Raised by the 2026-07-26 full-codebase review and deliberately not acted on. None
-is known to affect current behavior.
-
-- `AppCoordinator` is roughly 1,150 lines covering permissions, credentials,
-  recording, transcription, delivery, persistence, muting, and pill state. It is
-  coherent rather than tangled, but it is the file where the next feature will
-  hurt. History recovery and retention are the most separable pieces.
-- `DictationHistoryStore.makePersistentContainer` sleeps on the main thread
-  between open attempts. The happy path has a zero delay, so this only blocks a
-  launch that is already failing to open the store; making it async would mean
-  restructuring `AppRuntime.init`.
-- `DictationHistoryView` regroups every record by day on each body evaluation, and
-  `clearDictationHistory` saves once per deleted record. Both are irrelevant at
-  present history sizes and would matter in the thousands.
-- The global event tap swallows an `Escape` key-down while a pill is visible but
-  lets its key-up through, so the foreground app can see an unmatched key-up. No
-  observed consequence.
-- The Release configuration does not enable Hardened Runtime. That is correct for
-  the current entitlement-free local signing and becomes a prerequisite only for
-  notarized distribution.
-- `showInitialWindowWhenAvailable` polls for the startup window by title for up to
-  two seconds. A 2026-07-26 unified-log trace showed it exhausting all 40 attempts
-  without ever matching on one launch — the window was on screen anyway, placed
-  there by SwiftUI — while on other launches it matched at attempt 5 or 16. So it
-  is inert on some launches and, before the dismissal guard, actively raced the
-  user on others. Removing it needs evidence about which launches still depend on
-  it; the comment above `reconcileActivationPolicy` records the Dock-icon failure
-  it was written to prevent.
+- Do not split `Views.swift` or `AppCoordinator.swift` before `v0.7.0`.
+  Afterwards, separate coherent feature areas—history recovery and retention are
+  the clearest coordinator boundary—before adding the Transcription workspace.
+- `DictationHistoryStore.makePersistentContainer` sleeps on the main thread only
+  between failed store-open attempts. Making that path asynchronous requires an
+  `AppRuntime` initialization redesign.
+- `DictationHistoryView` regroups records by day on each body evaluation, and
+  clearing history saves once per record. Revisit only if large histories make
+  either measurable.
+- The global event tap consumes Escape key-down while a pill is visible but lets
+  the matching key-up reach the foreground app. No consequence has been
+  observed.
+- Hardened Runtime is intentionally absent from the entitlement-free local
+  Release configuration. It becomes required for notarized distribution.
+- `showInitialWindowWhenAvailable` polls for the startup window by title. Remove
+  it only after proving which launch paths still depend on it; the adjacent code
+  comment records the Dock-lifecycle constraint.
 
 ## Release gates
 
-Before promoting the personal-use line to stable `v0.7.0`:
+Before creating stable `v0.7.0`:
 
 - [ ] Complete the applicable checks in [`ACCEPTANCE.md`](ACCEPTANCE.md). A stable
       source release does not require Developer ID signing or notarization.
-- [ ] Run the XCUITest suite end to end once, so the recorded pass count stops
-      being stale. See [`TESTING.md`](TESTING.md) — this is Gaf's to start.
+- [ ] Run the XCUITest suite end to end once. Gaf must start it because it takes
+      over the pointer and keyboard; see [`TESTING.md`](TESTING.md).
 - [ ] Generate artifact-specific third-party notices before publishing a
       downloadable binary.
 - [ ] Confirm the repository and release artifact contain no credentials,
       recordings, local data, or machine-specific build output.
 
-The final `v0.7.0` tag remains reserved for behavior accepted as stable for
-personal use. A supported downloadable binary is a separate distribution-ready
-milestone. See [`../../../docs/VERSIONING.md`](../../../docs/VERSIONING.md).
+The final tag is reserved for behavior accepted as stable for personal use. A
+supported downloadable binary is a separate distribution milestone; see the
+[versioning policy](../../../docs/VERSIONING.md).
 
 ## After v0.7.0
 
-- On moving to a Developer ID identity, collapse the free-tier signing
-  workarounds: return credential storage to the Data Protection Keychain as
-  [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) already requires, drop the per-build
-  "Always Allow" authorization, and simplify the build and install instructions in
-  [`../README.md`](../README.md). The recorded designated requirement, the manual
-  signature check, the `/Applications`-only install, and the Keychain-prompt
-  caveat exist solely to work around signing without a Team ID; none of them
-  survives that transition.
+- On moving to a Developer ID identity, return credential storage to the Data
+  Protection Keychain, remove the per-binary **Always Allow** workaround, and
+  simplify the local-signing installation guidance.
+- Complete trademark clearance before treating Scriber as a settled public name
+  or distributing it broadly.
+- Decide contributor terms before accepting substantial outside contributions
+  if future relicensing or dual licensing should remain possible.
+- Revisit the deferred Swift file boundaries before expanding the product with a
+  separate long-form Transcription workspace.

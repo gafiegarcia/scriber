@@ -1,5 +1,9 @@
 # Changelog
 
+> **Archived at 0.6.0.** This changelog belongs to the frozen Electron
+> implementation. Current native release history is in the repository
+> [`CHANGELOG.md`](../../CHANGELOG.md).
+
 ## Unreleased
 
 ### Fixed
@@ -274,4 +278,5 @@ This is an early pre-1.0 release — the core flow works end-to-end but the surf
 
 ### Preserved
 
-The previous Firestore + Google Auth PWA version is preserved at the git tag `v0.1-firebase-pwa`. Its build log lives at [docs/archive/PROJECT_PLAN_firebase.md](docs/archive/PROJECT_PLAN_firebase.md).
+The previous Firestore + Google Auth PWA implementation remains available
+through Git history.

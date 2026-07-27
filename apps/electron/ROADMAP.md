@@ -1,5 +1,9 @@
 # Roadmap
 
+> **Archived at 0.6.0.** This is a frozen Electron-era scratchpad, not the active
+> product roadmap. Native macOS work is tracked in
+> [`../macos/docs/ROADMAP.md`](../macos/docs/ROADMAP.md).
+
 A running scratchpad for what's next. Add freely, reorder freely, strike through or move to "Shipped" when done.
 
 Format tip: keep each item to one line. Add a short `—` note for context if it helps. add `-${AUTHOR}` (like `-gaf` or `-claude`) at the end to indicate the author of the item.

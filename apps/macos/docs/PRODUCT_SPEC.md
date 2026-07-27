@@ -12,7 +12,24 @@ Scriber is a native macOS menu-bar dictation app intended as a direct replacemen
 - Insert each completed transcript into the text cursor that is focused when transcription completes, not the one that was focused when recording began. The user may move focus while transcription runs, and delivery follows that final cursor.
 - If insertion cannot be confirmed, preserve the transcript in Dictation history, copy it when appropriate, and present recovery actions in the floating pill.
 
-The product-wide identity, Dictation vocabulary, and future separate Transcription workspace are defined in [`../../../docs/NATIVE_IDENTITY_PLAN.md`](../../../docs/NATIVE_IDENTITY_PLAN.md). Versioning follows [`../../../docs/VERSIONING.md`](../../../docs/VERSIONING.md).
+Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONING.md).
+
+## Identity and workspace boundary
+
+- The product name is **Scriber**, the app bundle is `Scriber.app`, the native
+  bundle identifier is `com.gafiegarcia.scriber`, and the UI-test bundle
+  identifier is `com.gafiegarcia.scriber.ui-tests`.
+- The native identity was a deliberate clean reset from Scriber Dictate. Do not
+  migrate its history, preferences, onboarding state, pending audio, login item,
+  or Keychain item into Scriber.
+- The app exposes **Dictation** and **Settings**. Do not add an empty
+  Transcription destination before that workflow exists.
+- Future long-form **Transcription** is a separate workspace with its own model,
+  source-media policy, metadata, editing, export, and note lifecycle. Keep
+  `DictationRecord` focused on short capture, delivery, and retry.
+- Reuse credentials, `ScribeClient`, language, usage, and keyterm behavior only
+  through real shared boundaries. Split coordinator responsibilities when the
+  Transcription workflow is implemented.
 
 ## Shortcuts and job lifecycle
 
@@ -24,8 +41,14 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - A custom Hold chord such as `Fn-Control-Option` must coexist correctly with Toggle.
 - While converting a held recording to hands-free, modifiers used only by Hold are ignored when matching Toggle. Stopping a locked recording requires the exact configured Toggle chord; the Hold chord is ignored while locked.
 - During the first second of a held recording, any non-modifier key cancels and discards it while the key continues to the foreground app.
-- `Escape` cancels either recording mode. Recordings shorter than one second are discarded; recordings at least one second long with detected speech retain their audio in Dictation history. The recovery pill can undo cancellation and resume transcription plus automatic insertion, while History retry transcribes and copies the result without inserting it.
-- Only one recording or transcription job runs at a time in the current alpha.
+- `Escape` cancels either recording mode. Cancelled recordings retain retryable
+  audio only when they are at least one second long and contain detected speech;
+  shorter or silent cancellations are discarded. This one-second recovery rule
+  does not replace the configured signal threshold for normally completed
+  recordings. The recovery pill can undo cancellation and resume transcription
+  plus automatic insertion, while History retry transcribes and copies the
+  result without inserting it.
+- Only one recording or transcription job runs at a time.
 - Maximum recording duration is 10 minutes.
 
 ## Recording and transcription
@@ -33,7 +56,9 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Recording feedback sounds are enabled by default and configurable as one setting. Play the built-in macOS Frog sound only after capture starts successfully, Bottle once for a terminal recording or transcription failure, and Morse once when recording is cancelled or automatic paste falls back to a copied transcript. Silence, no-content output, and retry waits remain silent.
 - Muting other app audio while recording is enabled by default and offered during onboarding. A private Core Audio process tap silences all audio except Scriber's while playback continues; destroy the tap as soon as capture stops or is cancelled. Never pause or resume another app, and never read, inspect, log, or persist tap audio.
 - Failure to create the other-audio mute tap must never prevent dictation. Keep recording unmuted and expose the unavailable state in Settings.
-- Use ElevenLabs Scribe v2 batch transcription with `no_verbatim=true` and no secondary rewrite model.
+- Use ElevenLabs Scribe v2 batch transcription with no secondary rewrite model.
+  “Remove filler words and false starts” controls `no_verbatim`, defaults on, and
+  remains user-configurable.
 - Include personal keyterms after validating them against Scribe limits.
 - Retry transient failures up to three total attempts, waiting 3 seconds and then 5 seconds.
 - Delete audio only after a successful transcript has been saved.
@@ -42,6 +67,9 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Treat empty, whitespace-only, and punctuation-only successful responses as “No words detected,” clean up their temporary record and audio, and do not offer a meaningless retry.
 
 ## Delivery and floating pill
+
+The current delivery transaction and its regression baseline are defined in
+[`PASTE_ENGINE.md`](PASTE_ENGINE.md).
 
 - Starting a recording must never send an Accessibility message. Accessibility calls are synchronous cross-process requests whose cost is controlled by the destination app, so target discovery belongs to delivery time only. Recording start may resolve the pill's screen from the window server, which does not traverse another app's Accessibility tree.
 - Confirming delivery is explicitly allowed to be slow. Waiting several seconds for a destination to request the promised transcript is correct; reporting a false failure is not.
@@ -63,7 +91,6 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Never log, export, or persist the key elsewhere.
 - Validate credentials without uploading audio or consuming transcription credit before saving them.
 - Normal automated tests must not access production credentials, contact ElevenLabs, or consume API credit.
-- The Scriber identity is a deliberate clean reset. Do not migrate data from the former Scriber Dictate identity.
 
 ## Permissions and app lifecycle
 
@@ -75,13 +102,13 @@ The product-wide identity, Dictation vocabulary, and future separate Transcripti
 - Launch at Login is optional, offered during onboarding, defaults on, and requires explicit consent.
 - Every launch presents onboarding until setup is complete, then presents the main Dictation window. Closing the final normal window still leaves menu-bar and dictation services running.
 - Onboarding must be complete and the credential definitively usable before recording or Dictation retry can begin.
-- App Sandbox remains disabled for the native alpha because global event interception and cross-app Accessibility insertion are core behavior.
+- App Sandbox remains disabled while global event interception and cross-app
+  Accessibility insertion are core behavior.
 
 ## Platform and release boundary
 
 - Native Swift 6.4 app using SwiftUI, AppKit, SwiftData, AVFoundation, Accessibility, and Keychain APIs.
 - Toolchain baseline: Xcode 27 beta with Swift 6.4 until a later explicit toolchain decision.
-- Current app target: Apple silicon and macOS 27.
+- Supported target: Apple silicon and macOS 27.
 - Personal Release builds use the long-lived `Scriber Local Code Signing` identity from the login Keychain, with no provisioning profile or restricted entitlements. Its private-key backup remains outside the repository; Developer ID signing and notarization remain separate future distribution work.
-- Current product line: Scriber `0.7.0` build `11`, the `v0.7.0-alpha.7` candidate carrying the 2026-07-26 review pass. The final provisioned Data Protection state is preserved as `v0.7.0-alpha.2`; the locally certificate-signed login-Keychain build is the `v0.7.0-alpha.6` candidate and is not yet a stable `0.7.0` release.
 - A real ElevenLabs smoke test is always explicit and opt-in.

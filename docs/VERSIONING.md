@@ -1,61 +1,55 @@
 # Scriber Versioning Policy
 
-Status: decided.
-
-Recorded: 2026-07-20.
-
 ## Product lineage
 
-Versions identify the Scriber product line, not the age of a particular codebase or repository.
+Versions identify the Scriber product, not the age of a repository or a specific
+implementation. The frozen Electron app reached `0.6.0`; the native macOS app is
+its successor on the `0.7.0` line. Rewriting the app in Swift and adopting a new
+native bundle identity did not restart the product at `0.1.0`.
 
-The archived Electron implementation reached `0.6.0`. The native macOS implementation is its successor and continues the product line at `0.7.0`, even though it was rewritten in Swift, began as the Scriber Dictate prototype, and adopted a clean bundle and data identity. The native app is expected to regain the legacy app's long-form transcription workflow later, alongside Dictation.
+Platform implementations do not have to ship every product version. The Electron
+snapshot remains `0.6.0` unless its development resumes.
 
-The original native `0.1.0` value describes an early Scriber Dictate prototype baseline. It remains valid in historical progress notes, but it is not the active Scriber version.
+## Separate identifiers
 
-Current native status: `0.7.0` build `14`, the locally certificate-signed candidate fixing the startup window reopening after an early Command-W, preserved as `v0.7.0-alpha.8`. Build `11`, carrying the 2026-07-26 review pass, is preserved as `v0.7.0-alpha.7`; build `7` remains the `v0.7.0-alpha.6` snapshot. Builds `8` and `10` were same-day intermediates, and builds `12` and `13` were Keychain test vehicles with no source change; none were tagged. The final provisioned Data Protection Keychain state is preserved as `v0.7.0-alpha.2`.
+- **Marketing version** is the user-facing product line, stored as
+  `MARKETING_VERSION` in the native Xcode project.
+- **Bundle build** is `CFBundleVersion`, stored as `CURRENT_PROJECT_VERSION` in
+  the native Xcode project. It distinguishes installable binaries but says
+  nothing about alpha, beta, or stable maturity.
+- **Release label** is the maturity of an intentionally frozen Git snapshot,
+  expressed by a tag such as `v0.7.0-alpha.8` or `v0.7.0`.
 
-## Three separate identifiers
+The native [Xcode project file](../apps/macos/Scriber.xcodeproj/project.pbxproj)
+is the only repository source of truth for the current bundle build. Do not copy
+that volatile number into README, roadmap, specification, or policy prose. An
+installed app may legitimately differ from the checked-out source.
 
-- **Marketing version — `0.7.0`:** the user-facing product release line. It carries the product lineage forward from Electron `0.6.0`.
-- **Bundle build — `14`:** the internal `CFBundleVersion` identifying a particular app bundle. It does not communicate alpha, beta, or stable maturity, and ordinary local Debug or Release-configuration recompiles do not require a new number. Increment it when producing another intentionally identified installable, distributed, or uploaded build that needs to be distinguished from an earlier one.
-- **Prerelease label — alpha or beta:** the maturity of an intentionally identified snapshot. Use Git tags such as `v0.7.0-alpha.1`, then `v0.7.0-alpha.2` or `v0.7.0-beta.1`, only when preserving a specific known-good source state, tester build, or distribution.
+An Xcode **Release** configuration is an optimized build configuration; it does
+not make the product a stable release.
 
-An Xcode **Release** configuration is an optimized build configuration. Building it does not by itself make that app a stable Scriber release.
+## Tags and changelog
+
+- Do not tag ordinary development commits or local builds.
+- Do not call an untagged candidate `vX.Y.Z-alpha.N`. Use “bundle build N
+  candidate” until the annotated tag actually exists.
+- Record user-relevant changes under `Unreleased` in the root
+  [`CHANGELOG.md`](../CHANGELOG.md), then move them under the exact version only
+  when its tag is created.
+- Treat tags as immutable. Corrections receive a new prerelease or patch tag.
+- Choose the next unused prerelease sequence only when creating its tag; do not
+  reserve or assign a prerelease name in planning prose.
+- Create `v0.7.0` only when the documented personal-use behavior passes its
+  release gates.
+
+Annotated tag messages carry engineering metadata that does not belong in the
+changelog: bundle build, credential and signing state, verification performed,
+known limitations, and confirmation that no credentials, recordings, local
+history, or machine-specific output are included.
 
 ## Stability and distribution
 
-Product maturity is independent of Apple's distribution pipeline:
-
-- A stable Git/source release means the behavior is accepted for Scriber's documented personal-use scope.
-- Code signing gives a particular app bundle its identity and access to protected capabilities such as Scriber's Data Protection Keychain.
-- Notarization is a Gatekeeper trust mechanism for distributing a Developer ID-signed binary to other Macs.
-
-Developer ID signing and notarization are therefore not prerequisites for a stable source tag. A future stable `v0.7.0` may be published as a personal-use source release whose locally built binary uses Apple Development signing. Such a binary inherits its provisioning profile's lifetime and may need to be rebuilt even though the tagged source remains stable. A supported downloadable binary is a separate distribution-ready milestone.
-
-## Tag policy
-
-Do not tag every development commit or ordinary local build.
-
-- The first intentionally frozen personal-use snapshot is `v0.7.0-alpha.1`, bundle build `3`.
-- `v0.7.0-alpha.2` preserves the final build-3 source state that uses provisioned Data Protection Keychain storage.
-- `v0.7.0-alpha.3` identifies the accepted build-4 personal installation using the login Keychain and ad-hoc signing.
-- Build 5 was the untagged alpha.4 candidate; reboot validation exposed the generic SwiftData-store collision, so it was superseded.
-- `v0.7.0-alpha.5` identifies the build-6 candidate with a dedicated Scriber history store and orphaned-audio recovery.
-- `v0.7.0-alpha.6` identifies the build-7 candidate signed by the long-lived local Scriber identity so privacy permissions and login-Keychain authorization can persist across rebuilt Release bundles.
-- `v0.7.0-alpha.7` identifies the build-11 candidate carrying the 2026-07-26 review pass: live-cursor delivery, keyboard-focus target selection, launch-time credential reporting, and 30-day retained-audio expiry.
-- Builds `12` and `13` carried no source change and were never tagged; they were Keychain re-authorization test vehicles.
-- `v0.7.0-alpha.8` identifies the build-14 candidate: the startup window no longer reopens after an early Command-W, and the Xcode UI suite has been run end to end for the first time.
-- Advance the prerelease sequence when another distinct testing snapshot is worth preserving.
-- Create the final `v0.7.0` tag when the documented personal-use behavior is genuinely accepted as stable; do not block that source tag solely on Developer ID signing or notarization.
-- Treat release tags as immutable; corrections receive a new prerelease or patch version rather than moving an existing tag.
-
-## Implementation boundaries
-
-- Keep the native Xcode marketing version at `0.7.0` and bundle build at `14` until the next intentionally distinguishable build.
-- Keep the archived Electron snapshot and its package metadata at historical version `0.6.0` unless active Electron development resumes.
-- Do not reset the native product to `0.1.0` merely because its implementation was rewritten or its bundle identity was reset.
-- Product-wide version progression does not imply that both platform implementations ship every numbered release.
-
-## Annotated tag messages
-
-Release and checkpoint tags are annotated tags. Their message records the snapshot purpose, marketing version and bundle build, credential-storage and signing state, verification performed, known limitations, and confirmation that no credentials, recordings, local history, or machine-specific build artifacts are included. Tags remain immutable and are not pushed or published without explicit approval.
+A stable source tag, code signing, and notarized binary distribution are separate
+milestones. Stable `v0.7.0` means the documented personal-use behavior is
+accepted. Developer ID signing, notarization, Gatekeeper validation, and a
+supported downloadable binary belong to a later distribution-ready milestone.

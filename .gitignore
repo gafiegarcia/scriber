@@ -10,6 +10,7 @@ Signing.local.xcconfig
 *.m4a
 *.pcm
 *.wav
+*.profraw
 
 # Electron / Next.js
 node_modules/
