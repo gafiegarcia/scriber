@@ -18,6 +18,11 @@ enum MainWindowDestination: Hashable {
     case apiKey
     case usage
     case microphone
+    /// Settings, scrolled to Permissions and Input. Distinct from `.settings`,
+    /// which opens the pane at the top: Permissions and Input is the last
+    /// section of a long pane, so landing on Settings alone leaves the user
+    /// looking at General with no sign of what they were sent to fix.
+    case permissions
 }
 
 struct MainWindowRequest: Equatable {
@@ -677,7 +682,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func openPermissionSettings() {
-        openMainWindow(destination: .settings)
+        openMainWindow(destination: .permissions)
     }
 
     func selectMainWindowDestination(_ destination: MainWindowDestination) {
@@ -689,6 +694,18 @@ final class AppCoordinator: ObservableObject {
         returnToIdle()
         NSApp.setActivationPolicy(.regular)
         NotificationCenter.default.post(name: .openScriberMainWindow, object: nil)
+        // Every pill action arrives here from a nonactivating panel, so the app
+        // the user was working in is still frontmost and Scriber has no
+        // activation of its own for the cooperative `activate(from:)` inside
+        // `showWindow` to build on. That call reports success and macOS then
+        // declines to honour it, which is why an already-open window came to the
+        // front of Scriber's own layer and no further — the window opened and
+        // changed section exactly as asked, behind whatever the user was in.
+        //
+        // The two routes that do land, the menu bar item and Command-comma, both
+        // ask outright. This is the same request, and it is warranted the same
+        // way: the user just clicked a button asking to be taken somewhere.
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func presentInvalidAPIKeyPillForUITesting() {

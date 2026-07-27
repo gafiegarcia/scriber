@@ -48,11 +48,12 @@ struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var runtime: AppRuntime
     @State private var section: MainSection? = .dictation
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @FocusState private var sidebarFocused: Bool
     @FocusState private var dictationSearchFocused: Bool
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $section) {
                 Label("Dictation", systemImage: "clock.arrow.circlepath")
                     .tag(MainSection.dictation)
@@ -65,6 +66,22 @@ struct MainWindowView: View {
             .navigationTitle("Scriber")
             .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
             .focused($sidebarFocused)
+            // The supplied toggle cannot be given a tooltip, and it belongs to
+            // the column SwiftUI rebuilds — which is what makes it blink every
+            // time the selection moves between Dictation and Settings. Owning
+            // it fixes both: it is declared on the sidebar, which never changes
+            // shape, and it can say what it does and which key does it.
+            .toolbar(removing: .sidebarToggle)
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    Button(action: toggleSidebar) {
+                        Image(systemName: "sidebar.leading")
+                    }
+                    .help(isSidebarCollapsed ? "Show Sidebar (⌘.)" : "Hide Sidebar (⌘.)")
+                    .accessibilityLabel(isSidebarCollapsed ? "Show Sidebar" : "Hide Sidebar")
+                    .accessibilityIdentifier("sidebar-toggle")
+                }
+            }
         } detail: {
             Group {
                 switch section ?? .dictation {
@@ -95,9 +112,27 @@ struct MainWindowView: View {
         section = request.destination == .dictation ? .dictation : .settings
     }
 
+    private var isSidebarCollapsed: Bool { columnVisibility == .detailOnly }
+
+    /// The same route Command-period takes, deliberately.
+    ///
+    /// Driving `columnVisibility` from here instead would give the button and
+    /// the menu command two different mechanisms to disagree about, and the menu
+    /// command cannot be moved onto the binding: it reaches the split view
+    /// through the responder chain, which is also what makes Command-period fall
+    /// through to Cancel while a confirmation dialog is up rather than toggling
+    /// the sidebar behind it. The binding stays here to read the current state
+    /// for the tooltip, not to set it.
+    private func toggleSidebar() {
+        NSApp.keyWindow?.firstResponder?.tryToPerform(
+            #selector(NSSplitViewController.toggleSidebar(_:)),
+            with: nil
+        )
+    }
+
     private func focusSidebarIfAppropriate() {
         switch runtime.coordinator.mainWindowRequest?.destination {
-        case .apiKey, .usage, .microphone:
+        case .apiKey, .usage, .microphone, .permissions:
             return
         case .dictation, .settings, nil:
             DispatchQueue.main.async { sidebarFocused = true }
@@ -128,7 +163,7 @@ struct MenuBarContent: View {
             if runtime.preferences.onboardingComplete {
                 if !runtime.coordinator.permissionReadiness.isReady {
                     Divider()
-                    Button { openMain(destination: .settings) } label: {
+                    Button { openMain(destination: .permissions) } label: {
                         Label("Permissions Required…", systemImage: "exclamationmark.triangle.fill")
                     }
                 }
@@ -192,6 +227,12 @@ struct DictationHistoryView: View {
     let searchFocused: FocusState<Bool>.Binding
     @State private var search = ""
     @State private var confirmClear = false
+    @State private var stickyDayTitle: String?
+
+    /// The `List`'s own frame, so a day label's `minY` inside it reads as
+    /// distance below the top of the visible list rather than distance down the
+    /// scrolled content.
+    fileprivate static let scrollSpace = "dictation-history-scroll"
 
     /// A record is inserted before its transcription starts, so that an interrupted
     /// job keeps its audio and can be recovered at the next launch. Until the
@@ -221,92 +262,96 @@ struct DictationHistoryView: View {
 
     /// Broken out of the `List` builder deliberately. Inlining the row insets,
     /// separator, group background, and context menu in one closure pushed the
-    /// expression past the type checker's budget.
+    /// expression past the type checker's budget. The row applies those itself
+    /// now — it has to, because its hover state drives the group background and
+    /// only a view can hold that state — so this is left working out where the
+    /// entry sits in its group.
     @ViewBuilder
     private func row(_ record: DictationRecord, at index: Int, of count: Int) -> some View {
-        let isFirst: Bool = index == 0
-        let isLast: Bool = index == count - 1
+        DictationHistoryRow(record: record, isFirst: index == 0, isLast: index == count - 1)
+    }
 
-        DictationHistoryRow(record: record)
-            // Leading/trailing clear the card inset first, then add the padding
-            // inside the card, which is deliberately tight.
-            .listRowInsets(EdgeInsets(
-                top: 10,
-                leading: DictationHistoryGroupBackground.horizontalInset
-                    + DictationHistoryGroupBackground.contentInset,
-                bottom: 10,
-                trailing: DictationHistoryGroupBackground.horizontalInset
-                    + DictationHistoryGroupBackground.contentInset
-            ))
-            // The card and the gaps between groups carry the grouping. Row rules
-            // inside a bordered card only added a second, competing division.
-            .listRowSeparator(.hidden)
-            .listRowBackground(DictationHistoryGroupBackground(isFirst: isFirst, isLast: isLast))
-            .contextMenu {
-                if let text = record.text, !text.isEmpty {
-                    Button("Copy") { runtime.coordinator.copy(record) }
-                }
-                if record.isRetryable, record.pendingAudioRelativePath != nil {
-                    Button("Retry") { runtime.coordinator.retry(record) }
+    /// Warnings sit above everything, directly under the title and search row.
+    ///
+    /// They used to sit between the count row and the list, which put the one
+    /// thing on the page that needs acting on below the one thing that does not.
+    @ViewBuilder
+    private var recoveryBanners: some View {
+        if runtime.preferences.onboardingComplete {
+            if !runtime.coordinator.permissionReadiness.isReady {
+                RecoveryBanner(
+                    title: "Dictation is unavailable",
+                    message: runtime.coordinator.permissionReadiness.recoveryMessage,
+                    actionTitle: "Review Permissions",
+                    identifier: "permission-recovery-banner"
+                ) {
+                    runtime.coordinator.selectMainWindowDestination(.permissions)
                 }
                 Divider()
-                Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
             }
+            // Setup can complete and then stop being sufficient. A revoked or
+            // replaced key leaves Scriber silently non-functional otherwise.
+            let credentials = runtime.coordinator.credentialReadiness
+            if !credentials.isReady {
+                RecoveryBanner(
+                    title: credentials.title,
+                    message: credentials.recoveryMessage,
+                    actionTitle: credentials.resolvesInUsageSettings ? "View Usage" : "Update Key",
+                    identifier: "credential-recovery-banner"
+                ) {
+                    runtime.coordinator.selectMainWindowDestination(
+                        credentials.resolvesInUsageSettings ? .usage : .apiKey
+                    )
+                }
+                Divider()
+            }
+        }
+    }
+
+    /// The count row, which now also carries the current day.
+    ///
+    /// The day label only appears once that day's own label has scrolled up
+    /// under this row. At rest the list's first label sits directly below, and
+    /// printing the same word twice a few points apart reads as a mistake rather
+    /// than as a header. The empty string keeps the row's height fixed so the
+    /// list does not shift down the moment the user starts scrolling.
+    private var historyHeader: some View {
+        HStack(spacing: 12) {
+            Text(stickyDayTitle ?? " ")
+                .font(.title3.weight(.semibold))
+                .opacity(stickyDayTitle == nil ? 0 : 1)
+                .contentTransition(.opacity)
+                .accessibilityHidden(stickyDayTitle == nil)
+
+            Spacer(minLength: 12)
+
+            Text("\(visibleRecords.count) \(visibleRecords.count == 1 ? "dictation" : "dictations")")
+                .foregroundStyle(.secondary)
+            TrailingAlignedMenuButton(
+                systemImage: "ellipsis.circle",
+                help: "Dictation history actions",
+                isEnabled: !visibleRecords.isEmpty,
+                items: [
+                    TrailingAlignedMenuButton.Item(title: "Clear Dictation History…") {
+                        confirmClear = true
+                    }
+                ]
+            )
+            .frame(width: 24, height: 24)
+            .accessibilityIdentifier("dictation-history-actions")
+        }
+        .padding(.horizontal, DictationHistoryGroupBackground.horizontalInset)
+        .padding(.vertical, 14)
+        .animation(.easeInOut(duration: 0.18), value: stickyDayTitle)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("\(visibleRecords.count) \(visibleRecords.count == 1 ? "dictation" : "dictations")")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                TrailingAlignedMenuButton(
-                    systemImage: "ellipsis.circle",
-                    help: "Dictation history actions",
-                    isEnabled: !visibleRecords.isEmpty,
-                    items: [
-                        TrailingAlignedMenuButton.Item(title: "Clear Dictation History…") {
-                            confirmClear = true
-                        }
-                    ]
-                )
-                .frame(width: 24, height: 24)
-                .accessibilityIdentifier("dictation-history-actions")
-            }
-            .padding(.horizontal, DictationHistoryGroupBackground.horizontalInset)
-            .padding(.vertical, 14)
+            recoveryBanners
+
+            historyHeader
 
             Divider()
-
-            if runtime.preferences.onboardingComplete {
-                if !runtime.coordinator.permissionReadiness.isReady {
-                    RecoveryBanner(
-                        title: "Dictation is unavailable",
-                        message: runtime.coordinator.permissionReadiness.recoveryMessage,
-                        actionTitle: "Review Permissions",
-                        identifier: "permission-recovery-banner"
-                    ) {
-                        runtime.coordinator.selectMainWindowDestination(.settings)
-                    }
-                    Divider()
-                }
-                // Setup can complete and then stop being sufficient. A revoked or
-                // replaced key leaves Scriber silently non-functional otherwise.
-                let credentials = runtime.coordinator.credentialReadiness
-                if !credentials.isReady {
-                    RecoveryBanner(
-                        title: credentials.title,
-                        message: credentials.recoveryMessage,
-                        actionTitle: credentials.resolvesInUsageSettings ? "View Usage" : "Update Key",
-                        identifier: "credential-recovery-banner"
-                    ) {
-                        runtime.coordinator.selectMainWindowDestination(
-                            credentials.resolvesInUsageSettings ? .usage : .apiKey
-                        )
-                    }
-                    Divider()
-                }
-            }
 
             if visibleRecords.isEmpty {
                 ContentUnavailableView(
@@ -327,6 +372,7 @@ struct DictationHistoryView: View {
                         Text(section.title)
                             .font(.title2.weight(.bold))
                             .foregroundStyle(.primary)
+                            .background(DayLabelAnchor(title: section.title))
                             .padding(.top, 26)
                             .padding(.bottom, 14)
                             // Exactly the card inset, so the label's leading edge
@@ -350,6 +396,14 @@ struct DictationHistoryView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(Color(nsColor: .windowBackgroundColor))
+                .coordinateSpace(.named(Self.scrollSpace))
+                .onPreferenceChange(DayLabelAnchorKey.self) { anchors in
+                    // Anchors arrive in list order, newest day first, so the last
+                    // one that has crossed the top is the day the rows under the
+                    // header belong to. None having crossed means the list is at
+                    // rest at the top and its own first label is doing the job.
+                    stickyDayTitle = anchors.last { $0.minY <= 0 }?.title
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -360,6 +414,41 @@ struct DictationHistoryView: View {
             Button("Delete All", role: .destructive) { runtime.coordinator.clearDictationHistory(visibleRecords) }
         } message: {
             Text("This permanently removes transcripts and any retained failed recordings.")
+        }
+    }
+}
+
+/// Where one day label currently sits relative to the top of the visible list.
+private struct DayLabelPosition: Equatable {
+    let title: String
+    let minY: CGFloat
+}
+
+private struct DayLabelAnchorKey: PreferenceKey {
+    static let defaultValue: [DayLabelPosition] = []
+
+    static func reduce(value: inout [DayLabelPosition], nextValue: () -> [DayLabelPosition]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+/// Reports a day label's position so the header row can pick the label up as it
+/// scrolls out of sight.
+///
+/// A transparent background rather than a wrapper, so measuring the label costs
+/// it none of its own layout.
+private struct DayLabelAnchor: View {
+    let title: String
+
+    var body: some View {
+        GeometryReader { proxy in
+            Color.clear.preference(
+                key: DayLabelAnchorKey.self,
+                value: [DayLabelPosition(
+                    title: title,
+                    minY: proxy.frame(in: .named(DictationHistoryView.scrollSpace)).minY
+                )]
+            )
         }
     }
 }
@@ -487,6 +576,11 @@ private struct TrailingAlignedMenuButton: NSViewRepresentable {
 private struct DictationHistoryGroupBackground: View {
     let isFirst: Bool
     let isLast: Bool
+    /// Set while the pointer is over this entry. The highlight is drawn here
+    /// rather than behind the row's content because only this view knows the
+    /// card's shape and full width; a background on the content would stop at
+    /// the content inset and leave the card's margins unlit.
+    var isHovered: Bool = false
 
     private let radius: CGFloat = 10
 
@@ -519,7 +613,7 @@ private struct DictationHistoryGroupBackground: View {
         // a system background colour: `controlBackgroundColor` over
         // `windowBackgroundColor` is nearly identical in dark mode.
         shape
-            .fill(Color.primary.opacity(0.06))
+            .fill(Color.primary.opacity(isHovered ? 0.11 : 0.06))
             // Drawn here rather than through `listRowSeparator`, which spans the
             // whole row and would run past the card onto the page. This one is
             // clipped to the card and crosses the full width, including under the
@@ -555,6 +649,12 @@ private struct DictationHistorySection: Identifiable {
 private struct DictationHistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
+    let isFirst: Bool
+    let isLast: Bool
+
+    @State private var isHovered = false
+    @State private var didCopy = false
+    @State private var copiedFeedback: Task<Void, Never>?
 
     /// Transcript size. Larger than `.body`, which read as small next to the
     /// generous type Flow uses for the same content.
@@ -623,12 +723,19 @@ private struct DictationHistoryRow: View {
 
             Spacer(minLength: 12)
 
-            if let text = record.text, !text.isEmpty {
-                Button { runtime.coordinator.copy(record) } label: {
-                    Image(systemName: "doc.on.doc")
+            if canCopy {
+                Button(action: copy) {
+                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                        .foregroundStyle(didCopy ? Color.green : Color.accentColor)
+                        // The two glyphs are not the same width, and letting the
+                        // button resize under the pointer made the whole trailing
+                        // cluster jump at the moment of the click.
+                        .frame(width: 16)
                 }
                 .buttonStyle(.borderless)
+                .modifier(RowIconHover())
                 .help("Copy transcription")
+                .accessibilityLabel(didCopy ? "Copied" : "Copy transcription")
             }
             if isRetrying {
                 ProgressView()
@@ -648,17 +755,100 @@ private struct DictationHistoryRow: View {
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
-            .frame(width: 24)
+            .frame(width: 16)
+            .modifier(RowIconHover())
         }
         .padding(.vertical, 4)
         // Full-width within the card. Insetting past the time column left the
         // time visually unseparated from the entry above it.
         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+        // Leading/trailing clear the card inset first, then add the padding
+        // inside the card, which is deliberately tight.
+        .listRowInsets(EdgeInsets(
+            top: 10,
+            leading: DictationHistoryGroupBackground.horizontalInset
+                + DictationHistoryGroupBackground.contentInset,
+            bottom: 10,
+            trailing: DictationHistoryGroupBackground.horizontalInset
+                + DictationHistoryGroupBackground.contentInset
+        ))
+        // The card and the gaps between groups carry the grouping. Row rules
+        // inside a bordered card only added a second, competing division.
+        .listRowSeparator(.hidden)
+        .listRowBackground(
+            DictationHistoryGroupBackground(isFirst: isFirst, isLast: isLast, isHovered: isHovered)
+        )
+        // The gaps between the time, the transcript, and the trailing controls
+        // are part of the entry, so the whole rectangle has to be hoverable and
+        // clickable — not just the pixels that happen to have content on them.
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
+        // Copying the transcript is what the user comes to a history row to do,
+        // so the small copy button is one route to it rather than the only one.
+        //
+        // This does not reach a click that lands on the transcript itself: the
+        // text is selectable, so it hit-tests first and takes the click to place
+        // its own insertion point. That is the right resolution — a click on
+        // text should still be able to start a selection — and it leaves the
+        // rest of the row, which is most of it, as the copy target.
+        .onTapGesture(perform: copy)
+        .contextMenu {
+            if canCopy {
+                Button("Copy", action: copy)
+            }
+            if record.isRetryable, record.pendingAudioRelativePath != nil {
+                Button("Retry") { runtime.coordinator.retry(record) }
+            }
+            Divider()
+            Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+        }
+        .animation(.easeOut(duration: 0.12), value: isHovered)
+    }
+
+    private var canCopy: Bool {
+        guard let text = record.text else { return false }
+        return !text.isEmpty
+    }
+
+    /// Clicking a row is silent otherwise — the transcript reaches the clipboard
+    /// with nothing on screen to say so — so the copy button doubles as the
+    /// acknowledgement whichever route was taken to get here.
+    private func copy() {
+        guard canCopy else { return }
+        runtime.coordinator.copy(record)
+        didCopy = true
+        copiedFeedback?.cancel()
+        copiedFeedback = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.4))
+            guard !Task.isCancelled else { return }
+            didCopy = false
+        }
     }
 
     private var rowText: String {
         if let text = record.text, !text.isEmpty { return text }
         return record.errorMessage ?? "Transcription failed."
+    }
+}
+
+/// Hover feedback for the borderless icon controls in a history row.
+///
+/// `.borderless` draws no background at all, in any state, so these controls
+/// gave no sign they were controls until they were clicked. The padding is part
+/// of the treatment rather than decoration around it: it is what gives a 16pt
+/// glyph a click target big enough to aim at.
+private struct RowIconHover: ViewModifier {
+    @State private var isHovered = false
+
+    func body(content: Content) -> some View {
+        content
+            .padding(5)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.primary.opacity(isHovered ? 0.12 : 0))
+            )
+            .onHover { isHovered = $0 }
+            .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 }
 
@@ -836,6 +1026,10 @@ struct SettingsView: View {
                         Button("Allow") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
                     }
                 }
+                // The section's first row rather than the `Section`: a scroll
+                // target on the Section lands on its header, which a grouped
+                // Form insets away from the content it names.
+                .id(MainWindowDestination.permissions)
 
                 PermissionStatusRow(
                     title: "Microphone",
@@ -891,6 +1085,12 @@ struct SettingsView: View {
         case .microphone:
             apiKeyFieldFocused = false
             proxy.scrollTo(MainWindowDestination.microphone, anchor: .center)
+        case .permissions:
+            apiKeyFieldFocused = false
+            // `.top`, not `.center`: this is the last section in the pane, so
+            // there is nothing below it to centre against and the scroll view
+            // clamps at its end either way.
+            proxy.scrollTo(MainWindowDestination.permissions, anchor: .top)
         case .dictation, .settings:
             apiKeyFieldFocused = false
         }

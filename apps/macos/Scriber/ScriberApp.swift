@@ -251,10 +251,20 @@ struct ScriberApp: App {
         }
     }
 
-    /// Both branches share this so the icon does not change size when Scriber
-    /// starts or stops needing attention. The `systemImage:` initialiser rendered
-    /// well under the size of neighbouring menu bar items.
-    private static let menuBarIconSize: CGFloat = 22
+    /// A square box both branches fill, so the item does not change width when
+    /// Scriber starts or stops needing attention.
+    ///
+    /// Raising this number was not what the icon needed. `scaledToFit` fits the
+    /// image's intrinsic size, and `MenuBarIcon` used to be the app-icon artwork
+    /// with its full 1024-square canvas, of which the mark is only 414 x 602 —
+    /// so the mark rendered at 59% of this number and 22 bought about 13pt of
+    /// visible ink. The asset is now cropped to that ink, so this is the mark's
+    /// height rather than the height of the transparency around it, and it is
+    /// the one knob to turn if it wants to sit taller or shorter next to its
+    /// neighbours. Measure against a neighbouring item rather than judging by
+    /// eye: the previous 18-to-22 change moved the ink barely 2pt and read as no
+    /// change at all.
+    private static let menuBarIconSize: CGFloat = 17
 
     private var needsAttention: Bool {
         guard runtime.preferences.onboardingComplete else { return false }
@@ -446,6 +456,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 activationRequested = currentApplication.activate(options: [.activateAllWindows])
             }
             if !activationRequested { NSApp.activate() }
+            // `activate(from:)` returning true means the request was accepted,
+            // not that the app came forward; macOS still declines it when the
+            // caller has no activation to trade on. If a route into this method
+            // reports success here and stays behind another app, that gap is
+            // where to look — the caller needs to ask for activation itself.
+            Self.windowLog.notice(
+                """
+                showWindow: activation title=\(title, privacy: .public) \
+                requested=\(activationRequested, privacy: .public) \
+                active=\(currentApplication.isActive, privacy: .public)
+                """
+            )
             window.makeKeyAndOrderFront(nil)
             // The app begins as an accessory so a launch with no visible window stays
             // out of the Dock. Reassert regular mode only after the startup window is
