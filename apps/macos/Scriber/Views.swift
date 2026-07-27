@@ -430,7 +430,19 @@ private struct TrailingAlignedMenuButton: NSViewRepresentable {
     func updateNSView(_ button: NSButton, context: Context) {
         button.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: help)
         button.toolTip = help
-        button.isEnabled = isEnabled
+        // Assign only on a real change. `NSControl.setEnabled:` invalidates the
+        // window's key-view loop, and AppKit rebuilds it by asking this button's
+        // hosting view for its responder node — a read of the SwiftUI attribute
+        // graph from inside the same update pass that is setting this property.
+        // That re-entry is a graph cycle, and AttributeGraph spins on it forever
+        // at 100% CPU — any pill appearing while this header updates used to wedge
+        // the app. Deferring the write by a main-actor turn is what breaks the
+        // re-entry; the change check alone is not enough, because the first real
+        // write still cycles. It only spares the redundant writes.
+        if button.isEnabled != isEnabled {
+            let enabled = isEnabled
+            Task { @MainActor in button.isEnabled = enabled }
+        }
         button.target = context.coordinator
         button.action = #selector(Coordinator.present(_:))
         context.coordinator.items = items
