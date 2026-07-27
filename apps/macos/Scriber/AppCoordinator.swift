@@ -560,14 +560,10 @@ final class AppCoordinator: ObservableObject {
         guard preferences.onboardingComplete else { return }
         switch action {
         case .holdPressed:
-            switch phase {
-            case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
-                 .credentialsUnusable, .pasteFailed, .transcriptionFailed:
+            if phase.acceptsRecordingStart {
                 startRecording(mode: .held)
-            case .transcribing:
+            } else if case .transcribing = phase {
                 showTransientMessage("Still transcribing")
-            default:
-                break
             }
         case .holdReleased:
             if case .recording(let mode, _, _) = phase,
@@ -575,10 +571,11 @@ final class AppCoordinator: ObservableObject {
                 stopAndTranscribe()
             }
         case .togglePressed:
-            switch phase {
-            case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
-                 .credentialsUnusable, .pasteFailed, .transcriptionFailed:
+            guard !phase.acceptsRecordingStart else {
                 startRecording(mode: .locked)
+                return
+            }
+            switch phase {
             case .recording(let mode, let elapsed, let level) where mode == .held:
                 shortcuts.setMode(.locked)
                 setPhase(.recording(mode: .locked, elapsed: elapsed, level: level))
@@ -600,13 +597,11 @@ final class AppCoordinator: ObservableObject {
 
     func startHandsFreeFromMenu() {
         guard preferences.onboardingComplete else { return }
-        switch phase {
-        case .idle, .message, .cancelledTranscript, .dictationCopied, .permissionsRequired,
-             .credentialsUnusable, .pasteFailed, .transcriptionFailed, .noSpeechDetected:
+        if phase.acceptsRecordingStart {
             startRecording(mode: .locked)
-        case .recording:
+        } else if case .recording = phase {
             stopAndTranscribe()
-        case .transcribing:
+        } else {
             showTransientMessage("Still transcribing")
         }
     }

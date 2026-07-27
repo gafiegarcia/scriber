@@ -49,6 +49,11 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
   plus automatic insertion, while History retry transcribes and copies the
   result without inserting it.
 - Only one recording or transcription job runs at a time.
+- A notice about a dictation that already ended — a failure, a cancellation, a
+  copied result, a permission or credential block, or “No words detected” — never
+  blocks the next one. Both shortcuts start recording immediately from any such
+  state, whether or not its pill is still on screen. Only an in-flight recording
+  or transcription may refuse a start.
 - Maximum recording duration is 10 minutes.
 
 ## Recording and transcription
