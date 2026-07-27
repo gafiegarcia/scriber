@@ -1192,6 +1192,17 @@ final class AppCoordinator: ObservableObject {
     /// are preserved, so the user keeps the record of what happened and loses only
     /// the ability to retry a month-old dictation.
     private func expireRetainedAudio() {
+        // Never from a test build. `PendingAudio` is a single real directory that
+        // `--ui-testing` does not isolate, while the history store under it *is*
+        // in-memory — so the orphan sweep below sees every one of Gaf's genuinely
+        // retained recordings as referenced by nothing and deletes the expired
+        // ones. The launch call site is already gated; the
+        // `$deletesExpiredRetainedAudio` sink is not, so switching that
+        // preference on in a test build was enough to reach this. Guarding the
+        // function covers both call sites and any later one.
+        //
+        // `servicesAllowed` is true in Release, so shipped behaviour is unchanged.
+        guard servicesAllowed else { return }
         guard preferences.deletesExpiredRetainedAudio,
               let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
 
