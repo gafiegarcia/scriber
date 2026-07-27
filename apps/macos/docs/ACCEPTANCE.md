@@ -11,7 +11,7 @@ shortcuts, or credentials.
 
 **Never run a check that spends API credit without asking Gaf first.**
 
-## Build 23 interface changes
+## Build 25 interface changes
 
 None of these need a real API key.
 
@@ -28,16 +28,21 @@ None of these need a real API key.
       `menuBarIconHeight` in `ScriberApp` is the only number to change.
 - [ ] Copy a single-line entry: the icon changes to a checkmark for about a second
       and a half and **the row does not change height** while it does.
-- [x] The copy and overflow buttons are circular glass, matching Finder's
-      toolbar buttons, with both glyphs centred; Retry sits to their left so copy
-      and the overflow land on the same two positions in every row; the day cards
-      carry a 16pt continuous corner. Confirmed on build 23 at rest.
-- [x] Failed and cancelled entries keep a copy button rather than dropping it,
-      and its glyph is `.secondary` rather than accent. Confirmed on build 23 by
-      comparing a cancelled row against a normal one.
+- [ ] The copy and overflow buttons are plain borderless icons again — glass was
+      tried on build 22/23 and rejected — each taking a near-threshold background
+      under the pointer. Retry sits to their left so copy and the overflow land on
+      the same two positions in every row.
+- [ ] Failed and cancelled entries keep a copy button rather than dropping it,
+      and it reads clearly as unavailable — muted well below the transcript, not
+      merely a different colour. `.secondary` alone was not enough and it is now
+      `.secondary` at 40%.
 - [ ] The overflow menu opens and deletes the right entry. **Delete is not red,
       and will not be** — macOS does not tint destructive menu items, unlike iOS.
-      See the note in `DictationHistoryRow`.
+      See the note in `DictationHistoryRow`. Its popup grows from the leading edge
+      and may overhang the window; that is the built-in behaviour and is
+      preferred over the custom control that used to align it. Its hover
+      background also sits slightly right of the glyph — known, accepted, and not
+      worth a fourth attempt.
 - [ ] The disabled copy button on a failed entry does nothing when clicked.
 - [ ] Clicking anywhere else on a row does nothing: no row highlight, no copy.
       The transcript still selects by dragging and the row still right-clicks to
@@ -48,6 +53,14 @@ None of these need a real API key.
       does not change height as it appears.
 - [ ] Permission and credential banners sit directly under the title and search
       row, above the count row.
+- [ ] The Dictation page's header has no overflow menu at all — just the day and
+      the count.
+- [ ] Settings → Dictation History ends with Clear Dictation History…, showing the
+      entry count and disabled when there is nothing to clear. It confirms first,
+      then empties the Dictation page.
+- [ ] The entry time sits close to the card's leading edge and the overflow button
+      close to its trailing edge, with no wide empty margin inside the card on
+      either side.
 - [ ] The sidebar toggle sits over the sidebar, beside the window controls, where
       every other native app puts it. It has no tooltip — see the note in
       `MainWindowView` for why a custom item cannot go there.
