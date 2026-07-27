@@ -306,6 +306,15 @@ public enum AppPhase: Equatable, Sendable {
         }
     }
 
+    /// Every phase that is not itself a dictation in flight is a resting phase: the
+    /// notice on screen describes something that already finished, so a shortcut
+    /// press must start the next dictation rather than be swallowed. Enumerating
+    /// the resting phases by name is how `.noSpeechDetected` came to deadlock both
+    /// shortcuts until its pill was dismissed by hand — the pill's own countdown
+    /// clears the pill, never this phase. Derive it from `isBusy` instead so a new
+    /// phase can never fall out of the list.
+    public var acceptsRecordingStart: Bool { !isBusy }
+
     /// Returns idle once the credential block is resolved, and otherwise restates
     /// the block with its current reason so a stale message cannot survive a
     /// change from, say, a missing key to an invalid replacement.

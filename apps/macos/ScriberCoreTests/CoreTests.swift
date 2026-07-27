@@ -36,6 +36,25 @@ struct ShortcutMatcherTests {
         #expect(!AppPhase.pasteFailed("No target").isBusy)
     }
 
+    @Test("Every notice phase still accepts the next dictation")
+    func noticePhasesAcceptRecordingStart() {
+        // A notice describes a dictation that already ended. Speaking again must not
+        // wait on its pill: `.noSpeechDetected` used to swallow both shortcuts until
+        // the pill was dismissed by hand, which is exactly when the user is likeliest
+        // to try again straight away.
+        #expect(AppPhase.noSpeechDetected.acceptsRecordingStart)
+        #expect(AppPhase.idle.acceptsRecordingStart)
+        #expect(AppPhase.message("Copied").acceptsRecordingStart)
+        #expect(AppPhase.cancelledTranscript.acceptsRecordingStart)
+        #expect(AppPhase.dictationCopied(text: "hi", message: "No target").acceptsRecordingStart)
+        #expect(AppPhase.permissionsRequired([.microphone]).acceptsRecordingStart)
+        #expect(AppPhase.credentialsUnusable(.missingAPIKey).acceptsRecordingStart)
+        #expect(AppPhase.pasteFailed("No target").acceptsRecordingStart)
+        #expect(AppPhase.transcriptionFailed("Timed out").acceptsRecordingStart)
+        #expect(!AppPhase.recording(mode: .held, elapsed: 0, level: -80).acceptsRecordingStart)
+        #expect(!AppPhase.transcribing(attempt: 1, retryDelay: nil).acceptsRecordingStart)
+    }
+
     @Test("Names every key a shortcut can realistically bind")
     func namesBoundKeys() {
         #expect(ShortcutChord(modifiers: [.function], keyCode: 49).displayName == "fn+Space")
