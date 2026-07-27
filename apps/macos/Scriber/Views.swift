@@ -546,6 +546,7 @@ private struct DictationHistoryRow: View {
 
     @State private var didCopy = false
     @State private var copiedFeedback: Task<Void, Never>?
+    @State private var confirmDelete = false
 
     /// Transcript size. Larger than `.body`, which read as small next to the
     /// generous type Flow uses for the same content.
@@ -677,7 +678,16 @@ private struct DictationHistoryRow: View {
                 // control failed; the offset lives inside it. Do not spend a
                 // fourth on it.
                 Menu {
-                    Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+                    // Confirmed, and with the ellipsis that says so.
+                    //
+                    // Clearing the whole history has always asked first while
+                    // deleting a single entry happened instantly, which is
+                    // backwards: clearing everything is a decision you arrive at,
+                    // and deleting one entry is the one you reach by mis-aiming a
+                    // menu. A transcript is not recoverable — there is no undo for
+                    // this and no trash to fish it out of — so the cheap dialog is
+                    // worth more here than on the bulk action.
+                    Button("Delete…", role: .destructive) { confirmDelete = true }
                 } label: {
                     Image(systemName: "ellipsis")
                         .frame(width: 16, height: 16)
@@ -732,7 +742,21 @@ private struct DictationHistoryRow: View {
                 Button("Retry") { runtime.coordinator.retry(record) }
             }
             Divider()
+            // Same confirmation as the overflow menu's. Two routes to the same
+            // irreversible action must not disagree about whether it asks first.
+            Button("Delete…", role: .destructive) { confirmDelete = true }
+        }
+        // On the row rather than on either menu. A `confirmationDialog` attached
+        // inside a menu's content closure goes with the menu when it closes, so
+        // the dialog never gets presented; the row outlives both menus and is
+        // what both of them set `confirmDelete` on.
+        .confirmationDialog(
+            "Delete this dictation?",
+            isPresented: $confirmDelete
+        ) {
             Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+        } message: {
+            Text("This permanently removes the transcript and any recording kept for retry.")
         }
     }
 

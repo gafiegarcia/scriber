@@ -36,7 +36,9 @@ None of these need a real API key.
       and it reads clearly as unavailable — muted well below the transcript, not
       merely a different colour. `.secondary` alone was not enough and it is now
       `.secondary` at 40%.
-- [ ] The overflow menu opens and deletes the right entry. **Delete is not red,
+- [ ] The overflow menu opens, its Delete… asks for confirmation first, and
+      confirming removes the right entry. Cancelling leaves the entry alone. The
+      row's right-click Delete… asks the same way. **Delete is not red,
       and will not be** — macOS does not tint destructive menu items, unlike iOS.
       See the note in `DictationHistoryRow`. Its popup grows from the leading edge
       and may overhang the window; that is the built-in behaviour and is

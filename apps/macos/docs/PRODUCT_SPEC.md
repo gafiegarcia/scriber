@@ -89,6 +89,7 @@ The current delivery transaction and its regression baseline are defined in
 ## Persistence and security
 
 - Store Dictation history locally with SwiftData until the user manually deletes it.
+- Confirm before deleting history, whether one entry or all of it. A transcript has no undo and no trash, and every deletion route — the entry's overflow menu, its context menu, and Clear Dictation History — must ask first.
 - Retained audio from failed or cancelled dictations expires after 30 days. This is user-configurable and enabled by default. Expiry removes only the recording: the history entry, its transcript, and why it failed are always preserved, and the entry reports that it can no longer be retried. Audio that no dictation references is removed on the same schedule.
 - Keep Scriber's SwiftData history in its dedicated `Scriber/History.store`; never use the generic Application Support `default.store` shared by unsandboxed apps.
 - Store the API key in the default encrypted macOS login Keychain using modern `SecItem` APIs. This is an interim personal-use workaround for free-team provisioning expiry; never store the key in a plaintext file or `UserDefaults`.
