@@ -13,6 +13,11 @@
 - Delete dictation audio only after its transcript is saved. Preserve failed or interrupted audio for retry.
 - App Sandbox remains disabled while global shortcuts and cross-app Accessibility insertion are core features.
 
+## Verification
+
+- **Never start the XCUITest suite unprompted** — it seizes Gaf's pointer and keyboard for its whole duration. Ask, or leave it to him. Package tests, builds, `build-for-testing`, and bumping and installing a build need no permission; do not stop to ask for those.
+- The suite runs with services disabled and no Accessibility trust, so it covers the SwiftUI shell only. Never treat its failures as evidence about dictation, insertion, shortcuts, or credentials. See "Known state of the UI suite" in `apps/macos/docs/ROADMAP.md` before acting on one.
+
 ## Workflow
 
 - Before changing native behavior, read `apps/macos/docs/PRODUCT_SPEC.md` and the relevant part of `apps/macos/docs/ROADMAP.md`. Consult `DEVELOPMENT_LOG.md` only when historical context is useful.
