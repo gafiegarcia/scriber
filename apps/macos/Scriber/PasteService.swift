@@ -27,7 +27,7 @@ enum PasteResult: Sendable {
 /// 2. Confirmation is allowed to be slow. Delivery is confirmed when the
 ///    destination requests the concealed in-flight pasteboard item, or when an
 ///    editable Accessibility target visibly mutates. Missing Accessibility
-///    evidence is never treated as failure — see `docs/PASTE_ENGINE_RESEARCH.md`.
+///    evidence is never treated as failure — see `docs/PASTE_ENGINE.md`.
 @MainActor
 final class PasteService {
     /// Accessibility messages block the caller. macOS defaults to a 6-second
@@ -85,11 +85,10 @@ final class PasteService {
 
     // MARK: - Delivery diagnostics
     //
-    // Temporary instrumentation for the Raycast target-selection investigation.
-    // Scriber picks its paste target with `NSWorkspace.frontmostApplication`, but
-    // an LSUIElement app presenting a nonactivating panel — Raycast, and Scriber's
-    // own pill — takes keyboard focus without becoming frontmost. This records
-    // whether `AXFocusedApplication` distinguishes the two.
+    // Privacy-safe diagnostics for target selection. Scriber normally picks its
+    // paste target with `NSWorkspace.frontmostApplication`, but an LSUIElement app
+    // presenting a nonactivating panel can hold keyboard focus without becoming
+    // frontmost. These fields make that distinction visible when delivery fails.
     //
     // Only process identities and Accessibility roles are recorded. Transcript
     // text is never logged: keeping in-flight dictation private is the entire

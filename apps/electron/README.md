@@ -1,5 +1,9 @@
 # Scriber
 
+> **Archived at 0.6.0.** This Electron implementation is frozen. Its commands
+> and product descriptions document that historical snapshot; active macOS work
+> lives in [`../macos`](../macos).
+
 <!-- TODO: REWORK ALL OF THIS! When I open this repo from private->public, I want this file to be written fully by me, without any hints, residue, or even actual work, of AI-generated text. later -gaf -->
 
 A local-first voice transcription tool powered by **your own** ElevenLabs Scribe v2 account. Record or upload audio/video to create beautifully structured notes — stored on your machine, not in the cloud.

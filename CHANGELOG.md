@@ -1,0 +1,67 @@
+# Changelog
+
+This file records intentionally identified Scriber releases and prerelease
+snapshots. Ordinary development builds belong in Git history, not here.
+
+## Unreleased
+
+### Changed
+
+- Reworked Dictation history into calmer day-grouped cards, moved Clear
+  Dictation History into Settings, and refined row controls and spacing through
+  live review.
+- Regrouped Settings and added the standard Settings, search, and sidebar
+  keyboard routes.
+- Made the menu-bar mark stable during normal work and reserved its warning state
+  for conditions that prevent dictation.
+
+### Fixed
+
+- Empty ElevenLabs results now produce an actionable microphone warning instead
+  of disappearing silently.
+- In-flight dictations remain hidden until an outcome exists, while explicit
+  retries stay visible.
+- Launch-time permission pills no longer trigger SwiftUI/AppKit update cycles,
+  and the launch smoke check no longer activates or visibly duplicates Scriber.
+
+## 0.7.0-alpha.8 — 2026-07-27
+
+- Preserved native bundle build 14 after fixing the main window reopening when
+  Command-W was pressed soon after launch.
+- Moved the local development team setting out of the Xcode project while
+  preserving the Release signing requirement.
+- Recorded the first end-to-end run of the native UI suite.
+
+## 0.7.0-alpha.7 — 2026-07-26
+
+- Preserved native bundle build 11 after the full-codebase review and signed
+  cross-app acceptance pass.
+- Moved delivery to the cursor focused when transcription completes and followed
+  keyboard focus into nonactivating panels such as Raycast.
+- Removed Accessibility work from recording start, reported unusable credentials
+  at launch, protected recovered history from overwrite, and added 30-day
+  retained-audio expiry.
+
+## 0.7.0-alpha.6 — 2026-07-23
+
+- Preserved native bundle build 7 with a dedicated SwiftData history store,
+  orphaned-audio recovery, and the long-lived local Release signing identity.
+
+## 0.7.0-alpha.2 — 2026-07-23
+
+- Preserved the final bundle-build-3 checkpoint using provisioned Data
+  Protection Keychain storage before the personal-use login-Keychain transition.
+
+## 0.7.0-alpha.1 — 2026-07-22
+
+- Preserved native bundle build 3 as the first intentionally frozen personal-use
+  source snapshot.
+- Included shortcut-driven dictation, local history, retryable transcription,
+  automatic insertion, copied fallback, and credit-free automated coverage.
+
+The names `0.7.0-alpha.3`, `.4`, and `.5` were used while discussing installation
+candidates, but no Git tags with those names were created. They are not releases
+and therefore do not receive changelog entries.
+
+Electron `0.6.0` and earlier are recorded in the frozen
+[Electron changelog](apps/electron/CHANGELOG.md).

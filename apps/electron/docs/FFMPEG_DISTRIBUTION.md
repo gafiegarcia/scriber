@@ -1,5 +1,9 @@
 # FFmpeg distribution notes
 
+> **Archived Electron guidance.** This remains the compliance record for the
+> frozen 0.6.0 implementation and applies only if Electron distribution resumes.
+> It is not part of the active native macOS build.
+
 Scriber uses `ffmpeg` and `ffprobe` as separate processes to extract audio from
 video files. The colleague-facing Mac app must not redistribute the downloaded
 `ffmpeg-static` package binaries: their current macOS builds contain nonfree

@@ -1,7 +1,7 @@
 # Manual Acceptance Checks
 
 Everything here needs a person, an installed build, and in a few marked cases a
-real API key. It is the list standing between the current build and a stable
+real API key. It is the list standing between the current candidate and a stable
 `v0.7.0`; [`ROADMAP.md`](ROADMAP.md) holds the release gates that point at it.
 
 Automated checks live in [`TESTING.md`](TESTING.md) and are not repeated here.
@@ -11,7 +11,7 @@ shortcuts, or credentials.
 
 **Never run a check that spends API credit without asking Gaf first.**
 
-## Build 25 interface changes
+## Current interface acceptance
 
 None of these need a real API key.
 
@@ -72,7 +72,7 @@ None of these need a real API key.
       every window closed — and lands on Permissions and Input rather than the top
       of Settings. Same for the menu bar's "Permissions Required…" item.
 
-## Build 16 interface changes
+## Earlier interface acceptance still open
 
 - [ ] Settings shows General, Feedback, ElevenLabs, Dictation, Dictation History,
       and Permissions and Input in that order, with Accessibility above Microphone.
@@ -173,7 +173,7 @@ None of these need a real API key.
 
 ## Insertion and fallback
 
-Read [`PASTE_ENGINE_RESEARCH.md`](PASTE_ENGINE_RESEARCH.md) before changing
+Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) before changing
 anything these checks cover. Its table is the regression baseline.
 
 - [x] Confirm recording starts immediately in the apps that previously took two to
