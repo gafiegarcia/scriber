@@ -283,12 +283,14 @@ struct ScriberApp: App {
     ///
     /// So the size is set on the image, once, here. `Image(nsImage:)` then hands
     /// AppKit an image that already knows how big it is, and there is no SwiftUI
-    /// layout in the path to be honoured or ignored. Rounding the width keeps the
-    /// item on whole points.
+    /// layout in the path to be honoured or ignored. The width is left fractional
+    /// so the ratio matches the source exactly — the asset is vector-backed, so
+    /// AppKit re-rasterizes at whatever size it's given rather than scaling a
+    /// fixed bitmap.
     private static func menuBarImage(_ image: NSImage) -> NSImage {
         let ratio = image.size.height > 0 ? image.size.width / image.size.height : 1
         image.size = NSSize(
-            width: (menuBarIconHeight * ratio).rounded(),
+            width: menuBarIconHeight * ratio,
             height: menuBarIconHeight
         )
         // Template rendering is what makes the mark follow the menu bar through
