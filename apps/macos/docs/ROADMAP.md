@@ -1,6 +1,6 @@
 # Native macOS Roadmap
 
-What remains before the personal-use line can be called stable `v0.7.0`.
+What remains before the `v0.7.0` tag can be cut.
 Required behavior belongs in [Product specification](PRODUCT_SPEC.md), human
 checks in [Acceptance](ACCEPTANCE.md), and machine checks in
 [Testing](TESTING.md). Git is the engineering history.
@@ -30,7 +30,7 @@ tagged.
 
 ## Non-blocking deferred work
 
-These items are deliberately outside the stable `v0.7.0` gate. They remain
+These items are deliberately outside the `v0.7.0` gate. They remain
 recorded so they are not mistaken for forgotten release blockers.
 
 - **Sidebar-toggle flicker:** Settings → Dictation briefly flickers while the
@@ -81,10 +81,10 @@ None of these findings is known to affect current behavior.
 
 ## Release gates
 
-Before creating stable `v0.7.0`:
+Before creating `v0.7.0`:
 
-- [ ] Complete the applicable checks in [`ACCEPTANCE.md`](ACCEPTANCE.md). A stable
-      source release does not require Developer ID signing or notarization.
+- [ ] Complete the applicable checks in [`ACCEPTANCE.md`](ACCEPTANCE.md). A source
+      release does not require Developer ID signing or notarization.
 - [ ] Run the XCUITest suite end to end once. Gaf must start it because it takes
       over the pointer and keyboard; see [`TESTING.md`](TESTING.md).
 - [ ] Generate artifact-specific third-party notices before publishing a
@@ -92,9 +92,10 @@ Before creating stable `v0.7.0`:
 - [ ] Confirm the repository and release artifact contain no credentials,
       recordings, local data, or machine-specific build output.
 
-The final tag is reserved for behavior accepted as stable for personal use. A
-supported downloadable binary is a separate distribution milestone; see the
-[versioning policy](../../../docs/VERSIONING.md).
+The tag is reserved for behavior accepted for personal use, and claims nothing
+beyond that. A supported downloadable binary is a separate distribution
+milestone; see the [versioning policy](../../../docs/VERSIONING.md), which also
+records how versions move after `v0.7.0`.
 
 ## After v0.7.0
 

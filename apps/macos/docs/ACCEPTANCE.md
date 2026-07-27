@@ -1,8 +1,8 @@
 # Manual Acceptance Checks
 
 Everything here needs a person, an installed build, and in a few marked cases a
-real API key. It is the list standing between the current candidate and a stable
-`v0.7.0`; [`ROADMAP.md`](ROADMAP.md) holds the release gates that point at it.
+real API key. It is the list standing between the current candidate and the
+`v0.7.0` tag; [`ROADMAP.md`](ROADMAP.md) holds the release gates that point at it.
 
 Automated checks live in [`TESTING.md`](TESTING.md) and are not repeated here.
 Nothing the UI test suite covers counts as one of these: it runs with services
@@ -102,7 +102,7 @@ None of these need a real API key.
 - [x] Install the verified locally certificate-signed Release build at
       `/Applications/Scriber.app`.
 - [ ] Complete fresh onboarding under the `com.gafiegarcia.scriber` identity.
-- [ ] Verify Microphone and Accessibility grants persist for the stable app.
+- [ ] Verify Microphone and Accessibility grants persist for the installed app.
 - [ ] Revoke Microphone and Accessibility separately and together after
       onboarding; verify the proactive warning, permission pill, Settings route,
       and automatic shortcut-monitor recovery after regranting.
