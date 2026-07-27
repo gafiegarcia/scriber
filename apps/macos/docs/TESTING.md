@@ -109,10 +109,12 @@ never idles is an app failure worth sampling before blaming the harness.
 
 ## Visual inspection
 
-Use computer-use with access restricted to **Scriber**. Compositor-level app-only
-capture excludes other applications. It can still move the real pointer and
-press keys, so do not begin while Gaf is typing, and verify whether the visible
-window belongs to the installed app or a test build.
+Visual inspection is available and encouraged. Use computer-use with access
+restricted to **Scriber**; compositor-level app-only capture excludes other
+applications while still allowing hover states, menus, scrolling, and the menu
+bar to be checked. It moves the real pointer and can press keys, so do not begin
+while Gaf is typing, and verify whether the visible window belongs to the
+installed app or a test build.
 
 ## XCUITest
 

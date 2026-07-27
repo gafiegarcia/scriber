@@ -12,8 +12,9 @@ snapshots. Ordinary development builds belong in Git history, not here.
   live review.
 - Regrouped Settings and added the standard Settings, search, and sidebar
   keyboard routes.
-- Made the menu-bar mark stable during normal work and reserved its warning state
-  for conditions that prevent dictation.
+- Rendered the menu-bar mark at its true vector aspect ratio instead of rounding
+  its fractional width, kept it stable during normal work, and reserved its
+  warning state for conditions that prevent dictation.
 
 ### Fixed
 
