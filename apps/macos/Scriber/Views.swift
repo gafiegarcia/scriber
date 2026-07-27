@@ -203,7 +203,6 @@ struct DictationHistoryView: View {
     @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
     let searchFocused: FocusState<Bool>.Binding
     @State private var search = ""
-    @State private var confirmClear = false
     @State private var stickyDayTitle: String?
 
     /// The `List`'s own frame, so a day label's `minY` inside it reads as
@@ -302,20 +301,13 @@ struct DictationHistoryView: View {
 
             Spacer(minLength: 12)
 
+            // No overflow menu here any more. It held one item, Clear Dictation
+            // History, which is a thing you do once in a while and never from
+            // this page — so it sat permanently in the corner of a page it had
+            // no business on. It lives in Settings now, next to the other
+            // history preference.
             Text("\(visibleRecords.count) \(visibleRecords.count == 1 ? "dictation" : "dictations")")
                 .foregroundStyle(.secondary)
-            TrailingAlignedMenuButton(
-                systemImage: "ellipsis.circle",
-                help: "Dictation history actions",
-                isEnabled: !visibleRecords.isEmpty,
-                items: [
-                    TrailingAlignedMenuButton.Item(title: "Clear Dictation History…") {
-                        confirmClear = true
-                    }
-                ]
-            )
-            .frame(width: 24, height: 24)
-            .accessibilityIdentifier("dictation-history-actions")
         }
         .padding(.horizontal, DictationHistoryGroupBackground.horizontalInset)
         .padding(.vertical, 14)
@@ -387,11 +379,6 @@ struct DictationHistoryView: View {
         .accessibilityIdentifier("dictation-history-view")
         .searchable(text: $search, prompt: DictationHistoryView.searchPrompt)
         .searchFocused(searchFocused)
-        .confirmationDialog("Delete all dictation history?", isPresented: $confirmClear) {
-            Button("Delete All", role: .destructive) { runtime.coordinator.clearDictationHistory(visibleRecords) }
-        } message: {
-            Text("This permanently removes transcripts and any retained failed recordings.")
-        }
     }
 }
 
@@ -464,86 +451,6 @@ private struct RecoveryBanner: View {
         // rounded edge lines up with the day cards below it.
         .padding(.horizontal, DictationHistoryGroupBackground.horizontalInset)
         .padding(.vertical, 12)
-    }
-}
-
-/// A trailing-edge overflow button whose menu opens toward the leading edge.
-///
-/// SwiftUI's `Menu` offers no control over which edge its popup grows from, so a
-/// control near the window's trailing edge spills its menu outside the window and
-/// only flips once it would leave the *screen*. Hosting an `NSMenu` lets the menu
-/// be positioned explicitly, with its trailing edge aligned to the button's.
-private struct TrailingAlignedMenuButton: NSViewRepresentable {
-    struct Item {
-        let title: String
-        let action: () -> Void
-    }
-
-    let systemImage: String
-    let help: String
-    let isEnabled: Bool
-    let items: [Item]
-
-    func makeNSView(context: Context) -> NSButton {
-        let button = NSButton(title: "", target: context.coordinator, action: #selector(Coordinator.present(_:)))
-        button.isBordered = false
-        button.bezelStyle = .accessoryBar
-        button.imagePosition = .imageOnly
-        button.setButtonType(.momentaryChange)
-        return button
-    }
-
-    func updateNSView(_ button: NSButton, context: Context) {
-        button.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: help)
-        button.toolTip = help
-        // Assign only on a real change. `NSControl.setEnabled:` invalidates the
-        // window's key-view loop, and AppKit rebuilds it by asking this button's
-        // hosting view for its responder node — a read of the SwiftUI attribute
-        // graph from inside the same update pass that is setting this property.
-        // That re-entry is a graph cycle, and AttributeGraph spins on it forever
-        // at 100% CPU — any pill appearing while this header updates used to wedge
-        // the app. Deferring the write by a main-actor turn is what breaks the
-        // re-entry; the change check alone is not enough, because the first real
-        // write still cycles. It only spares the redundant writes.
-        if button.isEnabled != isEnabled {
-            let enabled = isEnabled
-            Task { @MainActor in button.isEnabled = enabled }
-        }
-        button.target = context.coordinator
-        button.action = #selector(Coordinator.present(_:))
-        context.coordinator.items = items
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(items: items)
-    }
-
-    final class Coordinator: NSObject {
-        var items: [Item]
-
-        init(items: [Item]) {
-            self.items = items
-        }
-
-        @objc func present(_ sender: NSButton) {
-            let menu = NSMenu()
-            for (index, item) in items.enumerated() {
-                let menuItem = NSMenuItem(title: item.title, action: #selector(invoke(_:)), keyEquivalent: "")
-                menuItem.target = self
-                menuItem.tag = index
-                menu.addItem(menuItem)
-            }
-            // `menu.size` forces the menu to lay out, which is what makes the
-            // trailing alignment exact rather than an estimate. The button is not
-            // flipped, so its `minY` is the bottom edge and the menu drops below it.
-            let origin = NSPoint(x: sender.bounds.maxX - menu.size.width, y: sender.bounds.minY)
-            menu.popUp(positioning: nil, at: origin, in: sender)
-        }
-
-        @objc private func invoke(_ sender: NSMenuItem) {
-            guard items.indices.contains(sender.tag) else { return }
-            items[sender.tag].action()
-        }
     }
 }
 
@@ -756,36 +663,30 @@ private struct DictationHistoryRow: View {
                 .help(canCopy ? "Copy transcription" : "Nothing to copy")
                 .accessibilityLabel(didCopy ? "Copied" : "Copy transcription")
 
-                // An `NSButton` rather than a SwiftUI `Menu`, so that the glyph
-                // is centred in whatever frame it is given.
+                // The plain SwiftUI menu, on purpose, with its default popup
+                // placement. The AppKit replacement that used to be here dropped
+                // its menu trailing-aligned and centred its glyph exactly, but
+                // it anchored the popup badly enough that the alignment was not
+                // worth the control. Built-in behaviour is the better default
+                // even where it is less precise.
                 //
-                // A `Menu` keeps the width of its disclosure indicator even
-                // under `.menuIndicator(.hidden)` — the arrow is not drawn, but
-                // the space remains part of the control — so a hover background
-                // wrapped around it sits off centre by half that width. Three
-                // attempts to correct that from the outside failed, because the
-                // offset lives inside the control where a frame cannot reach it.
-                // `imagePosition = .imageOnly` has no indicator to reserve for.
-                //
-                // Nothing is lost by leaving SwiftUI's `Menu` here. **macOS does
-                // not tint destructive menu items red** — that is an iOS
-                // behaviour, and Finder's "Move to Trash", Mail's "Delete", and
-                // Photos' "Delete" are all plain. A destructive `Button` in a
-                // SwiftUI menu renders exactly as plain as this `NSMenuItem`
-                // does; an earlier comment claiming the red was lost by moving
-                // to `NSMenu` was wrong, because it was never there.
-                TrailingAlignedMenuButton(
-                    systemImage: "ellipsis",
-                    help: "More actions",
-                    isEnabled: true,
-                    items: [
-                        TrailingAlignedMenuButton.Item(title: "Delete") {
-                            runtime.coordinator.delete(record)
-                        }
-                    ]
-                )
-                .frame(width: 16, height: 16)
+                // Known and accepted: a `Menu` keeps the width of its disclosure
+                // indicator even under `.menuIndicator(.hidden)`, so the hover
+                // background — which wraps the control — sits slightly right of
+                // the glyph. Three attempts to correct that from outside the
+                // control failed; the offset lives inside it. Do not spend a
+                // fourth on it.
+                Menu {
+                    Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 16, height: 16)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
                 .modifier(RowIconHover())
+                .help("More actions")
                 .accessibilityLabel("More actions")
             }
         }
@@ -907,7 +808,11 @@ private extension DictationRecord {
 
 struct SettingsView: View {
     @EnvironmentObject private var runtime: AppRuntime
+    /// Only so Clear Dictation History knows whether there is anything to clear,
+    /// and how much. Sorted to match the Dictation page rather than for display.
+    @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
     let onShortcutConfigurationCaptureChanged: (Bool) -> Void
+    @State private var confirmClearHistory = false
     @State private var apiKey = ""
     @State private var keyFeedback: KeySaveFeedback?
     @State private var isCheckingAPIKey = false
@@ -918,6 +823,13 @@ struct SettingsView: View {
 
     init(onShortcutConfigurationCaptureChanged: @escaping (Bool) -> Void = { _ in }) {
         self.onShortcutConfigurationCaptureChanged = onShortcutConfigurationCaptureChanged
+    }
+
+    /// A dictation still being transcribed is not shown in history and must not
+    /// be swept up by a clear — its audio is still in use. Matches the filter the
+    /// Dictation page applies to what it displays.
+    private var clearableRecords: [DictationRecord] {
+        records.filter { $0.transcriptionState != .transcribing }
     }
 
     var body: some View {
@@ -1062,6 +974,20 @@ struct SettingsView: View {
                 Text("Failed and cancelled dictations keep their audio so you can retry them. Transcripts and history entries are always kept; only the unused recording is removed.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                // Moved here from the Dictation page's header, where it was the
+                // only item in an overflow menu that sat in the corner of every
+                // session for the sake of something done once in a while.
+                HStack {
+                    Button("Clear Dictation History…", role: .destructive) {
+                        confirmClearHistory = true
+                    }
+                    .disabled(clearableRecords.isEmpty)
+                    .accessibilityIdentifier("clear-dictation-history")
+                    Spacer()
+                    Text("\(clearableRecords.count) \(clearableRecords.count == 1 ? "entry" : "entries")")
+                        .foregroundStyle(.secondary)
+                }
             }
             Section("Permissions and Input") {
                 PermissionStatusRow(
@@ -1093,6 +1019,13 @@ struct SettingsView: View {
             .formStyle(.grouped)
             .accessibilityIdentifier("settings-view")
             .padding()
+            .confirmationDialog("Delete all dictation history?", isPresented: $confirmClearHistory) {
+                Button("Delete All", role: .destructive) {
+                    runtime.coordinator.clearDictationHistory(clearableRecords)
+                }
+            } message: {
+                Text("This permanently removes transcripts and any retained failed recordings.")
+            }
             .onAppear {
                 apiKey = ""
                 runtime.coordinator.refreshPermissions(promptForAccessibility: false)
