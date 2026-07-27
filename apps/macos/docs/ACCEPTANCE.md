@@ -11,7 +11,7 @@ shortcuts, or credentials.
 
 **Never run a check that spends API credit without asking Gaf first.**
 
-## Build 19 interface changes
+## Build 21 interface changes
 
 None of these need a real API key.
 
@@ -30,7 +30,9 @@ None of these need a real API key.
       and a half and **the row does not change height** while it does.
 - [ ] Hovering the copy button and the overflow menu gives each a background
       subtle enough to stay out of the way, **and the glyph sits centred in it** —
-      the overflow menu's background used to run wide to the right. Clicking
+      the overflow menu's background used to run wide to the right. **Its menu
+      still opens, its Delete still deletes, and Delete is no longer red** — the
+      row overflow is an AppKit menu now, matching the header's. Clicking
       anywhere else on a row does nothing: no row highlight, no copy. The
       transcript still selects by dragging and the row still right-clicks to its
       context menu.

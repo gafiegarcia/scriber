@@ -721,34 +721,34 @@ private struct DictationHistoryRow: View {
                     .buttonStyle(.bordered)
                     .disabled(runtime.coordinator.phase.isBusy)
             }
-            Menu {
-                Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
-            } label: {
-                Image(systemName: "ellipsis")
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            // `.leading`, and that single word is the whole fix.
+            // Not a SwiftUI `Menu`, for the same reason the header is not one.
             //
             // A `Menu` keeps the width of its disclosure indicator even under
-            // `.menuIndicator(.hidden)`: the arrow is not drawn, but the space
-            // it would occupy is still part of the control, on the trailing
-            // side. So the control is wider than the glyph in it. Centring that
-            // control inside a 16pt frame therefore pushed the glyph left by
-            // half the phantom width while the hover background stayed centred
-            // on the frame — the background ran wide to the right.
+            // `.menuIndicator(.hidden)` — the arrow is not drawn, but the space
+            // is still part of the control — so the glyph never sits where the
+            // control's centre is. A hover background drawn around the control
+            // is therefore visibly off-centre, and two attempts to correct it by
+            // constraining or realigning the frame both failed, because the
+            // offset lives inside the control where a frame cannot reach it.
             //
-            // Pinning the control's leading edge to the frame's puts the glyph
-            // at the frame's leading 16 points, which is what the background is
-            // drawn around. It stays centred however much space the indicator
-            // reserves, so this does not depend on measuring it.
-            //
-            // The hover treatment has to stay outside the `Menu` rather than
-            // inside its label. `.onHover` on the menu itself never fires — it
-            // is an AppKit control with its own tracking areas — so a version
-            // that drew the background in the label had no hover at all.
-            .frame(width: 16, height: 16, alignment: .leading)
+            // `TrailingAlignedMenuButton` is a plain `NSButton` with
+            // `imagePosition = .imageOnly`. There is no indicator and no space
+            // reserved for one, and AppKit centres the image in the button, so
+            // the glyph is centred in whatever frame it is given — which is
+            // exactly what the background is drawn around. It also drops the
+            // menu trailing-aligned, which is what a control this close to the
+            // window's right edge wants.
+            TrailingAlignedMenuButton(
+                systemImage: "ellipsis",
+                help: "More actions",
+                isEnabled: true,
+                items: [
+                    TrailingAlignedMenuButton.Item(title: "Delete") {
+                        runtime.coordinator.delete(record)
+                    }
+                ]
+            )
+            .frame(width: 16, height: 16)
             .modifier(RowIconHover())
         }
         .padding(.vertical, 4)
