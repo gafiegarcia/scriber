@@ -237,34 +237,59 @@ struct ScriberApp: App {
     @ViewBuilder
     private var menuBarLabel: some View {
         if needsAttention {
-            Image(systemName: "exclamationmark.circle")
-                .resizable()
-                .scaledToFit()
-                .frame(width: Self.menuBarIconSize, height: Self.menuBarIconSize)
+            Image(nsImage: Self.warningImage)
                 .accessibilityLabel("Scriber needs attention")
         } else {
-            Image(.menuBarIcon)
-                .resizable()
-                .scaledToFit()
-                .frame(width: Self.menuBarIconSize, height: Self.menuBarIconSize)
+            Image(nsImage: Self.markImage)
                 .accessibilityLabel("Scriber")
         }
     }
 
-    /// A square box both branches fill, so the item does not change width when
-    /// Scriber starts or stops needing attention.
+    /// Height of the mark in the menu bar. The single knob worth turning.
+    private static let menuBarIconHeight: CGFloat = 17
+
+    /// **A menu bar item measures `NSImage.size`, not the SwiftUI frame around
+    /// it.** Two builds were spent on the frame before that was established, and
+    /// both failed in the same direction the artwork pointed:
     ///
-    /// Raising this number was not what the icon needed. `scaledToFit` fits the
-    /// image's intrinsic size, and `MenuBarIcon` used to be the app-icon artwork
-    /// with its full 1024-square canvas, of which the mark is only 414 x 602 —
-    /// so the mark rendered at 59% of this number and 22 bought about 13pt of
-    /// visible ink. The asset is now cropped to that ink, so this is the mark's
-    /// height rather than the height of the transparency around it, and it is
-    /// the one knob to turn if it wants to sit taller or shorter next to its
-    /// neighbours. Measure against a neighbouring item rather than judging by
-    /// eye: the previous 18-to-22 change moved the ink barely 2pt and read as no
-    /// change at all.
-    private static let menuBarIconSize: CGFloat = 17
+    /// - Build 16 handed it the app-icon artwork on its 1024 square. The mark is
+    ///   414 x 602 of that canvas, so whatever size the item took, 59% of it was
+    ///   the mark and the rest was transparency. It looked far too small.
+    /// - Build 17 cropped the asset to its ink and set a 17pt frame. The frame
+    ///   was ignored, the item took the image's own size, and at 414 points wide
+    ///   it ate the menu bar — every other status item was pushed into the
+    ///   overflow. Loading the compiled asset confirms the intrinsic size is
+    ///   exactly 414 x 602, and the other items returned the moment this sizing
+    ///   landed.
+    ///
+    /// So the size is set on the image, once, here. `Image(nsImage:)` then hands
+    /// AppKit an image that already knows how big it is, and there is no SwiftUI
+    /// layout in the path to be honoured or ignored. Rounding the width keeps the
+    /// item on whole points.
+    private static func menuBarImage(_ image: NSImage) -> NSImage {
+        let ratio = image.size.height > 0 ? image.size.width / image.size.height : 1
+        image.size = NSSize(
+            width: (menuBarIconHeight * ratio).rounded(),
+            height: menuBarIconHeight
+        )
+        // Template rendering is what makes the mark follow the menu bar through
+        // light, dark, and a tinted desktop behind a transparent bar.
+        image.isTemplate = true
+        return image
+    }
+
+    private static let markImage: NSImage = menuBarImage(NSImage(resource: .menuBarIcon))
+
+    /// Deliberately the same height as the mark, so the item does not resize
+    /// when Scriber starts or stops needing attention. The symbol is square, so
+    /// the width still changes by a few points; matching height is what stops it
+    /// reading as a jump.
+    private static let warningImage: NSImage = menuBarImage(
+        NSImage(
+            systemSymbolName: "exclamationmark.circle",
+            accessibilityDescription: "Scriber needs attention"
+        ) ?? NSImage(resource: .menuBarIcon)
+    )
 
     private var needsAttention: Bool {
         guard runtime.preferences.onboardingComplete else { return false }

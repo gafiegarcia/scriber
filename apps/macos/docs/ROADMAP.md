@@ -9,13 +9,17 @@ commands, and a running account of what each build got wrong. Those are now
 
 ## Where the app is
 
-Scriber `0.7.0` build `17` is installed at `/Applications/Scriber.app` and is the
+Scriber `0.7.0` build `18` is installed at `/Applications/Scriber.app` and is the
 current personal-use candidate. It carries the build 15 bug-and-polish track, the
 build 16 pill and settings work, and the planned-work list that had accumulated
-from live use: the menu bar icon, history hover and click-to-copy, the sticky day
-header, pill activation and permission routing, and the sidebar toggle. It is the
-first installed build to carry the AttributeGraph fix for the launch-pill wedge —
-build 16 was installed before that was found.
+from live use: the menu bar icon, the sticky day header, pill activation and
+permission routing, and history row polish. Build 17 shipped that track and was
+corrected within the hour on live use — the menu bar icon was sized so badly it
+pushed every other status item into the overflow, row click-to-copy could not be
+made honest alongside selectable text, and a replacement sidebar toggle could not
+be placed where AppKit puts the real one. Build 17 is superseded and should not be
+installed. Build 18 is also the first installed build carrying the AttributeGraph
+fix for the launch-pill wedge; build 16 was installed before that was found.
 
 Nothing on the interface track is outstanding. What stands between here and
 stable is verification, not code: [`ACCEPTANCE.md`](ACCEPTANCE.md) is the list,
@@ -40,14 +44,26 @@ Preserved snapshots: `v0.7.0-alpha.8` (build 14), `v0.7.0-alpha.7` (build 11),
 - [x] Add configurable Frog/Bottle/Morse feedback, recording-time other-audio
       muting, robust live modifier-chord capture, and shortcut suspension while
       configuring bindings.
-- [x] Clear the interface backlog raised from live use of builds 15 and 16.
+- [x] Clear the interface backlog raised from live use of builds 15 and 16, and
+      the corrections that live use of build 17 raised against it.
 - [ ] Validate bare `Fn` capture and suppression on macOS 27 hardware.
 - [ ] Complete the manual acceptance checks in [`ACCEPTANCE.md`](ACCEPTANCE.md).
 
 ## Planned work
 
-Nothing is queued for the next build. The two items below were deliberately
-deferred rather than dropped, and are the natural next track when one is wanted.
+One open bug, then two features that were deliberately deferred rather than
+dropped and are the natural next track when one is wanted.
+
+- **Sidebar toggle flickers switching Settings → Dictation**, but not the other
+  way. Long-standing and cosmetic. The one-directional asymmetry is the clue and
+  it was not available before: **only Dictation puts a search field in the
+  toolbar**, through `.searchable` on `DictationHistoryView`, so that direction
+  restructures the toolbar and the other only tears an item out. Untested. The
+  obvious fix — hoisting `.searchable` to `MainWindowView` so the toolbar's shape
+  never changes — would show a search field on Settings, where it means nothing,
+  so it needs a better idea than that. Do not solve it by replacing the toggle:
+  that was tried in build 17 and there is no public toolbar placement that puts a
+  custom item where AppKit puts the real one.
 
 - **Hands-free pill controls.** The hands-free pill should read as distinct from
   hold-to-dictate, carrying a confirm and a cancel button so a locked recording

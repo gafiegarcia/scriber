@@ -48,12 +48,11 @@ struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var runtime: AppRuntime
     @State private var section: MainSection? = .dictation
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @FocusState private var sidebarFocused: Bool
     @FocusState private var dictationSearchFocused: Bool
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView {
             List(selection: $section) {
                 Label("Dictation", systemImage: "clock.arrow.circlepath")
                     .tag(MainSection.dictation)
@@ -66,22 +65,18 @@ struct MainWindowView: View {
             .navigationTitle("Scriber")
             .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
             .focused($sidebarFocused)
-            // The supplied toggle cannot be given a tooltip, and it belongs to
-            // the column SwiftUI rebuilds — which is what makes it blink every
-            // time the selection moves between Dictation and Settings. Owning
-            // it fixes both: it is declared on the sidebar, which never changes
-            // shape, and it can say what it does and which key does it.
-            .toolbar(removing: .sidebarToggle)
-            .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    Button(action: toggleSidebar) {
-                        Image(systemName: "sidebar.leading")
-                    }
-                    .help(isSidebarCollapsed ? "Show Sidebar (⌘.)" : "Hide Sidebar (⌘.)")
-                    .accessibilityLabel(isSidebarCollapsed ? "Show Sidebar" : "Hide Sidebar")
-                    .accessibilityIdentifier("sidebar-toggle")
-                }
-            }
+            // The sidebar toggle is deliberately the one AppKit supplies.
+            //
+            // Replacing it to attach a tooltip was tried and reverted: a custom
+            // `ToolbarItem` cannot be put where the real one goes. AppKit gives
+            // the toggle its own slot above the sidebar, beside the window
+            // controls, and there is no public placement that names that slot —
+            // `.navigation` is the closest and it still lands in the detail
+            // column's leading edge, next to the page title. Every native app
+            // with a sidebar puts the control over the sidebar, so a tooltip is
+            // not worth moving it. If the tooltip is wanted later it has to come
+            // from reaching the supplied `NSToolbarItem` and setting `toolTip`
+            // on it, not from a second control.
         } detail: {
             Group {
                 switch section ?? .dictation {
@@ -110,24 +105,6 @@ struct MainWindowView: View {
     private func applyMainWindowRequest(_ request: MainWindowRequest?) {
         guard let request else { return }
         section = request.destination == .dictation ? .dictation : .settings
-    }
-
-    private var isSidebarCollapsed: Bool { columnVisibility == .detailOnly }
-
-    /// The same route Command-period takes, deliberately.
-    ///
-    /// Driving `columnVisibility` from here instead would give the button and
-    /// the menu command two different mechanisms to disagree about, and the menu
-    /// command cannot be moved onto the binding: it reaches the split view
-    /// through the responder chain, which is also what makes Command-period fall
-    /// through to Cancel while a confirmation dialog is up rather than toggling
-    /// the sidebar behind it. The binding stays here to read the current state
-    /// for the tooltip, not to set it.
-    private func toggleSidebar() {
-        NSApp.keyWindow?.firstResponder?.tryToPerform(
-            #selector(NSSplitViewController.toggleSidebar(_:)),
-            with: nil
-        )
     }
 
     private func focusSidebarIfAppropriate() {
@@ -576,11 +553,6 @@ private struct TrailingAlignedMenuButton: NSViewRepresentable {
 private struct DictationHistoryGroupBackground: View {
     let isFirst: Bool
     let isLast: Bool
-    /// Set while the pointer is over this entry. The highlight is drawn here
-    /// rather than behind the row's content because only this view knows the
-    /// card's shape and full width; a background on the content would stop at
-    /// the content inset and leave the card's margins unlit.
-    var isHovered: Bool = false
 
     private let radius: CGFloat = 10
 
@@ -613,7 +585,7 @@ private struct DictationHistoryGroupBackground: View {
         // a system background colour: `controlBackgroundColor` over
         // `windowBackgroundColor` is nearly identical in dark mode.
         shape
-            .fill(Color.primary.opacity(isHovered ? 0.11 : 0.06))
+            .fill(Color.primary.opacity(0.06))
             // Drawn here rather than through `listRowSeparator`, which spans the
             // whole row and would run past the card onto the page. This one is
             // clipped to the card and crosses the full width, including under the
@@ -652,7 +624,6 @@ private struct DictationHistoryRow: View {
     let isFirst: Bool
     let isLast: Bool
 
-    @State private var isHovered = false
     @State private var didCopy = false
     @State private var copiedFeedback: Task<Void, Never>?
 
@@ -727,10 +698,12 @@ private struct DictationHistoryRow: View {
                 Button(action: copy) {
                     Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
                         .foregroundStyle(didCopy ? Color.green : Color.accentColor)
-                        // The two glyphs are not the same width, and letting the
-                        // button resize under the pointer made the whole trailing
-                        // cluster jump at the moment of the click.
-                        .frame(width: 16)
+                        // Both axes, not just the width. `checkmark` is shorter
+                        // than `doc.on.doc`, and on a single-line entry the icon
+                        // is the tallest thing in the row — so sizing only the
+                        // width left the row collapsing a couple of points at
+                        // the moment of the copy and springing back after.
+                        .frame(width: 16, height: 16)
                 }
                 .buttonStyle(.borderless)
                 .modifier(RowIconHover())
@@ -775,23 +748,23 @@ private struct DictationHistoryRow: View {
         // The card and the gaps between groups carry the grouping. Row rules
         // inside a bordered card only added a second, competing division.
         .listRowSeparator(.hidden)
-        .listRowBackground(
-            DictationHistoryGroupBackground(isFirst: isFirst, isLast: isLast, isHovered: isHovered)
-        )
-        // The gaps between the time, the transcript, and the trailing controls
-        // are part of the entry, so the whole rectangle has to be hoverable and
-        // clickable — not just the pixels that happen to have content on them.
-        .contentShape(Rectangle())
-        .onHover { isHovered = $0 }
-        // Copying the transcript is what the user comes to a history row to do,
-        // so the small copy button is one route to it rather than the only one.
+        .listRowBackground(DictationHistoryGroupBackground(isFirst: isFirst, isLast: isLast))
+        // No row hover state and no click-to-copy. Both were built and removed
+        // the same day, and the reason is worth keeping so they are not rebuilt
+        // the same way: a whole-row copy target and selectable text inside it
+        // cannot both be honest. Selectable text hit-tests first, so clicking
+        // the transcript — the obvious place to aim — selected instead of
+        // copying, while clicking the empty space beside it copied. Learning
+        // that a row-wide affordance excludes the one thing on the row you would
+        // click is worse than not offering it. The row hover went with it: it
+        // advertised a target that did not exist, and it could not cover the
+        // gaps between entries, so the highlight dropped out as the pointer
+        // crossed from one row to the next.
         //
-        // This does not reach a click that lands on the transcript itself: the
-        // text is selectable, so it hit-tests first and takes the click to place
-        // its own insertion point. That is the right resolution — a click on
-        // text should still be able to start a selection — and it leaves the
-        // rest of the row, which is most of it, as the copy target.
-        .onTapGesture(perform: copy)
+        // Wispr Flow does make this work. Doing it properly means giving up
+        // `textSelection` on the transcript, or hosting the row in AppKit where
+        // a click and a drag can be told apart before either is committed.
+        // Neither is worth it for a second route to a button that is right there.
         .contextMenu {
             if canCopy {
                 Button("Copy", action: copy)
@@ -802,7 +775,6 @@ private struct DictationHistoryRow: View {
             Divider()
             Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
         }
-        .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 
     private var canCopy: Bool {
@@ -837,6 +809,12 @@ private struct DictationHistoryRow: View {
 /// gave no sign they were controls until they were clicked. The padding is part
 /// of the treatment rather than decoration around it: it is what gives a 16pt
 /// glyph a click target big enough to aim at.
+///
+/// The fill is deliberately near the threshold of visible. It only has to say
+/// "this is a control and the pointer is on it"; anything heavier turns a quiet
+/// row into a row with a grey box parked in it, and the eye catches the box
+/// rather than the transcript. `0.055` reads on both appearances without
+/// becoming an object in its own right.
 private struct RowIconHover: ViewModifier {
     @State private var isHovered = false
 
@@ -845,7 +823,7 @@ private struct RowIconHover: ViewModifier {
             .padding(5)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.primary.opacity(isHovered ? 0.12 : 0))
+                    .fill(Color.primary.opacity(isHovered ? 0.055 : 0))
             )
             .onHover { isHovered = $0 }
             .animation(.easeOut(duration: 0.12), value: isHovered)

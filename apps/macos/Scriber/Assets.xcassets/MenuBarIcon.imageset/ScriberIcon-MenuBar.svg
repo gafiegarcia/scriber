@@ -6,25 +6,27 @@
   Original geometric artwork created for Scriber with AI-assisted
   implementation and edited by Gafie Garcia in Figma.
 
-  This is the app mark from Branding/ScriberIcon-Transparent.svg, byte-identical
-  in geometry, cropped to the ink it actually draws. The app-icon artwork centres
-  the mark on a 1024 square with the wide transparent margin an app icon needs,
-  so the ink is only 414 x 602 of that canvas. A menu bar item sizes to the
-  image's intrinsic size, not to its ink, so the padded canvas rendered the mark
-  at 59% of whatever height it was given — the reason it kept looking too small
-  next to neighbouring items no matter what frame it was handed.
+  The app mark from Branding/ScriberIcon-Transparent.svg, cropped to the ink it
+  actually draws and translated so the viewBox starts at the origin. Same
+  geometry, same proportions, no transparent margin.
 
-  Bounds are the stroked extents, not the path coordinates: every stroke here is
-  64 wide, so each edge reaches half a stroke past its geometry.
-    x: 337 - 32 = 305 through 687 + 32 = 719
-    y: 257 - 32 = 225 through 795 + 32 = 827
-  Keep this crop in step with the source if the mark is ever redrawn.
+  The app-icon artwork centres the mark on a 1024 square with the wide margin an
+  app icon needs, so its ink is only 414 x 602 of that canvas. Bounds are the
+  stroked extents, not the path coordinates: every stroke is 64 wide, so each
+  edge reaches half a stroke past its geometry.
+    x: 337 - 32 = 305 through 687 + 32 = 719   ->  414 wide, shifted by -305
+    y: 257 - 32 = 225 through 795 + 32 = 827   ->  602 tall, shifted by -225
+
+  This file does not decide how big the icon is on screen. `ScriberApp` sets the
+  NSImage's size explicitly, because that — not a SwiftUI frame — is what a menu
+  bar item measures. Keep this crop in step with the source if the mark is ever
+  redrawn.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" width="414" height="602" viewBox="305 225 414 602" fill="none" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="414" height="602" viewBox="0 0 414 602" fill="none" role="img" aria-labelledby="title description">
   <title id="title">Scriber microphone mark</title>
   <desc id="description">A geometric microphone drawn as a menu bar template image.</desc>
 
-  <rect x="470" y="257" width="84" height="280" rx="42" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="64" stroke-linejoin="round"/>
-  <path d="M337 533C337 533 337 687.5 512 687.5C687 687.5 687 533 687 533" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M512 691V795M413 795H611" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="165" y="32" width="84" height="280" rx="42" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="64" stroke-linejoin="round"/>
+  <path d="M32 308C32 308 32 462.5 207 462.5C382 462.5 382 308 382 308" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M207 466V570M108 570H306" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

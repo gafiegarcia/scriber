@@ -11,36 +11,39 @@ shortcuts, or credentials.
 
 **Never run a check that spends API credit without asking Gaf first.**
 
-## Build 17 interface changes
+## Build 18 interface changes
 
 None of these need a real API key.
 
-- [ ] The menu bar icon is legible at a glance next to its neighbours — measure
-      against one rather than judging by eye. It holds steady through a full
-      record, transcribe, and paste cycle, switches to the warning symbol when
-      the API key is removed, and returns to the app mark when it is restored,
-      without relaunching and without changing size in either direction. A Debug
-      build always renders the warning state, so the app mark needs the installed
-      Release build.
-- [ ] History rows respond to the pointer: the row lights up, and the copy button
-      and overflow menu take a background under it. Clicking anywhere on a row
-      that is not the transcript copies it and the copy button acknowledges with
-      a checkmark for about a second and a half.
-- [ ] Dragging across a transcript still selects text, and right-clicking a row
-      still opens its context menu. Neither is swallowed by click-to-copy.
+- [x] The menu bar icon no longer crowds every other status item into the
+      overflow. Confirmed on build 18: the neighbouring items returned as soon as
+      the image was sized, and the mark measures comparably to the battery item
+      beside it.
+- [ ] The menu bar icon reads well at a glance next to its neighbours over a full
+      day, holds steady through a record, transcribe, and paste cycle, switches to
+      the warning symbol when the API key is removed, and returns to the app mark
+      when it is restored, without relaunching and without the item jumping width.
+      A Debug build always renders the warning state, so the mark needs the
+      installed Release build. If it wants to sit a little shorter,
+      `menuBarIconHeight` in `ScriberApp` is the only number to change.
+- [ ] Copy a single-line entry: the icon changes to a checkmark for about a second
+      and a half and **the row does not change height** while it does.
+- [ ] Hovering the copy button and the overflow menu gives each a background
+      subtle enough to stay out of the way, and clicking anywhere else on a row
+      does nothing — no row highlight, no copy. The transcript still selects by
+      dragging and the row still right-clicks to its context menu.
 - [ ] Scroll a history list with more than one day in it: the day label moves up
       into the count row as its group leaves the top, changes as the next group
       arrives, and disappears again when scrolled back to the top. The count row
       does not change height as it appears.
 - [ ] Permission and credential banners sit directly under the title and search
       row, above the count row.
-- [ ] The sidebar toggle carries "Hide Sidebar (⌘.)" and "Show Sidebar (⌘.)" as a
-      tooltip, matching the current state. **Confirm there is exactly one toggle
-      in the titlebar, and that it is still there with the sidebar collapsed** —
-      the supplied one is suppressed, so if the replacement hides with the column
-      the only way back is Command-period.
-- [ ] The sidebar toggle no longer blinks when switching between Dictation and
-      Settings.
+- [ ] The sidebar toggle sits over the sidebar, beside the window controls, where
+      every other native app puts it. It has no tooltip — see the note in
+      `MainWindowView` for why a custom item cannot go there.
+- [ ] **Still open:** the toggle flickers when switching Settings → Dictation but
+      not the other way. Best current explanation is that only Dictation adds a
+      search field to the toolbar, so that direction restructures it. Untested.
 - [ ] From the permissions pill, Review brings Scriber to the front over whatever
       app is active — with the main window already open behind that app, and with
       every window closed — and lands on Permissions and Input rather than the top
