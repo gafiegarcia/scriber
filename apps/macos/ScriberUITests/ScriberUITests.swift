@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import XCTest
 
 @MainActor
@@ -175,7 +176,20 @@ final class ScriberUITests: XCTestCase {
         XCTAssertTrue(pillDismissed, "Opening Settings should dismiss the pill.")
     }
 
-    func testEscapeDismissesPersistentPill() async {
+    func testEscapeDismissesPersistentPill() async throws {
+        // Escape reaches the pill through `GlobalShortcutService`'s `CGEvent` tap,
+        // which only arms for a process macOS trusts for Accessibility. Both the
+        // runner and the Scriber it launches are throwaway binaries under
+        // `.build/` rather than `/Applications/Scriber.app`, so neither is
+        // trusted and the key never arrives. Granting a DerivedData binary
+        // Accessibility is worse than the gap, so this is manual-only; skipping
+        // explicitly keeps it from reading as a product failure. The runner's own
+        // trust stands in for the app's here — they come from the same build tree.
+        try XCTSkipUnless(
+            AXIsProcessTrusted(),
+            "Escape needs an Accessibility-trusted CGEvent tap, and the DerivedData test host is untrusted. Verify by hand on an installed build."
+        )
+
         let app = await launchApp(
             additionalArguments: pillLifecycleArguments + ["--ui-testing-global-shortcuts"]
         )
