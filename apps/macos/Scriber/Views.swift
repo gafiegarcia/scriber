@@ -626,7 +626,6 @@ private struct DictationHistoryRow: View {
 
     @State private var didCopy = false
     @State private var copiedFeedback: Task<Void, Never>?
-    @State private var isMenuHovered = false
 
     /// Transcript size. Larger than `.body`, which read as small next to the
     /// generous type Flow uses for the same content.
@@ -725,28 +724,32 @@ private struct DictationHistoryRow: View {
             Menu {
                 Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
             } label: {
-                // The hover background is drawn inside the label, around the
-                // glyph, rather than by `RowIconHover` around the control.
-                //
-                // A `Menu` keeps the width of its disclosure indicator even with
-                // `.menuIndicator(.hidden)` — the arrow is not drawn but the
-                // space it would occupy is still part of the control. Wrapping
-                // the control therefore produced a background wider than it
-                // looked, with the glyph sitting left of its centre and empty
-                // space to the right. Hugging the glyph cannot drift that way.
                 Image(systemName: "ellipsis")
-                    .frame(width: 16, height: 16)
-                    .padding(5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color.primary.opacity(isMenuHovered ? RowIconHover.fill : 0))
-                    )
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .onHover { isMenuHovered = $0 }
-            .animation(.easeOut(duration: 0.12), value: isMenuHovered)
+            // `.leading`, and that single word is the whole fix.
+            //
+            // A `Menu` keeps the width of its disclosure indicator even under
+            // `.menuIndicator(.hidden)`: the arrow is not drawn, but the space
+            // it would occupy is still part of the control, on the trailing
+            // side. So the control is wider than the glyph in it. Centring that
+            // control inside a 16pt frame therefore pushed the glyph left by
+            // half the phantom width while the hover background stayed centred
+            // on the frame — the background ran wide to the right.
+            //
+            // Pinning the control's leading edge to the frame's puts the glyph
+            // at the frame's leading 16 points, which is what the background is
+            // drawn around. It stays centred however much space the indicator
+            // reserves, so this does not depend on measuring it.
+            //
+            // The hover treatment has to stay outside the `Menu` rather than
+            // inside its label. `.onHover` on the menu itself never fires — it
+            // is an AppKit control with its own tracking areas — so a version
+            // that drew the background in the label had no hover at all.
+            .frame(width: 16, height: 16, alignment: .leading)
+            .modifier(RowIconHover())
         }
         .padding(.vertical, 4)
         // Full-width within the card. Insetting past the time column left the
@@ -833,8 +836,7 @@ private struct DictationHistoryRow: View {
 /// rather than the transcript. `0.055` reads on both appearances without
 /// becoming an object in its own right.
 private struct RowIconHover: ViewModifier {
-    /// Shared with the overflow menu, which has to draw this itself.
-    static let fill: Double = 0.055
+    private static let fill: Double = 0.055
 
     @State private var isHovered = false
 
