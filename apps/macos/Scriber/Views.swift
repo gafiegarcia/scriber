@@ -582,7 +582,13 @@ private struct DictationHistoryGroupBackground: View {
     static let horizontalInset: CGFloat = 32
 
     /// Padding inside the card, between its edge and the row's content.
-    static let contentInset: CGFloat = 20
+    ///
+    /// Small on purpose. The card already stands 32pt off the window edge, and
+    /// stacking a generous inset inside that put the entry time and the trailing
+    /// controls in the middle of an empty margin — the eye read the gap before
+    /// it read the row. This is the breathing room the fill needs to not clip
+    /// its content, and nothing beyond it.
+    static let contentInset: CGFloat = 8
 
     var body: some View {
         // Fill only, no border. Each row draws its own slice of the group, so a
@@ -744,37 +750,42 @@ private struct DictationHistoryRow: View {
                         // the moment of the copy and springing back after.
                         .frame(width: 16, height: 16)
                 }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
+                .buttonStyle(.borderless)
+                .modifier(RowIconHover())
                 .disabled(!canCopy)
                 .help(canCopy ? "Copy transcription" : "Nothing to copy")
                 .accessibilityLabel(didCopy ? "Copied" : "Copy transcription")
 
-                // A button-styled menu draws its background around its own
-                // content, so the background and the glyph cannot disagree about
-                // where the centre is. `.borderlessButton` drew nothing, which is
-                // what forced a hand-drawn background around a control wider than
-                // its glyph and started three rounds of off-centre highlights.
-                // The destructive role earns nothing visible here and is kept
-                // for what it means rather than how it looks. **macOS does not
-                // tint destructive menu items red** — that is an iOS behaviour,
-                // and Finder's "Move to Trash", Mail's "Delete", and Photos'
-                // "Delete" are all plain. Forcing it means an `NSMenuItem` with
-                // a red `attributedTitle`, which stays red when the item is
-                // highlighted and the highlight fills with the accent colour.
-                // An earlier comment here claimed the red was lost by moving to
-                // `NSMenu`; it was never there to lose.
-                Menu {
-                    Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .frame(width: 16, height: 16)
-                }
-                .menuStyle(.button)
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
-                .menuIndicator(.hidden)
-                .help("More actions")
+                // An `NSButton` rather than a SwiftUI `Menu`, so that the glyph
+                // is centred in whatever frame it is given.
+                //
+                // A `Menu` keeps the width of its disclosure indicator even
+                // under `.menuIndicator(.hidden)` — the arrow is not drawn, but
+                // the space remains part of the control — so a hover background
+                // wrapped around it sits off centre by half that width. Three
+                // attempts to correct that from the outside failed, because the
+                // offset lives inside the control where a frame cannot reach it.
+                // `imagePosition = .imageOnly` has no indicator to reserve for.
+                //
+                // Nothing is lost by leaving SwiftUI's `Menu` here. **macOS does
+                // not tint destructive menu items red** — that is an iOS
+                // behaviour, and Finder's "Move to Trash", Mail's "Delete", and
+                // Photos' "Delete" are all plain. A destructive `Button` in a
+                // SwiftUI menu renders exactly as plain as this `NSMenuItem`
+                // does; an earlier comment claiming the red was lost by moving
+                // to `NSMenu` was wrong, because it was never there.
+                TrailingAlignedMenuButton(
+                    systemImage: "ellipsis",
+                    help: "More actions",
+                    isEnabled: true,
+                    items: [
+                        TrailingAlignedMenuButton.Item(title: "Delete") {
+                            runtime.coordinator.delete(record)
+                        }
+                    ]
+                )
+                .frame(width: 16, height: 16)
+                .modifier(RowIconHover())
                 .accessibilityLabel("More actions")
             }
         }
@@ -831,9 +842,13 @@ private struct DictationHistoryRow: View {
 
     /// `.secondary` where there is nothing to copy, so the control reads as
     /// unavailable. `.disabled` cannot dim a colour the view sets itself.
+    /// `.secondary` is not muted enough to read as unavailable. On a card that
+    /// is itself a light fill, it renders close to the transcript's own colour,
+    /// so a copy button with nothing to copy still looked live. This has to sit
+    /// clearly below the row's quietest text, not level with it.
     private var copyTint: Color {
         if didCopy { return .green }
-        return canCopy ? .accentColor : .secondary
+        return canCopy ? .accentColor : Color.secondary.opacity(0.4)
     }
 
     /// Clicking a row is silent otherwise — the transcript reaches the clipboard
@@ -854,6 +869,33 @@ private struct DictationHistoryRow: View {
     private var rowText: String {
         if let text = record.text, !text.isEmpty { return text }
         return record.errorMessage ?? "Transcription failed."
+    }
+}
+
+/// Hover feedback for the borderless icon controls in a history row.
+///
+/// `.borderless` draws no background at all, in any state, so these controls
+/// give no sign they are controls until they are clicked. The padding is part
+/// of the treatment rather than decoration around it: it is what gives a 16pt
+/// glyph a click target big enough to aim at.
+///
+/// The fill is deliberately near the threshold of visible. It only has to say
+/// the pointer is on a control; anything heavier parks a grey box in a quiet
+/// row and the eye catches the box rather than the transcript.
+private struct RowIconHover: ViewModifier {
+    private static let fill: Double = 0.055
+
+    @State private var isHovered = false
+
+    func body(content: Content) -> some View {
+        content
+            .padding(5)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.primary.opacity(isHovered ? Self.fill : 0))
+            )
+            .onHover { isHovered = $0 }
+            .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 }
 
