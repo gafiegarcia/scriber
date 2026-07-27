@@ -694,22 +694,25 @@ private struct DictationHistoryRow: View {
 
             Spacer(minLength: 12)
 
-            if canCopy {
-                Button(action: copy) {
-                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
-                        .foregroundStyle(didCopy ? Color.green : Color.accentColor)
-                        // Both axes, not just the width. `checkmark` is shorter
-                        // than `doc.on.doc`, and on a single-line entry the icon
-                        // is the tallest thing in the row — so sizing only the
-                        // width left the row collapsing a couple of points at
-                        // the moment of the copy and springing back after.
-                        .frame(width: 16, height: 16)
-                }
-                .buttonStyle(.borderless)
-                .modifier(RowIconHover())
-                .help("Copy transcription")
-                .accessibilityLabel(didCopy ? "Copied" : "Copy transcription")
+            // Shown on every entry, including the ones with nothing to copy.
+            // A failed row used to drop the button entirely, which left its
+            // overflow menu sitting alone under a column of two controls and
+            // read as a rendering fault rather than as an absence. Disabled says
+            // the same thing without breaking the column.
+            Button(action: copy) {
+                Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                    .foregroundStyle(didCopy ? Color.green : Color.accentColor)
+                    // Both axes, not just the width. `checkmark` is shorter
+                    // than `doc.on.doc`, and on a single-line entry the icon
+                    // is the tallest thing in the row — so sizing only the
+                    // width left the row collapsing a couple of points at
+                    // the moment of the copy and springing back after.
+                    .frame(width: 16, height: 16)
             }
+            .buttonStyle(.glass)
+            .disabled(!canCopy)
+            .help(canCopy ? "Copy transcription" : "Nothing to copy")
+            .accessibilityLabel(didCopy ? "Copied" : "Copy transcription")
             if isRetrying {
                 ProgressView()
                     .controlSize(.small)
@@ -721,35 +724,28 @@ private struct DictationHistoryRow: View {
                     .buttonStyle(.bordered)
                     .disabled(runtime.coordinator.phase.isBusy)
             }
-            // Not a SwiftUI `Menu`, for the same reason the header is not one.
+            // Back to a SwiftUI `Menu` so Delete keeps its destructive role.
+            // `NSMenu` has no such role, so the AppKit button that solved the
+            // centring cost the red — a bad trade for a delete.
             //
-            // A `Menu` keeps the width of its disclosure indicator even under
-            // `.menuIndicator(.hidden)` — the arrow is not drawn, but the space
-            // is still part of the control — so the glyph never sits where the
-            // control's centre is. A hover background drawn around the control
-            // is therefore visibly off-centre, and two attempts to correct it by
-            // constraining or realigning the frame both failed, because the
-            // offset lives inside the control where a frame cannot reach it.
-            //
-            // `TrailingAlignedMenuButton` is a plain `NSButton` with
-            // `imagePosition = .imageOnly`. There is no indicator and no space
-            // reserved for one, and AppKit centres the image in the button, so
-            // the glyph is centred in whatever frame it is given — which is
-            // exactly what the background is drawn around. It also drops the
-            // menu trailing-aligned, which is what a control this close to the
-            // window's right edge wants.
-            TrailingAlignedMenuButton(
-                systemImage: "ellipsis",
-                help: "More actions",
-                isEnabled: true,
-                items: [
-                    TrailingAlignedMenuButton.Item(title: "Delete") {
-                        runtime.coordinator.delete(record)
-                    }
-                ]
-            )
-            .frame(width: 16, height: 16)
-            .modifier(RowIconHover())
+            // `.menuStyle(.button)` is what makes that affordable. The earlier
+            // problem was `.borderlessButton` drawing nothing, which left a
+            // hand-drawn background wrapped around a control wider than its
+            // glyph, with the disclosure indicator's reserved space pushing the
+            // glyph off centre. A button-styled menu draws its own background
+            // around its own content, so the two cannot disagree by
+            // construction — there is no second opinion about where the glyph is.
+            Menu {
+                Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .frame(width: 16, height: 16)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.glass)
+            .menuIndicator(.hidden)
+            .help("More actions")
+            .accessibilityLabel("More actions")
         }
         .padding(.vertical, 4)
         // Full-width within the card. Insetting past the time column left the
@@ -820,35 +816,6 @@ private struct DictationHistoryRow: View {
     private var rowText: String {
         if let text = record.text, !text.isEmpty { return text }
         return record.errorMessage ?? "Transcription failed."
-    }
-}
-
-/// Hover feedback for the borderless icon controls in a history row.
-///
-/// `.borderless` draws no background at all, in any state, so these controls
-/// gave no sign they were controls until they were clicked. The padding is part
-/// of the treatment rather than decoration around it: it is what gives a 16pt
-/// glyph a click target big enough to aim at.
-///
-/// The fill is deliberately near the threshold of visible. It only has to say
-/// "this is a control and the pointer is on it"; anything heavier turns a quiet
-/// row into a row with a grey box parked in it, and the eye catches the box
-/// rather than the transcript. `0.055` reads on both appearances without
-/// becoming an object in its own right.
-private struct RowIconHover: ViewModifier {
-    private static let fill: Double = 0.055
-
-    @State private var isHovered = false
-
-    func body(content: Content) -> some View {
-        content
-            .padding(5)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.primary.opacity(isHovered ? Self.fill : 0))
-            )
-            .onHover { isHovered = $0 }
-            .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 }
 

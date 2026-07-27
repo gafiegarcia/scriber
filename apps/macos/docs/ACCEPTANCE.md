@@ -11,7 +11,7 @@ shortcuts, or credentials.
 
 **Never run a check that spends API credit without asking Gaf first.**
 
-## Build 21 interface changes
+## Build 22 interface changes
 
 None of these need a real API key.
 
@@ -28,14 +28,17 @@ None of these need a real API key.
       `menuBarIconHeight` in `ScriberApp` is the only number to change.
 - [ ] Copy a single-line entry: the icon changes to a checkmark for about a second
       and a half and **the row does not change height** while it does.
-- [ ] Hovering the copy button and the overflow menu gives each a background
-      subtle enough to stay out of the way, **and the glyph sits centred in it** —
-      the overflow menu's background used to run wide to the right. **Its menu
-      still opens, its Delete still deletes, and Delete is no longer red** — the
-      row overflow is an AppKit menu now, matching the header's. Clicking
-      anywhere else on a row does nothing: no row highlight, no copy. The
-      transcript still selects by dragging and the row still right-clicks to its
-      context menu.
+- [x] The copy and overflow buttons are glass, matching Finder's toolbar
+      buttons, and both glyphs sit centred in their capsules. Confirmed on
+      build 22 at rest.
+- [ ] The overflow menu opens, **Delete is red again**, and it deletes the right
+      entry. Clicking anywhere else on a row does nothing: no row highlight, no
+      copy. The transcript still selects by dragging and the row still
+      right-clicks to its context menu.
+- [x] Failed and cancelled entries keep a dimmed copy button rather than dropping
+      it, so the trailing controls stay in one column. Confirmed on build 22.
+- [ ] The disabled copy button on a failed entry does nothing when clicked and
+      reads clearly as unavailable rather than as a rendering fault.
 - [ ] Scroll a history list with more than one day in it: the day label moves up
       into the count row as its group leaves the top, changes as the next group
       arrives, and disappears again when scrolled back to the top. The count row
