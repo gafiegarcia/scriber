@@ -13,7 +13,12 @@ shortcuts, or credentials.
 
 ## Current interface acceptance
 
-None of these need a real API key.
+None of these need a real API key. The history-list items do not need the
+installed build either: `--ui-testing-seed-history` supplies 22 rows over four
+days, so they can be checked without touching real entries. See the seeded-history
+section of [`TESTING.md`](TESTING.md). The menu bar items are the exception — a
+Debug build removes the menu bar item entirely and always renders the warning
+state, so those need the installed Release build.
 
 - [x] The menu bar icon no longer crowds every other status item into the
       overflow. Confirmed on build 18: the neighbouring items returned as soon as

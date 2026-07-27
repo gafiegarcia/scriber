@@ -30,6 +30,13 @@ swiftc -frontend -parse \
   "$REPO_ROOT"/apps/macos/ScriberCoreTests/*.swift \
   "$REPO_ROOT"/apps/macos/ScriberUITests/*.swift
 
+# Again with DEBUG defined. Without it, `#if DEBUG` regions are lexed but not
+# parsed as code, so the pass above says nothing about `AppLaunchConfiguration`'s
+# flags or `UITestingHistoryFixture` — the whole test-only surface.
+swiftc -frontend -parse -D DEBUG \
+  "$REPO_ROOT"/apps/macos/Scriber/*.swift \
+  "$REPO_ROOT"/apps/macos/ScriberCore/*.swift
+
 swiftc -module-cache-path "$MODULE_CACHE" -typecheck \
   "$REPO_ROOT/apps/macos/ScriberCore/CoreModels.swift" \
   "$REPO_ROOT/apps/macos/ScriberCore/ScribeClient.swift" \
@@ -41,6 +48,10 @@ swift test --disable-sandbox --package-path "$REPO_ROOT/apps/macos"
 
 plutil -lint "$REPO_ROOT/apps/macos/Scriber/Info.plist"
 ```
+
+Neither parse invocation typechecks, so a Debug `xcodebuild` remains the only
+real gate on `#if DEBUG` code. The `-D DEBUG` pass catches syntax there for the
+cost of a second; it will not catch an actor-isolation or type error.
 
 Use the [native README](../README.md) for build and signing instructions. A
 Release candidate must have no embedded provisioning profile or restricted
@@ -115,6 +126,41 @@ applications while still allowing hover states, menus, scrolling, and the menu
 bar to be checked. It moves the real pointer and can press keys, so do not begin
 while Gaf is typing, and verify whether the visible window belongs to the
 installed app or a test build.
+
+### Seeded history
+
+`--ui-testing-seed-history` fills the in-memory store with 23 deterministic
+records over four day groups, 22 of which render. It exists so the Dictation list
+can be inspected at all: the test store is otherwise empty, which left every
+history check reachable only through Gaf's real entries — where confirming that
+Delete removes the right row means destroying a real transcript, and adding a row
+costs API credit. `Scriber/UITestingHistoryFixture.swift` documents the fixture
+and the four invariants behind it.
+
+Launch it **with** activation, since the window has to be clickable, and keep the
+`before_pid` guard so the closing `kill` cannot land on the installed app:
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+before_pid="$(pgrep -n -x Scriber || true)"
+APP_PATH="$REPO_ROOT/apps/macos/.build/xcode-ui-tests/Build/Products/Debug/Scriber.app"
+
+open -n -a "$APP_PATH" --args --ui-testing --ui-testing-seed-history
+sleep 6
+pid="$(pgrep -n -x Scriber || true)"
+[ -n "$pid" ] && [ "$pid" != "$before_pid" ] || { echo "REFUSING: never launched" >&2; exit 1; }
+# … inspect, then …
+kill "$pid"
+```
+
+Two things to know while inspecting a seeded build. The header must read **22
+dictations**; 23 means the in-flight filter regressed. And Copy writes to the real
+`NSPasteboard.general`, so it clobbers the clipboard, and *which* transcript
+landed there is not observable inside Scriber — that needs a paste elsewhere.
+
+Every `--ui-testing` launch also shows the credential banner, because the
+throwaway defaults suite starts with no key. It costs list height and blocks
+nothing.
 
 ## XCUITest
 

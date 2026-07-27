@@ -27,6 +27,14 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-missing-permissions")
     }
 
+    /// Fills the in-memory history so the Dictation list can be checked at all.
+    /// Empty is the honest default for a test store, but it left every history
+    /// interface check reachable only through Gaf's real entries. See
+    /// `UITestingHistoryFixture`.
+    static var seedsDictationHistory: Bool {
+        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-history")
+    }
+
     /// The launch smoke check's flag. The app still builds and renders its window —
     /// that is the path the check exists to exercise — but never activates, so it
     /// does not steal the front from whatever Gaf is doing. Only the smoke check
@@ -120,6 +128,18 @@ final class AppRuntime: ObservableObject {
                 persistenceAvailable = false
             }
         }
+
+        // Synchronously, here, before anything can render. Deferring this to a
+        // `Task { @MainActor … }` the way the pill flags do would insert into a
+        // context `@Query` has already read from — a value changing inside an
+        // update, which is the failure the comment further down this file records
+        // AttributeGraph aborting the process for. Running inside `init` means the
+        // store is already populated the first time any view fetches.
+#if DEBUG
+        if AppLaunchConfiguration.seedsDictationHistory {
+            UITestingHistoryFixture.seed(into: container.mainContext)
+        }
+#endif
 
         if isUITesting {
             let suiteName = "com.gafiegarcia.scriber.ui-testing"
