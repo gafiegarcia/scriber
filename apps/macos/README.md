@@ -83,6 +83,23 @@ password before releasing the saved ElevenLabs key. Choose **Always Allow**. The
 grant then persists for that binary; the limitation is tracked as an accepted
 constraint in the [roadmap](docs/ROADMAP.md).
 
+## Build directory housekeeping
+
+`.build` gains a DerivedData root for every one-off `-derivedDataPath` and never
+loses one. Xcode cannot prune them; it has no record of a path given on the
+command line. After installing a Release candidate, sweep whatever the documented
+build, test, and smoke-check commands do not use:
+
+```bash
+cd "$(git rev-parse --show-toplevel)/apps/macos/.build" || exit 1
+for path in */; do
+  case "${path%/}" in
+    xcode-release|xcode-ui-tests|module-cache|out|debug|artifacts|checkouts|repositories) ;;
+    *) trash "$path" ;;
+  esac
+done
+```
+
 ## First launch
 
 Onboarding requests the ElevenLabs key, Microphone access, Accessibility access,
