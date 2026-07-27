@@ -72,7 +72,7 @@ open -a Scriber
 
 `ditto` is used because it preserves extended attributes, ACLs, and hard links unconditionally and behaves the same across volumes; `mv` and `cp -R` also preserve a signed bundle correctly on current macOS. Never rename an `.app` bundle — a renamed bundle fails signature verification outright.
 
-macOS asks for the login Keychain password once per newly installed binary before releasing the ElevenLabs API key. Choose **Always Allow**; the grant then persists for that binary across launches and transcriptions. This is expected, and is not fixable while the signing certificate carries no Team ID. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+macOS asks for the login Keychain password once per newly installed binary before releasing the ElevenLabs API key. Choose **Always Allow**; the grant then persists for that binary across launches and transcriptions. This is expected, and is not fixable while the signing certificate carries no Team ID. See [`docs/ROADMAP.md`](docs/ROADMAP.md) under "Known and accepted".
 
 ## First launch
 
@@ -89,10 +89,12 @@ Default shortcuts are Hold `Fn` and Toggle `Fn-Space`. Recording feedback uses t
 ## Documentation
 
 - [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) defines required native behavior and locked decisions.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) tracks release gates, manual acceptance, and complete verification commands.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) tracks what is left to do, and the release gates for stable `v0.7.0`.
+- [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) is the manual checklist those gates point at.
+- [`docs/TESTING.md`](docs/TESTING.md) holds every verification command, the launch smoke check, and the limits of the UI suite.
 - [`docs/PASTE_ENGINE_RESEARCH.md`](docs/PASTE_ENGINE_RESEARCH.md) preserves active paste-delivery evidence, rejected assumptions, and the cross-app investigation plan.
 - [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md) preserves chronological engineering history without burdening normal development context.
 
 ## Verification
 
-`swift test` covers UI-independent behavior when run through the full Xcode toolchain. Tests never call ElevenLabs. Follow [`docs/ROADMAP.md`](docs/ROADMAP.md) for parser validation, core type-checking, Xcode builds, isolated UI tests, and manual acceptance.
+`swift test` covers UI-independent behavior when run through the full Xcode toolchain. Tests never call ElevenLabs. Follow [`docs/TESTING.md`](docs/TESTING.md) for parser validation, core type-checking, Xcode builds, the launch smoke check, and isolated UI tests; [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) covers what only a person can check.
