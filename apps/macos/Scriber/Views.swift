@@ -554,14 +554,21 @@ private struct DictationHistoryGroupBackground: View {
     let isFirst: Bool
     let isLast: Bool
 
-    private let radius: CGFloat = 10
+    /// Opened up from 10 to sit with the circular controls inside the card. A
+    /// tight corner next to a circle reads as two different design languages in
+    /// one row.
+    private let radius: CGFloat = 16
 
     private var shape: UnevenRoundedRectangle {
         UnevenRoundedRectangle(
             topLeadingRadius: isFirst ? radius : 0,
             bottomLeadingRadius: isLast ? radius : 0,
             bottomTrailingRadius: isLast ? radius : 0,
-            topTrailingRadius: isFirst ? radius : 0
+            topTrailingRadius: isFirst ? radius : 0,
+            // The squircle, which is what macOS actually draws — `.circular`
+            // joins a straight edge to a circular arc and the join is visible at
+            // this radius.
+            style: .continuous
         )
     }
 
@@ -694,58 +701,82 @@ private struct DictationHistoryRow: View {
 
             Spacer(minLength: 12)
 
-            // Shown on every entry, including the ones with nothing to copy.
-            // A failed row used to drop the button entirely, which left its
-            // overflow menu sitting alone under a column of two controls and
-            // read as a rendering fault rather than as an absence. Disabled says
-            // the same thing without breaking the column.
-            Button(action: copy) {
-                Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
-                    .foregroundStyle(didCopy ? Color.green : Color.accentColor)
-                    // Both axes, not just the width. `checkmark` is shorter
-                    // than `doc.on.doc`, and on a single-line entry the icon
-                    // is the tallest thing in the row — so sizing only the
-                    // width left the row collapsing a couple of points at
-                    // the moment of the copy and springing back after.
-                    .frame(width: 16, height: 16)
-            }
-            .buttonStyle(.glass)
-            .disabled(!canCopy)
-            .help(canCopy ? "Copy transcription" : "Nothing to copy")
-            .accessibilityLabel(didCopy ? "Copied" : "Copy transcription")
-            if isRetrying {
-                ProgressView()
-                    .controlSize(.small)
-                    .frame(minWidth: 48)
-            } else if record.isRetryable, record.pendingAudioRelativePath != nil {
-                // Regular size: at `.small` the button looked undersized once the
-                // transcript grew to 14pt and the rows opened up around it.
-                Button("Retry") { runtime.coordinator.retry(record) }
-                    .buttonStyle(.bordered)
-                    .disabled(runtime.coordinator.phase.isBusy)
-            }
-            // Back to a SwiftUI `Menu` so Delete keeps its destructive role.
-            // `NSMenu` has no such role, so the AppKit button that solved the
-            // centring cost the red — a bad trade for a delete.
+            // One group, tight, and Retry first.
             //
-            // `.menuStyle(.button)` is what makes that affordable. The earlier
-            // problem was `.borderlessButton` drawing nothing, which left a
-            // hand-drawn background wrapped around a control wider than its
-            // glyph, with the disclosure indicator's reserved space pushing the
-            // glyph off centre. A button-styled menu draws its own background
-            // around its own content, so the two cannot disagree by
-            // construction — there is no second opinion about where the glyph is.
-            Menu {
-                Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .frame(width: 16, height: 16)
+            // These used to be three separate children of the row's own HStack,
+            // which spaces its columns 28 apart — a gap meant to separate the
+            // time from the transcript, not to separate a button from the button
+            // beside it. Grouping them lets the controls sit together at 8 while
+            // the row keeps its wide columns.
+            //
+            // Retry leads so that copy and the overflow menu land on the same
+            // two x positions in every row. Trailing a variable-width button
+            // onto the end would have shifted them both on the rows that have
+            // one, which is exactly the misalignment this ordering avoids.
+            HStack(spacing: 8) {
+                if isRetrying {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(minWidth: 48)
+                } else if record.isRetryable, record.pendingAudioRelativePath != nil {
+                    // Regular size: at `.small` the button looked undersized once
+                    // the transcript grew to 14pt and the rows opened up around it.
+                    Button("Retry") { runtime.coordinator.retry(record) }
+                        .buttonStyle(.bordered)
+                        .disabled(runtime.coordinator.phase.isBusy)
+                }
+
+                // Shown on every entry, including the ones with nothing to copy.
+                // A failed row used to drop the button entirely, which left its
+                // overflow menu sitting alone under a column of two controls and
+                // read as a rendering fault rather than as an absence.
+                Button(action: copy) {
+                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                        // Not a hardcoded accent colour. An explicit
+                        // `foregroundStyle` overrides the dimming `.disabled`
+                        // would otherwise apply, so the button on a failed entry
+                        // stayed a confident blue while refusing to do anything.
+                        .foregroundStyle(copyTint)
+                        // Both axes, not just the width. `checkmark` is shorter
+                        // than `doc.on.doc`, and on a single-line entry the icon
+                        // is the tallest thing in the row — so sizing only the
+                        // width left the row collapsing a couple of points at
+                        // the moment of the copy and springing back after.
+                        .frame(width: 16, height: 16)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .disabled(!canCopy)
+                .help(canCopy ? "Copy transcription" : "Nothing to copy")
+                .accessibilityLabel(didCopy ? "Copied" : "Copy transcription")
+
+                // A button-styled menu draws its background around its own
+                // content, so the background and the glyph cannot disagree about
+                // where the centre is. `.borderlessButton` drew nothing, which is
+                // what forced a hand-drawn background around a control wider than
+                // its glyph and started three rounds of off-centre highlights.
+                // The destructive role earns nothing visible here and is kept
+                // for what it means rather than how it looks. **macOS does not
+                // tint destructive menu items red** — that is an iOS behaviour,
+                // and Finder's "Move to Trash", Mail's "Delete", and Photos'
+                // "Delete" are all plain. Forcing it means an `NSMenuItem` with
+                // a red `attributedTitle`, which stays red when the item is
+                // highlighted and the highlight fills with the accent colour.
+                // An earlier comment here claimed the red was lost by moving to
+                // `NSMenu`; it was never there to lose.
+                Menu {
+                    Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 16, height: 16)
+                }
+                .menuStyle(.button)
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .menuIndicator(.hidden)
+                .help("More actions")
+                .accessibilityLabel("More actions")
             }
-            .menuStyle(.button)
-            .buttonStyle(.glass)
-            .menuIndicator(.hidden)
-            .help("More actions")
-            .accessibilityLabel("More actions")
         }
         .padding(.vertical, 4)
         // Full-width within the card. Insetting past the time column left the
@@ -796,6 +827,13 @@ private struct DictationHistoryRow: View {
     private var canCopy: Bool {
         guard let text = record.text else { return false }
         return !text.isEmpty
+    }
+
+    /// `.secondary` where there is nothing to copy, so the control reads as
+    /// unavailable. `.disabled` cannot dim a colour the view sets itself.
+    private var copyTint: Color {
+        if didCopy { return .green }
+        return canCopy ? .accentColor : .secondary
     }
 
     /// Clicking a row is silent otherwise — the transcript reaches the clipboard

@@ -11,7 +11,7 @@ shortcuts, or credentials.
 
 **Never run a check that spends API credit without asking Gaf first.**
 
-## Build 22 interface changes
+## Build 23 interface changes
 
 None of these need a real API key.
 
@@ -28,17 +28,20 @@ None of these need a real API key.
       `menuBarIconHeight` in `ScriberApp` is the only number to change.
 - [ ] Copy a single-line entry: the icon changes to a checkmark for about a second
       and a half and **the row does not change height** while it does.
-- [x] The copy and overflow buttons are glass, matching Finder's toolbar
-      buttons, and both glyphs sit centred in their capsules. Confirmed on
-      build 22 at rest.
-- [ ] The overflow menu opens, **Delete is red again**, and it deletes the right
-      entry. Clicking anywhere else on a row does nothing: no row highlight, no
-      copy. The transcript still selects by dragging and the row still
-      right-clicks to its context menu.
-- [x] Failed and cancelled entries keep a dimmed copy button rather than dropping
-      it, so the trailing controls stay in one column. Confirmed on build 22.
-- [ ] The disabled copy button on a failed entry does nothing when clicked and
-      reads clearly as unavailable rather than as a rendering fault.
+- [x] The copy and overflow buttons are circular glass, matching Finder's
+      toolbar buttons, with both glyphs centred; Retry sits to their left so copy
+      and the overflow land on the same two positions in every row; the day cards
+      carry a 16pt continuous corner. Confirmed on build 23 at rest.
+- [x] Failed and cancelled entries keep a copy button rather than dropping it,
+      and its glyph is `.secondary` rather than accent. Confirmed on build 23 by
+      comparing a cancelled row against a normal one.
+- [ ] The overflow menu opens and deletes the right entry. **Delete is not red,
+      and will not be** — macOS does not tint destructive menu items, unlike iOS.
+      See the note in `DictationHistoryRow`.
+- [ ] The disabled copy button on a failed entry does nothing when clicked.
+- [ ] Clicking anywhere else on a row does nothing: no row highlight, no copy.
+      The transcript still selects by dragging and the row still right-clicks to
+      its context menu.
 - [ ] Scroll a history list with more than one day in it: the day label moves up
       into the count row as its group leaves the top, changes as the next group
       arrives, and disappears again when scrolled back to the top. The count row
