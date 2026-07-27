@@ -626,6 +626,7 @@ private struct DictationHistoryRow: View {
 
     @State private var didCopy = false
     @State private var copiedFeedback: Task<Void, Never>?
+    @State private var isMenuHovered = false
 
     /// Transcript size. Larger than `.body`, which read as small next to the
     /// generous type Flow uses for the same content.
@@ -724,12 +725,28 @@ private struct DictationHistoryRow: View {
             Menu {
                 Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
             } label: {
+                // The hover background is drawn inside the label, around the
+                // glyph, rather than by `RowIconHover` around the control.
+                //
+                // A `Menu` keeps the width of its disclosure indicator even with
+                // `.menuIndicator(.hidden)` — the arrow is not drawn but the
+                // space it would occupy is still part of the control. Wrapping
+                // the control therefore produced a background wider than it
+                // looked, with the glyph sitting left of its centre and empty
+                // space to the right. Hugging the glyph cannot drift that way.
                 Image(systemName: "ellipsis")
+                    .frame(width: 16, height: 16)
+                    .padding(5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.primary.opacity(isMenuHovered ? RowIconHover.fill : 0))
+                    )
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
-            .frame(width: 16)
-            .modifier(RowIconHover())
+            .fixedSize()
+            .onHover { isMenuHovered = $0 }
+            .animation(.easeOut(duration: 0.12), value: isMenuHovered)
         }
         .padding(.vertical, 4)
         // Full-width within the card. Insetting past the time column left the
@@ -816,6 +833,9 @@ private struct DictationHistoryRow: View {
 /// rather than the transcript. `0.055` reads on both appearances without
 /// becoming an object in its own right.
 private struct RowIconHover: ViewModifier {
+    /// Shared with the overflow menu, which has to draw this itself.
+    static let fill: Double = 0.055
+
     @State private var isHovered = false
 
     func body(content: Content) -> some View {
@@ -823,7 +843,7 @@ private struct RowIconHover: ViewModifier {
             .padding(5)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.primary.opacity(isHovered ? 0.055 : 0))
+                    .fill(Color.primary.opacity(isHovered ? Self.fill : 0))
             )
             .onHover { isHovered = $0 }
             .animation(.easeOut(duration: 0.12), value: isHovered)

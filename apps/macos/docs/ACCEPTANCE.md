@@ -11,7 +11,7 @@ shortcuts, or credentials.
 
 **Never run a check that spends API credit without asking Gaf first.**
 
-## Build 18 interface changes
+## Build 19 interface changes
 
 None of these need a real API key.
 
@@ -29,9 +29,11 @@ None of these need a real API key.
 - [ ] Copy a single-line entry: the icon changes to a checkmark for about a second
       and a half and **the row does not change height** while it does.
 - [ ] Hovering the copy button and the overflow menu gives each a background
-      subtle enough to stay out of the way, and clicking anywhere else on a row
-      does nothing — no row highlight, no copy. The transcript still selects by
-      dragging and the row still right-clicks to its context menu.
+      subtle enough to stay out of the way, **and the glyph sits centred in it** —
+      the overflow menu's background used to run wide to the right. Clicking
+      anywhere else on a row does nothing: no row highlight, no copy. The
+      transcript still selects by dragging and the row still right-clicks to its
+      context menu.
 - [ ] Scroll a history list with more than one day in it: the day label moves up
       into the count row as its group leaves the top, changes as the next group
       arrives, and disappears again when scrolled back to the top. The count row

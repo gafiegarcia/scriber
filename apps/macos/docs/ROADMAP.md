@@ -9,7 +9,7 @@ commands, and a running account of what each build got wrong. Those are now
 
 ## Where the app is
 
-Scriber `0.7.0` build `18` is installed at `/Applications/Scriber.app` and is the
+Scriber `0.7.0` build `19` is installed at `/Applications/Scriber.app` and is the
 current personal-use candidate. It carries the build 15 bug-and-polish track, the
 build 16 pill and settings work, and the planned-work list that had accumulated
 from live use: the menu bar icon, the sticky day header, pill activation and
@@ -18,8 +18,10 @@ corrected within the hour on live use — the menu bar icon was sized so badly i
 pushed every other status item into the overflow, row click-to-copy could not be
 made honest alongside selectable text, and a replacement sidebar toggle could not
 be placed where AppKit puts the real one. Build 17 is superseded and should not be
-installed. Build 18 is also the first installed build carrying the AttributeGraph
-fix for the launch-pill wedge; build 16 was installed before that was found.
+installed. Build 18 carried those corrections; build 19 tunes the menu bar mark
+to 15pt and centres the overflow menu's hover background. Build 18 is also where
+the AttributeGraph fix for the launch-pill wedge first reached an installed
+binary; build 16 was installed before that was found.
 
 Nothing on the interface track is outstanding. What stands between here and
 stable is verification, not code: [`ACCEPTANCE.md`](ACCEPTANCE.md) is the list,

@@ -246,7 +246,12 @@ struct ScriberApp: App {
     }
 
     /// Height of the mark in the menu bar. The single knob worth turning.
-    private static let menuBarIconHeight: CGFloat = 17
+    ///
+    /// 15 rather than 17 after looking at it next to real neighbours: the mark is
+    /// tall and narrow, so matching a square symbol's height makes it read as the
+    /// biggest thing in the bar. Two points down sits it in the row rather than
+    /// above it.
+    private static let menuBarIconHeight: CGFloat = 15
 
     /// **A menu bar item measures `NSImage.size`, not the SwiftUI frame around
     /// it.** Two builds were spent on the frame before that was established, and
