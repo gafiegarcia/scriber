@@ -18,7 +18,14 @@ and [Sessions for Gaf](#sessions-for-gaf) is the plain-language version of it.
 ## Still to do
 
 Gaf worked through the acceptance sessions on build 28. Almost all of it passed;
-what it turned up is in [Open findings](#open-findings). Three things remain.
+what it turned up is in [Open findings](#open-findings), of which two are fixed in
+build 29 and three are deliberately carried forward.
+
+Build 29 also added three requested actions that want a quick look — Remove Key…,
+Redo Onboarding…, and chord recording committing at the first key release. Each is
+marked **To check** in [Requested](#requested-not-defects).
+
+Then three things remain from the original list.
 
 ### 1. Restart the Mac
 
@@ -88,23 +95,22 @@ sheet at all, so this needs one press on a real keyboard. It is in
 [session 5](#5-one-lifecycle-session) territory — worth ten seconds next time the
 dialog is open.
 
-### 3. A misconfigured microphone fails completely silently
+### ~~3. A misconfigured microphone fails completely silently~~ — fixed in build 29
 
-With the system input volume set to **zero**, a dictation produces nothing at all:
+With the system input volume set to **zero**, a dictation produced nothing at all:
 no transcription, no history entry, no retry, no warning. The pill simply
-disappears.
+disappeared, so a broken microphone was indistinguishable from not having spoken.
 
-Silent rejection below the signal threshold is intended — the spec says not to
-create an entry or spend credit on a recording that never crosses it, and the
-sound spec keeps silence silent. But the *user-visible* result is that a broken
-microphone is indistinguishable from "you didn't say anything", with no way to
-tell Scriber is misconfigured rather than working. Raising the input volume
-slightly above zero transcribed correctly, which confirms the threshold is the
-mechanism.
+Fixed by separating the two cases, which had been sharing one silence:
 
-Worth separating the two cases: a recording that crossed the threshold but
-produced no words already gets the no-words pill and no entry, which is right. A
-recording that never crossed it at all is the one that says nothing.
+- **Nothing crossed the signal threshold** → new "No sound from the microphone"
+  pill, with the failure sound and a Check Input button. Still no history entry
+  and still no API credit spent; only the silence is gone.
+- **Sound arrived but no words came back** → the existing "No words detected"
+  pill, unchanged in behaviour. Its subtitle no longer blames a muted microphone,
+  which was wrong precisely when audio *had* arrived.
+
+Needs a real key to re-check: set the input volume to zero and dictate.
 
 ### 4. The permissions pill respawns on every window focus
 
@@ -114,15 +120,15 @@ Command-Tab brings it back. While granting permissions in System Settings, which
 means switching back and forth repeatedly, it obstructs the screen almost
 continuously.
 
-### 5. The retry-success pill is too brief to read, and the wording is inconsistent
+### ~~5. The retry-success pill is too brief to read, and the wording is inconsistent~~ — fixed in build 29
 
-Retrying a failed entry succeeds and shows a compact "Transcription copied" pill,
-which looks good — but it disappears fast enough to miss entirely on first
-encounter. The no-focused-field pill, by contrast, reads "Copied" with a green
-checkmark and stays long enough to register.
+Retrying a failed entry showed a compact "Transcript copied" pill that vanished
+fast enough to miss entirely, while the same outcome from a failed paste read
+"Copied" with a green checkmark and stayed long enough to register.
 
-Two separate problems: the retry pill's duration is too short, and the same
-outcome is worded two different ways.
+The retry path was reusing the generic 1.5-second `.message` phase. It now has its
+own phase: the same compact shape, the same green checkmark, the same five-second
+dwell, and the same single word — "Copied" — as the other route to the clipboard.
 
 ### Open question, not a failure
 
@@ -134,24 +140,32 @@ Gaf rather than a defect.
 
 ### Requested, not defects
 
-Came out of the build-28 sessions. Recorded here so they are not mistaken for
-failures, and not lost either.
+Came out of the build-28 sessions. Three are done in build 29 and need a look.
 
-- **Stop chord recording at the first key release.** Today the recorder keeps
-  listening, which invites the belief that releasing one key edits the combination
-  already captured. It does not, and supporting it properly is not possible —
-  distinguishing "released to edit" from "released because done" would require
-  knowing which keys were released together. Committing on first release removes
-  the ambiguity. Wispr Flow behaves this way.
-- **A way to remove a saved API key from Settings.** There is currently none, so
-  testing the missing-key path meant deleting the item in Keychain Access.
-- **A "Redo Onboarding" action.** Currently needs
-  `defaults delete com.gafiegarcia.scriber onboardingComplete`.
-- **Tint whole pills by outcome** — green for success, amber for warnings such as
-  cancellation and no-words — and settle on one wording per outcome. Gaf's own
-  framing is that this is a later idea; the immediate half of it is the duration
-  and wording inconsistency in
-  [finding 5](#5-the-retry-success-pill-is-too-brief-to-read-and-the-wording-is-inconsistent).
+- [x] **Stop chord recording at the first key release.** Waiting for the last
+      release implied that letting go of one key could edit the chord already
+      captured. It never could, and it cannot be made to: deciding which keys were
+      "released together" has no answer, because a user correcting a mistake and a
+      user finishing produce identical events. Build 29 commits at the first
+      release, which yields the same chord and removes the implication.
+      **To check:** record `Fn-Control-Option` and release one key — the recorder
+      should close immediately with the full chord.
+- [x] **A way to remove a saved API key from Settings.** Build 29 adds
+      **Remove Key…** beside Save API Key, shown only when a key is stored, and it
+      confirms first. Verified end to end in a seeded build, including that
+      removing it hides its own button and restores the empty-state placeholder.
+      **To check:** removing the real key should produce the same warnings the
+      Keychain Access deletion did.
+- [x] **A "Redo Onboarding" action.** Build 29 adds it at the end of Settings →
+      General. Only the flag is cleared; the key, grants, and history stay, and
+      onboarding presents each step's current state. Verified: it comes to the
+      front as the key window. **To check:** finishing it should return you to the
+      Dictation window with everything intact.
+- [ ] **Tint whole pills by outcome** — green for success, amber for warnings such
+      as cancellation and no-words. Deferred by Gaf as a later idea: it is a design
+      pass across every pill state, in light and dark on varied backgrounds, rather
+      than a release edit. The wording and duration half of it is done; see
+      [finding 5](#5-the-retry-success-pill-is-too-brief-to-read-and-the-wording-is-inconsistent-fixed-in-build-29).
 
 ### Withdrawn: the menu bar icon was never hidden
 

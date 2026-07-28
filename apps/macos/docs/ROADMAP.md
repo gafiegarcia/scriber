@@ -17,20 +17,31 @@ dictation core, shortcuts, insertion, permissions, Dock lifecycle, appearance, a
 icon all passed. What remains open is a restart check, a fresh-onboarding pass, and
 one supervised XCUITest run.
 
-Contrary to the previous claim here that no implementation task remained, five
-now exist. None is a correctness bug in dictation itself:
+That pass produced five implementation tasks, contrary to the previous claim here
+that none remained. Build 29 closed the two that changed what a user can tell
+about their own dictation, and added three requested actions:
+
+- Fixed: a microphone at zero input volume failed completely silently. Rejecting
+  it below the signal threshold is still correct and still costs no credit; it now
+  says so, and says something different from "no words were recognised".
+- Fixed: the copied-transcript pill was too brief to read on the retry path, and
+  named the same outcome two different ways.
+- Added: Remove Key…, Redo Onboarding…, and chord recording that commits at the
+  first key release.
+
+Three carried forward by Gaf's decision, none of which affects whether a dictation
+works:
 
 - The floating day label never appears while scrolling, at any offset.
-- A microphone at zero input volume fails completely silently — no transcript, no
-  entry, no warning.
 - The missing-permissions pill respawns and resets its timer on every window
   focus, so it obstructs the screen throughout exactly the task it is prompting.
-- The retry-success pill is too brief to read, and the same outcome is worded two
-  different ways across pills.
-- Command-period does nothing inside the Clear Dictation History dialog.
+- Command-period does nothing inside the Clear Dictation History dialog. Likely
+  unfixable: SwiftUI does not expose a `confirmationDialog`'s cancel action, and
+  the failure the check was written to catch — the sidebar toggling behind the
+  dialog — does not happen.
 
-[`ACCEPTANCE.md`](ACCEPTANCE.md) holds all five with detail, plus four requested
-improvements that are not defects.
+[`ACCEPTANCE.md`](ACCEPTANCE.md) holds all of them with detail, plus the deferred
+pill-tinting design pass.
 
 The Xcode project is the source of truth for the current bundle build, and the
 root [changelog](../../../CHANGELOG.md) lists only snapshots that were actually
@@ -56,8 +67,11 @@ tagged.
       on build 28 with Wispr Flow quit: Hold fires on bare `Fn`, and because the
       modifier event is deliberately left unconsumed, `Fn`'s other jobs — the emoji
       picker, a normal Space, ordinary typing — keep working.
-- [ ] Resolve the five open findings in [`ACCEPTANCE.md`](ACCEPTANCE.md), or
-      consciously accept each as a known limitation of the tag.
+- [x] Report a rejected-for-silence recording instead of discarding it without a
+      word, and distinguish it from a recording that carried sound but produced no
+      words.
+- [ ] Decide whether the three carried-forward findings ship as known limitations
+      of `v0.7.0` or block it. None affects whether a dictation works.
 - [ ] Finish the last three person-only checks in
       [`ACCEPTANCE.md`](ACCEPTANCE.md): a restart, a fresh onboarding pass, and the
       XCUITest suite.

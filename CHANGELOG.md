@@ -5,11 +5,19 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
+### Added
+
+- Settings can remove the stored ElevenLabs key, so recovering from a bad key no
+  longer means opening Keychain Access.
+- Settings can send you back through onboarding.
+
 ### Changed
 
 - Deleting a single dictation now asks for confirmation, matching Clear Dictation
   History. A transcript has no undo, and deleting one entry was the only
   destructive action in the app that happened on a single click.
+- Recording a shortcut finishes the moment you release a key, instead of waiting
+  for you to let go of all of them.
 - Reworked Dictation history into calmer day-grouped cards, moved Clear
   Dictation History into Settings, and refined row controls and spacing through
   live review.
@@ -21,6 +29,12 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ### Fixed
 
+- A microphone that produces no sound at all — muted, wrong device, input volume
+  at zero — now says so, instead of the dictation vanishing with no transcript, no
+  history entry, and no warning. It is reported separately from a recording that
+  did carry sound but produced no recognisable words.
+- The pill confirming a transcript reached the clipboard stays long enough to read
+  after a History retry, and both routes to the clipboard now say the same thing.
 - Empty ElevenLabs results now produce an actionable microphone warning instead
   of disappearing silently.
 - In-flight dictations remain hidden until an outcome exists, while explicit
