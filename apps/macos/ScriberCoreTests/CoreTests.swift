@@ -43,6 +43,10 @@ struct ShortcutMatcherTests {
         // the pill was dismissed by hand, which is exactly when the user is likeliest
         // to try again straight away.
         #expect(AppPhase.noSpeechDetected.acceptsRecordingStart)
+        // The likeliest phase of all to be followed by an immediate retry: the user
+        // just spoke into a microphone that produced nothing, and the obvious next
+        // move is to fix it and speak again.
+        #expect(AppPhase.noAudioSignal.acceptsRecordingStart)
         #expect(AppPhase.idle.acceptsRecordingStart)
         #expect(AppPhase.message("Copied").acceptsRecordingStart)
         #expect(AppPhase.cancelledTranscript.acceptsRecordingStart)
@@ -72,9 +76,8 @@ struct ShortcutMatcherTests {
         capture.observe([.function])
         capture.observe([.function, .control])
         capture.observe([.function, .control, .option])
-        capture.observe([.function, .option])
 
-        #expect(capture.commitWhenAllModifiersReleased(currentModifiers: []) == ShortcutChord(
+        #expect(capture.commitOnFirstModifierRelease(currentModifiers: [.function, .option]) == ShortcutChord(
             modifiers: [.function, .control, .option],
             keyCode: nil
         ))
@@ -86,42 +89,49 @@ struct ShortcutMatcherTests {
         capture.observe([.function, .control])
         capture.observe([.function, .option])
 
-        #expect(capture.commitWhenAllModifiersReleased(currentModifiers: []) == ShortcutChord(
+        #expect(capture.commitOnFirstModifierRelease(currentModifiers: []) == ShortcutChord(
             modifiers: [.function, .control],
             keyCode: nil
         ))
     }
 
-    @Test("Modifier recorder waits until every modifier is released")
-    func modifierRecorderWaitsForRelease() {
+    @Test("Modifier recorder commits at the first release, not the last")
+    func modifierRecorderCommitsOnFirstRelease() {
+        // The recorder used to keep listening until every key was up, which made it
+        // look like releasing one key could still edit the chord. It never could.
         var capture = ModifierChordCaptureState()
         capture.observe([.function, .control, .option])
 
-        #expect(capture.commitWhenAllModifiersReleased(currentModifiers: [.function, .control]) == nil)
-        #expect(capture.commitWhenAllModifiersReleased(currentModifiers: []) == ShortcutChord(
+        #expect(capture.commitOnFirstModifierRelease(currentModifiers: [.function, .control]) == ShortcutChord(
             modifiers: [.function, .control, .option],
             keyCode: nil
         ))
+        // And it reset, so the keys still held cannot start a second chord.
+        #expect(capture.commitOnFirstModifierRelease(currentModifiers: []) == nil)
     }
 
-    @Test("Modifier recorder retains the chord through every release order")
+    @Test("Modifier recorder does not commit while the chord is still building")
+    func modifierRecorderIgnoresBuildUp() {
+        var capture = ModifierChordCaptureState()
+        capture.observe([.function])
+        // The plateau between the last press and the first release: equal sets are
+        // not a release, or holding a chord steady would commit it immediately.
+        #expect(capture.commitOnFirstModifierRelease(currentModifiers: [.function]) == nil)
+        capture.observe([.function, .control])
+        #expect(capture.commitOnFirstModifierRelease(currentModifiers: [.function, .control]) == nil)
+    }
+
+    @Test("Modifier recorder commits the full chord whichever key is released first")
     func modifierRecorderHandlesAllReleaseOrders() {
         let fullChord: KeyModifiers = [.function, .control, .option]
-        let releaseOrders: [[KeyModifiers]] = [
-            [.function, .control, .option], [.function, .option, .control],
-            [.control, .function, .option], [.control, .option, .function],
-            [.option, .function, .control], [.option, .control, .function]
-        ]
 
-        for releaseOrder in releaseOrders {
+        for firstReleased in [KeyModifiers.function, .control, .option] {
             var capture = ModifierChordCaptureState()
             capture.observe(fullChord)
             var remaining = fullChord
-            for modifier in releaseOrder {
-                remaining.remove(modifier)
-                capture.observe(remaining)
-            }
-            #expect(capture.commitWhenAllModifiersReleased(currentModifiers: []) == ShortcutChord(
+            remaining.remove(firstReleased)
+
+            #expect(capture.commitOnFirstModifierRelease(currentModifiers: remaining) == ShortcutChord(
                 modifiers: fullChord,
                 keyCode: nil
             ))

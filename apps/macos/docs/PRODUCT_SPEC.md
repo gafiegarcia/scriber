@@ -58,7 +58,7 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 
 ## Recording and transcription
 
-- Recording feedback sounds are enabled by default and configurable as one setting. Play the built-in macOS Frog sound only after capture starts successfully, Bottle once for a terminal recording or transcription failure, and Morse once when recording is cancelled or automatic paste falls back to a copied transcript. Silence, no-content output, and retry waits remain silent.
+- Recording feedback sounds are enabled by default and configurable as one setting. Play the built-in macOS Frog sound only after capture starts successfully, Bottle once for a terminal recording or transcription failure, and Morse once when recording is cancelled or automatic paste falls back to a copied transcript. Bottle also covers the two microphone outcomes — no signal at all, and signal with no words — because both are terminal and both are easy to miss on screen alone. Retry waits remain silent.
 - Muting other app audio while recording is enabled by default and offered during onboarding. A private Core Audio process tap silences all audio except Scriber's while playback continues; destroy the tap as soon as capture stops or is cancelled. Never pause or resume another app, and never read, inspect, log, or persist tap audio.
 - Failure to create the other-audio mute tap must never prevent dictation. Keep recording unmuted and expose the unavailable state in Settings.
 - Use ElevenLabs Scribe v2 batch transcription with no secondary rewrite model.
@@ -68,7 +68,7 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 - Retry transient failures up to three total attempts, waiting 3 seconds and then 5 seconds.
 - Delete audio only after a successful transcript has been saved.
 - Retain failed or interrupted audio so the job can be retried.
-- Do not create a history entry or spend API credit for recordings that never cross the configured signal threshold.
+- Do not create a history entry or spend API credit for recordings that never cross the configured signal threshold. Report the rejection rather than discarding it silently, and distinguish it from a recording that did carry sound but produced no words: a microphone that is muted, at zero input volume, or simply the wrong device must not look identical to not having spoken.
 - Treat empty, whitespace-only, and punctuation-only successful responses as “No words detected,” clean up their temporary record and audio, and do not offer a meaningless retry.
 
 ## Delivery and floating pill

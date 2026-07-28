@@ -47,6 +47,11 @@ struct KeychainStore: Sendable {
         let store = store
         try await Task.detached(priority: .userInitiated) { try store.save(value) }.value
     }
+
+    func deleteAPIKey() async throws {
+        let store = store
+        try await Task.detached(priority: .userInitiated) { try store.delete() }.value
+    }
 }
 
 private struct KeychainStorageBackend: CredentialStorageBackend {

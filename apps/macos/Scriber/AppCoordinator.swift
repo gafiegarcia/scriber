@@ -9,6 +9,7 @@ import ScriberCore
 
 extension Notification.Name {
     static let openScriberMainWindow = Notification.Name("openScriberMainWindow")
+    static let openScriberOnboardingWindow = Notification.Name("openScriberOnboardingWindow")
     static let showAppInDockDidChange = Notification.Name("showAppInDockDidChange")
 }
 
@@ -244,12 +245,13 @@ final class AppCoordinator: ObservableObject {
         case .recording: "Recording"
         case .transcribing: "Transcribing"
         case .cancelledTranscript: "Cancelled"
-        case .dictationCopied: "Copied"
+        case .dictationCopied, .transcriptCopied: "Copied"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .pasteFailed: "Paste failed"
         case .transcriptionFailed: "Transcription failed"
         case .noSpeechDetected: "No words detected"
+        case .noAudioSignal: "No microphone signal"
         case .message(let value): value
         }
     }
@@ -423,6 +425,63 @@ final class AppCoordinator: ObservableObject {
             ? subscriptionUsageUnavailableMessage(accessDenied: result.subscriptionUsageAccessDenied)
             : nil
         refreshCredentialRecovery(force: false)
+    }
+
+    /// Removes the stored key, so the missing-credential path can be reached from
+    /// inside the app.
+    ///
+    /// It could not before: Settings offered no way to remove a saved key, so
+    /// checking that Scriber reports a missing key on its own meant deleting the
+    /// item in Keychain Access. That is a bad way to find out whether your own app
+    /// handles its own failure state.
+    ///
+    /// Cancels any in-flight validation first and advances the revision, so a
+    /// validation that was already running cannot land afterwards and mark the key
+    /// valid again.
+    func removeAPIKey() async throws {
+        credentialRevision.advance()
+        storedAPIKeyValidationTask?.cancel()
+        storedAPIKeyValidationTask = nil
+        isCheckingStoredAPIKey = false
+        isRefreshingSubscriptionUsage = false
+#if DEBUG
+        if !servicesAllowed {
+            preferences.apiKeyConfigured = false
+            preferences.apiKeyValidity = .unchecked
+            preferences.subscriptionUsage = nil
+            preferences.apiCreditsExhausted = false
+            subscriptionUsageUnavailable = false
+            subscriptionUsageError = nil
+            refreshCredentialRecovery(force: true)
+            return
+        }
+#endif
+        try await keychain.deleteAPIKey()
+        preferences.apiKeyConfigured = false
+        preferences.apiKeyValidity = .unchecked
+        preferences.subscriptionUsage = nil
+        preferences.apiCreditsExhausted = false
+        subscriptionUsageUnavailable = false
+        subscriptionUsageError = nil
+        refreshCredentialRecovery(force: true)
+    }
+
+    /// Sends the user back through onboarding.
+    ///
+    /// Only the flag is cleared. The key, grants, and history stay where they are —
+    /// onboarding reads current state, so it presents each step as already
+    /// satisfied rather than asking for it again, and nothing is destroyed by
+    /// looking at it a second time.
+    func restartOnboarding() {
+        preferences.onboardingComplete = false
+        // `openWindow(id:)` creates the scene but does not reliably bring it in
+        // front of the window the action was invoked from — the first attempt left
+        // onboarding rendered behind Settings, with Settings no longer the key
+        // window. Ordering and activation already have one careful implementation
+        // in `AppDelegate.showWindow(titled:)`; route through it rather than
+        // building a second.
+        NSApp.setActivationPolicy(.regular)
+        NotificationCenter.default.post(name: .openScriberOnboardingWindow, object: nil)
     }
 
     private func validateStoredAPIKeyOnce() {
@@ -784,9 +843,22 @@ final class AppCoordinator: ObservableObject {
 
     private func finishRecording(_ completed: CompletedRecording) {
         do {
+            // Discarded, as before — nothing crossed the signal threshold, so there
+            // is nothing to transcribe and no reason to spend credit on it. What
+            // changed is that it no longer happens in silence.
+            //
+            // This was the one terminal outcome with no feedback of any kind: no
+            // transcript, no history row, no sound, no pill, just the recording
+            // pill vanishing. A microphone that is muted, set to zero input volume,
+            // or simply the wrong device therefore looked exactly like not having
+            // spoken, and there was nothing on screen to suggest otherwise.
             guard completed.detectedSignal else {
                 AudioRecorder.delete(relativePath: completed.relativePath)
-                returnToIdle()
+                paste.clearTarget()
+                pill.setPreferredScreen(nil)
+                shortcuts.setMode(.idle)
+                playFeedback(.terminalFailure)
+                setPhase(.noAudioSignal)
                 return
             }
             guard completed.duration >= 0.1 else {
@@ -875,7 +947,7 @@ final class AppCoordinator: ObservableObject {
             } else {
                 copy(record)
                 try modelContext.save()
-                setPhase(.message("Transcript copied"))
+                setPhase(.transcriptCopied)
             }
             preferences.apiCreditsExhausted = false
             Task { [weak self] in await self?.refreshSubscriptionUsage() }

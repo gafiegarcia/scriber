@@ -64,7 +64,7 @@ struct ShortcutRecorderView: View {
                 if !modifierCapture.peakModifiers.isEmpty {
                     liveChord = ShortcutChord(modifiers: modifierCapture.peakModifiers, keyCode: nil)
                 }
-                if let chord = modifierCapture.commitWhenAllModifiersReleased(currentModifiers: modifiers) {
+                if let chord = modifierCapture.commitOnFirstModifierRelease(currentModifiers: modifiers) {
                     commit(chord)
                 }
                 return nil

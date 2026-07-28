@@ -402,6 +402,7 @@ private struct MainWindowCommands: Commands {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var observers: [NSObjectProtocol] = []
     private var activationRetryTask: Task<Void, Never>?
+    private var onboardingWindowTask: Task<Void, Never>?
     private var showAppInDock = false
     /// Set the moment the user closes a managed window, so the startup show
     /// sequence stops trying to put that window back on screen.
@@ -455,6 +456,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         observers.append(center.addObserver(forName: .openScriberMainWindow, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.showMainWindow() }
         })
+        observers.append(center.addObserver(forName: .openScriberOnboardingWindow, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.showOnboardingWindow() }
+        })
         observers.append(center.addObserver(forName: .showAppInDockDidChange, object: nil, queue: .main) { [weak self] note in
             guard let showAppInDock = note.object as? Bool else { return }
             Task { @MainActor [weak self] in
@@ -478,6 +482,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showMainWindow() {
         showWindow(titled: AppWindowIdentity.mainTitle)
+    }
+
+    /// Brings onboarding forward for a Redo Onboarding request.
+    ///
+    /// Polls, because the scene may not exist yet: unlike the main window,
+    /// onboarding is usually never instantiated in a session that started with
+    /// setup already complete, and `showWindow` can only order a window that
+    /// AppKit has actually created. The caller's `openWindow(id:)` is what creates
+    /// it; this waits for it to appear and then does the ordering and activation.
+    private func showOnboardingWindow() {
+        onboardingWindowTask?.cancel()
+        onboardingWindowTask = Task { @MainActor [weak self] in
+            for _ in 0..<40 {
+                guard let self, !Task.isCancelled else { return }
+                if self.showWindow(titled: AppWindowIdentity.onboardingTitle) { return }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            Self.windowLog.notice("showOnboardingWindow: never appeared")
+        }
     }
 
     private func showInitialWindowWhenAvailable(onboardingComplete: Bool) async {

@@ -196,10 +196,14 @@ final class PillController {
             1.5
         case .permissionsRequired:
             8
-        case .dictationCopied:
+        // Both forms of "your text is on the clipboard, not in your app" get the
+        // same dwell. The compact one used to inherit `.message`'s 1.5 seconds,
+        // which was long enough to see something flash and not long enough to read
+        // it.
+        case .dictationCopied, .transcriptCopied:
             5
         case .cancelledTranscript, .credentialsUnusable, .pasteFailed, .transcriptionFailed,
-             .noSpeechDetected:
+             .noSpeechDetected, .noAudioSignal:
             6
         default:
             nil
@@ -218,7 +222,7 @@ final class PillController {
             NSSize(width: 430, height: 60)
         case .pasteFailed, .transcriptionFailed:
             NSSize(width: 390, height: 60)
-        case .noSpeechDetected:
+        case .noSpeechDetected, .noAudioSignal:
             NSSize(width: 460, height: 60)
         default:
             NSSize(width: 280, height: 52)
@@ -474,9 +478,9 @@ private struct PillView: View {
                 .frame(width: 58, height: 24)
         case .transcribing:
             ProgressView().controlSize(.small)
-        case .dictationCopied:
+        case .dictationCopied, .transcriptCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case .noSpeechDetected:
+        case .noSpeechDetected, .noAudioSignal:
             Image(systemName: "mic.slash.fill").foregroundStyle(.orange)
         case .cancelledTranscript, .permissionsRequired, .credentialsUnusable,
              .pasteFailed, .transcriptionFailed:
@@ -493,13 +497,16 @@ private struct PillView: View {
         case .transcribing(let attempt, let delay):
             if attempt == 1, delay == nil { "Transcribing…" }
             else { "Retrying \(min(attempt + (delay == nil ? 0 : 1), 3))/3…" }
-        case .dictationCopied: "Copied"
+        // One wording for one outcome. These were "Copied" and "Transcript copied"
+        // for the same thing, which read as two different results.
+        case .dictationCopied, .transcriptCopied: "Copied"
         case .cancelledTranscript: "You can recover your cancelled transcript"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .pasteFailed: "Couldn't paste automatically"
         case .transcriptionFailed: "Transcription failed"
         case .noSpeechDetected: "No words detected"
+        case .noAudioSignal: "No sound from the microphone"
         case .message(let value): value
         }
     }
@@ -514,10 +521,16 @@ private struct PillView: View {
             PermissionReadiness(missingPermissions: missing).recoveryMessage
         case .dictationCopied(_, let message), .pasteFailed(let message), .transcriptionFailed(let message): message
         // Kept short deliberately: the compact pill gives its subtitle one line
-        // and truncates, and this phase also carries a countdown, an action, and
+        // and truncates, and these phases also carry a countdown, an action, and
         // a dismiss control on the same row. The cause goes here; the fix is the
         // button.
-        case .noSpeechDetected: "The selected microphone may be muted"
+        //
+        // These two no longer say the same thing. Sound reaching the recorder and
+        // no words coming back is a different problem from no sound arriving at
+        // all, and the old copy blamed a muted microphone for both — which was
+        // actively wrong in the case where audio did arrive.
+        case .noSpeechDetected: "No recognisable words in the recording"
+        case .noAudioSignal: "Check the selected input and its volume"
         default: nil
         }
     }
@@ -548,7 +561,7 @@ private struct PillView: View {
             Button("Retry") { model.onRetry?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("Open") { model.onOpen?() }.controlSize(.small)
             dismissButton
-        case .noSpeechDetected:
+        case .noSpeechDetected, .noAudioSignal:
             Button("Check Input") { model.onOpenInputSettings?() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)

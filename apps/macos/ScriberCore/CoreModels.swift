@@ -64,12 +64,29 @@ public struct ModifierChordCaptureState: Equatable, Sendable {
         peakModifiers = modifiers
     }
 
-    /// Returns the complete modifier-only chord once every modifier has been
+    /// Returns the peak modifier-only chord as soon as the **first** modifier is
     /// released, then resets for the next capture.
-    public mutating func commitWhenAllModifiersReleased(
+    ///
+    /// It used to wait for every modifier to be released, which was worse for a
+    /// reason that is not about correctness: while keys were still down after a
+    /// release, the recorder looked like it was still listening, which invites the
+    /// belief that letting go of one key edits the chord already captured. It never
+    /// did — the peak is what gets committed either way — and it could not be made
+    /// to. Honouring it would mean deciding which keys counted as "released
+    /// together", and there is no signal that answers that: a user correcting a
+    /// mistake and a user finishing a chord produce the same events.
+    ///
+    /// Committing at the first release removes the question. The window in which
+    /// the interface implies an ability it does not have closes, and the chord is
+    /// still the peak, so every release order yields the same result as before.
+    public mutating func commitOnFirstModifierRelease(
         currentModifiers: KeyModifiers
     ) -> ShortcutChord? {
-        guard currentModifiers.isEmpty, !peakModifiers.isEmpty else { return nil }
+        guard !peakModifiers.isEmpty else { return nil }
+        // A strict subset means something that was held is no longer held. Equal
+        // sets are the plateau between the last press and the first release, and a
+        // superset is still building up.
+        guard currentModifiers.isStrictSubset(of: peakModifiers) else { return nil }
         defer { reset() }
         return ShortcutChord(modifiers: peakModifiers, keyCode: nil)
     }
@@ -294,9 +311,28 @@ public enum AppPhase: Equatable, Sendable {
     case credentialsUnusable(CredentialReadiness)
     case pasteFailed(String)
     case transcriptionFailed(String)
-    /// The transcription succeeded but contained no words. Usually a misconfigured
-    /// or dead input rather than a genuine silence, so it routes to input settings.
+    /// The transcription succeeded but contained no words. Sound did reach the
+    /// recorder, so the input is working — routes to input settings anyway, because
+    /// an input that is too quiet is the next likeliest cause.
     case noSpeechDetected
+    /// Nothing ever crossed the signal threshold, so the recording was discarded
+    /// before it cost any API credit.
+    ///
+    /// Distinct from `.noSpeechDetected` on purpose. This one means the microphone
+    /// produced no usable sound at all — muted, wrong device, input volume at zero
+    /// — and it used to be discarded in complete silence, which made a broken
+    /// microphone indistinguishable from not having spoken.
+    case noAudioSignal
+    /// A transcript reached the clipboard instead of the cursor, from a History
+    /// retry rather than from a failed paste.
+    ///
+    /// Its own phase rather than a `.message`, because it is not an
+    /// acknowledgement of something the user just did — it is the outcome telling
+    /// them the text is *not* where they wanted it and they have to paste it
+    /// themselves. As a 1.5-second `.message` with a generic waveform it was
+    /// missable, and it named the same outcome differently from
+    /// `.dictationCopied`.
+    case transcriptCopied
     case message(String)
 
     public var isBusy: Bool {
@@ -428,7 +464,8 @@ public extension AppPhase {
         case .recording: .cancelRecording
         case .transcribing: .hideTranscription
         case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
-             .pasteFailed, .transcriptionFailed, .noSpeechDetected, .message: .dismiss
+             .pasteFailed, .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
+             .transcriptCopied, .message: .dismiss
         }
     }
 }

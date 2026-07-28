@@ -832,11 +832,15 @@ private extension DictationRecord {
 
 struct SettingsView: View {
     @EnvironmentObject private var runtime: AppRuntime
+    @Environment(\.openWindow) private var openWindow
     /// Only so Clear Dictation History knows whether there is anything to clear,
     /// and how much. Sorted to match the Dictation page rather than for display.
     @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
     let onShortcutConfigurationCaptureChanged: (Bool) -> Void
     @State private var confirmClearHistory = false
+    @State private var confirmRemoveKey = false
+    @State private var isRemovingAPIKey = false
+    @State private var confirmRestartOnboarding = false
     @State private var apiKey = ""
     @State private var keyFeedback: KeySaveFeedback?
     @State private var isCheckingAPIKey = false
@@ -890,6 +894,15 @@ struct SettingsView: View {
                 Toggle("Show in Menu Bar", isOn: $runtime.preferences.showInMenuBar)
                 Toggle("Show app in Dock", isOn: $runtime.preferences.showAppInDock)
                     .accessibilityIdentifier("show-app-in-dock-toggle")
+                // Onboarding was previously reachable only by deleting a defaults
+                // key. Nothing is destroyed by walking it again — it reads current
+                // state, so a step already satisfied is presented as satisfied —
+                // but it does replace the window in front of you, so it asks.
+                HStack {
+                    Button("Redo Onboarding…") { confirmRestartOnboarding = true }
+                        .accessibilityIdentifier("restart-onboarding")
+                    Spacer()
+                }
             }
             .onChange(of: activeShortcutRecorderID) { _, activeRecorderID in
                 onShortcutConfigurationCaptureChanged(activeRecorderID != nil)
@@ -967,6 +980,18 @@ struct SettingsView: View {
                             apiKeyStatusLabel
                         }
                         Spacer(minLength: 0)
+                        // There was no way to remove a saved key from inside the
+                        // app, so reaching Scriber's own missing-key state meant
+                        // deleting the item in Keychain Access. Confirmed, because
+                        // the key does not come back and dictation stops until it
+                        // is re-entered.
+                        if runtime.preferences.apiKeyConfigured {
+                            Button("Remove Key…", role: .destructive) {
+                                confirmRemoveKey = true
+                            }
+                            .disabled(isCheckingAPIKey || isRemovingAPIKey)
+                            .accessibilityIdentifier("remove-api-key")
+                        }
                     }
                 }
                 subscriptionUsageView
@@ -1050,6 +1075,21 @@ struct SettingsView: View {
             } message: {
                 Text("This permanently removes transcripts and any retained failed recordings.")
             }
+            .confirmationDialog("Remove the stored API key?", isPresented: $confirmRemoveKey) {
+                Button("Remove Key", role: .destructive) { removeAPIKey() }
+            } message: {
+                Text("Dictation stops working until you enter a key again. Scriber cannot recover the removed key.")
+            }
+            .confirmationDialog("Go through onboarding again?", isPresented: $confirmRestartOnboarding) {
+                Button("Redo Onboarding") {
+                    // Create the scene first, then let the coordinator order it
+                    // front — it waits for the window to exist.
+                    openWindow(id: "onboarding")
+                    runtime.coordinator.restartOnboarding()
+                }
+            } message: {
+                Text("Your key, permissions, and history are kept. Onboarding shows each step's current state.")
+            }
             .onAppear {
                 apiKey = ""
                 runtime.coordinator.refreshPermissions(promptForAccessibility: false)
@@ -1075,6 +1115,21 @@ struct SettingsView: View {
     private func submitAPIKey() {
         guard canSubmitAPIKey else { return }
         Task { await saveKey() }
+    }
+
+    private func removeAPIKey() {
+        guard !isRemovingAPIKey else { return }
+        isRemovingAPIKey = true
+        Task {
+            defer { isRemovingAPIKey = false }
+            do {
+                try await runtime.coordinator.removeAPIKey()
+                apiKey = ""
+                keyFeedback = nil
+            } catch {
+                keyFeedback = .failed(error.localizedDescription)
+            }
+        }
     }
 
     private func applyMainWindowRequest(_ request: MainWindowRequest?, proxy: ScrollViewProxy) {
