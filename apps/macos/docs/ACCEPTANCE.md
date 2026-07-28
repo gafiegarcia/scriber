@@ -15,113 +15,32 @@ by machine now, against a build seeded with `--ui-testing-seed-history`; see the
 seeded-history section of [`TESTING.md`](TESTING.md). What is left needs a person,
 and [Sessions for Gaf](#sessions-for-gaf) is the plain-language version of it.
 
-## Sessions for Gaf
+## Still to do
 
-Grouped so each prerequisite is set up once. Every check below is also recorded
-in technical form in the sections further down; this is the same work written to
-be done rather than filed.
+Gaf worked through the acceptance sessions on build 28. Almost all of it passed;
+what it turned up is in [Open findings](#open-findings). Three things remain.
 
-### 1. Turn the menu bar icon back on — do this first, it blocks session 4
+### 1. Restart the Mac
 
-Right now Scriber's little icon is **not in your menu bar**, even though its
-setting says it should be. macOS is hiding it (see [finding 3](#3-the-menu-bar-icon-is-hidden-while-the-setting-says-it-is-shown)).
+Confirm the Microphone and Accessibility grants survived, that Scriber is running
+after login, and that the stored key still reads back without asking for the login
+password again. Then confirm **Launch at Login** can be turned off and stays off.
 
-- Open Scriber → Settings → General. Switch **Show in Menu Bar** off, then on
-  again.
-- **You should see:** the Scriber icon reappear in the menu bar.
-- If it does not come back, Command-drag it back into place from wherever macOS
-  put it, or tell me and I will look again.
-- Then leave it alone and just notice, over the next day of normal use, whether it
-  reads clearly next to your other icons and whether it ever jumps wider or
-  narrower. If it feels a touch too tall, say so — one number changes it.
+### 2. Redo onboarding once
 
-### 2. One dictation session with your real key
+Reset the stored flag, relaunch, and confirm onboarding appears before setup and
+the Dictation window after it:
 
-This is the only session that spends ElevenLabs credit. Five or six short
-dictations covers all of it.
+```bash
+defaults delete com.gafiegarcia.scriber onboardingComplete
+```
 
-- **Dictate normally into a text box.** You should see the words land at your
-  cursor, and a new row appear in Dictation history *only after* it finishes —
-  nothing should show up while it is still thinking.
-- **Mute your microphone (or unplug it) and dictate for a few seconds.** You
-  should hear the failure sound and see a pill saying no words were detected. It
-  should disappear on its own after about six seconds, and its button should take
-  you to Settings scrolled to the microphone picker. **Check afterwards that no
-  leftover row was added to history.**
-- **Say only "um, uh"** or just punctuation-ish noise, and see what the row says.
-- **Find a failed row in history and press Retry.** The row should stay where it
-  is and show a "Retrying" label rather than vanishing and coming back.
-- **Dictate with nothing focused** — click the desktop first, then dictate. You
-  should get the copied-to-clipboard pill instead of text being typed anywhere.
-- **Dictate, then click into a different app while it is still transcribing.** The
-  text should land wherever your cursor ended up, not where it started.
+### 3. The XCUITest suite, once, end to end
 
-### 3. One shortcut session
-
-**Quit Wispr Flow first.** It is installed and it wants the same Fn key Scriber
-does; leaving it running makes the results meaningless. Also open System Settings
-→ Keyboard and set the Globe/Fn key action to **Do Nothing** for the duration.
-
-- **Hold Fn** and speak, then let go. Recording should start immediately, with the
-  Frog sound once.
-- **Press Fn-Space** to start hands-free, then Fn-Space again to stop. While it is
-  locked hands-free, holding Fn should do nothing.
-- **Hold Fn, keep holding, and let it convert to hands-free.**
-- **Start recording, then just start typing.** It should cancel.
-- **Start recording, then press Escape.** It should cancel, with the Morse sound.
-- **Press Fn on its own in a text box, without recording** — a normal Space and
-  normal typing should still work afterwards. This is the one I most want to hear
-  about: bare Fn is deliberately *not* swallowed, because swallowing it breaks
-  ordinary typing, so the question is whether Scriber still reliably notices it.
-- **In Settings, record a custom shortcut** of Fn-Control-Option, pressing and
-  releasing the keys in a few different orders. It should show what you are
-  holding as you hold it. While you are recording a shortcut, your normal Scriber
-  shortcut should not fire.
-- **Turn Hold off, leaving Toggle on** — then only the disabled one should stop
-  working, and each should remember its own key combination.
-
-### 4. One key-and-permissions session
-
-- **Remove your ElevenLabs key** (Settings → ElevenLabs), then quit and reopen
-  Scriber. Scriber should tell you on its own, without you trying to dictate: a
-  pill, a banner on the Dictation page, and the menu bar icon changing to a
-  warning symbol. Then **put the key back** and confirm the icon returns to the
-  normal mark without needing a relaunch.
-- **Turn off Microphone access** in System Settings → Privacy & Security, then
-  Accessibility, then both. Each time, Scriber should warn you, offer a pill, and
-  the pill's button should take you to the right place in Settings. After you
-  grant them back, dictation shortcuts should start working again on their own —
-  no relaunch.
-- **Restart the Mac** and confirm both grants survived and the key still reads
-  back without asking for your login password again.
-
-### 5. One lifecycle session
-
-- With **Show app in Dock** off: press Command-W, and separately Command-Shift-W
-  and the red close button. The window and Dock icon should go away, but Scriber
-  should keep working — shortcuts still dictate.
-- Turn **Show app in Dock** on: Scriber should stay in the Dock and in Command-Tab
-  after the last window closes, and turning it off should not close a window you
-  are looking at.
-- Confirm **Launch at Login** works: restart, and check Scriber is running and that
-  a dictation right after login works. Then turn it off and confirm it stays off.
-- Delete Scriber's onboarding state (or ask me how) and confirm a fresh install
-  shows onboarding first, and the Dictation window after setup.
-
-### 6. Two quick looks
-
-- **Switch macOS to Light appearance** and look at the Dictation history. The day
-  groups should still read as clean rounded cards, and the text should still be
-  comfortably readable. Switch back to Dark and compare.
-- **Look at the app icon** in the Dock, in Finder, and with a tinted Dock, and at
-  small sizes. Just say whether anything looks wrong.
-
-### 7. The XCUITest suite, once, end to end
-
-Only you can start this — it takes over the pointer and keyboard for its whole
-run, so do not start it while you need the machine. The command is in
-[`TESTING.md`](TESTING.md). One case intentionally skips itself unless its
-generated test binary has Accessibility trust; that skip is expected.
+Only Gaf can start this — it takes over the pointer and keyboard for its whole
+run. The command is in [`TESTING.md`](TESTING.md). One case intentionally skips
+itself unless its generated test binary has Accessibility trust; that skip is
+expected.
 
 ---
 
@@ -169,21 +88,41 @@ sheet at all, so this needs one press on a real keyboard. It is in
 [session 5](#5-one-lifecycle-session) territory — worth ten seconds next time the
 dialog is open.
 
-### 3. The menu bar icon is hidden while the setting says it is shown
+### 3. A misconfigured microphone fails completely silently
 
-Scriber's own preferences hold `showInMenuBar = 1`, while macOS holds
-`NSStatusItem VisibleCC Item-0 = 0` for the same item — so no icon is displayed.
+With the system input volume set to **zero**, a dictation produces nothing at all:
+no transcription, no history entry, no retry, no warning. The pill simply
+disappears.
 
-`MenuBarExtra`'s `isInserted` binding is two-way and writes the preference back
-when the item is removed, so the two being out of step is exactly the
-"preference synchronization after Command-drag removal" case in
-[Installation, identity, and lifecycle](#installation-identity-and-lifecycle).
-Whether it is a live sync bug or stale state left over from an earlier install is
-not yet distinguishable.
+Silent rejection below the signal threshold is intended — the spec says not to
+create an entry or spend credit on a recording that never crosses it, and the
+sound spec keeps silence silent. But the *user-visible* result is that a broken
+microphone is indistinguishable from "you didn't say anything", with no way to
+tell Scriber is misconfigured rather than working. Raising the input volume
+slightly above zero transcribed correctly, which confirms the threshold is the
+mechanism.
 
-Consequence: **every menu-bar icon check is blocked** until the icon is restored,
-which is why [session 1](#1-turn-the-menu-bar-icon-back-on--do-this-first-it-blocks-session-4)
-comes first.
+Worth separating the two cases: a recording that crossed the threshold but
+produced no words already gets the no-words pill and no entry, which is right. A
+recording that never crossed it at all is the one that says nothing.
+
+### 4. The permissions pill respawns on every window focus
+
+Unlike the credential pill, the missing-permissions pill reappears **and resets
+its dismissal timer** every time Scriber's window gains focus — so every
+Command-Tab brings it back. While granting permissions in System Settings, which
+means switching back and forth repeatedly, it obstructs the screen almost
+continuously.
+
+### 5. The retry-success pill is too brief to read, and the wording is inconsistent
+
+Retrying a failed entry succeeds and shows a compact "Transcription copied" pill,
+which looks good — but it disappears fast enough to miss entirely on first
+encounter. The no-focused-field pill, by contrast, reads "Copied" with a green
+checkmark and stays long enough to register.
+
+Two separate problems: the retry pill's duration is too short, and the same
+outcome is worded two different ways.
 
 ### Open question, not a failure
 
@@ -192,6 +131,40 @@ dictations rather than the number of matches — search for one word and it stil
 reads "21 dictations" above a single row. That is what the code intends
 (`visibleRecords.count`, not the filtered count), so it is a design question for
 Gaf rather than a defect.
+
+### Requested, not defects
+
+Came out of the build-28 sessions. Recorded here so they are not mistaken for
+failures, and not lost either.
+
+- **Stop chord recording at the first key release.** Today the recorder keeps
+  listening, which invites the belief that releasing one key edits the combination
+  already captured. It does not, and supporting it properly is not possible —
+  distinguishing "released to edit" from "released because done" would require
+  knowing which keys were released together. Committing on first release removes
+  the ambiguity. Wispr Flow behaves this way.
+- **A way to remove a saved API key from Settings.** There is currently none, so
+  testing the missing-key path meant deleting the item in Keychain Access.
+- **A "Redo Onboarding" action.** Currently needs
+  `defaults delete com.gafiegarcia.scriber onboardingComplete`.
+- **Tint whole pills by outcome** — green for success, amber for warnings such as
+  cancellation and no-words — and settle on one wording per outcome. Gaf's own
+  framing is that this is a later idea; the immediate half of it is the duration
+  and wording inconsistency in
+  [finding 5](#5-the-retry-success-pill-is-too-brief-to-read-and-the-wording-is-inconsistent).
+
+### Withdrawn: the menu bar icon was never hidden
+
+An earlier build-28 finding claimed macOS was hiding the menu bar item while
+`showInMenuBar = 1`, inferred from `NSStatusItem VisibleCC Item-0 = 0`. That was
+wrong. The icon was present the whole time; the defaults key does not mean what
+was assumed, and the icon's absence was never actually confirmed — it was inferred
+from failing to identify Scriber's mark among eight status items.
+
+Gaf's standing observation is that showing, hiding, and Settings synchronization
+have worked since the menu bar shipped, and build 28 was watched switching to the
+warning symbol and back during the credential check. Recorded so the same key does
+not mislead a second time.
 
 ## Interface acceptance
 
@@ -202,15 +175,16 @@ needed a real API key.
       overflow. Confirmed on build 18: the neighbouring items returned as soon as
       the image was sized, and the mark measures comparably to the battery item
       beside it.
-- [ ] The menu bar icon reads well at a glance next to its neighbours over a full
+- [x] The menu bar icon reads well at a glance next to its neighbours over a full
       day, holds steady through a record, transcribe, and paste cycle, switches to
       the warning symbol when the API key is removed, and returns to the app mark
       when it is restored, without relaunching and without the item jumping width.
-      **Blocked** by [finding 3](#3-the-menu-bar-icon-is-hidden-while-the-setting-says-it-is-shown):
-      no icon is currently displayed. Needs the installed Release build — a Debug
-      build has no menu bar item at all and always renders the warning state. If
-      it wants to sit a little shorter, `menuBarIconHeight` in `ScriberApp` is the
-      only number to change.
+      Build 28: confirmed by Gaf. Removing the key showed the warning symbol;
+      restoring it dismissed the banner and returned the mark, with no relaunch.
+      Showing, hiding, and Settings synchronization have been trouble-free since
+      the menu bar shipped, the icon-change work aside. If it ever wants to sit a
+      little shorter, `menuBarIconHeight` in `ScriberApp` is the only number to
+      change.
 - [x] Copy a single-line entry: the icon changes to a checkmark for about a second
       and a half and **the row does not change height** while it does. Build 28:
       the checkmark is green and lasts 1.4s; captured before and after the click,
@@ -296,19 +270,24 @@ needed a real API key.
 - [x] Command-F still focuses search, and the placeholder carries the hint.
       Build 28: the placeholder reads "Search past transcripts (⌘F)", Command-F
       takes focus, and typing filtered 21 rows to the single matching one.
-- [ ] Day groups render as rounded cards, legibly, in both light and dark
-      appearance. Dark confirmed on build 28, in both the seeded build and the
-      installed build against real history. Light needs a system appearance
-      change; [session 6](#6-two-quick-looks).
-- [ ] Start a dictation and watch history through the wait: no row appears until
+- [x] Day groups render as rounded cards, legibly, in both light and dark
+      appearance. Build 28: dark confirmed by machine in the seeded and installed
+      builds; Gaf confirmed both appearances read comfortably as clean cards.
+- [x] Start a dictation and watch history through the wait: no row appears until
       the outcome lands. Then retry a failed entry and confirm its row stays
-      visible with the Retrying label. Needs a real key;
-      [session 2](#2-one-dictation-session-with-your-real-key). The seeded
-      in-flight record does prove the filter itself hides a transcribing row.
+      visible with the Retrying label. Build 28: both confirmed with a real key.
+      The retried row kept its place, showed Retrying, then succeeded — but its
+      success pill is too brief to read; see
+      [finding 5](#5-the-retry-success-pill-is-too-brief-to-read-and-the-wording-is-inconsistent).
+- [x] Punctuation-only or no-content output leaves no history row behind.
+      Build 28: "uh" returned no words detected and added no entry. ("um" was
+      transcribed as Japanese, which is defensible — it did sound like うん.)
 - [ ] **Needs a real key.** Mute or unplug the selected input, dictate for several
       seconds, and confirm the no-words pill appears with the failure sound,
       dismisses after about six seconds, and its button scrolls Settings to the
-      microphone picker. Confirm no history row is left behind.
+      microphone picker. Confirm no history row is left behind. Build 28: **fails
+      at zero input volume** — nothing appears at all. See
+      [finding 3](#3-a-misconfigured-microphone-fails-completely-silently).
 
 ## Installation, identity, and lifecycle
 
@@ -316,30 +295,44 @@ needed a real API key.
       locally certificate-signed Release configuration with Xcode 27 beta.
 - [x] Install the verified locally certificate-signed Release build at
       `/Applications/Scriber.app`.
-- [ ] Complete fresh onboarding under the `com.gafiegarcia.scriber` identity.
-- [ ] Verify Microphone and Accessibility grants persist for the installed app.
-- [ ] Revoke Microphone and Accessibility separately and together after
+- [ ] Complete fresh onboarding under the `com.gafiegarcia.scriber` identity, and
+      verify launch presents onboarding before setup and the main Dictation window
+      after setup. Reset with
+      `defaults delete com.gafiegarcia.scriber onboardingComplete`.
+- [ ] Verify Microphone and Accessibility grants persist across a restart, and
+      that the stored key still reads back without a login-Keychain prompt.
+- [x] Revoke Microphone and Accessibility separately and together after
       onboarding; verify the proactive warning, permission pill, Settings route,
-      and automatic shortcut-monitor recovery after regranting.
+      and automatic shortcut-monitor recovery after regranting. Build 28:
+      confirmed. Two notes. macOS itself forces Quit & Reopen whenever Microphone
+      access changes, so the no-relaunch recovery could only be observed for
+      Accessibility, where Scriber handles both directions correctly. And the pill
+      is intrusive throughout; see
+      [finding 4](#4-the-permissions-pill-respawns-on-every-window-focus).
 - [ ] Verify Launch at Login registration, first-login dictation after
-      persistent-store readiness, relaunch, and opt-out.
-- [ ] Verify launch presents onboarding before setup and the main Dictation window
-      after setup.
-- [ ] Verify Command-W, Command-Shift-W, and the red window control remove the
+      persistent-store readiness, relaunch, and opt-out. Has worked for several
+      builds; recheck on build 28 alongside the restart.
+- [x] Verify Command-W, Command-Shift-W, and the red window control remove the
       final normal window and Dock icon without terminating menu-bar or dictation
-      services when "Show app in Dock" is disabled.
-- [ ] Verify "Show app in Dock" persists, keeps Scriber in the Dock and app
+      services when "Show app in Dock" is disabled. Build 28.
+- [x] Verify "Show app in Dock" persists, keeps Scriber in the Dock and app
       switcher after the final window closes when enabled, and does not close a
-      visible window when disabled.
-- [ ] Verify the Show in Menu Bar setting, restoration after re-enabling, and
-      preference synchronization after Command-drag removal. Currently out of
-      step; see [finding 3](#3-the-menu-bar-icon-is-hidden-while-the-setting-says-it-is-shown).
+      visible window when disabled. Build 28: correct with the setting both on and
+      off.
+- [x] Verify the Show in Menu Bar setting, restoration after re-enabling, and
+      preference synchronization after Command-drag removal. Trouble-free since the
+      menu bar shipped; still true on build 28. An earlier build-28 finding
+      claiming otherwise was withdrawn — see
+      [Withdrawn](#withdrawn-the-menu-bar-icon-was-never-hidden).
 
 ## Credentials, quota, and transcription
 
-- [ ] Remove or corrupt the stored key, relaunch, and confirm Scriber reports it
+- [x] Remove or corrupt the stored key, relaunch, and confirm Scriber reports it
       on its own — pill, Dictation banner, and menu bar — without waiting for a
-      dictation attempt.
+      dictation attempt. Build 28: all three reported it, and restoring the key
+      cleared the banner and the menu bar mark without a relaunch. Note that
+      Settings has **no way to remove a saved key**, so this had to be done through
+      Keychain Access; see [Requested](#requested-not-defects).
 - [ ] Confirm the same for exhausted credits, and that recovery routes to the
       usage panel rather than the key field.
 - [ ] Confirm retained audio older than 30 days is removed at launch while its
@@ -358,13 +351,23 @@ needed a real API key.
 
 ## Recording and shortcuts
 
-- [ ] Test bare `Fn`, `Fn-Space`, and custom `Fn-Control-Option` Hold behavior with
+- [x] Test bare `Fn`, `Fn-Space`, and custom `Fn-Control-Option` Hold behavior with
       competing dictation and global-shortcut tools disabled. **Wispr Flow is
-      installed on this machine and must be quit first.**
-- [ ] Verify every press/release order records and live-displays
+      installed on this machine and must be quit first.** Build 28: Hold on bare
+      `Fn` starts immediately; `Fn-Space` locks hands-free and Hold is correctly
+      ignored while locked; a custom `Fn-Control-Option` binding works.
+- [x] Confirm Scriber leaving the `Fn` key event unconsumed keeps `Fn`'s other jobs
+      working. Build 28: with Hold rebound off bare `Fn`, the emoji picker on
+      `Fn-E`, a normal Space, and ordinary typing all behaved. This is the
+      observable consequence of `GlobalShortcutService` returning `false` for
+      modifier-only chords — swallowing `flagsChanged` would leave the foreground
+      app with stale modifier state.
+- [x] Verify every press/release order records and live-displays
       `Fn-Control-Option`, only one binding recorder listens at a time, and neither
       configured shortcut nor global Escape handling fires while a recorder is
-      listening.
+      listening. Build 28: recording works and displays the chord live. One
+      behavioral request came out of it; see
+      [Requested](#requested-not-defects).
 - [ ] Verify Frog plays once after Hold, Toggle, and menu capture starts; Bottle
       plays once for terminal microphone/transcription failures; Morse plays once
       for cancellation and copied paste fallback; silence, no-content output, and
@@ -376,13 +379,16 @@ needed a real API key.
 - [ ] Verify tap creation with System Audio Recording allowed and denied on
       macOS 27; denial or Core Audio failure must continue dictation unmuted and
       report the unavailable state only in Settings.
-- [ ] Verify held-to-hands-free conversion, exact Toggle-only locked-recording stop
-      semantics, and that Hold is ignored while locked.
-- [ ] Verify independently disabling and re-enabling Hold and Toggle preserves each
-      chord and prevents only the disabled keyboard action.
-- [ ] Verify early typing cancellation, short and recoverable Escape cancellation,
-      Undo, History retry, and pill dismissal across other apps and full-screen
-      windows.
+- [x] Verify held-to-hands-free conversion, exact Toggle-only locked-recording stop
+      semantics, and that Hold is ignored while locked. Build 28.
+- [x] Verify independently disabling and re-enabling Hold and Toggle preserves each
+      chord and prevents only the disabled keyboard action. Build 28: correct in
+      both directions.
+- [x] Verify early typing cancellation and Escape cancellation, with the
+      cancellation sound. Build 28: typing during a recording cancels it, Escape
+      cancels it, and Morse plays once for each. Full-screen and cross-app pill
+      dismissal, Undo, and History retry from other apps are covered by daily use
+      but were not separately walked through.
 - [ ] Verify 10-minute auto-stop, silence rejection, selected/default/disconnected
       microphone behavior, and live waveform response.
 - [ ] Confirm the configured macOS Globe/Fn action does not interfere; use "Do
@@ -408,8 +414,12 @@ anything these checks cover. Its table is the regression baseline.
 - [x] Repeat insertion checks in Ghostty, Raycast, VS Code, and Zed. Raycast needed
       the build 11 keyboard-focus fix; its command bar and its Notes window both
       deliver correctly now. Codex remains unchecked.
-- [ ] Confirm moving focus to a different app or field during transcription
-      delivers to the final cursor.
+- [x] Confirm moving focus to a different app or field during transcription
+      delivers to the final cursor. Build 28: started a dictation in Zen with a
+      focused field, switched to the Claude app and clicked into its prompt box,
+      then stopped — it landed there. Also confirmed with the cursor moved during
+      transcription rather than before it: delivery followed the final position.
+      Much of Gaf's build-28 report was itself dictated across those apps.
 - [ ] Confirm the pill still appears on the screen holding the app that was
       frontmost at record start, now that its screen comes from the window server
       rather than Accessibility.

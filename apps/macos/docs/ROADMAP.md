@@ -12,17 +12,25 @@ of what remains, and the interface half of it is now done: the machine-drivable
 checks in [`ACCEPTANCE.md`](ACCEPTANCE.md) were closed against a seeded build,
 which left three findings and one open design question rather than a clean pass.
 
-One of those findings is a real implementation task, contrary to the previous
-claim here that none remained: **the floating day label never appears while
-scrolling**, at any offset. It is cosmetic and it is the only interface behavior
-known to be broken rather than merely unverified. The other two findings are a
-dead Command-period inside the Clear Dictation History dialog and a menu bar item
-that macOS is hiding while Scriber's own preference says it is shown — the last of
-which blocks every menu-bar icon check until it is restored.
+Gaf then worked through the sessions that need a person, on the same build. The
+dictation core, shortcuts, insertion, permissions, Dock lifecycle, appearance, and
+icon all passed. What remains open is a restart check, a fresh-onboarding pass, and
+one supervised XCUITest run.
 
-What is left beyond that needs a person: a real key, real permission grants, real
-hardware for `Fn`, a reboot, a light-appearance look, and one supervised XCUITest
-run. [`ACCEPTANCE.md`](ACCEPTANCE.md) groups all of it into sessions.
+Contrary to the previous claim here that no implementation task remained, five
+now exist. None is a correctness bug in dictation itself:
+
+- The floating day label never appears while scrolling, at any offset.
+- A microphone at zero input volume fails completely silently — no transcript, no
+  entry, no warning.
+- The missing-permissions pill respawns and resets its timer on every window
+  focus, so it obstructs the screen throughout exactly the task it is prompting.
+- The retry-success pill is too brief to read, and the same outcome is worded two
+  different ways across pills.
+- Command-period does nothing inside the Clear Dictation History dialog.
+
+[`ACCEPTANCE.md`](ACCEPTANCE.md) holds all five with detail, plus four requested
+improvements that are not defects.
 
 The Xcode project is the source of truth for the current bundle build, and the
 root [changelog](../../../CHANGELOG.md) lists only snapshots that were actually
@@ -44,11 +52,15 @@ tagged.
       [`ACCEPTANCE.md`](ACCEPTANCE.md), which required seeding a test build's
       history so the Dictation list could be inspected without risking real
       entries or spending credit.
-- [ ] Fix the floating day label, which never appears while scrolling. See the
-      findings in [`ACCEPTANCE.md`](ACCEPTANCE.md) for the leading diagnosis.
-- [ ] Validate bare `Fn` capture and suppression on macOS 27 hardware.
-- [ ] Complete the acceptance sessions that need a person, in
-      [`ACCEPTANCE.md`](ACCEPTANCE.md).
+- [x] Validate bare `Fn` capture and suppression on macOS 27 hardware. Confirmed
+      on build 28 with Wispr Flow quit: Hold fires on bare `Fn`, and because the
+      modifier event is deliberately left unconsumed, `Fn`'s other jobs — the emoji
+      picker, a normal Space, ordinary typing — keep working.
+- [ ] Resolve the five open findings in [`ACCEPTANCE.md`](ACCEPTANCE.md), or
+      consciously accept each as a known limitation of the tag.
+- [ ] Finish the last three person-only checks in
+      [`ACCEPTANCE.md`](ACCEPTANCE.md): a restart, a fresh onboarding pass, and the
+      XCUITest suite.
 
 ## Non-blocking deferred work
 
