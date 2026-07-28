@@ -15,6 +15,23 @@ by machine now, against a build seeded with `--ui-testing-seed-history`; see the
 seeded-history section of [`TESTING.md`](TESTING.md). What is left needs a person,
 and [Sessions for Gaf](#sessions-for-gaf) is the plain-language version of it.
 
+## Where this stands
+
+Build 29 is installed and is the current candidate. Everything machine-checkable
+is done; what is left is in [Still to do](#still-to-do) and needs Gaf.
+
+**The next step is Gaf reporting those results.** When he does: record them here,
+then cut the `v0.7.0` tag with the metadata
+[`VERSIONING.md`](../../../docs/VERSIONING.md) requires — bundle build, credential
+and signing state, verification actually performed, known limitations, and
+confirmation that no credentials, recordings, history, or machine-specific output
+are included. State plainly which checks were run and which were not. Do not push
+unless he asks.
+
+The three open findings below ship as **known limitations**, by Gaf's decision.
+Do not fix them as part of the tag; two are being redesigned rather than patched
+(see [`ROADMAP.md`](ROADMAP.md)).
+
 ## Still to do
 
 Gaf worked through the acceptance sessions on build 28. Almost all of it passed;

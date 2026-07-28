@@ -70,8 +70,10 @@ tagged.
 - [x] Report a rejected-for-silence recording instead of discarding it without a
       word, and distinguish it from a recording that carried sound but produced no
       words.
-- [ ] Decide whether the three carried-forward findings ship as known limitations
-      of `v0.7.0` or block it. None affects whether a dictation works.
+- [x] Decide whether the three carried-forward findings ship as known limitations
+      of `v0.7.0` or block it. Gaf's call: they ship. None affects whether a
+      dictation works, and two of the three are about to be redesigned rather than
+      patched. See [Known and accepted](#known-and-accepted).
 - [ ] Finish the last three person-only checks in
       [`ACCEPTANCE.md`](ACCEPTANCE.md): a restart, a fresh onboarding pass, and the
       XCUITest suite.
@@ -81,12 +83,22 @@ tagged.
 These items are deliberately outside the `v0.7.0` gate. They remain
 recorded so they are not mistaken for forgotten release blockers.
 
-- **Sidebar-toggle flicker:** Settings → Dictation briefly flickers while the
-  reverse transition does not. Only Dictation contributes a `.searchable`
-  toolbar item, so that direction changes toolbar structure. Hoisting search to
-  the shared window would incorrectly expose it in Settings, and replacing the
-  native sidebar control cannot reproduce AppKit's placement. Keep this cosmetic
-  issue deferred until there is a better design.
+- **The sidebar toggle is planned for removal, not repair.** It has cost more
+  vibe-coding effort than it has ever returned: its placement cannot be reproduced
+  by a custom control, it cannot carry a tooltip, and it flickers on the
+  Settings → Dictation transition but not the reverse — because only Dictation
+  contributes a `.searchable` toolbar item, so that direction restructures the
+  toolbar. Hoisting search to the shared window would wrongly expose it in
+  Settings. Do not spend further effort on the flicker; the control is going away.
+  Removing it also settles the `⌘.` binding question, since there would be nothing
+  left for it to toggle.
+- **The floating day label is to be redesigned, not fixed.** It never appears
+  today (see [`ACCEPTANCE.md`](ACCEPTANCE.md)), and Gaf intends to replace the
+  whole idea rather than repair the current one. The reference is the macOS
+  Calendar app's date behaviour. **The design is Gaf's and has not been written
+  down yet — ask him for it before touching this.** The existing diagnosis of why
+  the current implementation never fires is still worth keeping, since a
+  replacement will face the same measurement problem.
 - **Hands-free pill controls:** add a confirm control on the trailing edge and a
   cancel control on the leading edge; that ordering is invariant. When Hold is
   converted to hands-free, widen the existing pill and animate both controls in
@@ -96,6 +108,20 @@ recorded so they are not mistaken for forgotten release blockers.
   not scoped here.
 
 ## Known and accepted
+
+These three ship with `v0.7.0`. Gaf decided each is a known limitation rather than
+a blocker; none affects whether a dictation works.
+
+- The floating day label never appears while scrolling. Being redesigned, not
+  repaired — see the deferred-work note above.
+- The missing-permissions pill respawns and resets its dismissal timer on every
+  window focus, so it obstructs the screen throughout the System Settings trip it
+  is prompting. The most worth fixing of the three; a `0.7.1` candidate.
+- `⌘.` does nothing inside the Clear Dictation History dialog. It does **not**
+  toggle the sidebar behind the dialog, which was the actual risk. Likely
+  unfixable as written, since SwiftUI does not expose a `confirmationDialog`'s
+  cancel action — and moot once the sidebar toggle is removed.
+
 
 - A newly installed locally signed binary requires one login-Keychain password
   prompt for the ElevenLabs item. Choosing **Always Allow** persists for that
