@@ -128,20 +128,27 @@ struct MainWindowSearchField: NSViewRepresentable {
 
 @MainActor
 final class MainWindowSearchControl: NSGlassEffectView {
-    // Keep Liquid Glass inside the permanently installed toolbar item. Changing
-    // SwiftUI's toolbar background preference by destination makes SwiftUI
-    // reconcile window chrome; hiding this inner view does not.
+    // Liquid Glass lives inside the permanently installed toolbar item, because
+    // changing SwiftUI's toolbar background preference by destination makes
+    // SwiftUI reconcile window chrome while hiding this inner view does not.
+    //
+    // The field keeps its bezel. Unbezeled, AppKit mis-aligns its text, drops
+    // the magnifier while editing, and draws a rectangular focus ring inside the
+    // round capsule; the bezel itself draws nothing visible over the glass.
     let searchField = NSSearchField()
     var acceptsInteraction = true
     var onWindowChange: (@MainActor () -> Void)?
+
+    /// The glass view sizes its content view to fill the capsule, and the field
+    /// must not fill it, so a plain container carries the centred field.
+    private let fieldContainer = NSView()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         style = .regular
         effectIsInteractive = true
-        searchField.isBezeled = false
-        searchField.drawsBackground = false
-        contentView = searchField
+        fieldContainer.addSubview(searchField)
+        contentView = fieldContainer
     }
 
     @available(*, unavailable)
@@ -154,7 +161,18 @@ final class MainWindowSearchControl: NSGlassEffectView {
     override func layout() {
         super.layout()
         cornerRadius = bounds.height / 2
-        searchField.frame = bounds.insetBy(dx: 10, dy: 6)
+        fieldContainer.frame = bounds
+
+        // Centre the field at the height it asks for rather than stretching it
+        // to the capsule, which is what pushed the text to the top edge.
+        let naturalHeight = searchField.cell?.cellSize.height ?? searchField.fittingSize.height
+        let horizontalInset: CGFloat = 8
+        searchField.frame = NSRect(
+            x: horizontalInset,
+            y: ((bounds.height - naturalHeight) / 2).rounded(),
+            width: max(0, bounds.width - horizontalInset * 2),
+            height: naturalHeight
+        )
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
