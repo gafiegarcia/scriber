@@ -3,7 +3,14 @@
 This file records intentionally identified Scriber releases and prerelease
 snapshots. Ordinary development builds belong in Git history, not here.
 
-## Unreleased
+## 0.7.0 — 2026-07-29
+
+The first release without a prerelease suffix. It does not claim v1 polish; it
+marks the point where versions move by plain semver instead of alpha numbering.
+See [`docs/VERSIONING.md`](docs/VERSIONING.md).
+
+Native bundle build 30, installed from an entitlement-free, locally signed
+Release build.
 
 ### Added
 
@@ -44,6 +51,16 @@ snapshots. Ordinary development builds belong in Git history, not here.
   retries stay visible.
 - Launch-time permission pills no longer trigger SwiftUI/AppKit update cycles,
   and the launch smoke check no longer activates or visibly duplicates Scriber.
+
+### Known limitations
+
+- The floating day label never appears while scrolling Dictation history. Being
+  redesigned rather than repaired.
+- The missing-permissions pill reappears and restarts its timer whenever a
+  Scriber window gains focus, so it stays on screen through the System Settings
+  trip it is asking for.
+- Command-period does nothing inside the Clear Dictation History dialog. Clicking
+  Cancel works.
 
 ## 0.7.0-alpha.8 — 2026-07-27
 

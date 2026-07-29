@@ -18,7 +18,7 @@ and [Sessions for Gaf](#sessions-for-gaf) is the plain-language version of it.
 
 ## Where this stands
 
-Build 30 is installed and is the current candidate. Everything machine-checkable
+`v0.7.0` was tagged at build 30, which is installed. Everything machine-checkable
 is done, and every check that needed Gaf has been run; the record is in
 [Sessions, and how they went](#sessions-and-how-they-went).
 

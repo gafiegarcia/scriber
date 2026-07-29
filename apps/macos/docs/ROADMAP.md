@@ -1,6 +1,6 @@
 # Native macOS Roadmap
 
-What remains before the `v0.7.0` tag can be cut.
+`v0.7.0` is tagged. What follows is what remains after it.
 Required behavior belongs in [Product specification](PRODUCT_SPEC.md), human
 checks in [Manual checks](MANUAL_CHECKS.md), and machine checks in
 [Automated checks](AUTOMATED_CHECKS.md). Git is the engineering history.
@@ -241,7 +241,7 @@ None of these findings is known to affect current behavior.
 
 ## Release gates
 
-Before creating `v0.7.0`:
+Met for `v0.7.0`, kept as the shape of the next one:
 
 - [x] Complete the applicable checks in [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md). A source
       release does not require Developer ID signing or notarization. Every check
