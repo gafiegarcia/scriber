@@ -21,8 +21,8 @@ project is the source of truth for the bundle build number. See the
 ## Native macOS app
 
 See the [native README](apps/macos/README.md) for prerequisites, building,
-verification, installation, and first launch. Required behavior and the current
-stable-release gates live under [`apps/macos/docs`](apps/macos/docs).
+verification, installation, and first launch. Required behavior, planned work,
+and the verification checks live under [`apps/macos/docs`](apps/macos/docs).
 
 ## License
 

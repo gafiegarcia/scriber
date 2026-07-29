@@ -3,7 +3,6 @@
 ## Scope
 
 - `apps/macos` is the active native app. Ignore the archived `apps/electron` implementation unless Gaf explicitly asks about it.
-- Keep both implementations self-contained. Do not describe code as shared without a real language-neutral boundary.
 - Preserve the native Swift/SwiftUI/AppKit architecture; do not add Electron, a web renderer, or a local server.
 
 ## Native invariants
@@ -15,20 +14,19 @@
 
 ## Verification
 
-- **There is no UI test suite.** The XCUITest target was removed in `v0.7.0`; `apps/macos/docs/ROADMAP.md` records why and what stopped being covered. Do not reintroduce one because a project is expected to have it — the bar is a specific regression a package test provably cannot catch. Package tests, builds, and bumping and installing a build need no permission; do not stop to ask for those.
-- **Finish native work by shipping it to him.** Bump the build, build Release, install to `/Applications`, then run the sweep in `apps/macos/README.md`. Gaf uses Scriber daily and wants the installed binary current; do not leave a verified change sitting in a build directory.
-- Any `--ui-testing` launch runs with services disabled and no Accessibility trust, so it shows the SwiftUI shell only. Never treat what it does as evidence about dictation, insertion, shortcuts, or credentials. Read `apps/macos/docs/AUTOMATED_CHECKS.md` before drawing a conclusion from one.
-- **Looking at the running app is available and encouraged** — `request_access` for `Scriber` alone, then drive it with the computer-use tools. Every other app is excluded from the capture at the compositor level, and the pointer and keyboard are available, so hover states, menus, and the menu bar are all reachable rather than manual. It moves the *real* pointer, so do not start one while Gaf is typing. The one thing to avoid outright is a plain full-screen `screencapture`, which puts his own windows and files into the transcript. See `apps/macos/docs/AUTOMATED_CHECKS.md`.
-- **The launch smoke check must never surface a second Scriber.** Run it exactly as written in `AUTOMATED_CHECKS.md`: an absolute `APP_PATH`, `--ui-testing-no-activate`, and the `before_pid` guard. A relative path fails silently and the `kill` then lands on Gaf's installed app.
-- Run the launch smoke check in `AUTOMATED_CHECKS.md` after any change that touches startup, the pill, or an `NSViewRepresentable`. It has caught a main-thread wedge that no test did.
+- **Do not add a UI test suite.** Not because the project lacks one by accident — the bar is a specific regression a package test provably cannot catch.
+- Run the routine pass in `apps/macos/docs/AUTOMATED_CHECKS.md`. Run its launch smoke check after any change to startup, the pill, or an `NSViewRepresentable`; it has caught a main-thread wedge no test did. Run it exactly as written, or its `kill` can land on Gaf's installed app.
+- **Looking at the running app is encouraged** — `request_access` for `Scriber` alone, then drive it with computer-use. Other apps are excluded from the capture, so menus, hover states, and the menu bar are all reachable. It moves the *real* pointer, so never start one while Gaf is typing.
+- **End a session by proposing manual checks.** Name the few items from `apps/macos/docs/MANUAL_CHECKS.md` that match what actually changed. Never ask him to run the whole file, and never spend API credit without asking first.
+- **Finish native work by shipping it.** Bump the build, build Release, install to `/Applications`, then run the sweep in `apps/macos/README.md`. Gaf uses Scriber daily; do not leave a verified change in a build directory.
 
 ## Workflow
 
-- Before changing native behavior, read `apps/macos/docs/PRODUCT_SPEC.md` and the relevant part of `apps/macos/docs/ROADMAP.md`. Read `apps/macos/docs/PASTE_ENGINE.md` before changing cross-app text delivery.
-- Use `apps/macos/README.md` for setup, building, and installation. Use `apps/macos/docs/AUTOMATED_CHECKS.md` for machine verification and its safety boundaries.
-- Keep each document to one job: `PRODUCT_SPEC.md` defines required behavior, `ROADMAP.md` tracks remaining work and release gates, `MANUAL_CHECKS.md` covers human verification, `AUTOMATED_CHECKS.md` covers machine verification and its limits, and `PASTE_ENGINE.md` records the current paste architecture.
-- Git commits are the engineering history. Do not create or rebuild a development diary. Put only user-relevant tagged release history in the root `CHANGELOG.md`.
-- Update the roadmap when milestones or release gates change. Do not copy the current bundle build into prose; the Xcode project is its source of truth.
+- Before changing native behavior, read `apps/macos/docs/PRODUCT_SPEC.md`. Read `apps/macos/docs/PASTE_ENGINE.md` before changing cross-app text delivery. Use `apps/macos/README.md` for setup, building, and installation.
+- Keep each document to one job: `PRODUCT_SPEC.md` defines required behavior, `ROADMAP.md` lists unbuilt work by target version, `MANUAL_CHECKS.md` and `AUTOMATED_CHECKS.md` hold checks, and `PASTE_ENGINE.md` records the paste architecture.
+- **Docs describe the present, never the past.** No changelogs, session notes, findings, or "why we removed X" in any doc. Git commits and tag messages are the engineering history; `CHANGELOG.md` carries user-relevant tagged releases. If a rationale changes what someone does next, state it as an instruction; if it explains a decision already made, it belongs in the commit that made it.
+- Every roadmap item names a target version. Do not park work in an unscheduled pile.
+- Versioning policy: `docs/VERSIONING.md`. Before tagging, run the automated pass, the applicable manual checks, and confirm no credentials, recordings, history, or build output ship.
 - Do not push or publish unless Gaf explicitly asks.
-- Never use `rm`; use `trash`. If `trash` is unavailable, ask before permanently deleting anything.
-- `CLAUDE.md` is a symlink to this file. Apply edits to `AGENTS.md`; tools that refuse to write through symlinks will reject the `CLAUDE.md` path.
+- Never use `rm`; use `trash` (`/usr/bin/trash`). If unavailable, ask before permanently deleting anything.
+- `CLAUDE.md` is a symlink to this file. Apply edits to `AGENTS.md`.

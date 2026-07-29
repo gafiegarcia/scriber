@@ -112,10 +112,10 @@ Settings.
 
 - [Product specification](docs/PRODUCT_SPEC.md): required behavior and durable
   product decisions.
-- [Roadmap](docs/ROADMAP.md): remaining work and release gates.
+- [Roadmap](docs/ROADMAP.md): unbuilt work, grouped by target version.
 - [Manual checks](docs/MANUAL_CHECKS.md): checks that only a person can run.
-- [Automated checks](docs/AUTOMATED_CHECKS.md): machine checks, safety boundaries, and
-  limitations.
+- [Automated checks](docs/AUTOMATED_CHECKS.md): machine checks and their safety
+  boundaries.
 - [Paste engine](docs/PASTE_ENGINE.md): current cross-app delivery design and
   regression matrix.
 - [Root changelog](../../CHANGELOG.md): tagged release history.
