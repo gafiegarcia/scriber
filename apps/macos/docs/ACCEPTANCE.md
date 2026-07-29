@@ -74,7 +74,23 @@ Worth re-checking on build 30: that onboarding opens centred and fully visible
 both on a genuine first run and from **Settings → Redo Onboarding…**, with the
 main window already open.
 
-### 3. The XCUITest suite, once, end to end
+### ~~3. The XCUITest suite, once, end to end~~ — run on build 30, not clean
+
+Ran end to end. **8 passed, 2 skipped by design, 3 failed.** None of the failures
+is caused by this branch: every one of them reproduces on `origin/main`.
+
+- The 3 failures are all a SwiftUI `Switch` reporting `Not hittable` while the
+  same query finds it and reads its value correctly. They passed on the first run
+  of the day and failed every run afterwards with no code change in between.
+  `TESTING.md` records what was ruled out — regression, cross-test pollution, the
+  installed app, and scroll position — and what was not: the cause.
+- The 2 skips are explicit, and now include the `Update Key` case, which had been
+  failing for an environmental reason rather than a product one.
+
+**This leaves the release gate unmet as written.** The gate asks for one clean
+end-to-end run. It is Gaf's call whether a suite that covers only the SwiftUI
+shell, and whose failures reproduce on `main` and contradict passing by-hand
+checks of the same behaviour, should block the tag.
 
 Only Gaf can start this — it takes over the pointer and keyboard for its whole
 run. The command is in [`TESTING.md`](TESTING.md). One case intentionally skips

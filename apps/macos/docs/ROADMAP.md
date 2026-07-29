@@ -83,8 +83,16 @@ tagged.
 - [x] Give the onboarding window a placement that fits the screen. It was
       cascaded from the main window and ran under the Dock; it is now sized to the
       display and centred on every appearance, and scrolls rather than overflowing.
-- [ ] Finish the last person-only check in [`ACCEPTANCE.md`](ACCEPTANCE.md): one
-      end-to-end XCUITest run.
+- [x] Run the XCUITest suite end to end on build 30. Done, but not clean: 8
+      passed, 2 skipped by design, 3 failed. Every failure reproduces on
+      `origin/main`, so none is a regression from this branch; all three are a
+      SwiftUI `Switch` reporting `Not hittable` while reading its value
+      correctly. See [`ACCEPTANCE.md`](ACCEPTANCE.md) and
+      [`TESTING.md`](TESTING.md).
+- [ ] **Gaf's decision, and the last thing before the tag:** whether an unclean
+      suite blocks `v0.7.0`, given the failures predate the branch, are confined
+      to the SwiftUI shell, and contradict by-hand checks of the same behaviour
+      that pass.
 
 ## Non-blocking deferred work
 
@@ -168,7 +176,10 @@ Before creating `v0.7.0`:
 - [ ] Complete the applicable checks in [`ACCEPTANCE.md`](ACCEPTANCE.md). A source
       release does not require Developer ID signing or notarization.
 - [ ] Run the XCUITest suite end to end once. Gaf must start it because it takes
-      over the pointer and keyboard; see [`TESTING.md`](TESTING.md).
+      over the pointer and keyboard; see [`TESTING.md`](TESTING.md). Run on
+      build 30 and **not clean** — three pre-existing failures that also occur on
+      `main`. Whether that meets this gate is Gaf's call, not an assumption to
+      make here.
 - [ ] Generate artifact-specific third-party notices before publishing a
       downloadable binary. Not a gate on a source tag: the native app declares no
       third-party Swift package dependency, so

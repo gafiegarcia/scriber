@@ -207,7 +207,41 @@ be simulated. Therefore the suite covers the SwiftUI shell, navigation, focus
 routing, window/Dock lifecycle, and simulated pill layouts—not dictation,
 cross-app insertion, global shortcuts, credentials, or real permissions.
 
-The persistent-pill Escape test intentionally skips unless its generated test
-host has Accessibility trust; granting every DerivedData binary that trust is
-not an acceptable automation requirement. Do not publish a current pass count
-until Gaf has run the complete suite again.
+Two tests skip unless the generated test host has Accessibility trust, which no
+`.build/` binary has and none should be granted:
+
+- **`testEscapeDismissesPersistentPill`** — Escape reaches the pill through a
+  `CGEvent` tap that only arms for a trusted process.
+- **`testUpdateKeyForegroundsSettingsAndFocusesAPIKeyField`** — the simulated
+  credential pill is superseded by a *real* missing-Accessibility pill, so
+  `Update Key` matches only the in-window banner, which the test's own
+  Command-W then closes.
+
+### Three switch tests fail on this machine, and did so before this branch
+
+`testShowAppInDockKeepsRegularActivationPolicyAfterClosingWindows`,
+`testDisablingShowAppInDockKeepsVisibleWindowOpen`, and
+`testRecordingFeedbackDefaultsCanBeDisabled` each report **`Not hittable`** on a
+SwiftUI `Switch` that the same query finds and reads a correct `value` from.
+
+What is established:
+
+- It is **not** a regression from the `v0.7.0` sprint. The identical failure,
+  at the same coordinates, reproduces on `origin/main` in a separate worktree.
+- It is not cross-test pollution — a single test in isolation fails the same way.
+- It is not the installed app occluding the test window; the failure survives
+  quitting `/Applications/Scriber.app`.
+- It is not scroll position. Scrolling until the switch reports hittable, in
+  both directions, never succeeds — so a taller Settings pane is not the cause,
+  and the blind `swipeUp()` in these tests was left alone.
+- It is machine-state dependent rather than absolute: all three **passed** on the
+  first run of the day and have failed every run since, with no code change
+  between.
+
+What is not established: why. Every switch the suite clicks is affected and no
+button or text field is, which points at `Switch` hit-testing under this macOS
+27 beta rather than at Scriber. Do not treat these as evidence about the Dock
+lifecycle or the feedback preferences; both are covered by hand in
+[`ACCEPTANCE.md`](ACCEPTANCE.md) and pass there.
+
+Do not publish a current pass count until Gaf has run the complete suite again.

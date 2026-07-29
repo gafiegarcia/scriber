@@ -134,7 +134,20 @@ final class ScriberUITests: XCTestCase {
         XCTAssertTrue(becameAccessory, "Close All Windows should close the visible window and return to accessory mode.")
     }
 
-    func testUpdateKeyForegroundsSettingsAndFocusesAPIKeyField() async {
+    func testUpdateKeyForegroundsSettingsAndFocusesAPIKeyField() async throws {
+        // Needs the same Accessibility trust as the Escape case below, for a less
+        // obvious reason. `--ui-testing-invalid-key-pill` does present the
+        // credential pill, but permission readiness is then measured for real,
+        // and an untrusted `.build/` host genuinely lacks Accessibility — so the
+        // permissions pill supersedes it. Confirmed by launching this test's own
+        // flags by hand: the pill on screen reads "Permissions required".
+        // `Update Key` then matches only the in-window banner, which the
+        // Command-W in this test closes out from under itself. The failure that
+        // produces looks like a product defect and is not one.
+        try XCTSkipUnless(
+            AXIsProcessTrusted(),
+            "The credential pill is superseded by a real missing-Accessibility pill on an untrusted DerivedData host. Verify by hand on an installed build."
+        )
         let app = await launchApp(additionalArguments: pillLifecycleArguments)
         defer { app.terminate() }
         guard let scriber = runningApplication(bundleIdentifier: "com.gafiegarcia.scriber"),
