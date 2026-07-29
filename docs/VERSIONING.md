@@ -36,11 +36,9 @@ not mean the product has been released.
 - Record user-relevant changes under `Unreleased` in the root
   [`CHANGELOG.md`](../CHANGELOG.md), then move them under the exact version only
   when its tag is created.
-- Treat tags as immutable. Corrections receive a new prerelease or patch tag.
-- Choose the next unused prerelease sequence only when creating its tag; do not
-  reserve or assign a prerelease name in planning prose.
-- Create `v0.7.0` only when the documented personal-use behavior passes its
-  release gates.
+- Treat tags as immutable. Corrections receive a new patch tag.
+- Create a tag only when the documented personal-use behavior passes its release
+  gates in [`ROADMAP.md`](../apps/macos/docs/ROADMAP.md).
 
 Annotated tag messages carry engineering metadata that does not belong in the
 changelog: bundle build, credential and signing state, verification performed,

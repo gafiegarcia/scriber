@@ -195,8 +195,7 @@ struct MenuBarContent: View {
 
 struct DictationHistoryView: View {
     /// `.searchable` cannot right-align a hint or hide it on focus, so the
-    /// shortcut is appended to the prompt. `ScriberUITests` locates the search
-    /// field by this exact string and must be updated alongside it.
+    /// shortcut is appended to the prompt.
     static let searchPrompt = "Search past transcripts (⌘F)"
 
     @EnvironmentObject private var runtime: AppRuntime

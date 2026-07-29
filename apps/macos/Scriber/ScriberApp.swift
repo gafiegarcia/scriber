@@ -45,7 +45,7 @@ enum AppLaunchConfiguration {
     /// The launch smoke check's flag. The app still builds and renders its window —
     /// that is the path the check exists to exercise — but never activates, so it
     /// does not steal the front from whatever Gaf is doing. Only the smoke check
-    /// passes this; XCUITest needs the real activation behaviour.
+    /// passes it; a visual-inspection launch wants the real activation behaviour.
     static var launchesWithoutActivating: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-no-activate")
     }

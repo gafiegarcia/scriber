@@ -1,127 +1,43 @@
 # Native macOS Roadmap
 
-`v0.7.0` is tagged. What follows is what remains after it.
+What is left to build after `v0.7.0`.
 Required behavior belongs in [Product specification](PRODUCT_SPEC.md), human
 checks in [Manual checks](MANUAL_CHECKS.md), and machine checks in
 [Automated checks](AUTOMATED_CHECKS.md). Git is the engineering history.
 
-## Current position
+## Where things stand
 
-The native feature track planned for `v0.7.0` is complete. Verification is most
-of what remains, and the interface half of it is now done: the machine-drivable
-checks in [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md) were closed against a seeded build,
-which left three findings and one open design question rather than a clean pass.
+`v0.7.0` is tagged at native bundle build 30, installed and in daily use. The
+tag's own annotation is the record of what was verified for it and what was not;
+git holds the session detail. This file tracks what comes next.
 
-Gaf then worked through the sessions that need a person, on the same build. The
-dictation core, shortcuts, insertion, permissions, Dock lifecycle, appearance, and
-icon all passed.
-
-On build 29 he cleared the restart check — grants, Launch at Login, and the stored
-key all survived a reboot — and ran fresh onboarding, which worked but placed its
-window off the bottom of the screen, under the Dock. Build 30 fixes that, and he
-confirmed the fix on both routes. The XCUITest suite was then run once and
-removed. **No person-only check remains open.**
-
-That pass produced five implementation tasks, contrary to the previous claim here
-that none remained. Build 29 closed the two that changed what a user can tell
-about their own dictation, and added three requested actions:
-
-- Fixed: a microphone at zero input volume failed completely silently. Rejecting
-  it below the signal threshold is still correct and still costs no credit; it now
-  says so, and says something different from "no words were recognised".
-- Fixed: the copied-transcript pill was too brief to read on the retry path, and
-  named the same outcome two different ways.
-- Added: Remove Key…, Redo Onboarding…, and chord recording that commits at the
-  first key release.
-
-Three carried forward by Gaf's decision, none of which affects whether a dictation
-works:
-
-- The floating day label never appears while scrolling, at any offset.
-- The missing-permissions pill respawns and resets its timer on every window
-  focus, so it obstructs the screen throughout exactly the task it is prompting.
-- Command-period does nothing inside the Clear Dictation History dialog. Likely
-  unfixable: SwiftUI does not expose a `confirmationDialog`'s cancel action, and
-  the failure the check was written to catch — the sidebar toggling behind the
-  dialog — does not happen.
-
-[`MANUAL_CHECKS.md`](MANUAL_CHECKS.md) holds all of them with detail, plus the deferred
-pill-tinting design pass.
+Three limitations ship with it by decision rather than oversight, and two of them
+are waiting on redesigns rather than fixes. See
+[Known and accepted](#known-and-accepted).
 
 The Xcode project is the source of truth for the current bundle build, and the
-root [changelog](../../../CHANGELOG.md) lists only snapshots that were actually
-tagged.
+root [changelog](../../../CHANGELOG.md) lists only tagged snapshots.
 
 ## Milestones
 
-- [x] Capture product behavior and locked native decisions.
-- [x] Implement recording, transcription, retries, and interrupted-job recovery.
-- [x] Implement live-cursor insertion, clipboard-preserving fallback, and the
-      cross-app regression baseline.
-- [x] Implement the menu bar, pill, Dictation, Settings, onboarding, permissions,
-      Dock lifecycle, feedback, other-audio muting, and configurable shortcuts.
-- [x] Complete the clean Scriber identity reset, local persistence, icon
-      provenance, and personal-install signing path.
-- [x] Complete the planned `v0.7.0` interface and polish track.
-- [x] Confirm before deleting history, one entry or all of it.
-- [x] Close the machine-drivable interface checks in
-      [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md), which required seeding a test build's
-      history so the Dictation list could be inspected without risking real
-      entries or spending credit.
-- [x] Validate bare `Fn` capture and suppression on macOS 27 hardware. Confirmed
-      on build 28 with Wispr Flow quit: Hold fires on bare `Fn`, and because the
-      modifier event is deliberately left unconsumed, `Fn`'s other jobs — the emoji
-      picker, a normal Space, ordinary typing — keep working.
-- [x] Report a rejected-for-silence recording instead of discarding it without a
-      word, and distinguish it from a recording that carried sound but produced no
-      words.
-- [x] Decide whether the three carried-forward findings ship as known limitations
-      of `v0.7.0` or block it. Gaf's call: they ship. None affects whether a
-      dictation works, and two of the three are about to be redesigned rather than
-      patched. See [Known and accepted](#known-and-accepted).
-- [x] Verify a restart preserves the Microphone and Accessibility grants, the
-      stored key, and the Launch at Login setting in both directions. Build 29.
-- [x] Give the onboarding window a placement that fits the screen. It was
-      cascaded from the main window and ran under the Dock; it is now sized to the
-      display and centred on every appearance, and scrolls rather than overflowing.
-- [x] Run the XCUITest suite end to end on build 30. Done, and not clean: 8
-      passed, 2 skipped by design, 3 failed, with every failure reproducing on
-      `origin/main`. That run was the suite's last; see
-      [The XCUITest suite was removed](#the-xcuitest-suite-was-removed).
+Everything planned for `v0.7.0` is done: the product behaviour and native
+decisions, recording and transcription with retries and interrupted-job recovery,
+live-cursor insertion with clipboard-preserving fallback, the full interface —
+menu bar, pill, Dictation, Settings, onboarding, permissions, Dock lifecycle,
+feedback, other-audio muting, configurable shortcuts — the identity reset, local
+persistence, icon provenance, and the personal-install signing path. Git holds
+the per-milestone history.
 
 ## The sprint list this release came from
 
-Gaf's nine-item list, checked against the code rather than from memory. Eight are
-in. One is not, and it is the only thing between here and a complete list.
+Gaf's nine-item list is complete except for one, checked against the code rather
+than from memory. Items 1–7 and 9 shipped in `v0.7.0`; git and the changelog
+record them.
 
-- [x] **1. Padding inside each day group.** Day-group cards carry horizontal and
-      vertical insets; the time and the three-dot menu no longer sit against the
-      edges.
-- [x] **2. A card-like design instead of bare separators.** `DictationHistoryGroupBackground`
-      wraps each day group with a 16pt radius.
-- [x] **3. The Clear History popover overflowing the window.** Resolved by moving
-      the action out of the row menu entirely — it now lives in
-      Settings → Dictation History, so there is no popover to anchor.
-- [x] **4. `⌘F` hint in the search placeholder.** Appended to the prompt, as the
-      fallback Gaf allowed for; `.searchable` cannot right-align a hint or hide it
-      on focus.
-- [x] **5. Settings regrouped.** Sections are General, Feedback, ElevenLabs,
-      Dictation, Dictation History, and Permissions and Input.
-- [x] **6. No history entry until an outcome exists.** `visibleRecords` filters
-      out `.transcribing` records, with an explicit exception for the one being
-      retried so an explicit retry stays visible.
-- [x] **7. `⌘,` opens Settings.** Replaces the standard `.appSettings` command
-      group.
-- [ ] **8. Confirm and cancel controls on the hands-free pill.** **Not done.** The
-      recording pill still has no interactive controls. Tracked under
-      [Non-blocking deferred work](#non-blocking-deferred-work), including the
-      trailing-confirm/leading-cancel ordering Gaf settled on. His own note on the
-      sprint page puts feature additions after the tag — "bug fixes first →
-      `v0.7.0` → add the features → `v0.7.1`" — and this is a feature. **Whether
-      it ships in `v0.7.0` is his call, not an assumption to make here.**
-- [x] **9. Paste where the cursor truly is, including Raycast.** `PasteService`
-      resolves the target through `kAXFocusedUIElementAttribute` and follows
-      focus into nonactivating panels. Shipped in `0.7.0-alpha.7`.
+- [ ] **8. Confirm and cancel controls on the hands-free pill.** The recording
+      pill still has no interactive controls. Routed to `0.7.1` by Gaf's own plan
+      on the sprint page — bug fixes to `v0.7.0`, features after it. The design is
+      in [Non-blocking deferred work](#non-blocking-deferred-work).
 
 ## Non-blocking deferred work
 
@@ -195,8 +111,9 @@ good practice.
 
 ## Known and accepted
 
-These three ship with `v0.7.0`. Gaf decided each is a known limitation rather than
-a blocker; none affects whether a dictation works.
+Shipped in `v0.7.0` as known limitations by Gaf's decision rather than as
+oversights. None affects whether a dictation works. The first three are also
+listed in the changelog.
 
 - The floating day label never appears while scrolling. Being redesigned, not
   repaired — see the deferred-work note above.
@@ -208,22 +125,26 @@ a blocker; none affects whether a dictation works.
   unfixable as written, since SwiftUI does not expose a `confirmationDialog`'s
   cancel action — and moot once the sidebar toggle is removed.
 
+Two more, both consequences of the personal signing path rather than defects:
 
 - A newly installed locally signed binary requires one login-Keychain password
   prompt for the ElevenLabs item. Choosing **Always Allow** persists for that
   unchanged binary, but a rebuild prompts again because the local certificate
   has no Team ID suitable for a stable Keychain partition. This is the accepted
   cost of the personal signing path, not an open `KeychainStore` investigation.
-- Reboot acceptance for the Keychain grant remains open and is covered by the
-  installation checks in [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md).
+- The key survives a reboot without a further password prompt. Confirmed for
+  `v0.7.0`; it stays on the installation checks in
+  [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md) because a rebuild can reintroduce the
+  prompt.
 
 ## Deferred technical work
 
 None of these findings is known to affect current behavior.
 
-- Do not split `Views.swift` or `AppCoordinator.swift` before `v0.7.0`.
-  Afterwards, separate coherent feature areas—history recovery and retention are
-  the clearest coordinator boundary—before adding the Transcription workspace.
+- `Views.swift` and `AppCoordinator.swift` were deliberately left whole through
+  `v0.7.0`. They can now be split along coherent feature areas — history recovery
+  and retention are the clearest coordinator boundary — and should be, before the
+  Transcription workspace lands.
 - `DictationHistoryStore.makePersistentContainer` sleeps on the main thread only
   between failed store-open attempts. Making that path asynchronous requires an
   `AppRuntime` initialization redesign.
@@ -241,7 +162,8 @@ None of these findings is known to affect current behavior.
 
 ## Release gates
 
-Met for `v0.7.0`, kept as the shape of the next one:
+All met for `v0.7.0`. Kept as the shape of the next release; reset the boxes when
+a cycle starts.
 
 - [x] Complete the applicable checks in [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md). A source
       release does not require Developer ID signing or notarization. Every check
@@ -274,7 +196,7 @@ beyond that. A supported downloadable binary is a separate distribution
 milestone; see the [versioning policy](../../../docs/VERSIONING.md), which also
 records how versions move after `v0.7.0`.
 
-## After v0.7.0
+## Longer-term, not scheduled
 
 - On moving to a Developer ID identity, return credential storage to the Data
   Protection Keychain, remove the per-binary **Always Allow** workaround, and

@@ -106,6 +106,7 @@ The current delivery transaction and its regression baseline are defined in
 - After onboarding, missing or revoked Microphone or Accessibility permission must be visible immediately in the Dictation window and menu bar. Scriber must present an actionable permission pill on launch, when a grant is revoked, and when it can observe an attempted dictation; the pill and in-app warning route to Scriber Settings.
 - Accessibility revocation prevents Scriber from observing the global shortcut itself, so Scriber must monitor permission state independently, stop unavailable shortcut monitoring, and restart it automatically when the grant returns. It must never rely on the blocked keypress as the only warning path.
 - Launch at Login is optional, offered during onboarding, defaults on, and requires explicit consent.
+- The onboarding window must open centred and fully visible on the current display, whether it is the first launch or a Redo Onboarding request made with the main window already open. Its steps scroll rather than extend the window past the screen. AppKit's own frame is not trusted for this: a cascaded or restored frame put it under the Dock.
 - Every launch presents onboarding until setup is complete, then presents the main Dictation window. Closing the final normal window still leaves menu-bar and dictation services running.
 - Onboarding must be complete and the credential definitively usable before recording or Dictation retry can begin.
 - App Sandbox remains disabled while global event interception and cross-app
