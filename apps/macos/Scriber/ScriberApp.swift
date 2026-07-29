@@ -183,7 +183,10 @@ final class AppRuntime: ObservableObject {
             }
             if AppLaunchConfiguration.simulatesMissingPermissions {
                 Task { @MainActor [coordinator] in
-                    try? await Task.sleep(for: .milliseconds(100))
+                    // Exercise a post-render toolbar update. This is deliberately
+                    // later than initial window construction so the fixture runs
+                    // after SwiftUI has installed its toolbar observers.
+                    try? await Task.sleep(for: .seconds(1))
                     coordinator.presentPermissionRecoveryPillForUITesting()
                 }
             }

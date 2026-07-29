@@ -98,7 +98,7 @@ fi
 open -g -j -n -a "$APP_PATH" --args \
   --ui-testing \
   --ui-testing-no-activate \
-  --ui-testing-invalid-key-pill
+  --ui-testing-missing-permissions
 sleep 6
 pid="$(pgrep -n -x Scriber || true)"
 

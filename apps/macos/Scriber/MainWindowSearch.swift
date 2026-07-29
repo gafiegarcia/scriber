@@ -14,7 +14,7 @@ enum MainSection: Hashable {
     }
 
     /// A nil prompt means this workspace has no search capability. The window
-    /// still keeps its toolbar; only the native search item becomes hidden.
+    /// still keeps its toolbar and item; only the native inner control hides.
     var searchPrompt: String? {
         switch self {
         case .dictation: "Search Dictations"
@@ -24,39 +24,28 @@ enum MainSection: Hashable {
 }
 
 /// Owns the search UI that belongs to the main window rather than either detail
-/// page. Keeping this toolbar alive is what makes the traffic lights, title,
-/// sidebar, and detail content retain one geometry while workspaces change.
+/// page. SwiftUI owns the toolbar itself; this object only bridges the native
+/// search field's value and focus, so AppKit and SwiftUI never compete for the
+/// window's `NSToolbar` identity.
 @MainActor
 final class MainWindowSearchCoordinator: NSObject, ObservableObject {
     @Published private(set) var dictationQuery = ""
 
-    private static let toolbarIdentifier = NSToolbar.Identifier("ScriberMainWindowToolbar")
-    private static let searchItemIdentifier = NSToolbarItem.Identifier("ScriberMainWindowSearch")
-
-    private weak var window: NSWindow?
-    private weak var searchItem: NSToolbarItem?
+    private weak var searchControl: MainWindowSearchControl?
     private weak var searchField: NSSearchField?
     private var section: MainSection = .dictation
 
-    private lazy var toolbar: NSToolbar = {
-        let toolbar = NSToolbar(identifier: Self.toolbarIdentifier)
-        toolbar.delegate = self
-        toolbar.displayMode = .iconOnly
-        toolbar.allowsUserCustomization = false
-        toolbar.allowsDisplayModeCustomization = false
-        toolbar.autosavesConfiguration = false
-        return toolbar
-    }()
-
-    func attach(to window: NSWindow) {
-        self.window = window
-        if window.toolbarStyle != .unified { window.toolbarStyle = .unified }
-        if window.titleVisibility != .visible { window.titleVisibility = .visible }
-        if window.title != section.windowTitle { window.title = section.windowTitle }
-        if window.toolbar !== toolbar {
-            window.toolbar = toolbar
+    func attach(to control: MainWindowSearchControl) {
+        let field = control.searchField
+        searchControl = control
+        if searchField !== field {
+            searchField?.delegate = nil
+            searchField = field
+            field.delegate = self
+            field.identifier = NSUserInterfaceItemIdentifier("dictation-search")
+            field.sendsSearchStringImmediately = true
+            field.stringValue = dictationQuery
         }
-        if !toolbar.isVisible { toolbar.isVisible = true }
         applySection()
     }
 
@@ -71,71 +60,34 @@ final class MainWindowSearchCoordinator: NSObject, ObservableObject {
 
     func focusSearch() {
         guard section.searchPrompt != nil,
-              let searchItem,
-              !searchItem.isHidden,
               let searchField else { return }
         searchField.selectText(nil)
     }
 
     private func applySection() {
-        if window?.title != section.windowTitle {
-            window?.title = section.windowTitle
+        guard let searchControl, let searchField else { return }
+        if searchField.window?.title != section.windowTitle {
+            searchField.window?.title = section.windowTitle
         }
-
-        guard let searchItem else { return }
         let searchIsAvailable = section.searchPrompt != nil
-        if !searchIsAvailable, searchField?.currentEditor() != nil {
-            window?.makeFirstResponder(nil)
+        if !searchIsAvailable, searchField.currentEditor() != nil {
+            searchField.window?.makeFirstResponder(nil)
         }
         let prompt = section.searchPrompt ?? ""
-        let label = section.searchPrompt ?? "Search"
-        if searchField?.placeholderString != prompt {
-            searchField?.placeholderString = prompt
+        if searchField.placeholderString != prompt {
+            searchField.placeholderString = prompt
         }
-        if searchItem.label != label { searchItem.label = label }
-        if searchItem.paletteLabel != label { searchItem.paletteLabel = label }
-        if searchItem.toolTip != section.searchPrompt { searchItem.toolTip = section.searchPrompt }
-        if searchItem.isHidden == searchIsAvailable {
-            searchItem.isHidden = !searchIsAvailable
-        }
-    }
-}
-
-extension MainWindowSearchCoordinator: NSToolbarDelegate {
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.sidebarTrackingSeparator, .flexibleSpace, Self.searchItemIdentifier]
+        searchField.isEnabled = searchIsAvailable
+        searchControl.isHidden = !searchIsAvailable
+        searchControl.acceptsInteraction = searchIsAvailable
+        searchControl.setAccessibilityElement(searchIsAvailable)
+        searchControl.setAccessibilityHidden(!searchIsAvailable)
+        searchField.setAccessibilityElement(searchIsAvailable)
+        searchField.setAccessibilityHidden(!searchIsAvailable)
     }
 
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        toolbarDefaultItemIdentifiers(toolbar)
-    }
-
-    func toolbar(
-        _ toolbar: NSToolbar,
-        itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
-        willBeInsertedIntoToolbar flag: Bool
-    ) -> NSToolbarItem? {
-        guard itemIdentifier == Self.searchItemIdentifier else { return nil }
-
-        let prompt = section.searchPrompt
-        let field = NSSearchField(frame: NSRect(x: 0, y: 0, width: 280, height: 0))
-        field.delegate = self
-        field.identifier = NSUserInterfaceItemIdentifier("dictation-search")
-        field.placeholderString = prompt ?? ""
-        field.stringValue = dictationQuery
-        field.sendsSearchStringImmediately = true
-        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        field.widthAnchor.constraint(equalToConstant: 280).isActive = true
-
-        let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-        item.view = field
-        item.label = prompt ?? "Search"
-        item.paletteLabel = item.label
-        item.toolTip = prompt
-        item.isHidden = prompt == nil
-        searchItem = item
-        searchField = field
-        return item
+    func windowDidChange() {
+        applySection()
     }
 }
 
@@ -148,43 +100,69 @@ extension MainWindowSearchCoordinator: NSSearchFieldDelegate {
     }
 }
 
-/// Finds the `NSWindow` SwiftUI created without replacing the scene or polling
-/// global windows by title. Installation waits until SwiftUI's initial window
-/// transaction has yielded; replacing its placeholder toolbar synchronously while
-/// `AppKitWindowController` is updating constraints raises an `NSRangeException`.
-struct MainWindowAccessor: NSViewRepresentable {
-    let onWindowAvailable: @MainActor (NSWindow) -> Void
+/// A native field inside a SwiftUI-owned, permanently present toolbar item. The
+/// representable itself always keeps the same width. Settings hides and disables
+/// the inner control rather than removing the item, so toolbar and title-bar
+/// geometry remain unchanged while the search is semantically absent.
+struct MainWindowSearchField: NSViewRepresentable {
+    let searchCoordinator: MainWindowSearchCoordinator
 
-    func makeNSView(context: Context) -> WindowAccessorView {
-        WindowAccessorView(onWindowAvailable: onWindowAvailable)
+    func makeNSView(context: Context) -> MainWindowSearchControl {
+        let control = MainWindowSearchControl()
+        control.onWindowChange = { [weak searchCoordinator] in
+            searchCoordinator?.windowDidChange()
+        }
+        searchCoordinator.attach(to: control)
+        return control
     }
 
-    func updateNSView(_ nsView: WindowAccessorView, context: Context) {
-        nsView.onWindowAvailable = onWindowAvailable
+    func updateNSView(_ control: MainWindowSearchControl, context: Context) {
+        searchCoordinator.attach(to: control)
+    }
+
+    static func dismantleNSView(_ control: MainWindowSearchControl, coordinator: ()) {
+        control.onWindowChange = nil
+        control.searchField.delegate = nil
     }
 }
 
 @MainActor
-final class WindowAccessorView: NSView {
-    var onWindowAvailable: @MainActor (NSWindow) -> Void
-    private var installationTask: Task<Void, Never>?
+final class MainWindowSearchControl: NSGlassEffectView {
+    // Keep Liquid Glass inside the permanently installed toolbar item. Changing
+    // SwiftUI's toolbar background preference by destination makes SwiftUI
+    // reconcile window chrome; hiding this inner view does not.
+    let searchField = NSSearchField()
+    var acceptsInteraction = true
+    var onWindowChange: (@MainActor () -> Void)?
 
-    init(onWindowAvailable: @escaping @MainActor (NSWindow) -> Void) {
-        self.onWindowAvailable = onWindowAvailable
-        super.init(frame: .zero)
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        style = .regular
+        effectIsInteractive = true
+        searchField.isBezeled = false
+        searchField.drawsBackground = false
+        contentView = searchField
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: NSView.noIntrinsicMetric, height: 36)
+    }
+
+    override func layout() {
+        super.layout()
+        cornerRadius = bounds.height / 2
+        searchField.frame = bounds.insetBy(dx: 10, dy: 6)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        acceptsInteraction ? super.hitTest(point) : nil
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        installationTask?.cancel()
-        guard let window else { return }
-        installationTask = Task { @MainActor [weak self, weak window] in
-            await Task.yield()
-            guard let self, let window, !Task.isCancelled else { return }
-            onWindowAvailable(window)
-        }
+        onWindowChange?()
     }
 }

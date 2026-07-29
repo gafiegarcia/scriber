@@ -54,7 +54,7 @@ struct MainWindowView: View {
     @FocusState private var sidebarFocused: Bool
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: .constant(.all)) {
             List(selection: $section) {
                 Label("Dictation", systemImage: "clock.arrow.circlepath")
                     .tag(MainSection.dictation)
@@ -66,6 +66,7 @@ struct MainWindowView: View {
             .accessibilityIdentifier("main-sidebar")
             .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
             .focused($sidebarFocused)
+            .toolbar(removing: .sidebarToggle)
         } detail: {
             Group {
                 switch section ?? .dictation {
@@ -79,8 +80,13 @@ struct MainWindowView: View {
             }
         }
         .frame(minWidth: 760, minHeight: 520)
-        .background {
-            MainWindowAccessor { window in searchCoordinator.attach(to: window) }
+        .toolbar(removing: .sidebarToggle)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                MainWindowSearchField(searchCoordinator: searchCoordinator)
+                    .frame(width: 280, height: 36)
+            }
+            .sharedBackgroundVisibility(.hidden)
         }
         .focusedSceneValue(\.searchDictationHistoryAction, searchDictationAction)
         .onAppear {
