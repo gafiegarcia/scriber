@@ -1,30 +1,7 @@
 # Native macOS Roadmap
 
-## v0.7.1
+## v0.7.2
 
-- [ ] **Stop the missing-permissions pill respawning.** It reappears and restarts
-      its dismissal timer whenever a Scriber window gains focus, so it covers the
-      screen for the whole System Settings trip it is asking for.
-- [ ] **Remove the sidebar toggle.** Its placement cannot be reproduced by a
-      custom control, it cannot carry a tooltip, and it flickers on
-      Settings → Dictation because only Dictation contributes a `.searchable`
-      toolbar item. Hoisting search to the shared window would wrongly expose it
-      in Settings. Removing the control also ends the `⌘.` question, since nothing
-      would be left to toggle.
-- [ ] **Constrain the Dictation history page width.** Cap its content at the
-      Settings page width on large windows so the cards retain balanced side
-      margins instead of stretching across the screen.
-- [ ] **Restyle the Dictation history cards.** Use a transparent interior with a
-      subtle matching border and row separators; retain the continuous corners
-      and keep each day label aligned with its card.
-- [ ] **Lead shortcut chords with `fn`.** When `fn` is part of a multi-modifier
-      shortcut, display it before Control, Option, Shift, and Command.
-- [ ] **Show transcript copy confirmation as a toast.** Copying from Dictation
-      history presents a brief toast instead of changing the row's copy icon.
-- [ ] **Confirm and cancel controls on the hands-free pill.** Confirm on the
-      trailing edge, cancel on the leading edge; that ordering is fixed. When Hold
-      converts to hands-free, widen the existing pill and animate both controls in
-      rather than swapping layouts.
 - [ ] **Redesign the floating day label.** The current one never appears at any
       scroll offset. It is being replaced, not repaired; the reference is the macOS
       Calendar app. **Blocked: the design is the user's and is not written
@@ -63,6 +40,15 @@
 
 ## Long-term
 
+- [ ] **Extend window-owned search to Transcription.** After the long-form
+      Transcription workspace exists, reuse the persistent native search item
+      with a contextual `Search Transcriptions` placeholder, retain a separate
+      query for each workspace, and make Command-F focus the active searchable
+      workspace.
+- [ ] **Add an all-content search scope.** After Dictation and Transcription
+      search both exist, let users broaden the current query without replacing
+      it, keep the selected scope visible while text is present, and present
+      mixed results grouped by workspace.
 - [ ] **Move to a Developer ID identity.** Then return credential storage to the
       Data Protection Keychain, drop the per-binary **Always Allow** step from the
       README, and add Hardened Runtime, which the local Release configuration
