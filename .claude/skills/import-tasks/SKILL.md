@@ -1,11 +1,11 @@
 ---
 name: import-tasks
-description: Turn raw ideas, bug reports, or TODOs — pasted directly or from a Notion page/URL — into roadmap items filed under a target version. Use when Gaf hands over a list of things to do, or says "import these", "add these to the roadmap", or points at a Notion task page.
+description: Turn raw ideas, bug reports, or TODOs — pasted directly or from a Notion page/URL — into roadmap items filed under a target version. Use when the user hands over a list of things to do, or says "import these", "add these to the roadmap", or points at a Notion task page.
 ---
 
 # Import tasks into the roadmap
 
-Take whatever Gaf hands over and give every item a home in
+Take whatever the user hands over and give every item a home in
 `apps/macos/docs/ROADMAP.md`. Nothing gets parked; every item names a version.
 
 ## 1. Collect
@@ -17,12 +17,12 @@ Take whatever Gaf hands over and give every item a home in
 ## 2. Split each item into one deliverable
 
 One roadmap item is one thing that can be finished and ticked. Split anything
-carrying an "and" that hides two jobs. Keep Gaf's own words for what he wants —
-do not translate his intent into your own design.
+carrying an "and" that hides two jobs. Keep the user's own words for what they
+want — do not translate their intent into your own design.
 
 ## 3. Check it is not already true
 
-Before filing anything, verify it against the code, not from memory. Gaf's lists
+Before filing anything, verify it against the code, not from memory. Such lists
 often contain things already shipped. Say which were already done rather than
 filing them again.
 
@@ -52,16 +52,16 @@ Rules:
 
 - Present and future tense only. No history, no "this was found when…", no
   rationale for decisions already made. That belongs in the commit.
-- If it is blocked on Gaf, say so in bold and say what you need from him.
+- If it is blocked on the user, say so in bold and say what you need from them.
 - Keep it to a few lines. A long item means it should have been split.
 
 ## 6. Report
 
-Tell Gaf, briefly:
+Report briefly:
 
 - What was filed, and under which version.
 - What was already done and therefore not filed.
 - Anything you could not place, and the question that would place it.
 
 Then commit the roadmap change on its own. Do not start building any of it in the
-same turn unless he asks.
+same turn unless asked.

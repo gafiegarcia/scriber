@@ -75,7 +75,7 @@ provisioning profile, and hold no restricted Keychain entitlement.
 Run after any change to startup, the pill, or an `NSViewRepresentable`.
 
 Run it exactly as written. `APP_PATH` must be absolute and the `before_pid` guard
-must stay, or a failed launch makes the final `kill` target Gaf's installed
+must stay, or a failed launch makes the final `kill` target the installed
 Scriber.
 
 ```bash
@@ -121,13 +121,12 @@ idles is an app failure worth sampling before blaming the harness.
 
 ## Visual inspection
 
-Use computer-use with access restricted to **Scriber**. Compositor-level app-only
-capture excludes every other application while still allowing hover states, menus,
-scrolling, and the menu bar to be checked.
+Use a computer-use tool with the capture restricted to **Scriber**, so no other
+application appears.
 
-It moves the real pointer and can press keys, so do not start one while Gaf is
-typing. Check whether the window on screen belongs to the installed app or a test
-build before drawing any conclusion from it.
+It moves the real pointer and can press keys, so do not start one while the user
+is typing. Check whether the window on screen belongs to the installed app or a
+test build before drawing any conclusion from it.
 
 ### Onboarding
 
@@ -143,7 +142,7 @@ confirm it again — a restored frame behaves differently from a fresh one, and
 
 `--ui-testing-seed-history` fills the in-memory store with 23 deterministic
 records over four day groups, 22 of which render, so the Dictation list can be
-inspected without touching Gaf's real entries or spending credit.
+inspected without touching real entries or spending credit.
 `Scriber/UITestingHistoryFixture.swift` documents the fixture and its invariants.
 
 ```bash

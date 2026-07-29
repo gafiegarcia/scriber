@@ -2,7 +2,7 @@
 
 ## Scope
 
-- `apps/macos` is the active native app. Ignore the archived `apps/electron` implementation unless Gaf explicitly asks about it.
+- `apps/macos` is the active native app. Ignore the archived `apps/electron` implementation unless the user explicitly asks about it.
 - Preserve the native Swift/SwiftUI/AppKit architecture; do not add Electron, a web renderer, or a local server.
 
 ## Native invariants
@@ -15,10 +15,10 @@
 ## Verification
 
 - **Do not add a UI test suite.** Not because the project lacks one by accident — the bar is a specific regression a package test provably cannot catch.
-- Run the routine pass in `apps/macos/docs/AUTOMATED_CHECKS.md`. Run its launch smoke check after any change to startup, the pill, or an `NSViewRepresentable`; it has caught a main-thread wedge no test did. Run it exactly as written, or its `kill` can land on Gaf's installed app.
-- **Looking at the running app is encouraged** — `request_access` for `Scriber` alone, then drive it with computer-use. Other apps are excluded from the capture, so menus, hover states, and the menu bar are all reachable. It moves the *real* pointer, so never start one while Gaf is typing.
-- **End a session by proposing manual checks.** Name the few items from `apps/macos/docs/MANUAL_CHECKS.md` that match what actually changed. Never ask him to run the whole file, and never spend API credit without asking first.
-- **Finish native work by shipping it.** Bump the build, build Release, install to `/Applications`, then run the sweep in `apps/macos/README.md`. Gaf uses Scriber daily; do not leave a verified change in a build directory.
+- Run the routine pass in `apps/macos/docs/AUTOMATED_CHECKS.md`. Run its launch smoke check after any change to startup, the pill, or an `NSViewRepresentable`; it has caught a main-thread wedge no test did. Run it exactly as written, or its `kill` can land on the installed app.
+- **Checking the running app is encouraged.** Use a computer-use tool, with the capture restricted to Scriber so other applications are excluded. It moves the real pointer, so do not start one while the user is typing.
+- **End a session by proposing manual checks.** Name the few items from `apps/macos/docs/MANUAL_CHECKS.md` that match what actually changed. Never ask for the whole file to be run, and never spend API credit without asking first.
+- **Finish native work by shipping it.** Bump the build, build Release, install to `/Applications`, then run the sweep in `apps/macos/README.md`. Scriber is in daily use; do not leave a verified change in a build directory.
 
 ## Workflow
 
@@ -27,6 +27,5 @@
 - **Docs describe the present, never the past.** No changelogs, session notes, findings, or "why we removed X" in any doc. Git commits and tag messages are the engineering history; `CHANGELOG.md` carries user-relevant tagged releases. If a rationale changes what someone does next, state it as an instruction; if it explains a decision already made, it belongs in the commit that made it.
 - Every roadmap item names a target version (`## v0.7.1`, `## v0.8.0`, `## Long-term`). Do not park work in an unscheduled pile. Something broken that nobody plans to fix is not a roadmap item — put a `Known and unfixed:` comment on the code that owns it.
 - Versioning policy: `docs/VERSIONING.md`. Before tagging, run the automated pass, the applicable manual checks, and confirm no credentials, recordings, history, or build output ship.
-- Do not push or publish unless Gaf explicitly asks.
-- Never use `rm`; use `trash` (`/usr/bin/trash`). If unavailable, ask before permanently deleting anything.
+- Do not push or publish unless explicitly asked.
 - `CLAUDE.md` is a symlink to this file. Apply edits to `AGENTS.md`.

@@ -1,6 +1,6 @@
 # Checks Only a Person Can Run
 
-**Never run a check that spends API credit without asking Gaf first.**
+**Never run a check that spends API credit without asking first.**
 
 This is the full list for a release. For ordinary work, do not run all of it —
 the agent proposes the few checks that match what changed, at the end of the

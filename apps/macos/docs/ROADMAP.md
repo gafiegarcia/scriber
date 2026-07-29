@@ -17,8 +17,8 @@
       rather than swapping layouts.
 - [ ] **Redesign the floating day label.** The current one never appears at any
       scroll offset. It is being replaced, not repaired; the reference is the macOS
-      Calendar app. **Blocked: the design is Gaf's and is not written down — ask
-      him before starting.** Worth knowing when measuring a replacement:
+      Calendar app. **Blocked: the design is the user's and is not written
+      down — ask before starting.** Worth knowing when measuring a replacement:
       `.coordinateSpace(.named(_:))` on a `List` appears to name the scrolled
       content rather than the viewport, so a label's `minY` never goes negative.
 
