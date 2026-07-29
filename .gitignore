@@ -1,5 +1,9 @@
 .DS_Store
 
+# Local agent configuration
+.agents/
+.claude/
+
 # Native macOS / Swift
 .build/
 DerivedData/
