@@ -57,7 +57,7 @@ The app is written to
 
 ## Verify and install
 
-Run all relevant checks in [Testing](docs/TESTING.md) before replacing the
+Run all relevant checks in [Automated checks](docs/AUTOMATED_CHECKS.md) before replacing the
 installed app. In particular, a Release build's designated requirement must be:
 
 ```text
@@ -113,8 +113,8 @@ Settings.
 - [Product specification](docs/PRODUCT_SPEC.md): required behavior and durable
   product decisions.
 - [Roadmap](docs/ROADMAP.md): remaining work and release gates.
-- [Acceptance](docs/ACCEPTANCE.md): checks that require a person.
-- [Testing](docs/TESTING.md): machine checks, safety boundaries, and UI-suite
+- [Manual checks](docs/MANUAL_CHECKS.md): checks that only a person can run.
+- [Automated checks](docs/AUTOMATED_CHECKS.md): machine checks, safety boundaries, and
   limitations.
 - [Paste engine](docs/PASTE_ENGINE.md): current cross-app delivery design and
   regression matrix.

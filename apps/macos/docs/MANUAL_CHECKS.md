@@ -1,9 +1,11 @@
-# Manual Acceptance Checks
+# Checks Only a Person Can Run
 
-The list standing between the current candidate and the `v0.7.0` tag.
-[`ROADMAP.md`](ROADMAP.md) holds the release gates that point at it.
+Everything that has to be checked by hand before a release, because no machine
+here can check it. [`ROADMAP.md`](ROADMAP.md) holds the release gates that point
+at this list.
 
-Automated checks live in [`TESTING.md`](TESTING.md) and are not repeated here.
+Checks a machine can run live in
+[`AUTOMATED_CHECKS.md`](AUTOMATED_CHECKS.md) and are not repeated here.
 There is no longer a UI test suite, so this file is the only coverage the SwiftUI
 shell has. [`ROADMAP.md`](ROADMAP.md) records why it was removed.
 
@@ -11,7 +13,7 @@ shell has. [`ROADMAP.md`](ROADMAP.md) records why it was removed.
 
 Interface checks that need neither a real key nor real permissions can be driven
 by machine now, against a build seeded with `--ui-testing-seed-history`; see the
-seeded-history section of [`TESTING.md`](TESTING.md). What is left needs a person,
+seeded-history section of [`AUTOMATED_CHECKS.md`](AUTOMATED_CHECKS.md). What is left needs a person,
 and [Sessions for Gaf](#sessions-for-gaf) is the plain-language version of it.
 
 ## Where this stands
@@ -82,7 +84,7 @@ is caused by this branch: every one of them reproduces on `origin/main`.
 - The 3 failures are all a SwiftUI `Switch` reporting `Not hittable` while the
   same query finds it and reads its value correctly. They passed on the first run
   of the day and failed every run afterwards with no code change in between.
-  `TESTING.md` records what was ruled out — regression, cross-test pollution, the
+  `AUTOMATED_CHECKS.md` records what was ruled out — regression, cross-test pollution, the
   installed app, and scroll position — and what was not: the cause.
 - The 2 skips are explicit, and now include the `Update Key` case, which had been
   failing for an environmental reason rather than a product one.

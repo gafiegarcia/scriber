@@ -9,7 +9,7 @@ import SwiftData
 /// the only build with entries in it was the installed Release build running real
 /// history — where "does the overflow menu delete the right entry" means deleting
 /// one of Gaf's real dictations, and where producing a new entry costs API credit.
-/// Roughly ten interface checks in `docs/ACCEPTANCE.md` were blocked on that.
+/// Roughly ten interface checks in `docs/MANUAL_CHECKS.md` were blocked on that.
 ///
 /// Four invariants, each a way to get this wrong that the call site does not show:
 ///

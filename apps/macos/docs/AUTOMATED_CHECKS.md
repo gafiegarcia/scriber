@@ -1,7 +1,8 @@
-# Automated Verification
+# Checks a Machine Can Run
 
-This file contains machine checks and their safety boundaries. Checks that need
-a person or real service state belong in [Acceptance](ACCEPTANCE.md).
+Everything a machine can check on its own, and the safety boundaries on doing so.
+Anything needing a person or real service state belongs in
+[`MANUAL_CHECKS.md`](MANUAL_CHECKS.md).
 
 ## Safety boundaries
 
@@ -194,7 +195,7 @@ on this machine. [`ROADMAP.md`](ROADMAP.md) records the decision and what stoppe
 being covered.
 
 Nothing here replaces it. Shell behaviour is verified by hand through
-[`ACCEPTANCE.md`](ACCEPTANCE.md); the package tests and the launch smoke check
+[`MANUAL_CHECKS.md`](MANUAL_CHECKS.md); the package tests and the launch smoke check
 above are the automated coverage.
 
 Do not add a UI test because a project is expected to have them. The bar is a

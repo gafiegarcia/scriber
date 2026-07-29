@@ -2,14 +2,14 @@
 
 What remains before the `v0.7.0` tag can be cut.
 Required behavior belongs in [Product specification](PRODUCT_SPEC.md), human
-checks in [Acceptance](ACCEPTANCE.md), and machine checks in
-[Testing](TESTING.md). Git is the engineering history.
+checks in [Manual checks](MANUAL_CHECKS.md), and machine checks in
+[Automated checks](AUTOMATED_CHECKS.md). Git is the engineering history.
 
 ## Current position
 
 The native feature track planned for `v0.7.0` is complete. Verification is most
 of what remains, and the interface half of it is now done: the machine-drivable
-checks in [`ACCEPTANCE.md`](ACCEPTANCE.md) were closed against a seeded build,
+checks in [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md) were closed against a seeded build,
 which left three findings and one open design question rather than a clean pass.
 
 Gaf then worked through the sessions that need a person, on the same build. The
@@ -45,7 +45,7 @@ works:
   the failure the check was written to catch — the sidebar toggling behind the
   dialog — does not happen.
 
-[`ACCEPTANCE.md`](ACCEPTANCE.md) holds all of them with detail, plus the deferred
+[`MANUAL_CHECKS.md`](MANUAL_CHECKS.md) holds all of them with detail, plus the deferred
 pill-tinting design pass.
 
 The Xcode project is the source of truth for the current bundle build, and the
@@ -65,7 +65,7 @@ tagged.
 - [x] Complete the planned `v0.7.0` interface and polish track.
 - [x] Confirm before deleting history, one entry or all of it.
 - [x] Close the machine-drivable interface checks in
-      [`ACCEPTANCE.md`](ACCEPTANCE.md), which required seeding a test build's
+      [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md), which required seeding a test build's
       history so the Dictation list could be inspected without risking real
       entries or spending credit.
 - [x] Validate bare `Fn` capture and suppression on macOS 27 hardware. Confirmed
@@ -138,7 +138,7 @@ recorded so they are not mistaken for forgotten release blockers.
   Removing it also settles the `⌘.` binding question, since there would be nothing
   left for it to toggle.
 - **The floating day label is to be redesigned, not fixed.** It never appears
-  today (see [`ACCEPTANCE.md`](ACCEPTANCE.md)), and Gaf intends to replace the
+  today (see [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md)), and Gaf intends to replace the
   whole idea rather than repair the current one. The reference is the macOS
   Calendar app's date behaviour. **The design is Gaf's and has not been written
   down yet — ask him for it before touching this.** The existing diagnosis of why
@@ -176,13 +176,13 @@ reachable from anywhere. Set against that:
   three failed for an unidentified reason that also reproduces on `main`.
 - **It duplicated the acceptance list.** The behaviour the failing tests covered
   — Dock lifecycle, feedback preferences — is checked by hand in
-  [`ACCEPTANCE.md`](ACCEPTANCE.md) and passes there.
+  [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md) and passes there.
 - **Untrustworthy results cost more than absent ones.** Most of the session that
   ran it went into proving three failures were not regressions.
 
 What is no longer covered automatically: focus routing, the Command-F routes,
 sidebar selection, activation-policy and Dock-lifecycle transitions, and the
-simulated pill layouts. These now rest on [`ACCEPTANCE.md`](ACCEPTANCE.md) and
+simulated pill layouts. These now rest on [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md) and
 on Gaf using Scriber daily, which surfaces a shell regression within hours.
 
 What remains, and is doing the real work: the 66 package tests, which run in
@@ -215,7 +215,7 @@ a blocker; none affects whether a dictation works.
   has no Team ID suitable for a stable Keychain partition. This is the accepted
   cost of the personal signing path, not an open `KeychainStore` investigation.
 - Reboot acceptance for the Keychain grant remains open and is covered by the
-  installation checks in [`ACCEPTANCE.md`](ACCEPTANCE.md).
+  installation checks in [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md).
 
 ## Deferred technical work
 
@@ -243,17 +243,17 @@ None of these findings is known to affect current behavior.
 
 Before creating `v0.7.0`:
 
-- [x] Complete the applicable checks in [`ACCEPTANCE.md`](ACCEPTANCE.md). A source
+- [x] Complete the applicable checks in [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md). A source
       release does not require Developer ID signing or notarization. Every check
       that needs a person has been run. Two refinements added in build 29 —
       chord commit-on-release against a real keyboard, and removing the *real*
       API key — are recorded as not yet exercised, with the reasoning for why
-      neither blocks; see [Requested](ACCEPTANCE.md#requested-not-defects).
+      neither blocks; see [Requested](MANUAL_CHECKS.md#requested-not-defects).
 - [x] ~~Run the XCUITest suite end to end once.~~ **Gate retired.** It was run on
       build 30 and was not clean; Gaf then removed the suite rather than repair
       it. A gate cannot be met by deleting what it measures, so it is withdrawn
       rather than marked passed. The shell behaviour it covered is verified by
-      hand in [`ACCEPTANCE.md`](ACCEPTANCE.md). See
+      hand in [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md). See
       [The XCUITest suite was removed](#the-xcuitest-suite-was-removed).
 - [ ] Generate artifact-specific third-party notices before publishing a
       downloadable binary. Not a gate on a source tag: the native app declares no
