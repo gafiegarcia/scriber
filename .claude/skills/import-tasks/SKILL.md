@@ -30,13 +30,15 @@ filing them again.
 
 Every item goes under a version heading, using `docs/VERSIONING.md`:
 
-- A fix or small correction → the next **patch** (`0.7.1`).
-- A significant new capability → the next **minor** (`0.8.0`).
-- Signing, notarization, or distribution work → **Distribution**.
-- Genuinely broken but not being fixed → **Known issues with no fix planned**.
+- A fix or small correction → the next **patch**, e.g. `## v0.7.1`.
+- A significant new capability → the next **minor**, e.g. `## v0.8.0`.
+- Signing, notarization, trademark, licensing → `## Long-term`.
 
 If an item could plausibly go in either of two versions, ask. Do not invent a new
-version heading to avoid deciding, and do not create an "unscheduled" pile.
+heading to avoid deciding, and do not create an "unscheduled" or "deferred" pile.
+
+Something genuinely broken that nobody plans to fix is **not** a roadmap item.
+Put a `Known and unfixed:` comment on the code that owns it instead.
 
 ## 5. Write the item
 

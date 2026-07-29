@@ -125,6 +125,9 @@ final class GlobalShortcutService {
         guard !isConfigurationCaptureActive else { return false }
 
         if event.type == .keyDown, event.keyCode == 53 {
+            // Known and unfixed: this consumes Escape key-down while a pill is
+            // visible but lets the matching key-up reach the foreground app. No
+            // consequence has been observed.
             return onEscape?() ?? false
         }
 

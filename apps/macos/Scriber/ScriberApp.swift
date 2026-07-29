@@ -76,6 +76,9 @@ private enum AppWindowIdentity {
 private enum DictationHistoryStore {
     private static let retryDelays: [TimeInterval] = [0, 0.2, 0.5, 1]
 
+    /// Known and unfixed: the retry delay sleeps on the main thread. It only
+    /// runs between failed store-open attempts, and making it asynchronous
+    /// requires redesigning `AppRuntime` initialization.
     static func makePersistentContainer() throws -> ModelContainer {
         var lastError: Error?
 
@@ -534,6 +537,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.center()
     }
 
+    /// Known and unfixed: this polls for the startup window by title. Remove it
+    /// only after proving which launch paths still depend on it; the Dock
+    /// lifecycle is the constraint.
     private func showInitialWindowWhenAvailable(onboardingComplete: Bool) async {
         let title = onboardingComplete ? AppWindowIdentity.mainTitle : AppWindowIdentity.onboardingTitle
         for _ in 0..<40 {

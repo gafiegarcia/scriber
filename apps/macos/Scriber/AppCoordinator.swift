@@ -719,6 +719,8 @@ final class AppCoordinator: ObservableObject {
         try? modelContext.save()
     }
 
+    /// Known and unfixed: this saves once per record. Only worth batching if a
+    /// large history makes it measurable.
     func clearDictationHistory(_ records: [DictationRecord]) {
         for record in records { delete(record) }
     }

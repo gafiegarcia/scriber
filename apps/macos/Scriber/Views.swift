@@ -227,6 +227,8 @@ struct DictationHistoryView: View {
         return visibleRecords.filter { ($0.text ?? "").localizedCaseInsensitiveContains(search) }
     }
 
+    /// Known and unfixed: this regroups every record on each body evaluation.
+    /// Only worth revisiting if a large history makes it measurable.
     private var sections: [DictationHistorySection] {
         let calendar = Calendar.autoupdatingCurrent
         let grouped = Dictionary(grouping: filtered) { calendar.startOfDay(for: $0.createdAt) }
