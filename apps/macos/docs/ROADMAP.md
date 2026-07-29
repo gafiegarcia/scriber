@@ -14,8 +14,12 @@ which left three findings and one open design question rather than a clean pass.
 
 Gaf then worked through the sessions that need a person, on the same build. The
 dictation core, shortcuts, insertion, permissions, Dock lifecycle, appearance, and
-icon all passed. What remains open is a restart check, a fresh-onboarding pass, and
-one supervised XCUITest run.
+icon all passed.
+
+On build 29 he cleared the restart check — grants, Launch at Login, and the stored
+key all survived a reboot — and ran fresh onboarding, which worked but placed its
+window off the bottom of the screen, under the Dock. Build 30 fixes that. One
+supervised XCUITest run is the only person-only check still outstanding.
 
 That pass produced five implementation tasks, contrary to the previous claim here
 that none remained. Build 29 closed the two that changed what a user can tell
@@ -74,9 +78,13 @@ tagged.
       of `v0.7.0` or block it. Gaf's call: they ship. None affects whether a
       dictation works, and two of the three are about to be redesigned rather than
       patched. See [Known and accepted](#known-and-accepted).
-- [ ] Finish the last three person-only checks in
-      [`ACCEPTANCE.md`](ACCEPTANCE.md): a restart, a fresh onboarding pass, and the
-      XCUITest suite.
+- [x] Verify a restart preserves the Microphone and Accessibility grants, the
+      stored key, and the Launch at Login setting in both directions. Build 29.
+- [x] Give the onboarding window a placement that fits the screen. It was
+      cascaded from the main window and ran under the Dock; it is now sized to the
+      display and centred on every appearance, and scrolls rather than overflowing.
+- [ ] Finish the last person-only check in [`ACCEPTANCE.md`](ACCEPTANCE.md): one
+      end-to-end XCUITest run.
 
 ## Non-blocking deferred work
 

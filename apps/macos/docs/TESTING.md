@@ -127,6 +127,21 @@ bar to be checked. It moves the real pointer and can press keys, so do not begin
 while Gaf is typing, and verify whether the visible window belongs to the
 installed app or a test build.
 
+### Onboarding
+
+`--ui-testing-onboarding` opens the setup window, which `--ui-testing` otherwise
+skips by marking setup complete. Without it the only way to see onboarding is to
+delete Gaf's real `onboardingComplete` default and restart the installed app,
+which means walking back through setup to get out again. Use it the same way as
+the seeded-history launch below — with activation, and with the `before_pid`
+guard — substituting the flag.
+
+Check that the window is centred and fully visible above the Dock. That is the
+build-29 defect it exists to catch, and AppKit's own frame is not to be trusted
+here: see `fitOnboardingWindow` in `Scriber/ScriberApp.swift`. Relaunch once more
+before believing it, because the original failure only appeared on the *second*
+launch, from a restored frame.
+
 ### Seeded history
 
 `--ui-testing-seed-history` fills the in-memory store with 23 deterministic

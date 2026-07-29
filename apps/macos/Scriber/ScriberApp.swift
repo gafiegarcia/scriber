@@ -35,6 +35,13 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-history")
     }
 
+    /// Opens onboarding under `--ui-testing`, which otherwise marks setup
+    /// complete so every other check starts in the app proper. Without it the
+    /// onboarding window is reachable only by resetting Gaf's real preferences.
+    static var showsOnboarding: Bool {
+        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding")
+    }
+
     /// The launch smoke check's flag. The app still builds and renders its window —
     /// that is the path the check exists to exercise — but never activates, so it
     /// does not steal the front from whatever Gaf is doing. Only the smoke check
@@ -159,7 +166,7 @@ final class AppRuntime: ObservableObject {
             servicesAllowed: !isUITesting
         )
         if isUITesting {
-            preferences.onboardingComplete = true
+            preferences.onboardingComplete = !AppLaunchConfiguration.showsOnboarding
             if AppLaunchConfiguration.presentsInvalidKeyPill {
                 Task { @MainActor [coordinator] in
                     try? await Task.sleep(for: .milliseconds(100))
@@ -232,7 +239,9 @@ struct ScriberApp: App {
                 .task { await promoteApplicationForVisibleWindow() }
         }
         .defaultPosition(.center)
-        .windowResizability(.contentSize)
+        // No `.windowResizability(.contentSize)`: it pins the window to the
+        // content's ideal height, which for a scroll view is greedy, and it
+        // refuses the explicit frame `fitOnboardingWindow` sets.
         .commands {
             CommandGroup(replacing: .appTermination) {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
@@ -419,12 +428,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(AppLaunchConfiguration.keepsRegularActivationPolicy ? .regular : .accessory)
         let center = NotificationCenter.default
         NSApp.windows.filter(AppWindowIdentity.isManagedWindow).forEach { $0.isReleasedWhenClosed = false }
-        observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { note in
+        observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] note in
             guard let window = note.object as? NSWindow else { return }
             Task { @MainActor in
                 guard AppWindowIdentity.isManagedWindow(window) else { return }
                 window.isReleasedWhenClosed = false
                 NSApp.setActivationPolicy(.regular)
+                if window.title == AppWindowIdentity.onboardingTitle { self?.fitOnboardingWindow(window) }
             }
         })
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self] note in
@@ -467,8 +477,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         })
         Task { @MainActor [weak self] in
-            let onboardingComplete = AppLaunchConfiguration.isUITesting
-                || UserDefaults.standard.bool(forKey: "onboardingComplete")
+            let onboardingComplete = !AppLaunchConfiguration.showsOnboarding
+                && (AppLaunchConfiguration.isUITesting
+                    || UserDefaults.standard.bool(forKey: "onboardingComplete"))
             await self?.showInitialWindowWhenAvailable(onboardingComplete: onboardingComplete)
         }
     }
@@ -501,6 +512,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             Self.windowLog.notice("showOnboardingWindow: never appeared")
         }
+    }
+
+    /// Fits onboarding to the screen itself rather than trusting AppKit's frame.
+    ///
+    /// Setup is taller than a laptop display, and AppKit's own frame for it was
+    /// wrong in both directions: opened while the main window is up it gets
+    /// cascaded down until it runs under the Dock, and reopened in a later
+    /// session it gets a restored frame that the scene's `.contentSize`
+    /// resizability never re-derives — which is how it came back stuck small.
+    /// So neither is trusted. The window is given the whole height the screen
+    /// offers and centred, every time it appears. A first-time user should see
+    /// the setup steps, not have to find them by scrolling.
+    private func fitOnboardingWindow(_ window: NSWindow) {
+        guard let visible = (window.screen ?? NSScreen.main)?.visibleFrame else { return }
+        window.isRestorable = false
+        let chrome = window.frame.height - window.contentLayoutRect.height
+        window.setContentSize(
+            NSSize(width: 640, height: max(420, visible.height - chrome - 24))
+        )
+        window.center()
     }
 
     private func showInitialWindowWhenAvailable(onboardingComplete: Bool) async {

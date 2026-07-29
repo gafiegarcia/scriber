@@ -29,6 +29,9 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ### Fixed
 
+- The setup window no longer opens partly off the bottom of the screen, under the
+  Dock. It is centred and sized to the display every time it appears, and its
+  steps scroll if they ever do not fit.
 - A microphone that produces no sound at all — muted, wrong device, input volume
   at zero — now says so, instead of the dictation vanishing with no transcript, no
   history entry, and no warning. It is reported separately from a recording that

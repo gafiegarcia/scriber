@@ -17,8 +17,12 @@ and [Sessions for Gaf](#sessions-for-gaf) is the plain-language version of it.
 
 ## Where this stands
 
-Build 29 is installed and is the current candidate. Everything machine-checkable
+Build 30 is installed and is the current candidate. Everything machine-checkable
 is done; what is left is in [Still to do](#still-to-do) and needs Gaf.
+
+Gaf's build 29 session cleared the restart check outright and found one defect in
+fresh onboarding — the window ran under the Dock. Build 30 fixes it. The XCUITest
+run is the only original item still outstanding.
 
 **The next step is Gaf reporting those results.** When he does: record them here,
 then cut the `v0.7.0` tag with the metadata
@@ -42,22 +46,33 @@ Build 29 also added three requested actions that want a quick look — Remove Ke
 Redo Onboarding…, and chord recording committing at the first key release. Each is
 marked **To check** in [Requested](#requested-not-defects).
 
-Then three things remain from the original list.
+One thing remains from the original list.
 
-### 1. Restart the Mac
+### ~~1. Restart the Mac~~ — passed on build 29
 
-Confirm the Microphone and Accessibility grants survived, that Scriber is running
-after login, and that the stored key still reads back without asking for the login
-password again. Then confirm **Launch at Login** can be turned off and stays off.
+Grants survived the restart, Scriber was running after login, the stored key read
+back without a further password prompt, and **Launch at Login** turned off and
+stayed off.
 
-### 2. Redo onboarding once
+### ~~2. Redo onboarding once~~ — ran on build 29, found a defect, fixed in build 30
 
-Reset the stored flag, relaunch, and confirm onboarding appears before setup and
-the Dictation window after it:
+Onboarding appeared as it should, but the window was placed badly: cascaded down
+from the main window rather than centred, and tall enough that its bottom ran off
+the screen and under the Dock. Gaf offered two remedies — hide the main window
+during setup, or centre setup and let it use the full height between the menu bar
+and the Dock. Build 30 does the second.
 
-```bash
-defaults delete com.gafiegarcia.scriber onboardingComplete
-```
+What it took, because AppKit's own frame was wrong in both directions: the window
+is now sized and centred explicitly every time it appears, is marked
+non-restorable so a bad frame cannot outlive the launch that produced it, and its
+scene no longer uses `.windowResizability(.contentSize)`, which pinned it to a
+scroll view's greedy ideal height and refused an explicit frame. The setup steps
+scroll if they ever do exceed the display, so nothing becomes unreachable on a
+smaller screen.
+
+Worth re-checking on build 30: that onboarding opens centred and fully visible
+both on a genuine first run and from **Settings → Redo Onboarding…**, with the
+main window already open.
 
 ### 3. The XCUITest suite, once, end to end
 
@@ -326,12 +341,15 @@ needed a real API key.
       locally certificate-signed Release configuration with Xcode 27 beta.
 - [x] Install the verified locally certificate-signed Release build at
       `/Applications/Scriber.app`.
-- [ ] Complete fresh onboarding under the `com.gafiegarcia.scriber` identity, and
+- [x] Complete fresh onboarding under the `com.gafiegarcia.scriber` identity, and
       verify launch presents onboarding before setup and the main Dictation window
       after setup. Reset with
-      `defaults delete com.gafiegarcia.scriber onboardingComplete`.
-- [ ] Verify Microphone and Accessibility grants persist across a restart, and
+      `defaults delete com.gafiegarcia.scriber onboardingComplete`. Build 29: the
+      sequence is right, but the window was placed off the bottom of the screen.
+      Fixed in build 30; re-check the placement there.
+- [x] Verify Microphone and Accessibility grants persist across a restart, and
       that the stored key still reads back without a login-Keychain prompt.
+      Build 29: confirmed, no further password prompt.
 - [x] Revoke Microphone and Accessibility separately and together after
       onboarding; verify the proactive warning, permission pill, Settings route,
       and automatic shortcut-monitor recovery after regranting. Build 28:
@@ -340,9 +358,10 @@ needed a real API key.
       Accessibility, where Scriber handles both directions correctly. And the pill
       is intrusive throughout; see
       [finding 4](#4-the-permissions-pill-respawns-on-every-window-focus).
-- [ ] Verify Launch at Login registration, first-login dictation after
-      persistent-store readiness, relaunch, and opt-out. Has worked for several
-      builds; recheck on build 28 alongside the restart.
+- [x] Verify Launch at Login registration, first-login dictation after
+      persistent-store readiness, relaunch, and opt-out. Build 29, across a real
+      restart: Scriber was running after login, and opting out turned it off and
+      kept it off.
 - [x] Verify Command-W, Command-Shift-W, and the red window control remove the
       final normal window and Dock icon without terminating menu-bar or dictation
       services when "Show app in Dock" is disabled. Build 28.

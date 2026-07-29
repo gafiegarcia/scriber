@@ -1282,7 +1282,19 @@ struct OnboardingView: View {
     @State private var isCheckingAPIKey = false
     @State private var error: String?
 
+    /// The setup steps are tall enough to reach the Dock, so they scroll rather
+    /// than push the window off the bottom of the screen. `fitOnboardingWindow`
+    /// sizes the window itself, to the full height the display allows, so this
+    /// only has to fill it.
     var body: some View {
+        ScrollView {
+            setupSteps
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(minWidth: 640, maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var setupSteps: some View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Welcome to Scriber").font(.largeTitle.bold())
@@ -1442,6 +1454,7 @@ struct OnboardingView: View {
         }
         .padding(32)
         .frame(width: 640)
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             guard !runtime.preferences.onboardingComplete else {
                 dismissWindow(id: "onboarding")
