@@ -128,27 +128,26 @@ struct MainWindowSearchField: NSViewRepresentable {
 
 @MainActor
 final class MainWindowSearchControl: NSGlassEffectView {
-    // Liquid Glass lives inside the permanently installed toolbar item, because
-    // changing SwiftUI's toolbar background preference by destination makes
-    // SwiftUI reconcile window chrome while hiding this inner view does not.
+    // Liquid Glass belongs to this view rather than to SwiftUI's toolbar item,
+    // because Settings hides the whole control and SwiftUI's item background
+    // would stay behind as an empty capsule.
     //
-    // The field keeps its bezel. Unbezeled, AppKit mis-aligns its text, drops
-    // the magnifier while editing, and draws a rectangular focus ring inside the
-    // round capsule; the bezel itself draws nothing visible over the glass.
+    // The bezeled field fills the glass exactly. Inset any smaller and the
+    // keyboard focus ring, which follows the bezel, draws inside the capsule
+    // rather than on it. The bezel itself draws nothing visible over the glass,
+    // but it is what centres the text, keeps the magnifier during editing, and
+    // gives the ring its capsule shape.
     let searchField = NSSearchField()
     var acceptsInteraction = true
     var onWindowChange: (@MainActor () -> Void)?
 
-    /// The glass view sizes its content view to fill the capsule, and the field
-    /// must not fill it, so a plain container carries the centred field.
-    private let fieldContainer = NSView()
-
+    /// The glass view sizes its content view to fill the capsule, which is
+    /// exactly what the field needs, so it is the content view directly.
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         style = .regular
         effectIsInteractive = true
-        fieldContainer.addSubview(searchField)
-        contentView = fieldContainer
+        contentView = searchField
     }
 
     @available(*, unavailable)
@@ -161,18 +160,7 @@ final class MainWindowSearchControl: NSGlassEffectView {
     override func layout() {
         super.layout()
         cornerRadius = bounds.height / 2
-        fieldContainer.frame = bounds
-
-        // Centre the field at the height it asks for rather than stretching it
-        // to the capsule, which is what pushed the text to the top edge.
-        let naturalHeight = searchField.cell?.cellSize.height ?? searchField.fittingSize.height
-        let horizontalInset: CGFloat = 8
-        searchField.frame = NSRect(
-            x: horizontalInset,
-            y: ((bounds.height - naturalHeight) / 2).rounded(),
-            width: max(0, bounds.width - horizontalInset * 2),
-            height: naturalHeight
-        )
+        searchField.frame = bounds
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {

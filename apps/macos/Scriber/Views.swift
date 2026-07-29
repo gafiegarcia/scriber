@@ -86,6 +86,9 @@ struct MainWindowView: View {
                 MainWindowSearchField(searchCoordinator: searchCoordinator)
                     .frame(width: 280, height: 36)
             }
+            // Settings hides the whole control, so the capsule has to belong to
+            // it. SwiftUI's own item background would stay behind as an empty
+            // capsule, and this preference must not vary by destination.
             .sharedBackgroundVisibility(.hidden)
         }
         .focusedSceneValue(\.searchDictationHistoryAction, searchDictationAction)
