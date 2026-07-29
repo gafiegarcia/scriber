@@ -66,8 +66,8 @@ enum UITestingHistoryFixture {
                 """,
             state: .succeeded, delivery: .pasted
         ),
-        // The single-line copy check: the checkmark swap must not change this
-        // row's height, and on a one-line row the icon is the tallest thing in it.
+        // The single-line copy check: presenting the page-level toast must not
+        // change this row's height.
         Entry(
             index: 2, dayOffset: 0, hour: 17, minute: 15, duration: 3.4,
             text: "Remember to charge both camera batteries before the shoot tomorrow.",

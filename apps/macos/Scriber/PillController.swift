@@ -47,6 +47,8 @@ final class PillModel: ObservableObject {
     var onOpenInputSettings: (() -> Void)?
     var onRetry: (() -> Void)?
     var onUndo: (() -> Void)?
+    var onCancelRecording: (() -> Void)?
+    var onConfirmRecording: (() -> Void)?
     var onDismiss: (() -> Void)?
     var onHoverChanged: ((Bool) -> Void)?
 }
@@ -62,6 +64,7 @@ final class PillController {
     private var currentPanelSize = NSSize(width: 316, height: 78)
     private var dismissalCountdown: DismissalCountdown?
     private var isHovering = false
+    private var keepsPanelCenterForCurrentUpdate = false
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
     private let presentationDuration: TimeInterval = 0.18
     private let glassMargin: CGFloat = 8
@@ -113,6 +116,7 @@ final class PillController {
             return
         }
 
+        keepsPanelCenterForCurrentUpdate = false
         applyLayout(for: phase)
         model.phase = phase
         show()
@@ -212,6 +216,8 @@ final class PillController {
 
     private func pillSize(for phase: AppPhase) -> NSSize {
         switch phase {
+        case .recording(let mode, _, _):
+            NSSize(width: mode == .locked ? 360 : 280, height: 52)
         case .dictationCopied(let text, _):
             copiedResultSize(for: text)
         case .cancelledTranscript:
@@ -239,22 +245,50 @@ final class PillController {
     private func applyLayout(for phase: AppPhase) {
         let desiredPillSize = pillSize(for: phase)
         let desiredPanelSize = panelSize(for: desiredPillSize)
+        let desiredGlassFrame = NSRect(
+            x: glassMargin,
+            y: glassMargin,
+            width: desiredPillSize.width,
+            height: desiredPillSize.height
+        )
 
         if desiredPanelSize != currentPanelSize {
-            panel.setContentSize(desiredPanelSize)
+            if panel.isVisible {
+                let desiredPanelFrame = NSRect(
+                    x: panel.frame.midX - desiredPanelSize.width / 2,
+                    y: panel.frame.minY,
+                    width: desiredPanelSize.width,
+                    height: desiredPanelSize.height
+                )
+                let animatesHandsFreeExpansion = model.phase.showsHandsFreeRecordingControls == false
+                    && phase.showsHandsFreeRecordingControls
+                    && !shouldReduceMotion
+
+                if animatesHandsFreeExpansion {
+                    keepsPanelCenterForCurrentUpdate = true
+                    NSAnimationContext.runAnimationGroup { context in
+                        context.duration = presentationDuration
+                        context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                        panel.animator().setFrame(desiredPanelFrame, display: true)
+                        glassView.animator().frame = desiredGlassFrame
+                    }
+                } else {
+                    panel.setFrame(desiredPanelFrame, display: true)
+                    glassView.frame = desiredGlassFrame
+                }
+            } else {
+                panel.setContentSize(desiredPanelSize)
+                glassView.frame = desiredGlassFrame
+            }
             currentPanelSize = desiredPanelSize
+        } else {
+            glassView.frame = desiredGlassFrame
         }
 
         // Apply the destination glass geometry directly on every phase change.
         // Relying on autoresizing alone can leave NSGlassEffectView rendering the
         // fixed copied-result radius after its host shrinks back to a capsule.
         panel.contentView?.layoutSubtreeIfNeeded()
-        glassView.frame = NSRect(
-            x: glassMargin,
-            y: glassMargin,
-            width: desiredPillSize.width,
-            height: desiredPillSize.height
-        )
         glassView.layoutSubtreeIfNeeded()
         glassView.cornerRadius = CGFloat(phase.pillCornerRadius(height: Double(desiredPillSize.height)))
     }
@@ -283,7 +317,8 @@ final class PillController {
         isPresented = true
         presentationTask?.cancel()
         presentationTask = nil
-        positionPanel()
+        if !keepsPanelCenterForCurrentUpdate { positionPanel() }
+        keepsPanelCenterForCurrentUpdate = false
         guard !panel.isVisible else {
             panel.alphaValue = 1
             return
@@ -352,6 +387,7 @@ final class PillController {
 
 private struct PillView: View {
     @ObservedObject var model: PillModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         content
@@ -374,9 +410,23 @@ private struct PillView: View {
     private var compactStatus: some View {
         HStack(spacing: 10) {
             if case .recording = model.phase {
+                if model.phase.showsHandsFreeRecordingControls {
+                    recordingControl(
+                        systemImage: "xmark",
+                        label: "Cancel recording",
+                        action: { model.onCancelRecording?() }
+                    )
+                }
                 statusText
                 Spacer(minLength: 6)
                 symbol
+                if model.phase.showsHandsFreeRecordingControls {
+                    recordingControl(
+                        systemImage: "checkmark",
+                        label: "Finish recording",
+                        action: { model.onConfirmRecording?() }
+                    )
+                }
             } else {
                 symbol
                 statusText
@@ -387,6 +437,28 @@ private struct PillView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 11)
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.18),
+            value: model.phase.showsHandsFreeRecordingControls
+        )
+    }
+
+    private func recordingControl(
+        systemImage: String,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 28, height: 28)
+                .background(Color.primary.opacity(0.08), in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(label)
+        .accessibilityLabel(label)
+        .transition(.scale(scale: 0.72).combined(with: .opacity))
     }
 
     private var statusText: some View {

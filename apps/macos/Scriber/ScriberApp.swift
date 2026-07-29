@@ -63,9 +63,14 @@ private enum AppWindowIdentity {
     static let onboardingTitle = "Set Up Scriber"
     private static let mainWindowTitles: Set<String> = [mainTitle, "Dictation", "Settings"]
 
+    static func isMainWindow(_ window: NSWindow) -> Bool {
+        guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
+        return window.identifier?.rawValue == "main" || mainWindowTitles.contains(window.title)
+    }
+
     static func isManagedWindow(_ window: NSWindow) -> Bool {
         guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
-        return mainWindowTitles.contains(window.title) || window.title == onboardingTitle
+        return isMainWindow(window) || window.title == onboardingTitle
     }
 }
 
@@ -375,26 +380,12 @@ private struct MainWindowCommands: Commands {
             Button("Settings…") { openSettings() }
                 .keyboardShortcut(",", modifiers: .command)
         }
-        CommandGroup(replacing: .sidebar) {
-            Button("Toggle Sidebar") { toggleSidebar() }
-                .keyboardShortcut(".", modifiers: .command)
-        }
+        CommandGroup(replacing: .sidebar) {}
         CommandGroup(after: .textEditing) {
             Button("Search Dictations") { searchDictationHistory?() }
                 .keyboardShortcut("f", modifiers: .command)
                 .disabled(searchDictationHistory == nil)
         }
-    }
-
-    /// SwiftUI builds the split view controller behind `NavigationSplitView`, so
-    /// there is no reference to hold. Sending the selector down the responder
-    /// chain reaches it wherever it ended up.
-    @MainActor
-    private func toggleSidebar() {
-        NSApp.keyWindow?.firstResponder?.tryToPerform(
-            #selector(NSSplitViewController.toggleSidebar(_:)),
-            with: nil
-        )
     }
 
     /// Scriber has no SwiftUI `Settings` scene; Settings is a section of the main
@@ -557,7 +548,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @discardableResult
     private func showWindow(titled title: String) -> Bool {
         guard let window = NSApp.windows.first(where: {
-            AppWindowIdentity.isManagedWindow($0) && $0.title == title
+            guard AppWindowIdentity.isManagedWindow($0) else { return false }
+            return title == AppWindowIdentity.mainTitle
+                ? AppWindowIdentity.isMainWindow($0)
+                : $0.title == title
         }) else { return false }
         Self.windowLog.notice(
             "showWindow: ordering front title=\(title, privacy: .public) wasVisible=\(window.isVisible, privacy: .public)"

@@ -17,11 +17,11 @@ public struct KeyModifiers: OptionSet, Codable, Hashable, Sendable {
 
     public var displayParts: [String] {
         var parts: [String] = []
+        if contains(.function) { parts.append("fn") }
         if contains(.control) { parts.append("⌃") }
         if contains(.option) { parts.append("⌥") }
         if contains(.shift) { parts.append("⇧") }
         if contains(.command) { parts.append("⌘") }
-        if contains(.function) { parts.append("fn") }
         return parts
     }
 }
@@ -287,6 +287,19 @@ public enum PermissionRecoveryPolicy {
     }
 }
 
+/// Allows the current missing-permission state to be forced onto the pill once
+/// after completed onboarding, without making every later activation another
+/// forced presentation of the same state.
+struct PermissionRecoveryLaunchGate: Equatable, Sendable {
+    private(set) var hasRequestedPresentation = false
+
+    mutating func consume(onboardingComplete: Bool) -> Bool {
+        guard onboardingComplete, !hasRequestedPresentation else { return false }
+        hasRequestedPresentation = true
+        return true
+    }
+}
+
 struct CredentialRevision: Equatable, Sendable {
     private(set) var current: UInt = 0
 
@@ -351,6 +364,11 @@ public enum AppPhase: Equatable, Sendable {
     /// phase can never fall out of the list.
     public var acceptsRecordingStart: Bool { !isBusy }
 
+    var showsHandsFreeRecordingControls: Bool {
+        guard case .recording(let mode, _, _) = self else { return false }
+        return mode == .locked
+    }
+
     /// Returns idle once the credential block is resolved, and otherwise restates
     /// the block with its current reason so a stale message cannot survive a
     /// change from, say, a missing key to an invalid replacement.
@@ -366,6 +384,24 @@ public enum AppPhase: Equatable, Sendable {
             apiCreditsExhausted: apiCreditsExhausted
         )
         return readiness.isReady ? .idle : .credentialsUnusable(readiness)
+    }
+}
+
+enum HandsFreePillDisposition: Equatable, Sendable {
+    case cancelRecording
+    case finishRecording
+}
+
+enum HandsFreePillAction: Equatable, Sendable {
+    case cancel
+    case confirm
+
+    func disposition(for phase: AppPhase) -> HandsFreePillDisposition? {
+        guard phase.showsHandsFreeRecordingControls else { return nil }
+        return switch self {
+        case .cancel: .cancelRecording
+        case .confirm: .finishRecording
+        }
     }
 }
 

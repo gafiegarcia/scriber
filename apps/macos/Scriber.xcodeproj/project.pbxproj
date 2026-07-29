@@ -27,6 +27,7 @@
 		A10000000000000000000012 /* RecordingFeedbackSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* RecordingFeedbackSound.swift */; };
 		A10000000000000000000013 /* OtherAudioMuteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* OtherAudioMuteService.swift */; };
 		A10000000000000000000014 /* UITestingHistoryFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000018 /* UITestingHistoryFixture.swift */; };
+		A10000000000000000000015 /* MainWindowSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* MainWindowSearch.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 		B10000000000000000000016 /* OtherAudioMuteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OtherAudioMuteService.swift; sourceTree = "<group>"; };
 		B10000000000000000000017 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		B10000000000000000000018 /* UITestingHistoryFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestingHistoryFixture.swift; sourceTree = "<group>"; };
+		B10000000000000000000019 /* MainWindowSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowSearch.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,6 +84,7 @@
 			isa = PBXGroup;
 			children = (
 				B1000000000000000000000B /* ScriberApp.swift */,
+				B10000000000000000000019 /* MainWindowSearch.swift */,
 				B10000000000000000000001 /* AppCoordinator.swift */,
 				B10000000000000000000002 /* AudioRecorder.swift */,
 				B10000000000000000000016 /* OtherAudioMuteService.swift */,
@@ -202,6 +205,7 @@
 				A10000000000000000000009 /* Preferences.swift in Sources */,
 				A1000000000000000000000A /* ../ScriberCore/ScribeClient.swift in Sources */,
 				A1000000000000000000000B /* ScriberApp.swift in Sources */,
+				A10000000000000000000015 /* MainWindowSearch.swift in Sources */,
 				A1000000000000000000000C /* ShortcutRecorderView.swift in Sources */,
 				A1000000000000000000000D /* Views.swift in Sources */,
 				A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */,
@@ -246,7 +250,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Scriber/Info.plist;
@@ -255,7 +259,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.7.0;
+				MARKETING_VERSION = 0.7.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber;
 				PRODUCT_NAME = Scriber;
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -272,7 +276,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -282,7 +286,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.7.0;
+				MARKETING_VERSION = 0.7.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber;
 				PRODUCT_NAME = Scriber;
 				SWIFT_STRICT_CONCURRENCY = complete;

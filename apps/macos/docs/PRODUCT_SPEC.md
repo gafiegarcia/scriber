@@ -8,7 +8,8 @@ Scriber is a native macOS menu-bar dictation app intended as a direct replacemen
 - Menu-bar presence is user-configurable and enabled by default. Removing the item through macOS updates the same Settings preference; windows, launch-at-login, and global shortcuts continue independently.
 - Show the Dock icon while a normal Scriber window is open. “Show app in Dock” is user-configurable and disabled by default; disabling it never closes a visible window. When disabled, closing the final normal window with Command-W, Command-Shift-W, or the red window control removes Scriber from the Dock while menu-bar and dictation services continue. When enabled, Scriber remains in the Dock and app switcher without an open window.
 - Save local dictation history.
-- Group Dictation history by local calendar date and vertically center each entry's time beside its transcript content.
+- Group Dictation history by local calendar date and vertically center each entry's time beside its transcript content. Keep the page centred at the same maximum width as Settings, with transparent continuously rounded day cards, subtle matching outlines and row separators, and each ordinary day label aligned to its card.
+- Confirm a Dictation-history copy with a brief page-level toast without changing the row's copy control.
 - Insert each completed transcript into the text cursor that is focused when transcription completes, not the one that was focused when recording began. The user may move focus while transcription runs, and delivery follows that final cursor.
 - If insertion cannot be confirmed, preserve the transcript in Dictation history, copy it when appropriate, and present recovery actions in the floating pill.
 
@@ -24,6 +25,15 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
   or Keychain item into Scriber.
 - The app exposes **Dictation** and **Settings**. Do not add an empty
   Transcription destination before that workflow exists.
+- The main window owns one persistent native toolbar, its title, and its sidebar
+  policy. Switching destinations changes only the detail content: traffic-light
+  controls, title-bar geometry and typography, the sidebar, and sidebar rows do
+  not move or re-render. The sidebar stays visible and has no toggle item or
+  Command-period command.
+- The native toolbar search item appears only in Dictation and filters that
+  workspace in place. Its query survives a visit to Settings. Command-F focuses
+  it from Dictation and is unavailable in Settings; it never changes the active
+  destination.
 - Future long-form **Transcription** is a separate workspace with its own model,
   source-media policy, metadata, editing, export, and note lifecycle. Keep
   `DictationRecord` focused on short capture, delivery, and retry.
@@ -36,6 +46,7 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 - Default Hold shortcut: hold `Fn` to record; release it to stop and transcribe.
 - Default Toggle shortcut: press `Fn-Space` to start hands-free recording; press the configured Toggle shortcut again to stop and transcribe. Hold never stops a hands-free recording.
 - Both bindings are configurable.
+- Display `fn` before Control, Option, Shift, and Command whenever it is part of a multi-modifier shortcut label.
 - While either binding is being configured, all existing global shortcut matching is suspended without removing the Accessibility event tap. Only one shortcut recorder may listen at a time, recognized keys are displayed live, and modifier-only chords preserve the largest combination that was actually held simultaneously.
 - Each binding can be disabled independently without losing its configured chord; both are enabled by default. Menu-started hands-free dictation remains available when its keyboard binding is disabled.
 - A custom Hold chord such as `Fn-Control-Option` must coexist correctly with Toggle.
@@ -79,6 +90,7 @@ The current delivery transaction and its regression baseline are defined in
 - Starting a recording must never send an Accessibility message. Accessibility calls are synchronous cross-process requests whose cost is controlled by the destination app, so target discovery belongs to delivery time only. Recording start may resolve the pill's screen from the window server, which does not traverse another app's Accessibility tree.
 - Confirming delivery is explicitly allowed to be slow. Waiting several seconds for a destination to request the promised transcript is correct; reporting a false failure is not.
 - Show a floating pill at the bottom center of the active screen while recording, transcribing, and reporting terminal states.
+- While recording hands-free, show Cancel on the pill's leading edge and Confirm on its trailing edge. Converting a held recording to hands-free widens the existing pill and animates both controls into it; Cancel uses the normal recording-cancellation path and Confirm stops and transcribes.
 - Preserve the previous clipboard after confirmed automatic insertion.
 - Mark the temporary promised-text pasteboard item as transient, concealed, and autogenerated so compatible clipboard-history tools do not consume it or expose private in-flight dictation. Treat a request for that concealed text as operational confirmation that the foreground destination handled the paste; observable Accessibility mutation may also provide positive confirmation, but missing Accessibility evidence must never turn a successful opaque-editor paste into failure.
 - If the foreground destination does not request the promised text before the bounded timeout and no observable mutation occurs, keep the transcript in Dictation history, republish it as ordinary clipboard text, and present the copied-result recovery UI. Merely dispatching a Paste command is never confirmation.
@@ -104,6 +116,7 @@ The current delivery transaction and its regression baseline are defined in
 - Accessibility permission is required for global shortcut interception and cross-app insertion.
 - The system-audio usage description exists solely for optional recording-time muting. Scriber drives its private mute tap with a private aggregate device and an IOProc whose callback discards the buffers untouched; it never inspects, copies, records, or saves system-audio samples.
 - After onboarding, missing or revoked Microphone or Accessibility permission must be visible immediately in the Dictation window and menu bar. Scriber must present an actionable permission pill on launch, when a grant is revoked, and when it can observe an attempted dictation; the pill and in-app warning route to Scriber Settings.
+- Present an unchanged missing-permission state at most once per launch. Merely focusing a Scriber window refreshes permission state without presenting the same pill again or restarting its dismissal timer; a later revocation, changed missing-permission set, or attempted dictation may present it again.
 - Accessibility revocation prevents Scriber from observing the global shortcut itself, so Scriber must monitor permission state independently, stop unavailable shortcut monitoring, and restart it automatically when the grant returns. It must never rely on the blocked keypress as the only warning path.
 - Launch at Login is optional, offered during onboarding, defaults on, and requires explicit consent.
 - The onboarding window must open centred and fully visible on the current display, whether it is the first launch or a Redo Onboarding request made with the main window already open. Its steps scroll rather than extend the window past the screen. AppKit's own frame is not trusted for this: a cascaded or restored frame put it under the Dock.

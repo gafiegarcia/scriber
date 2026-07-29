@@ -3,6 +3,26 @@
 This file records intentionally identified Scriber releases and prerelease
 snapshots. Ordinary development builds belong in Git history, not here.
 
+## Unreleased
+
+### Changed
+
+- Dictation history now stays centred at Settings width on large windows, uses
+  transparent bordered day cards, and confirms copying with a toast instead of
+  changing the row icon.
+- Hands-free recording now puts Cancel on the pill's leading edge and Confirm on
+  its trailing edge, animating both controls in when a held recording locks.
+- Shortcut labels put `fn` before the other modifiers.
+- The main sidebar stays visible without a toolbar toggle or `⌘.` command.
+
+### Fixed
+
+- Focusing Scriber no longer respawns an unchanged missing-permissions pill or
+  restarts its dismissal timer.
+- Switching between Dictation and Settings now keeps the traffic lights, title
+  bar, and sidebar aligned instead of rebuilding the window toolbar around
+  Dictation search.
+
 ## 0.7.0 — 2026-07-29
 
 The first release without a prerelease suffix. It does not claim v1 polish; it

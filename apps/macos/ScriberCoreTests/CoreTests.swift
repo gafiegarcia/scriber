@@ -28,6 +28,20 @@ struct ShortcutMatcherTests {
         #expect(ShortcutAction.holdReleased.stopsRecording(mode: .held))
     }
 
+    @Test("Hands-free pill controls are available only while locked")
+    func handsFreePillControls() {
+        let held = AppPhase.recording(mode: .held, elapsed: 1, level: -20)
+        let locked = AppPhase.recording(mode: .locked, elapsed: 1, level: -20)
+
+        #expect(!held.showsHandsFreeRecordingControls)
+        #expect(HandsFreePillAction.cancel.disposition(for: held) == nil)
+        #expect(HandsFreePillAction.confirm.disposition(for: held) == nil)
+        #expect(locked.showsHandsFreeRecordingControls)
+        #expect(HandsFreePillAction.cancel.disposition(for: locked) == .cancelRecording)
+        #expect(HandsFreePillAction.confirm.disposition(for: locked) == .finishRecording)
+        #expect(HandsFreePillAction.confirm.disposition(for: .transcribing(attempt: 1, retryDelay: nil)) == nil)
+    }
+
     @Test("Busy state is limited to recording and transcription")
     func busyState() {
         #expect(AppPhase.recording(mode: .held, elapsed: 0, level: -80).isBusy)
@@ -63,6 +77,12 @@ struct ShortcutMatcherTests {
     func namesBoundKeys() {
         #expect(ShortcutChord(modifiers: [.function], keyCode: 49).displayName == "fn+Space")
         #expect(ShortcutChord(modifiers: [.command, .shift], keyCode: 12).displayName == "⇧+⌘+Q")
+        #expect(
+            ShortcutChord(
+                modifiers: [.function, .control, .option, .shift, .command],
+                keyCode: 12
+            ).displayName == "fn+⌃+⌥+⇧+⌘+Q"
+        )
         #expect(KeyCodeNames.name(for: 122) == "F1")
         #expect(KeyCodeNames.name(for: 43) == ",")
         #expect(KeyCodeNames.name(for: 126) == "↑")
@@ -186,6 +206,19 @@ struct PermissionReadinessTests {
             onboardingComplete: false,
             force: true
         ))
+    }
+
+    @Test("Forces missing-permission recovery only once per completed-onboarding launch")
+    func launchRecoveryPresentation() {
+        var gate = PermissionRecoveryLaunchGate()
+
+        let beforeOnboarding = gate.consume(onboardingComplete: false)
+        let firstCompletedLaunch = gate.consume(onboardingComplete: true)
+        let repeatedActivation = gate.consume(onboardingComplete: true)
+
+        #expect(!beforeOnboarding)
+        #expect(firstCompletedLaunch)
+        #expect(!repeatedActivation)
     }
 }
 

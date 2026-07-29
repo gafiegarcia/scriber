@@ -79,6 +79,7 @@ final class AppCoordinator: ObservableObject {
     private var credentialRevision = CredentialRevision()
     private var suppressPillForCurrentTranscription = false
     private var permissionRecoveryPresentationPending = false
+    private var permissionRecoveryLaunchGate = PermissionRecoveryLaunchGate()
     private var credentialRecoveryPresentationPending = false
     private var lastObservedCredentialReadiness: CredentialReadiness = .ready
     private var cancellables = Set<AnyCancellable>()
@@ -118,6 +119,8 @@ final class AppCoordinator: ObservableObject {
         pill.model.onOpenInputSettings = { [weak self] in self?.openMicrophoneInputSettings() }
         pill.model.onRetry = { [weak self] in self?.retryCurrentFailure() }
         pill.model.onUndo = { [weak self] in self?.undoCancelledDictation() }
+        pill.model.onCancelRecording = { [weak self] in self?.handleHandsFreePillAction(.cancel) }
+        pill.model.onConfirmRecording = { [weak self] in self?.handleHandsFreePillAction(.confirm) }
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
 
         Publishers.CombineLatest4(
@@ -167,7 +170,7 @@ final class AppCoordinator: ObservableObject {
                 Task { @MainActor in
                     self?.refreshPermissions(
                         promptForAccessibility: false,
-                        presentRecoveryWhenMissing: true,
+                        presentRecoveryWhenMissing: false,
                         refreshAudioInputs: true
                     )
                 }
@@ -272,9 +275,12 @@ final class AppCoordinator: ObservableObject {
     }
 
     func startServices() {
+        let presentInitialRecovery = permissionRecoveryLaunchGate.consume(
+            onboardingComplete: preferences.onboardingComplete
+        )
         refreshPermissions(
             promptForAccessibility: false,
-            presentRecoveryWhenMissing: true,
+            presentRecoveryWhenMissing: presentInitialRecovery,
             refreshAudioInputs: true
         )
         guard shortcutMonitoringAllowed else {
@@ -662,6 +668,16 @@ final class AppCoordinator: ObservableObject {
             stopAndTranscribe()
         } else {
             showTransientMessage("Still transcribing")
+        }
+    }
+
+    private func handleHandsFreePillAction(_ action: HandsFreePillAction) {
+        guard let disposition = action.disposition(for: phase) else { return }
+        switch disposition {
+        case .cancelRecording:
+            cancelRecording()
+        case .finishRecording:
+            stopAndTranscribe()
         }
     }
 

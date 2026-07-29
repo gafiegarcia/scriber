@@ -92,10 +92,10 @@ build, test, and smoke-check commands do not use:
 
 ```bash
 cd "$(git rev-parse --show-toplevel)/apps/macos/.build" || exit 1
-for path in */; do
-  case "${path%/}" in
+for build_entry in */; do
+  case "${build_entry%/}" in
     xcode-release|xcode-debug|module-cache|out|debug|artifacts|checkouts|repositories) ;;
-    *) trash "$path" ;;
+    *) trash "$build_entry" ;;
   esac
 done
 ```

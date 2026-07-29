@@ -14,14 +14,23 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
 - [ ] Hold to dictate, speak, release: the text lands at the cursor in whatever
       app was focused, including one you switch to *during* transcription.
 - [ ] Typing and Escape each cancel a recording, each with the cancellation sound.
-- [ ] `Fn-Space` locks hands-free, Hold is ignored while locked, and Toggle stops
-      it. Bare `Fn` still opens the emoji picker and types a normal Space.
-      **Wispr Flow must be quit first.**
+- [ ] `Fn-Space` locks hands-free, with Cancel on the pill's leading edge and
+      Confirm on its trailing edge. Converting a held recording to hands-free
+      widens the existing pill and animates both controls in; Cancel spends no
+      credit. Hold is ignored while locked, and Toggle stops it. Bare `Fn` still
+      opens the emoji picker and types a normal Space. **Wispr Flow must be quit
+      first.**
 - [ ] Record a new shortcut: the recorder shows the chord live and closes at the
-      *first* key release. Disabling Hold and Toggle independently prevents only
-      the disabled one.
+      *first* key release, and a chord containing `fn` displays it first.
+      Disabling Hold and Toggle independently prevents only the disabled one.
 - [ ] `⌘,` opens Settings both with a window open and with all windows closed.
-      `⌘F` focuses search from either pane.
+      In Dictation, `⌘F` focuses Search Dictations; in Settings the menu command
+      is disabled and the shortcut leaves Settings unchanged. A Dictation query
+      survives a visit to Settings. The sidebar remains visible, has no toolbar
+      toggle, and `⌘.` does not hide it.
+- [ ] Switch Dictation → Settings → Dictation repeatedly. Search appears only in
+      Dictation; the traffic lights, title baseline and typography, sidebar
+      divider, and both sidebar rows remain fixed with no one-frame flicker.
 - [ ] Delete one history entry and clear all history: both confirm first, and
       cancelling leaves everything alone. Copy puts the right transcript on the
       clipboard.
@@ -31,8 +40,9 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
 - [ ] The menu bar icon holds steady through a dictation and switches to the
       warning symbol when the key is unusable. Do not diagnose this from
       `defaults` — look at the menu bar.
-- [ ] Light and dark both read comfortably, and the app icon looks right in the
-      Dock and Finder.
+- [ ] Light and dark both read comfortably. Dictation history remains centred at
+      Settings width with transparent bordered cards and matching separators;
+      its copy toast is readable. The app icon looks right in the Dock and Finder.
 - [ ] Set the input volume to zero and dictate: the "No sound from the microphone"
       pill appears with the failure sound. This costs no credit and must stay
       distinct from the no-words pill.
@@ -56,6 +66,8 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
       changes**, so no-relaunch recovery is only observable for Accessibility.
 - [ ] The pill's Review button brings Scriber forward over whatever app is active
       and lands on Permissions and Input, not the top of Settings.
+- [ ] While the missing-permissions pill is visible, focusing and leaving Scriber
+      does not respawn the unchanged pill or restart its dismissal timer.
 
 ## Needs a restart
 

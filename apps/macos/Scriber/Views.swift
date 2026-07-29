@@ -5,7 +5,9 @@ import SwiftUI
 import ScriberCore
 #endif
 
-enum MainSection: Hashable { case dictation, settings }
+private enum MainPageLayout {
+    static let maxContentWidth: CGFloat = 640
+}
 
 struct SearchDictationHistoryActionKey: FocusedValueKey {
     typealias Value = () -> Void
@@ -48,8 +50,8 @@ struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var runtime: AppRuntime
     @State private var section: MainSection? = .dictation
+    @StateObject private var searchCoordinator = MainWindowSearchCoordinator()
     @FocusState private var sidebarFocused: Bool
-    @FocusState private var dictationSearchFocused: Bool
 
     var body: some View {
         NavigationSplitView {
@@ -62,39 +64,33 @@ struct MainWindowView: View {
                     .accessibilityIdentifier("sidebar-settings")
             }
             .accessibilityIdentifier("main-sidebar")
-            .navigationTitle("Scriber")
             .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
             .focused($sidebarFocused)
-            // The sidebar toggle is deliberately the one AppKit supplies.
-            //
-            // Replacing it to attach a tooltip was tried and reverted: a custom
-            // `ToolbarItem` cannot be put where the real one goes. AppKit gives
-            // the toggle its own slot above the sidebar, beside the window
-            // controls, and there is no public placement that names that slot —
-            // `.navigation` is the closest and it still lands in the detail
-            // column's leading edge, next to the page title. Every native app
-            // with a sidebar puts the control over the sidebar, so a tooltip is
-            // not worth moving it. If the tooltip is wanted later it has to come
-            // from reaching the supplied `NSToolbarItem` and setting `toolTip`
-            // on it, not from a second control.
         } detail: {
             Group {
                 switch section ?? .dictation {
-                case .dictation: DictationHistoryView(searchFocused: $dictationSearchFocused)
+                case .dictation:
+                    DictationHistoryView(searchQuery: searchCoordinator.dictationQuery)
                 case .settings:
                     SettingsView(
                         onShortcutConfigurationCaptureChanged: runtime.coordinator.setShortcutConfigurationCaptureActive
                     )
                 }
             }
-            .navigationTitle(section == .settings ? "Settings" : "Dictation")
         }
         .frame(minWidth: 760, minHeight: 520)
-        .focusedSceneValue(\.searchDictationHistoryAction, focusDictationSearch)
+        .background {
+            MainWindowAccessor { window in searchCoordinator.attach(to: window) }
+        }
+        .focusedSceneValue(\.searchDictationHistoryAction, searchDictationAction)
         .onAppear {
+            searchCoordinator.update(section: selectedSection)
             applyMainWindowRequest(runtime.coordinator.mainWindowRequest)
             openOnboardingIfNeeded()
             focusSidebarIfAppropriate()
+        }
+        .onChange(of: section) { _, section in
+            searchCoordinator.update(section: section ?? .dictation)
         }
         .onChange(of: runtime.preferences.onboardingComplete) { _, _ in openOnboardingIfNeeded() }
         .onChange(of: runtime.coordinator.mainWindowRequest) { _, request in
@@ -117,8 +113,14 @@ struct MainWindowView: View {
     }
 
     private func focusDictationSearch() {
-        section = .dictation
-        DispatchQueue.main.async { dictationSearchFocused = true }
+        searchCoordinator.focusSearch()
+    }
+
+    private var selectedSection: MainSection { section ?? .dictation }
+
+    private var searchDictationAction: (() -> Void)? {
+        guard selectedSection == .dictation else { return nil }
+        return { searchCoordinator.focusSearch() }
     }
 
     private func openOnboardingIfNeeded() {
@@ -194,15 +196,13 @@ struct MenuBarContent: View {
 }
 
 struct DictationHistoryView: View {
-    /// `.searchable` cannot right-align a hint or hide it on focus, so the
-    /// shortcut is appended to the prompt.
-    static let searchPrompt = "Search past transcripts (⌘F)"
-
     @EnvironmentObject private var runtime: AppRuntime
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
-    let searchFocused: FocusState<Bool>.Binding
-    @State private var search = ""
+    let searchQuery: String
     @State private var stickyDayTitle: String?
+    @State private var copyToastVisible = false
+    @State private var copyToastTask: Task<Void, Never>?
 
     /// The `List`'s own frame, so a day label's `minY` inside it reads as
     /// distance below the top of the visible list rather than distance down the
@@ -223,8 +223,8 @@ struct DictationHistoryView: View {
     }
 
     private var filtered: [DictationRecord] {
-        guard !search.isEmpty else { return visibleRecords }
-        return visibleRecords.filter { ($0.text ?? "").localizedCaseInsensitiveContains(search) }
+        guard !searchQuery.isEmpty else { return visibleRecords }
+        return visibleRecords.filter { ($0.text ?? "").localizedCaseInsensitiveContains(searchQuery) }
     }
 
     /// Known and unfixed: this regroups every record on each body evaluation.
@@ -245,7 +245,12 @@ struct DictationHistoryView: View {
     /// entry sits in its group.
     @ViewBuilder
     private func row(_ record: DictationRecord, at index: Int, of count: Int) -> some View {
-        DictationHistoryRow(record: record, isFirst: index == 0, isLast: index == count - 1)
+        DictationHistoryRow(
+            record: record,
+            isFirst: index == 0,
+            isLast: index == count - 1,
+            onCopyConfirmed: showCopyToast
+        )
     }
 
     /// Warnings sit above everything, directly under the title and search row.
@@ -330,7 +335,7 @@ struct DictationHistoryView: View {
                     description: Text("Your completed dictations and retryable failures will appear here.")
                 )
             } else if filtered.isEmpty {
-                ContentUnavailableView.search(text: search)
+                ContentUnavailableView.search(text: searchQuery)
             } else {
                 List {
                     ForEach(sections) { section in
@@ -376,10 +381,50 @@ struct DictationHistoryView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity, alignment: .topLeading)
+        .overlay(alignment: .bottom) {
+            if copyToastVisible {
+                HistoryCopyToast()
+                    .padding(.bottom, 18)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .accessibilityIdentifier("dictation-history-view")
-        .searchable(text: $search, prompt: DictationHistoryView.searchPrompt)
-        .searchFocused(searchFocused)
+        .onDisappear {
+            copyToastTask?.cancel()
+            copyToastTask = nil
+            copyToastVisible = false
+        }
+    }
+
+    private func showCopyToast() {
+        copyToastTask?.cancel()
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16)) {
+            copyToastVisible = true
+        }
+        copyToastTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.4))
+            guard !Task.isCancelled else { return }
+            withAnimation(reduceMotion ? nil : .easeIn(duration: 0.16)) {
+                copyToastVisible = false
+            }
+            copyToastTask = nil
+        }
+    }
+}
+
+private struct HistoryCopyToast: View {
+    var body: some View {
+        Label("Transcript copied", systemImage: "checkmark")
+            .font(.callout.weight(.medium))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.regularMaterial, in: Capsule())
+            .overlay { Capsule().stroke(.separator, lineWidth: 0.5) }
+            .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
+            .allowsHitTesting(false)
+            .accessibilityIdentifier("dictation-copy-toast")
     }
 }
 
@@ -499,29 +544,33 @@ private struct DictationHistoryGroupBackground: View {
     static let contentInset: CGFloat = 8
 
     var body: some View {
-        // Fill only, no border. Each row draws its own slice of the group, so a
-        // stroked border put a line on every interior row's top and bottom edge —
-        // reintroducing exactly the separators the card was meant to replace.
-        // The fill has to carry the shape alone, so it is a fixed tint rather than
-        // a system background colour: `controlBackgroundColor` over
-        // `windowBackgroundColor` is nearly identical in dark mode.
         shape
-            .fill(Color.primary.opacity(0.06))
-            // Drawn here rather than through `listRowSeparator`, which spans the
-            // whole row and would run past the card onto the page. This one is
-            // clipped to the card and crosses the full width, including under the
-            // time, so an entry is divided from the one above it rather than
-            // having its timestamp float free.
-            .overlay(alignment: .bottom) {
-                if !isLast {
-                    // Hairline. A full point renders as two device pixels on a
-                    // Retina display, which is heavier than the card needs.
-                    Rectangle()
-                        .fill(.separator)
-                        .frame(height: 0.5)
-                }
+            .fill(.clear)
+            .overlay {
+                // The mask keeps the continuous outer corners from `shape`, draws
+                // the vertical outline on every slice, and exposes exactly one
+                // bottom stroke per row. Adjacent rows therefore share one
+                // hairline rather than stacking two borders.
+                shape
+                    .stroke(.separator, lineWidth: 0.5)
+                    .mask(outlineMask)
             }
             .padding(.horizontal, Self.horizontalInset)
+    }
+
+    private var outlineMask: some View {
+        ZStack {
+            HStack(spacing: 0) {
+                Rectangle().frame(width: 2)
+                Spacer(minLength: 0)
+                Rectangle().frame(width: 2)
+            }
+            VStack(spacing: 0) {
+                if isFirst { Rectangle().frame(height: radius + 1) }
+                Spacer(minLength: 0)
+                Rectangle().frame(height: isLast ? radius + 1 : 2)
+            }
+        }
     }
 }
 
@@ -544,9 +593,8 @@ private struct DictationHistoryRow: View {
     @Bindable var record: DictationRecord
     let isFirst: Bool
     let isLast: Bool
+    let onCopyConfirmed: () -> Void
 
-    @State private var didCopy = false
-    @State private var copiedFeedback: Task<Void, Never>?
     @State private var confirmDelete = false
 
     /// Transcript size. Larger than `.body`, which read as small next to the
@@ -646,24 +694,21 @@ private struct DictationHistoryRow: View {
                 // overflow menu sitting alone under a column of two controls and
                 // read as a rendering fault rather than as an absence.
                 Button(action: copy) {
-                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                    Image(systemName: "doc.on.doc")
                         // Not a hardcoded accent colour. An explicit
                         // `foregroundStyle` overrides the dimming `.disabled`
                         // would otherwise apply, so the button on a failed entry
                         // stayed a confident blue while refusing to do anything.
                         .foregroundStyle(copyTint)
-                        // Both axes, not just the width. `checkmark` is shorter
-                        // than `doc.on.doc`, and on a single-line entry the icon
-                        // is the tallest thing in the row — so sizing only the
-                        // width left the row collapsing a couple of points at
-                        // the moment of the copy and springing back after.
+                        // Both axes keep the glyph and its hover target aligned
+                        // with the other row controls on entries of every height.
                         .frame(width: 16, height: 16)
                 }
                 .buttonStyle(.borderless)
                 .modifier(RowIconHover())
                 .disabled(!canCopy)
                 .help(canCopy ? "Copy transcription" : "Nothing to copy")
-                .accessibilityLabel(didCopy ? "Copied" : "Copy transcription")
+                .accessibilityLabel("Copy transcription")
 
                 // The plain SwiftUI menu, on purpose, with its default popup
                 // placement. The AppKit replacement that used to be here dropped
@@ -773,23 +818,15 @@ private struct DictationHistoryRow: View {
     /// so a copy button with nothing to copy still looked live. This has to sit
     /// clearly below the row's quietest text, not level with it.
     private var copyTint: Color {
-        if didCopy { return .green }
         return canCopy ? .accentColor : Color.secondary.opacity(0.4)
     }
 
-    /// Clicking a row is silent otherwise — the transcript reaches the clipboard
-    /// with nothing on screen to say so — so the copy button doubles as the
-    /// acknowledgement whichever route was taken to get here.
+    /// Both the button and context-menu route report through the page-level
+    /// toast, so acknowledgement does not change this row's layout.
     private func copy() {
         guard canCopy else { return }
         runtime.coordinator.copy(record)
-        didCopy = true
-        copiedFeedback?.cancel()
-        copiedFeedback = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.4))
-            guard !Task.isCancelled else { return }
-            didCopy = false
-        }
+        onCopyConfirmed()
     }
 
     private var rowText: String {
@@ -1107,6 +1144,8 @@ struct SettingsView: View {
                 onShortcutConfigurationCaptureChanged(false)
             }
         }
+        .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var canSubmitAPIKey: Bool {
