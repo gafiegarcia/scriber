@@ -7,9 +7,8 @@ a person or real service state belong in [Acceptance](ACCEPTANCE.md).
 
 - Automated tests must never contact ElevenLabs, consume API credit, read the
   real Keychain, or mutate real SwiftData.
-- Never start XCUITest without Gaf's permission. It controls the real pointer and
-  keyboard for the duration. Package tests, builds, and `build-for-testing` do
-  not need permission.
+- There is no UI test suite. The XCUITest target was removed; see the end of this
+  file. Package tests, builds, and installs need no permission.
 - Never use a plain full-screen `screencapture`; it can expose unrelated windows
   and files.
 
@@ -27,8 +26,7 @@ mkdir -p "$MODULE_CACHE"
 swiftc -frontend -parse \
   "$REPO_ROOT"/apps/macos/Scriber/*.swift \
   "$REPO_ROOT"/apps/macos/ScriberCore/*.swift \
-  "$REPO_ROOT"/apps/macos/ScriberCoreTests/*.swift \
-  "$REPO_ROOT"/apps/macos/ScriberUITests/*.swift
+  "$REPO_ROOT"/apps/macos/ScriberCoreTests/*.swift
 
 # Again with DEBUG defined. Without it, `#if DEBUG` regions are lexed but not
 # parsed as code, so the pass above says nothing about `AppLaunchConfiguration`'s
@@ -84,13 +82,23 @@ Run it exactly as written. `APP_PATH` must be absolute, and the `before_pid`
 guard must remain: otherwise a failed launch can make the final `kill` target the
 installed Scriber.
 
+It needs a Debug build at that path. Build one first — this also replaces what
+`build-for-testing` used to produce, now that there is no test target:
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+xcodebuild -project "$REPO_ROOT/apps/macos/Scriber.xcodeproj" \
+  -scheme Scriber -configuration Debug \
+  -derivedDataPath "$REPO_ROOT/apps/macos/.build/xcode-debug" build
+```
+
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 before_pid="$(pgrep -n -x Scriber || true)"
-APP_PATH="$REPO_ROOT/apps/macos/.build/xcode-ui-tests/Build/Products/Debug/Scriber.app"
+APP_PATH="$REPO_ROOT/apps/macos/.build/xcode-debug/Build/Products/Debug/Scriber.app"
 
 if [ ! -d "$APP_PATH" ]; then
-  echo "REFUSING: build the UI-test host first" >&2
+  echo "REFUSING: build the Debug app first" >&2
   exit 1
 fi
 
@@ -158,7 +166,7 @@ Launch it **with** activation, since the window has to be clickable, and keep th
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 before_pid="$(pgrep -n -x Scriber || true)"
-APP_PATH="$REPO_ROOT/apps/macos/.build/xcode-ui-tests/Build/Products/Debug/Scriber.app"
+APP_PATH="$REPO_ROOT/apps/macos/.build/xcode-debug/Build/Products/Debug/Scriber.app"
 
 open -n -a "$APP_PATH" --args --ui-testing --ui-testing-seed-history
 sleep 6
@@ -177,71 +185,17 @@ Every `--ui-testing` launch also shows the credential banner, because the
 throwaway defaults suite starts with no key. It costs list height and blocks
 nothing.
 
-## XCUITest
+## There is no UI test suite
 
-Only Gaf may authorize starting the suite. From the repository root:
+The `ScriberUITests` XCUITest target was removed on build 30. It drove the real
+pointer and keyboard, could only reach the SwiftUI shell because `--ui-testing`
+disables every service, and five of its thirteen tests could not return a verdict
+on this machine. [`ROADMAP.md`](ROADMAP.md) records the decision and what stopped
+being covered.
 
-```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
-xcodebuild \
-  -project "$REPO_ROOT/apps/macos/Scriber.xcodeproj" \
-  -scheme Scriber \
-  -configuration Debug \
-  -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath "$REPO_ROOT/apps/macos/.build/xcode-ui-tests" \
-  test
-```
+Nothing here replaces it. Shell behaviour is verified by hand through
+[`ACCEPTANCE.md`](ACCEPTANCE.md); the package tests and the launch smoke check
+above are the automated coverage.
 
-Use `-only-testing` before `test` for a focused case, for example:
-
-```text
--only-testing:ScriberUITests/ScriberUITests/testCommandFFocusesDictationSearch
-```
-
-The test host must be signed and macOS must allow UI Automation. Under
-`--ui-testing`, services are disabled: no global shortcut monitor, recording,
-transcription, credential validation, production Keychain, or persistent
-history. Preferences and history are isolated, and permission failure can only
-be simulated. Therefore the suite covers the SwiftUI shell, navigation, focus
-routing, window/Dock lifecycle, and simulated pill layouts—not dictation,
-cross-app insertion, global shortcuts, credentials, or real permissions.
-
-Two tests skip unless the generated test host has Accessibility trust, which no
-`.build/` binary has and none should be granted:
-
-- **`testEscapeDismissesPersistentPill`** — Escape reaches the pill through a
-  `CGEvent` tap that only arms for a trusted process.
-- **`testUpdateKeyForegroundsSettingsAndFocusesAPIKeyField`** — the simulated
-  credential pill is superseded by a *real* missing-Accessibility pill, so
-  `Update Key` matches only the in-window banner, which the test's own
-  Command-W then closes.
-
-### Three switch tests fail on this machine, and did so before this branch
-
-`testShowAppInDockKeepsRegularActivationPolicyAfterClosingWindows`,
-`testDisablingShowAppInDockKeepsVisibleWindowOpen`, and
-`testRecordingFeedbackDefaultsCanBeDisabled` each report **`Not hittable`** on a
-SwiftUI `Switch` that the same query finds and reads a correct `value` from.
-
-What is established:
-
-- It is **not** a regression from the `v0.7.0` sprint. The identical failure,
-  at the same coordinates, reproduces on `origin/main` in a separate worktree.
-- It is not cross-test pollution — a single test in isolation fails the same way.
-- It is not the installed app occluding the test window; the failure survives
-  quitting `/Applications/Scriber.app`.
-- It is not scroll position. Scrolling until the switch reports hittable, in
-  both directions, never succeeds — so a taller Settings pane is not the cause,
-  and the blind `swipeUp()` in these tests was left alone.
-- It is machine-state dependent rather than absolute: all three **passed** on the
-  first run of the day and have failed every run since, with no code change
-  between.
-
-What is not established: why. Every switch the suite clicks is affected and no
-button or text field is, which points at `Switch` hit-testing under this macOS
-27 beta rather than at Scriber. Do not treat these as evidence about the Dock
-lifecycle or the feedback preferences; both are covered by hand in
-[`ACCEPTANCE.md`](ACCEPTANCE.md) and pass there.
-
-Do not publish a current pass count until Gaf has run the complete suite again.
+Do not add a UI test because a project is expected to have them. The bar is a
+specific regression that a package test provably cannot catch.

@@ -18,8 +18,9 @@ icon all passed.
 
 On build 29 he cleared the restart check — grants, Launch at Login, and the stored
 key all survived a reboot — and ran fresh onboarding, which worked but placed its
-window off the bottom of the screen, under the Dock. Build 30 fixes that. One
-supervised XCUITest run is the only person-only check still outstanding.
+window off the bottom of the screen, under the Dock. Build 30 fixes that, and he
+confirmed the fix on both routes. The XCUITest suite was then run once and
+removed. **No person-only check remains open.**
 
 That pass produced five implementation tasks, contrary to the previous claim here
 that none remained. Build 29 closed the two that changed what a user can tell
@@ -83,16 +84,44 @@ tagged.
 - [x] Give the onboarding window a placement that fits the screen. It was
       cascaded from the main window and ran under the Dock; it is now sized to the
       display and centred on every appearance, and scrolls rather than overflowing.
-- [x] Run the XCUITest suite end to end on build 30. Done, but not clean: 8
-      passed, 2 skipped by design, 3 failed. Every failure reproduces on
-      `origin/main`, so none is a regression from this branch; all three are a
-      SwiftUI `Switch` reporting `Not hittable` while reading its value
-      correctly. See [`ACCEPTANCE.md`](ACCEPTANCE.md) and
-      [`TESTING.md`](TESTING.md).
-- [ ] **Gaf's decision, and the last thing before the tag:** whether an unclean
-      suite blocks `v0.7.0`, given the failures predate the branch, are confined
-      to the SwiftUI shell, and contradict by-hand checks of the same behaviour
-      that pass.
+- [x] Run the XCUITest suite end to end on build 30. Done, and not clean: 8
+      passed, 2 skipped by design, 3 failed, with every failure reproducing on
+      `origin/main`. That run was the suite's last; see
+      [The XCUITest suite was removed](#the-xcuitest-suite-was-removed).
+
+## The sprint list this release came from
+
+Gaf's nine-item list, checked against the code rather than from memory. Eight are
+in. One is not, and it is the only thing between here and a complete list.
+
+- [x] **1. Padding inside each day group.** Day-group cards carry horizontal and
+      vertical insets; the time and the three-dot menu no longer sit against the
+      edges.
+- [x] **2. A card-like design instead of bare separators.** `DictationHistoryGroupBackground`
+      wraps each day group with a 16pt radius.
+- [x] **3. The Clear History popover overflowing the window.** Resolved by moving
+      the action out of the row menu entirely — it now lives in
+      Settings → Dictation History, so there is no popover to anchor.
+- [x] **4. `⌘F` hint in the search placeholder.** Appended to the prompt, as the
+      fallback Gaf allowed for; `.searchable` cannot right-align a hint or hide it
+      on focus.
+- [x] **5. Settings regrouped.** Sections are General, Feedback, ElevenLabs,
+      Dictation, Dictation History, and Permissions and Input.
+- [x] **6. No history entry until an outcome exists.** `visibleRecords` filters
+      out `.transcribing` records, with an explicit exception for the one being
+      retried so an explicit retry stays visible.
+- [x] **7. `⌘,` opens Settings.** Replaces the standard `.appSettings` command
+      group.
+- [ ] **8. Confirm and cancel controls on the hands-free pill.** **Not done.** The
+      recording pill still has no interactive controls. Tracked under
+      [Non-blocking deferred work](#non-blocking-deferred-work), including the
+      trailing-confirm/leading-cancel ordering Gaf settled on. His own note on the
+      sprint page puts feature additions after the tag — "bug fixes first →
+      `v0.7.0` → add the features → `v0.7.1`" — and this is a feature. **Whether
+      it ships in `v0.7.0` is his call, not an assumption to make here.**
+- [x] **9. Paste where the cursor truly is, including Raycast.** `PasteService`
+      resolves the target through `kAXFocusedUIElementAttribute` and follows
+      focus into nonactivating panels. Shipped in `0.7.0-alpha.7`.
 
 ## Non-blocking deferred work
 
@@ -122,6 +151,47 @@ recorded so they are not mistaken for forgotten release blockers.
 - **Pill position:** offer bottom placement, as today, or top placement beneath
   the notch. A pill integrated into the notch is a separate, larger idea and is
   not scoped here.
+
+## The XCUITest suite was removed
+
+Deleted on build 30, with the `ScriberUITests` target, by Gaf's decision. This
+records why, so it is not reintroduced by default reasoning about what a project
+"should" have.
+
+It cost more than it returned, and the cost fell on the wrong resource. XCUITest
+drives the real pointer and keyboard, so every run took Gaf's machine away from
+him for its duration — and because the suite was unreliable, a single question
+usually took several runs. There is no CI here. On a hosted runner a flaky UI
+suite wastes machine minutes; on a solo, vibe-coded project it spends the one
+resource actually in short supply, on a utility app that is a nice-to-have.
+
+By Gaf's own count it earned its keep once, for the commit that made Command-F
+reachable from anywhere. Set against that:
+
+- **It could only ever test the shell.** Under `--ui-testing` every service is
+  disabled, so it never covered dictation, insertion, shortcuts, credentials, or
+  real permissions — the parts that can actually fail a user.
+- **Five of thirteen tests could not produce a verdict.** Two skipped by design,
+  needing Accessibility trust no `.build/` binary has or should be granted;
+  three failed for an unidentified reason that also reproduces on `main`.
+- **It duplicated the acceptance list.** The behaviour the failing tests covered
+  — Dock lifecycle, feedback preferences — is checked by hand in
+  [`ACCEPTANCE.md`](ACCEPTANCE.md) and passes there.
+- **Untrustworthy results cost more than absent ones.** Most of the session that
+  ran it went into proving three failures were not regressions.
+
+What is no longer covered automatically: focus routing, the Command-F routes,
+sidebar selection, activation-policy and Dock-lifecycle transitions, and the
+simulated pill layouts. These now rest on [`ACCEPTANCE.md`](ACCEPTANCE.md) and
+on Gaf using Scriber daily, which surfaces a shell regression within hours.
+
+What remains, and is doing the real work: the 66 package tests, which run in
+milliseconds, need nobody present, and cover actual logic; and the launch smoke
+check, which is one command and has caught a main-thread wedge that no test did.
+
+If UI coverage is ever wanted again, the bar is a specific regression that a
+package test provably cannot catch — not a general belief that a UI suite is
+good practice.
 
 ## Known and accepted
 
@@ -173,13 +243,18 @@ None of these findings is known to affect current behavior.
 
 Before creating `v0.7.0`:
 
-- [ ] Complete the applicable checks in [`ACCEPTANCE.md`](ACCEPTANCE.md). A source
-      release does not require Developer ID signing or notarization.
-- [ ] Run the XCUITest suite end to end once. Gaf must start it because it takes
-      over the pointer and keyboard; see [`TESTING.md`](TESTING.md). Run on
-      build 30 and **not clean** — three pre-existing failures that also occur on
-      `main`. Whether that meets this gate is Gaf's call, not an assumption to
-      make here.
+- [x] Complete the applicable checks in [`ACCEPTANCE.md`](ACCEPTANCE.md). A source
+      release does not require Developer ID signing or notarization. Every check
+      that needs a person has been run. Two refinements added in build 29 —
+      chord commit-on-release against a real keyboard, and removing the *real*
+      API key — are recorded as not yet exercised, with the reasoning for why
+      neither blocks; see [Requested](ACCEPTANCE.md#requested-not-defects).
+- [x] ~~Run the XCUITest suite end to end once.~~ **Gate retired.** It was run on
+      build 30 and was not clean; Gaf then removed the suite rather than repair
+      it. A gate cannot be met by deleting what it measures, so it is withdrawn
+      rather than marked passed. The shell behaviour it covered is verified by
+      hand in [`ACCEPTANCE.md`](ACCEPTANCE.md). See
+      [The XCUITest suite was removed](#the-xcuitest-suite-was-removed).
 - [ ] Generate artifact-specific third-party notices before publishing a
       downloadable binary. Not a gate on a source tag: the native app declares no
       third-party Swift package dependency, so
@@ -189,7 +264,10 @@ Before creating `v0.7.0`:
       recordings, local data, or machine-specific build output. Checked on build
       28: no key-shaped literals in tracked content, `.gitignore` covers audio,
       local signing config, and every build root, and the Release bundle carries
-      no entitlements and no provisioning profile.
+      no entitlements and no provisioning profile. Re-confirmed on build 30 after
+      the UI-test target was removed: strict verification passes, the designated
+      requirement is unchanged, there is no provisioning profile, and the Release
+      binary contains no test-only symbols or launch-argument literals.
 
 The tag is reserved for behavior accepted for personal use, and claims nothing
 beyond that. A supported downloadable binary is a separate distribution

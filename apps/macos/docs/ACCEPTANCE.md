@@ -4,9 +4,8 @@ The list standing between the current candidate and the `v0.7.0` tag.
 [`ROADMAP.md`](ROADMAP.md) holds the release gates that point at it.
 
 Automated checks live in [`TESTING.md`](TESTING.md) and are not repeated here.
-Nothing the UI test suite covers counts as one of these: it runs with services
-disabled and no Accessibility trust, so it cannot speak to dictation, insertion,
-shortcuts, or credentials.
+There is no longer a UI test suite, so this file is the only coverage the SwiftUI
+shell has. [`ROADMAP.md`](ROADMAP.md) records why it was removed.
 
 **Never run a check that spends API credit without asking Gaf first.**
 
@@ -18,14 +17,16 @@ and [Sessions for Gaf](#sessions-for-gaf) is the plain-language version of it.
 ## Where this stands
 
 Build 30 is installed and is the current candidate. Everything machine-checkable
-is done; what is left is in [Still to do](#still-to-do) and needs Gaf.
+is done, and every check that needed Gaf has been run; the record is in
+[Sessions, and how they went](#sessions-and-how-they-went).
 
 Gaf's build 29 session cleared the restart check outright and found one defect in
-fresh onboarding — the window ran under the Dock. Build 30 fixes it. The XCUITest
-run is the only original item still outstanding.
+fresh onboarding — the window ran under the Dock. Build 30 fixes it, and he
+confirmed the fix on both routes. The XCUITest suite was run once on build 30 and
+then removed; see below.
 
-**The next step is Gaf reporting those results.** When he does: record them here,
-then cut the `v0.7.0` tag with the metadata
+**Every person-only check is now closed.** What remains is to cut the `v0.7.0`
+tag with the metadata
 [`VERSIONING.md`](../../../docs/VERSIONING.md) requires — bundle build, credential
 and signing state, verification actually performed, known limitations, and
 confirmation that no credentials, recordings, history, or machine-specific output
@@ -36,17 +37,17 @@ The three open findings below ship as **known limitations**, by Gaf's decision.
 Do not fix them as part of the tag; two are being redesigned rather than patched
 (see [`ROADMAP.md`](ROADMAP.md)).
 
-## Still to do
+## Sessions, and how they went
 
 Gaf worked through the acceptance sessions on build 28. Almost all of it passed;
 what it turned up is in [Open findings](#open-findings), of which two are fixed in
 build 29 and three are deliberately carried forward.
 
-Build 29 also added three requested actions that want a quick look — Remove Key…,
-Redo Onboarding…, and chord recording committing at the first key release. Each is
-marked **To check** in [Requested](#requested-not-defects).
+Build 29 also added three requested actions — Remove Key…, Redo Onboarding…, and
+chord recording committing at the first key release. See
+[Requested](#requested-not-defects).
 
-One thing remains from the original list.
+Nothing remains from the original list.
 
 ### ~~1. Restart the Mac~~ — passed on build 29
 
@@ -70,9 +71,8 @@ scroll view's greedy ideal height and refused an explicit frame. The setup steps
 scroll if they ever do exceed the display, so nothing becomes unreachable on a
 smaller screen.
 
-Worth re-checking on build 30: that onboarding opens centred and fully visible
-both on a genuine first run and from **Settings → Redo Onboarding…**, with the
-main window already open.
+Re-checked by Gaf on build 30, including **Settings → Redo Onboarding…** with the
+main window already open: correct on both routes.
 
 ### ~~3. The XCUITest suite, once, end to end~~ — run on build 30, not clean
 
@@ -87,15 +87,11 @@ is caused by this branch: every one of them reproduces on `origin/main`.
 - The 2 skips are explicit, and now include the `Update Key` case, which had been
   failing for an environmental reason rather than a product one.
 
-**This leaves the release gate unmet as written.** The gate asks for one clean
-end-to-end run. It is Gaf's call whether a suite that covers only the SwiftUI
-shell, and whose failures reproduce on `main` and contradict passing by-hand
-checks of the same behaviour, should block the tag.
-
-Only Gaf can start this — it takes over the pointer and keyboard for its whole
-run. The command is in [`TESTING.md`](TESTING.md). One case intentionally skips
-itself unless its generated test binary has Accessibility trust; that skip is
-expected.
+**That run was the suite's last.** Gaf removed the `ScriberUITests` target rather
+than repair it: it cost his own machine for every run, could only reach the
+SwiftUI shell, and had earned its keep once in its lifetime.
+[`ROADMAP.md`](ROADMAP.md) records the full reasoning and what stopped being
+covered — in short, this file is now the shell's only coverage.
 
 ---
 
@@ -196,19 +192,23 @@ Came out of the build-28 sessions. Three are done in build 29 and need a look.
       "released together" has no answer, because a user correcting a mistake and a
       user finishing produce identical events. Build 29 commits at the first
       release, which yields the same chord and removes the implication.
-      **To check:** record `Fn-Control-Option` and release one key — the recorder
-      should close immediately with the full chord.
+      **Not yet checked on a real keyboard:** record `Fn-Control-Option` and
+      release one key; the recorder should close immediately with the full chord.
+      Not a tag blocker — it is a refinement of behaviour Gaf already reported
+      working, and the logic is covered by the package tests.
 - [x] **A way to remove a saved API key from Settings.** Build 29 adds
       **Remove Key…** beside Save API Key, shown only when a key is stored, and it
       confirms first. Verified end to end in a seeded build, including that
       removing it hides its own button and restores the empty-state placeholder.
-      **To check:** removing the real key should produce the same warnings the
-      Keychain Access deletion did.
+      **Not yet checked against the real key**, because doing so means re-entering
+      it afterwards. Not a tag blocker: the same code path was driven end to end in
+      a seeded build, and the warnings it should produce are the ones Gaf already
+      saw when he deleted the key through Keychain Access on build 28.
 - [x] **A "Redo Onboarding" action.** Build 29 adds it at the end of Settings →
       General. Only the flag is cleared; the key, grants, and history stay, and
-      onboarding presents each step's current state. Verified: it comes to the
-      front as the key window. **To check:** finishing it should return you to the
-      Dictation window with everything intact.
+      onboarding presents each step's current state. Verified by Gaf on build 30,
+      with the main window already open: it comes to the front, centred and whole,
+      and finishing returns to Dictation intact.
 - [ ] **Tint whole pills by outcome** — green for success, amber for warnings such
       as cancellation and no-words. Deferred by Gaf as a later idea: it is a design
       pass across every pill state, in light and dark on varied backgrounds, rather

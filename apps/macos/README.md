@@ -94,7 +94,7 @@ build, test, and smoke-check commands do not use:
 cd "$(git rev-parse --show-toplevel)/apps/macos/.build" || exit 1
 for path in */; do
   case "${path%/}" in
-    xcode-release|xcode-ui-tests|module-cache|out|debug|artifacts|checkouts|repositories) ;;
+    xcode-release|xcode-debug|module-cache|out|debug|artifacts|checkouts|repositories) ;;
     *) trash "$path" ;;
   esac
 done
