@@ -61,7 +61,8 @@ enum AppLaunchConfiguration {
 private enum AppWindowIdentity {
     static let mainTitle = "Scriber"
     static let onboardingTitle = "Set Up Scriber"
-    private static let mainWindowTitles: Set<String> = [mainTitle, "Dictation", "Settings"]
+    static let settingsTitle = "Settings"
+    private static let mainWindowTitles: Set<String> = [mainTitle, "Dictation"]
 
     static func isMainWindow(_ window: NSWindow) -> Bool {
         guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
@@ -70,7 +71,9 @@ private enum AppWindowIdentity {
 
     static func isManagedWindow(_ window: NSWindow) -> Bool {
         guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
-        return isMainWindow(window) || window.title == onboardingTitle
+        return isMainWindow(window)
+            || window.title == onboardingTitle
+            || window.title == settingsTitle
     }
 }
 
@@ -243,6 +246,22 @@ struct ScriberApp: App {
             }
         }
 
+        Window("Settings", id: "settings") {
+            SettingsView(
+                onShortcutConfigurationCaptureChanged: runtime.coordinator.setShortcutConfigurationCaptureActive
+            )
+            .environmentObject(runtime)
+            .modelContainer(runtime.container)
+            .task { await promoteApplicationForVisibleWindow() }
+        }
+        .defaultSize(width: 720, height: 660)
+        .commands {
+            CommandGroup(replacing: .appTermination) {
+                Button("Quit Scriber") { NSApp.terminate(nil) }
+                    .keyboardShortcut("q", modifiers: .command)
+            }
+        }
+
         Window("Set Up Scriber", id: "onboarding") {
             OnboardingView()
                 .environmentObject(runtime)
@@ -391,16 +410,11 @@ private struct MainWindowCommands: Commands {
         }
     }
 
-    /// Scriber has no SwiftUI `Settings` scene; Settings is a section of the main
-    /// window. Select the destination before asking for the window so the window
-    /// comes up already showing it, and go through the notification rather than
-    /// `openWindow` so this still works with every window closed.
+    /// Settings is its own window. Select the destination first so a window that
+    /// has to be created comes up already scrolled to the right section.
     @MainActor
     private func openSettings() {
-        runtime.coordinator.selectMainWindowDestination(.settings)
-        NSApp.setActivationPolicy(.regular)
-        NotificationCenter.default.post(name: .openScriberMainWindow, object: nil)
-        NSApp.activate(ignoringOtherApps: true)
+        runtime.coordinator.openSettingsWindow(destination: .settings)
     }
 }
 
@@ -409,6 +423,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var observers: [NSObjectProtocol] = []
     private var activationRetryTask: Task<Void, Never>?
     private var onboardingWindowTask: Task<Void, Never>?
+    private var settingsWindowTask: Task<Void, Never>?
     private var showAppInDock = false
     /// Set the moment the user closes a managed window, so the startup show
     /// sequence stops trying to put that window back on screen.
@@ -466,6 +481,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         observers.append(center.addObserver(forName: .openScriberOnboardingWindow, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.showOnboardingWindow() }
         })
+        observers.append(center.addObserver(forName: .openScriberSettingsWindow, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.showSettingsWindow() }
+        })
         observers.append(center.addObserver(forName: .showAppInDockDidChange, object: nil, queue: .main) { [weak self] note in
             guard let showAppInDock = note.object as? Bool else { return }
             Task { @MainActor [weak self] in
@@ -490,6 +508,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showMainWindow() {
         showWindow(titled: AppWindowIdentity.mainTitle)
+    }
+
+    /// Polls like onboarding does: the caller's `openWindow(id:)` may have just
+    /// created the scene, and `showWindow` can only order a window AppKit has
+    /// actually made.
+    private func showSettingsWindow() {
+        settingsWindowTask?.cancel()
+        settingsWindowTask = Task { @MainActor [weak self] in
+            for _ in 0..<20 {
+                guard let self, !Task.isCancelled else { return }
+                if self.showWindow(titled: AppWindowIdentity.settingsTitle) { return }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
     }
 
     /// Brings onboarding forward for a Redo Onboarding request.

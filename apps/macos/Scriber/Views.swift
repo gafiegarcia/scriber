@@ -50,8 +50,9 @@ struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var runtime: AppRuntime
     @State private var section: MainSection? = .dictation
-    @StateObject private var searchCoordinator = MainWindowSearchCoordinator()
+    @State private var searchQuery = ""
     @FocusState private var sidebarFocused: Bool
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
@@ -59,9 +60,6 @@ struct MainWindowView: View {
                 Label("Dictation", systemImage: "clock.arrow.circlepath")
                     .tag(MainSection.dictation)
                     .accessibilityIdentifier("sidebar-dictation")
-                Label("Settings", systemImage: "gearshape")
-                    .tag(MainSection.settings)
-                    .accessibilityIdentifier("sidebar-settings")
             }
             .accessibilityIdentifier("main-sidebar")
             .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
@@ -69,68 +67,43 @@ struct MainWindowView: View {
             .toolbar(removing: .sidebarToggle)
         } detail: {
             Group {
-                switch section ?? .dictation {
+                switch selectedSection {
                 case .dictation:
-                    DictationHistoryView(searchQuery: searchCoordinator.dictationQuery)
-                case .settings:
-                    SettingsView(
-                        onShortcutConfigurationCaptureChanged: runtime.coordinator.setShortcutConfigurationCaptureActive
-                    )
+                    DictationHistoryView(searchQuery: searchQuery)
                 }
             }
+            .navigationTitle(selectedSection.title)
         }
         .frame(minWidth: 760, minHeight: 520)
         .toolbar(removing: .sidebarToggle)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                MainWindowSearchField(searchCoordinator: searchCoordinator)
-                    .frame(width: 280, height: 36)
-            }
-            // Settings hides the whole control, so the capsule has to belong to
-            // it. SwiftUI's own item background would stay behind as an empty
-            // capsule, and this preference must not vary by destination.
-            .sharedBackgroundVisibility(.hidden)
-        }
-        .focusedSceneValue(\.searchDictationHistoryAction, searchDictationAction)
+        // Every destination in this window is searchable, so the search field
+        // belongs to the window shell. That is what keeps one toolbar, one title
+        // presentation, and one set of toolbar observers across selection.
+        .searchable(
+            text: $searchQuery,
+            placement: .toolbar,
+            prompt: selectedSection.searchPrompt
+        )
+        .searchFocused($searchFocused)
+        .focusedSceneValue(\.searchDictationHistoryAction, { searchFocused = true })
         .onAppear {
-            searchCoordinator.update(section: selectedSection)
-            applyMainWindowRequest(runtime.coordinator.mainWindowRequest)
+            runtime.coordinator.registerSettingsWindowOpener { openWindow(id: "settings") }
             openOnboardingIfNeeded()
             focusSidebarIfAppropriate()
         }
-        .onChange(of: section) { _, section in
-            searchCoordinator.update(section: section ?? .dictation)
-        }
         .onChange(of: runtime.preferences.onboardingComplete) { _, _ in openOnboardingIfNeeded() }
-        .onChange(of: runtime.coordinator.mainWindowRequest) { _, request in
-            applyMainWindowRequest(request)
-        }
-    }
-
-    private func applyMainWindowRequest(_ request: MainWindowRequest?) {
-        guard let request else { return }
-        section = request.destination == .dictation ? .dictation : .settings
     }
 
     private func focusSidebarIfAppropriate() {
         switch runtime.coordinator.mainWindowRequest?.destination {
-        case .apiKey, .usage, .microphone, .permissions:
+        case .apiKey, .usage, .microphone, .permissions, .settings:
             return
-        case .dictation, .settings, nil:
+        case .dictation, nil:
             DispatchQueue.main.async { sidebarFocused = true }
         }
     }
 
-    private func focusDictationSearch() {
-        searchCoordinator.focusSearch()
-    }
-
     private var selectedSection: MainSection { section ?? .dictation }
-
-    private var searchDictationAction: (() -> Void)? {
-        guard selectedSection == .dictation else { return nil }
-        return { searchCoordinator.focusSearch() }
-    }
 
     private func openOnboardingIfNeeded() {
         guard !runtime.preferences.onboardingComplete else { return }
@@ -198,7 +171,12 @@ struct MenuBarContent: View {
     private func openMain(destination: MainWindowDestination) {
         runtime.coordinator.selectMainWindowDestination(destination)
         NSApp.setActivationPolicy(.regular)
-        openWindow(id: "main")
+        switch destination {
+        case .dictation:
+            openWindow(id: "main")
+        case .settings, .apiKey, .usage, .microphone, .permissions:
+            openWindow(id: "settings")
+        }
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -276,7 +254,7 @@ struct DictationHistoryView: View {
                     actionTitle: "Review Permissions",
                     identifier: "permission-recovery-banner"
                 ) {
-                    runtime.coordinator.selectMainWindowDestination(.permissions)
+                    runtime.coordinator.openSettingsWindow(destination: .permissions)
                 }
                 Divider()
             }
@@ -290,8 +268,8 @@ struct DictationHistoryView: View {
                     actionTitle: credentials.resolvesInUsageSettings ? "View Usage" : "Update Key",
                     identifier: "credential-recovery-banner"
                 ) {
-                    runtime.coordinator.selectMainWindowDestination(
-                        credentials.resolvesInUsageSettings ? .usage : .apiKey
+                    runtime.coordinator.openSettingsWindow(
+                        destination: credentials.resolvesInUsageSettings ? .usage : .apiKey
                     )
                 }
                 Divider()

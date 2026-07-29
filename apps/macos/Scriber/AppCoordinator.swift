@@ -10,6 +10,7 @@ import ScriberCore
 extension Notification.Name {
     static let openScriberMainWindow = Notification.Name("openScriberMainWindow")
     static let openScriberOnboardingWindow = Notification.Name("openScriberOnboardingWindow")
+    static let openScriberSettingsWindow = Notification.Name("openScriberSettingsWindow")
     static let showAppInDockDidChange = Notification.Name("showAppInDockDidChange")
 }
 
@@ -52,6 +53,7 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var isRefreshingSubscriptionUsage = false
     @Published private(set) var subscriptionUsageError: String?
     @Published private(set) var mainWindowRequest: MainWindowRequest?
+    private var settingsWindowOpener: (@MainActor () -> Void)?
     @Published private(set) var otherAudioMuteStatus: OtherAudioMuteStatus?
 
     let preferences: Preferences
@@ -746,19 +748,39 @@ final class AppCoordinator: ObservableObject {
     }
 
     func openAPIKeySettings() {
-        openMainWindow(destination: .apiKey)
+        openSettingsWindow(destination: .apiKey)
     }
 
     func openUsageSettings() {
-        openMainWindow(destination: .usage)
+        openSettingsWindow(destination: .usage)
     }
 
     func openPermissionSettings() {
-        openMainWindow(destination: .permissions)
+        openSettingsWindow(destination: .permissions)
     }
 
     func selectMainWindowDestination(_ destination: MainWindowDestination) {
         mainWindowRequest = MainWindowRequest(destination: destination)
+    }
+
+    /// Only a SwiftUI scene can create the Settings window, so the main window
+    /// hands its `openWindow` action over once it exists.
+    ///
+    /// Prototype limitation: with every window closed and the app launched
+    /// straight to the menu bar, nothing has registered an opener yet.
+    func registerSettingsWindowOpener(_ opener: @escaping @MainActor () -> Void) {
+        settingsWindowOpener = opener
+    }
+
+    func openSettingsWindow(destination: MainWindowDestination) {
+        selectMainWindowDestination(destination)
+        returnToIdle()
+        NSApp.setActivationPolicy(.regular)
+        // The opener creates the scene if it does not exist yet; the
+        // notification is what orders an existing window front and carries the
+        // activation retries every other managed window already relies on.
+        settingsWindowOpener?()
+        NotificationCenter.default.post(name: .openScriberSettingsWindow, object: nil)
     }
 
     private func openMainWindow(destination: MainWindowDestination) {
@@ -1009,7 +1031,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func openMicrophoneInputSettings() {
-        openMainWindow(destination: .microphone)
+        openSettingsWindow(destination: .microphone)
     }
 
     private func cancelRecording() {
