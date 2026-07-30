@@ -1,13 +1,5 @@
 # Native macOS Roadmap
 
-## v0.8.1
-
-- [ ] make it so that opening the app for the first time, or opening the window again (like when clicking "Open Scriber"
-      via menubar) will move focus to the search bar. I hate that the first-focused element is the first button on the first entry
-- [ ] remove liquid glass styling on “Dictation” top row bar (what’s it called? top bar? menu bar? title bar? top row?). let it be just text for now.
-- [ ] make the separators between entries in a card extend full width, touching the card's border; refer to [the design mockup](../../../.designs/redesign-idea-v0.7.1.html)
-- [ ] make the date group label have similar styling to my mockup, gradual transparency instead of a solid liquid glass capsule
-
 ## v0.8.2
 - [ ] **Tint pills by outcome** — green for success, amber for warnings such as
       cancellation and no-words. A design pass across every pill state in light and
