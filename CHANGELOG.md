@@ -3,7 +3,7 @@
 This file records intentionally identified Scriber releases and prerelease
 snapshots. Ordinary development builds belong in Git history, not here.
 
-## Unreleased
+## 0.8.0 — 2026-07-30
 
 ### Changed
 
