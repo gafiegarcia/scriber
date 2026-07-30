@@ -19,6 +19,8 @@
 		A1000000000000000000000A /* ../ScriberCore/ScribeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000A /* ../ScriberCore/ScribeClient.swift */; };
 		A1000000000000000000000B /* ScriberApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000B /* ScriberApp.swift */; };
 		A1000000000000000000000C /* ShortcutRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* ShortcutRecorderView.swift */; };
+		A10000000000000000000030 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000030 /* MainWindow.swift */; };
+		A10000000000000000000031 /* DictationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000031 /* DictationHistory.swift */; };
 		A1000000000000000000000D /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* Views.swift */; };
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
 		A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */; };
@@ -46,6 +48,8 @@
 		B1000000000000000000000A /* ../ScriberCore/ScribeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/ScribeClient.swift; sourceTree = "<group>"; };
 		B1000000000000000000000B /* ScriberApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriberApp.swift; sourceTree = "<group>"; };
 		B1000000000000000000000C /* ShortcutRecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderView.swift; sourceTree = "<group>"; };
+		B10000000000000000000030 /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
+		B10000000000000000000031 /* DictationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationHistory.swift; sourceTree = "<group>"; };
 		B1000000000000000000000D /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
 		B1000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000000000000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -100,6 +104,8 @@
 				B10000000000000000000009 /* Preferences.swift */,
 				B1000000000000000000000A /* ../ScriberCore/ScribeClient.swift */,
 				B1000000000000000000000C /* ShortcutRecorderView.swift */,
+				B10000000000000000000030 /* MainWindow.swift */,
+				B10000000000000000000031 /* DictationHistory.swift */,
 				B1000000000000000000000D /* Views.swift */,
 				B10000000000000000000018 /* UITestingHistoryFixture.swift */,
 				B10000000000000000000014 /* AppIcon.icon */,
@@ -207,6 +213,8 @@
 				A1000000000000000000000B /* ScriberApp.swift in Sources */,
 				A10000000000000000000015 /* MainWindowSearch.swift in Sources */,
 				A1000000000000000000000C /* ShortcutRecorderView.swift in Sources */,
+				A10000000000000000000030 /* MainWindow.swift in Sources */,
+				A10000000000000000000031 /* DictationHistory.swift in Sources */,
 				A1000000000000000000000D /* Views.swift in Sources */,
 				A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */,
 				A10000000000000000000010 /* ../ScriberCore/CredentialStore.swift in Sources */,
