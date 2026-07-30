@@ -74,13 +74,12 @@ struct MainWindowView: View {
                 // warning appears rather than reflowing the toolbar.
                 ToolbarItem(placement: .navigation) {
                     HStack(spacing: 10) {
-                        // A label today, a Picker once Transcription exists. The
-                        // slot and its glass stay put across that change.
+                        // Plain text, because it is not a control. A background here
+                        // said "click me" about the one thing in this group that
+                        // does nothing; it earns one back when Transcription lands
+                        // and this becomes a Picker.
                         Text(workspace.title)
                             .font(.headline)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .glassEffect(.regular, in: .capsule)
 
                         Text(dictationCountLabel)
                             .foregroundStyle(.secondary)
