@@ -46,47 +46,8 @@ struct DictationHistoryView: View {
         )
     }
 
-    /// Warnings sit above everything, directly under the title and search row.
-    ///
-    /// They used to sit between the count row and the list, which put the one
-    /// thing on the page that needs acting on below the one thing that does not.
-    @ViewBuilder
-    private var recoveryBanners: some View {
-        if runtime.preferences.onboardingComplete {
-            if !runtime.coordinator.permissionReadiness.isReady {
-                RecoveryBanner(
-                    title: "Dictation is unavailable",
-                    message: runtime.coordinator.permissionReadiness.recoveryMessage,
-                    actionTitle: "Review Permissions",
-                    identifier: "permission-recovery-banner"
-                ) {
-                    runtime.coordinator.openSettingsWindow(destination: .permissions)
-                }
-                Divider()
-            }
-            // Setup can complete and then stop being sufficient. A revoked or
-            // replaced key leaves Scriber silently non-functional otherwise.
-            let credentials = runtime.coordinator.credentialReadiness
-            if !credentials.isReady {
-                RecoveryBanner(
-                    title: credentials.title,
-                    message: credentials.recoveryMessage,
-                    actionTitle: credentials.resolvesInUsageSettings ? "View Usage" : "Update Key",
-                    identifier: "credential-recovery-banner"
-                ) {
-                    runtime.coordinator.openSettingsWindow(
-                        destination: credentials.resolvesInUsageSettings ? .usage : .apiKey
-                    )
-                }
-                Divider()
-            }
-        }
-    }
-
     var body: some View {
         VStack(spacing: 0) {
-            recoveryBanners
-
             if records.isEmpty {
                 ContentUnavailableView(
                     "No Dictations Yet",
@@ -178,46 +139,6 @@ private struct HistoryCopyToast: View {
     }
 }
 
-private struct RecoveryBanner: View {
-    let title: String
-    let message: String
-    let actionTitle: String
-    let identifier: String
-    let action: () -> Void
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.title3)
-                .foregroundStyle(.orange)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.headline)
-                    .accessibilityIdentifier(identifier)
-                Text(message)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 12)
-
-            Button(actionTitle, action: action)
-                .buttonStyle(.borderedProminent)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
-        // Matches the history List's own horizontal padding, so the banner's
-        // rounded edge lines up with the day cards below it.
-        .padding(.horizontal, DictationHistoryGroupBackground.horizontalInset)
-        .padding(.vertical, 12)
-    }
-}
-
-/// Draws one day group as a single rounded card. Each row paints its own slice,
-/// so only the group's outermost corners are rounded and the rows in between
-/// join into one continuous shape.
 private struct DictationHistoryGroupBackground: View {
     let isFirst: Bool
     let isLast: Bool

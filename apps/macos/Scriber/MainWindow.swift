@@ -11,7 +11,16 @@ struct MainWindowView: View {
     @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
     @State private var workspace: Workspace = .dictation
     @State private var searchQuery = ""
+    @State private var showingRecovery = false
     @FocusState private var searchFocused: Bool
+
+    private var recoveryConditions: [RecoveryCondition] {
+        RecoveryConditions.current(
+            onboardingComplete: runtime.preferences.onboardingComplete,
+            permission: runtime.coordinator.permissionReadiness,
+            credential: runtime.coordinator.credentialReadiness
+        )
+    }
 
     /// A record is inserted before its transcription starts, so that an interrupted
     /// job keeps its audio and can be recovered at the next launch. Until the
@@ -59,6 +68,32 @@ struct MainWindowView: View {
                 // chrome, which is what this window has already crashed on.
                 .sharedBackgroundVisibility(.hidden)
 
+                ToolbarItem(placement: .primaryAction) {
+                    if !recoveryConditions.isEmpty {
+                        Button {
+                            showingRecovery = true
+                        } label: {
+                            Label {
+                                Text(recoveryConditions[0].title)
+                            } icon: {
+                                // Tinting the button does not reach the glyph.
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                        .help("Scriber needs attention")
+                        .accessibilityIdentifier("recovery-conditions")
+                        .popover(isPresented: $showingRecovery, arrowEdge: .bottom) {
+                            RecoveryConditionsPopover(conditions: recoveryConditions) { condition in
+                                showingRecovery = false
+                                runtime.coordinator.openSettingsWindow(
+                                    destination: condition.kind.settingsDestination
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // SwiftUI pins its search item to the trailing edge behind a
                 // flexible space, and nothing declared here can land to the
                 // right of it — so the window's controls group after the
@@ -102,6 +137,49 @@ struct MainWindowView: View {
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "onboarding")
         NSApp.activate(ignoringOtherApps: true)
+    }
+}
+
+extension RecoveryConditionKind {
+    var settingsDestination: MainWindowDestination {
+        switch self {
+        case .permissions: .permissions
+        case .apiKey: .apiKey
+        case .usage: .usage
+        }
+    }
+}
+
+/// Every unresolved condition at once, each with its own way out. The window
+/// showing all of them is what lets the floating pill show one at a time.
+private struct RecoveryConditionsPopover: View {
+    let conditions: [RecoveryCondition]
+    let onAction: (RecoveryCondition) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach(conditions) { condition in
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(condition.title)
+                            .font(.headline)
+                            .accessibilityIdentifier(condition.accessibilityIdentifier)
+                        Text(condition.message)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button(condition.actionTitle) { onAction(condition) }
+                            .buttonStyle(.borderedProminent)
+                            .padding(.top, 4)
+                    }
+                }
+                if condition.id != conditions.last?.id { Divider() }
+            }
+        }
+        .padding(16)
+        .frame(width: 320)
     }
 }
 
