@@ -42,6 +42,7 @@ struct DictationHistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DictationHistoryLayout.pageBackground)
         .accessibilityIdentifier("dictation-history-view")
     }
 
@@ -80,7 +81,8 @@ enum DictationHistoryLayout {
     /// rhythm generally.
     static let horizontalInset: CGFloat = 32
 
-    /// Padding inside the card, between its edge and the row's content.
+    /// Padding inside the card, between its edge and a row's content. The rule
+    /// between neighbouring rows does not share it; that one runs full width.
     ///
     /// Small on purpose. The card already stands well off the window edge, and
     /// stacking a generous inset inside that put the entry time and the trailing
@@ -92,26 +94,36 @@ enum DictationHistoryLayout {
 
     /// The gap that separates one day from the next.
     static let groupSpacing: CGFloat = 28
+
+    /// The page's fill, and the pinned day label's fill.
+    ///
+    /// **One constant for both, and the page must paint it explicitly.** The label
+    /// has to hide the rows passing under it, which means being opaque, which means
+    /// being exactly the colour behind it — and no system colour matches what the
+    /// window paints on its own. `windowBackgroundColor`, `underPageBackgroundColor`
+    /// and a `Material` were each tried against the real window and each left the
+    /// label visible as a lighter band. Painting the page ourselves is what makes
+    /// the match true by construction rather than by lucky choice.
+    static let pageBackground = Color(nsColor: .windowBackgroundColor)
 }
 
 /// The day a group belongs to, pinned while that group is on screen.
 ///
-/// Opaque rather than glass. Translucent, the rows sliding behind it ghost
-/// through the label — and it sits directly beneath a toolbar that is already
-/// blurring the same content, so a second translucent surface reads as a
-/// rendering artefact rather than as a header.
+/// Opaque, edge to edge, and the same colour as the page behind it, so a row
+/// passing underneath simply stops being visible. **Keep it flat.** A gradient
+/// here fades out partway through the label's own glyphs and reads as a rendering
+/// fault; a translucent fill lets the rows ghost through it.
 private struct DictationDayHeader: View {
     let title: String
 
     var body: some View {
         Text(title)
             .font(.title3.weight(.semibold))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .background(Color(nsColor: .windowBackgroundColor), in: .capsule)
-            .overlay { Capsule().strokeBorder(.separator, lineWidth: 0.5) }
-            .padding(.vertical, 10)
+            .padding(.horizontal, DictationHistoryLayout.contentInset)
+            .padding(.top, 18)
+            .padding(.bottom, 20)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DictationHistoryLayout.pageBackground)
     }
 }
 
@@ -131,7 +143,10 @@ private struct DictationDayCard: View {
             ForEach(records) { record in
                 DictationHistoryRow(record: record)
                 if record.id != records.last?.id {
-                    Divider().padding(.horizontal, DictationHistoryLayout.contentInset)
+                    // Edge to edge, and left to the card's `clipShape` to trim. An
+                    // inset rule draws a second, narrower edge inside a card that
+                    // already has one.
+                    Divider()
                 }
             }
         }

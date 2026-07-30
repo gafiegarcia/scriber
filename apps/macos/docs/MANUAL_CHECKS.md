@@ -27,13 +27,20 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
       In Dictation, `⌘F` focuses
       Search Dictations; with the Settings window focused the menu command is
       disabled and the shortcut leaves it unchanged.
+- [ ] Open the main window from every route — launch, **Open Scriber**, the Dock
+      icon, and reopening after `⌘W` — and type without clicking first: the text
+      lands in search every time. Then select some transcript text, switch to
+      another app and back, and repeat with `⌘H` and with minimising: focus stays
+      put and the selection survives.
 - [ ] The main window shows no title, the workspace control sits immediately
       right of the traffic lights, and the count beside it matches the number of
       entries in the list — not the number the current search matches. The
       warning control appears after the count only while something is unresolved,
       and nothing else in the toolbar moves when it comes or goes.
-- [ ] Scroll the history: each day label pins below the toolbar and stays legible
-      with rows passing behind it, and the toolbar's separator appears only once
+- [ ] Scroll the history: each day label pins below the toolbar and stays legible,
+      with rows disappearing cleanly under it and no edge or change of tone
+      marking where the label's background sits, and the toolbar's separator
+      appears only once
       content is beneath it. Resize the window down to its minimum and the cards,
       day labels, and toolbar all stay intact.
 - [ ] Delete one history entry and clear all history: both confirm first, and

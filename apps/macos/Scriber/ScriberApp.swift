@@ -58,7 +58,7 @@ enum AppLaunchConfiguration {
 }
 
 @MainActor
-private enum AppWindowIdentity {
+enum AppWindowIdentity {
     static let mainTitle = "Scriber"
     static let onboardingTitle = "Set Up Scriber"
     static let settingsTitle = "Settings"

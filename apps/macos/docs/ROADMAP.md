@@ -1,12 +1,6 @@
 # Native macOS Roadmap
 
-## v0.8.1
-
-- [ ] **Reduce the app icon shadow.** **Blocked: the user will edit it in Icon
-      Composer and provide the updated icon asset.**
-- [ ] **Split `AppCoordinator.swift`.** History recovery and retention are the
-      clearest coordinator boundary. Do this before the Transcription workspace
-      lands, not after.
+## v0.8.2
 - [ ] **Tint pills by outcome** — green for success, amber for warnings such as
       cancellation and no-words. A design pass across every pill state in light and
       dark on varied backgrounds, not a small edit. Take the outcome-to-tone
@@ -15,16 +9,17 @@
 - [ ] **Define whole-pill default actions.** Map every pill phase to an explicit,
       unsurprising whole-pill click before enabling that interaction; copied and
       cancelled outcomes need deliberate choices alongside their existing buttons.
+- [ ] **Reduce the app icon shadow.** **Blocked: the user will edit it in Icon
+      Composer and provide the updated icon asset.**
 
 ## v0.9.0
 
+- [ ] **Split `AppCoordinator.swift`.** History recovery and retention are the
+      clearest coordinator boundary. Do this before the Transcription workspace
+      lands, not after.
 - [ ] **Build the long-form Transcription workspace.** Settings is already grouped
       so Dictation options and Transcription options can sit side by side, and the
       main window's workspace control becomes a picker when this lands.
-- [ ] **Explore Apple Foundation Models for dictation post-processing.** Confirm
-      Scriber can read adjacent context, derive a conservative word limit from
-      half the smaller input/output budget or half the context window when
-      separate limits are unavailable, and reject requests that exceed it.
 - [ ] **Redesign the menu bar menu.** Follow the Claude menu reference: lead with
       Scriber, show the marketing version and build beneath it, and place an Open
       control on the trailing edge.
@@ -37,6 +32,10 @@
 
 ## Long-term
 
+- [ ] **Explore Apple Foundation Models for dictation post-processing.** Confirm
+      Scriber can read adjacent context, derive a conservative word limit from
+      half the smaller input/output budget or half the context window when
+      separate limits are unavailable, and reject requests that exceed it.
 - [ ] **Extend window-owned search to Transcription.** After the long-form
       Transcription workspace exists, reuse the persistent native search item
       with a contextual `Search Transcriptions` placeholder, retain a separate
@@ -55,7 +54,3 @@
       declares no third-party Swift package dependency, so
       [`THIRD_PARTY_NOTICES.md`](../../../THIRD_PARTY_NOTICES.md) is already
       complete.
-- [ ] **Clear the Scriber trademark** before treating the name as settled or
-      distributing widely.
-- [ ] **Decide contributor terms** before accepting substantial outside
-      contributions, if relicensing should stay possible.

@@ -3,6 +3,24 @@
 This file records intentionally identified Scriber releases and prerelease
 snapshots. Ordinary development builds belong in Git history, not here.
 
+## 0.8.1 — 2026-07-31
+
+Native bundle build 39, installed from an entitlement-free, locally signed
+Release build.
+
+### Changed
+
+- Opening the main window now puts the cursor in the toolbar's search field, so
+  the first thing you type searches instead of pressing a button on the first
+  entry. Switching back to a window that was already open leaves your place, and
+  your text selection, alone.
+- The workspace name in the toolbar is plain text. It was the only thing in that
+  group that looked tappable while doing nothing.
+- Row separators inside a day card now reach the card's edge.
+- The pinned day label lost its outlined capsule. It now sits flat against the
+  page in the same colour, so entries scrolling past simply disappear under it
+  instead of sliding behind a visible shape.
+
 ## 0.8.0 — 2026-07-30
 
 ### Changed

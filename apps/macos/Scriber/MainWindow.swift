@@ -15,6 +15,23 @@ struct MainWindowView: View {
     @StateObject private var toasts = ToastPresenter()
     @FocusState private var searchFocused: Bool
 
+    /// Whether the next time this window becomes key counts as *opening* it.
+    ///
+    /// True at launch, and true again from the moment the window closes. Every
+    /// route that puts the window back on screen — Open Scriber in the menu bar, a
+    /// Dock click, the startup poll in `AppDelegate` — ends in AppKit making this
+    /// window key, and that is both the one signal all of them share and the first
+    /// moment at which asking for focus can succeed. `onAppear` is neither: it runs
+    /// before the window is key, and three of those routes order a retained window
+    /// front without SwiftUI presenting anything.
+    ///
+    /// Becoming key also happens every time the user merely switches back to a
+    /// window that stayed open, and moving focus then would drop a transcript
+    /// selection they were part-way through making. So this is consumed once per
+    /// presentation and only a close re-arms it: an app switch, an unhide, and a
+    /// de-miniaturize all leave focus where the user left it.
+    @State private var opensWithSearchFocused = true
+
     private var recoveryConditions: [RecoveryCondition] {
         RecoveryConditions.current(
             onboardingComplete: runtime.preferences.onboardingComplete,
@@ -57,13 +74,12 @@ struct MainWindowView: View {
                 // warning appears rather than reflowing the toolbar.
                 ToolbarItem(placement: .navigation) {
                     HStack(spacing: 10) {
-                        // A label today, a Picker once Transcription exists. The
-                        // slot and its glass stay put across that change.
+                        // Plain text, because it is not a control. A background here
+                        // said "click me" about the one thing in this group that
+                        // does nothing; it earns one back when Transcription lands
+                        // and this becomes a Picker.
                         Text(workspace.title)
                             .font(.headline)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .glassEffect(.regular, in: .capsule)
 
                         Text(dictationCountLabel)
                             .foregroundStyle(.secondary)
@@ -81,9 +97,26 @@ struct MainWindowView: View {
             }
             .searchFocused($searchFocused)
             .focusedSceneValue(\.searchDictationHistoryAction, { searchFocused = true })
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
+                guard let window = note.object as? NSWindow,
+                      AppWindowIdentity.isMainWindow(window) else { return }
+                focusSearchForPresentation()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+                guard let window = note.object as? NSWindow,
+                      AppWindowIdentity.isMainWindow(window) else { return }
+                opensWithSearchFocused = true
+            }
             .onAppear {
                 runtime.coordinator.registerSettingsWindowOpener { openWindow(id: "settings") }
                 openOnboardingIfNeeded()
+                // If SwiftUI rebuilt this content after the window was already key,
+                // no further `didBecomeKey` is coming and the presentation would go
+                // unserved. Reading the key window tells the two orderings apart
+                // without guessing at a delay between them.
+                if let window = NSApp.keyWindow, AppWindowIdentity.isMainWindow(window) {
+                    focusSearchForPresentation()
+                }
             }
             .onChange(of: runtime.preferences.onboardingComplete) { _, _ in openOnboardingIfNeeded() }
     }
@@ -127,6 +160,25 @@ struct MainWindowView: View {
     private var dictationCountLabel: String {
         let count = visibleRecords.count
         return "\(count) \(count == 1 ? "dictation" : "dictations")"
+    }
+
+    /// Consumes a pending presentation by focusing the toolbar's search field.
+    ///
+    /// Deferred by one main-actor turn rather than written directly.
+    /// `didBecomeKeyNotification` is posted from inside AppKit's key-window
+    /// transition, and a `@FocusState` write SwiftUI cannot satisfy yet is dropped
+    /// silently rather than queued. A turn is enough, and unlike a sleep it is not
+    /// a guess at how long the transition takes.
+    ///
+    /// Known and accepted: a route that orders the window front without winning
+    /// activation leaves this armed, so search takes focus on the click that
+    /// eventually makes the window key — even a click that landed on a row. Do not
+    /// add a mouse-event filter for it.
+    @MainActor
+    private func focusSearchForPresentation() {
+        guard opensWithSearchFocused else { return }
+        opensWithSearchFocused = false
+        Task { @MainActor in searchFocused = true }
     }
 
     private func openOnboardingIfNeeded() {
