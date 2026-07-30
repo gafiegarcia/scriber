@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+  <!-- great. this took me around 6 hours to hand-code -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scriber Redesign Idea v0.7.1</title>
+    <style>
+      *,
+      *::after,
+      *::before {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        line-height: 1;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background-image: url("https://picsum.photos/id/16/1920/1080");
+        background-position: center;
+        background-size: cover;
+        color: #111;
+      }
+
+      #desktop-background {
+        position: absolute;
+        inset: 0;
+        backdrop-filter: blur(8px);
+      }
+
+      #scriber-app {
+        position: relative;
+        /* max-height and max-width is only to demonstrate the ideal window size, definitely not a requirement (some people like to just full screen any app anyway) */
+        width: 90%;
+        min-width: 640px; /* the idea of this is to find a sweet spot where UI still looks okay and not squished, the critical point before responsiveness breaks */
+        max-width: 800px;
+        height: 90%;
+        max-height: 640px;
+        border-radius: 1rem; /* ignore this value; macOS 27 has less rounded app border, so this is just mimicking that */
+        border: 1px solid #bbb;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background-color: white;
+      }
+
+      #top-row {
+        z-index: 1;
+        display: flex;
+        padding: 0 1rem;
+        height: 4rem;
+        justify-content: space-between;
+        /* I want this bottom border to be hidden, and only appear when there's an item beneath it approaching (Kaset app, written in Swift, does this) */
+        /* still using subtle color */
+        border-bottom: 1px solid #ddd;
+        /* and use liquid glass */
+        backdrop-filter: blur(6px);
+        background-color: #fffa;
+      }
+
+      #stoplight-and-segmented-control,
+      #top-right {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      #stoplight-buttons {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      .stoplight-button {
+        width: 0.875rem;
+        height: 0.875rem;
+        border-radius: 50%;
+
+        &.red {
+          background-color: #ff5f57;
+        }
+
+        &.yellow {
+          background-color: #ffcc00;
+        }
+
+        &.green {
+          background-color: #28c840;
+        }
+      }
+
+      .liquid-glass {
+        /* the styling below is definitely not representative of how the native liquid glass components will actually look like */
+        appearance: none;
+        background: radial-gradient(transparent 30%, #ddd4);
+        border: 1px solid #ddd;
+        border-radius: 1.5rem;
+        padding: 0.5rem 0.625rem;
+        font: inherit;
+      }
+
+      .lg-segmented-control {
+        /* liquid glass picker/segmented control native styling, click-and-draggable to switch between Dictation and Transcription in the future */
+        margin-left: 1rem; /* what I mean by "just beside", and some margin */
+      }
+
+      #dictation-count {
+        color: #888;
+        font: inherit;
+        font-size: 13px;
+      }
+
+      .lg-button {
+        /* liquid glass buton native-styling too */
+        border-radius: 50%;
+        font-size: 1.25rem;
+        aspect-ratio: 1/1;
+      }
+
+      #search-bar {
+        padding: 0.5rem 1rem;
+      }
+
+      main {
+        position: absolute;
+        inset: 0;
+        overflow-y: scroll;
+        display: flex;
+        flex-direction: column;
+      }
+
+      #dictation-history {
+        --vertical-padding: 4rem;
+        --horizontal-padding: 2rem;
+        /* vertical padding follows header's height — also adding breathing room below */
+        padding-block: var(--vertical-padding);
+      }
+
+      .date-group {
+        --date-group-vertical-spacing: 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        &:not(:first-child) {
+          margin-block-start: var(--date-group-vertical-spacing);
+        }
+        h2 {
+          position: sticky;
+          align-self: flex-start;
+          top: var(--vertical-padding);
+          border-radius: 1.5rem;
+          background: radial-gradient(white 40%, transparent);
+          padding-block: 1.75rem;
+          padding-inline: var(--horizontal-padding);
+
+          /* I'm still struggling to decide on what to use for the backrop */
+          /* This combination below is also preferable: */
+
+          /*top: var(--vertical-padding);*/
+          /* no `align-self` */
+          /* fighting align-items: center on parent with: */
+          /*width: 100%;*/
+          /*background-color: #fffa;*/
+          /*backdrop-filter: blur(6px);*/
+
+          /* It's just the bottom border of header, which is precisely above this when sticky, is glitching here in html css—don't know how it would in swift */
+          /* This is where I need your input */
+          /* My current style, the first one, is "usable" but surely unorthodox and not looking so polished */
+        }
+      }
+
+      .group-card {
+        /* basically padding; but I need the h2 background blur effect to span full width so this trick is needed */
+        width: calc(100% - (2 * var(--horizontal-padding)));
+        max-width: 800px; /* ideally the same number as default app window width when first open (if there's any) */
+        max-height: 100%;
+        border: 1px solid #ddd;
+        border-radius: 1.5rem;
+
+        p {
+          margin: 0;
+          padding: 1rem;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          font-size: 13px;
+          line-height: initial;
+          &::before {
+            /* time placeholder */
+            content: "06.07";
+            color: #888;
+          }
+          &::after {
+            /* copy and three-dot buttons placeholder */
+            /* the styling, especially the space between the two (supposedly) buttons is definitely not representative*/
+            content: "📃 •••";
+            min-width: 3rem;
+            margin-inline-start: auto;
+          }
+        }
+
+        p:not(:first-child) {
+          border-top: 1px solid #ddd;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="desktop-background"></div>
+    <div id="scriber-app">
+      <header id="top-row">
+        <div
+          id="stoplight-and-segmented-control"
+          data-description="this is grouped together to show that the liquid glass segmented control is just beside the stoplight buttons"
+        >
+          <div id="stoplight-buttons">
+            <div class="stoplight-button red"></div>
+            <div class="stoplight-button yellow"></div>
+            <div class="stoplight-button green"></div>
+          </div>
+          <select class="liquid-glass lg-segmented-control">
+            <option value="">Dictation</option>
+            <!-- only Dictation for now -->
+          </select>
+          <output id="dictation-count">149 dictations</output>
+        </div>
+        <div id="top-right">
+          <button class="liquid-glass lg-button">⚙️</button>
+          <input
+            type="text"
+            id="search-bar"
+            class="liquid-glass"
+            placeholder="🔎 Search..."
+          />
+        </div>
+      </header>
+      <main
+        data-description="main content, which currently is dictation history (might store other additional stats like Wispr Flow, but definitely not now)"
+      >
+        <section id="dictation-history">
+          <div class="date-group">
+            <h2>Today</h2>
+            <div class="group-card">
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+            </div>
+          </div>
+          <div class="date-group">
+            <h2>Yesterday</h2>
+            <div class="group-card">
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+            </div>
+          </div>
+          <div class="date-group">
+            <h2>28 Jul 2026</h2>
+            <div class="group-card">
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+              <p>
+                Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ipsa
+                eius quasi omnis accusantium assumenda beatae tenetur.
+                Temporibus, natus? Corporis mollitia nisi reprehenderit quod
+                assumenda, ipsam vel recusandae reiciendis vero quos!
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
