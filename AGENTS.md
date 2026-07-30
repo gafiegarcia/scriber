@@ -25,7 +25,7 @@
 - Keep each document to one job: `PRODUCT_SPEC.md` defines required behavior, `ROADMAP.md` lists unbuilt work by target version, `MANUAL_CHECKS.md` and `AUTOMATED_CHECKS.md` hold checks, and `PASTE_ENGINE.md` records the paste architecture.
 - **Docs describe the present, never the past.** No changelogs, session notes, findings, or "why we removed X" in any doc. Git commits and tag messages are the engineering history; `CHANGELOG.md` carries user-relevant tagged releases. If a rationale changes what someone does next, state it as an instruction; if it explains a decision already made, it belongs in the commit that made it.
 - Comments earn their place by saying what the code cannot: a platform quirk, a non-obvious ordering, a `Known and unfixed:` note. Do not restate the code, label sections, or explain what something *used to be*.
-- Every roadmap item names a target version (`## v0.7.1`, `## v0.8.0`, `## Long-term`). Do not park work in an unscheduled pile. Something broken that nobody plans to fix is not a roadmap item — put a `Known and unfixed:` comment on the code that owns it.
+- Every roadmap item names a target version (`## v0.8.1`, `## v0.9.0`, `## Long-term`). Do not park work in an unscheduled pile. Something broken that nobody plans to fix is not a roadmap item — put a `Known and unfixed:` comment on the code that owns it.
 - Versioning policy: `docs/VERSIONING.md`. Before tagging, run the automated pass, the applicable manual checks, and confirm no credentials, recordings, history, or build output ship.
 - Do not push or publish unless explicitly asked.
 - `CLAUDE.md` is a symlink to this file. Apply edits to `AGENTS.md`.

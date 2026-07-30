@@ -18,9 +18,8 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 
 ## Identity and workspace boundary
 
-- The product name is **Scriber**, the app bundle is `Scriber.app`, the native
-  bundle identifier is `com.gafiegarcia.scriber`, and the UI-test bundle
-  identifier is `com.gafiegarcia.scriber.ui-tests`.
+- The product name is **Scriber**, the app bundle is `Scriber.app`, and the
+  native bundle identifier is `com.gafiegarcia.scriber`.
 - The native identity was a deliberate clean reset from Scriber Dictate. Do not
   migrate its history, preferences, onboarding state, pending audio, login item,
   or Keychain item into Scriber.
