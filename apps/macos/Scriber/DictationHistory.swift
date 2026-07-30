@@ -97,13 +97,12 @@ enum DictationHistoryLayout {
 
     /// The page's fill, and the pinned day label's fill.
     ///
-    /// **One constant for both, and the page must paint it explicitly.** The label
-    /// has to hide the rows passing under it, which means being opaque, which means
-    /// being exactly the colour behind it — and no system colour matches what the
-    /// window paints on its own. `windowBackgroundColor`, `underPageBackgroundColor`
-    /// and a `Material` were each tried against the real window and each left the
-    /// label visible as a lighter band. Painting the page ourselves is what makes
-    /// the match true by construction rather than by lucky choice.
+    /// **One constant for both, and the page paints it explicitly.** The label has
+    /// to hide the rows passing under it, so it must be opaque in exactly the
+    /// colour behind it. Do not reach for a system colour to match the window's own
+    /// background instead: none of them does, and the label shows as a lighter
+    /// band. Painting the page here is what makes the two agree by construction,
+    /// in both appearances, without anyone having to look.
     static let pageBackground = Color(nsColor: .windowBackgroundColor)
 }
 
@@ -370,12 +369,10 @@ private struct DictationHistoryRow: View {
         return !text.isEmpty
     }
 
-    /// `.secondary` where there is nothing to copy, so the control reads as
-    /// unavailable. `.disabled` cannot dim a colour the view sets itself.
-    /// `.secondary` is not muted enough to read as unavailable. On a card that
-    /// is itself a light fill, it renders close to the transcript's own colour,
-    /// so a copy button with nothing to copy still looked live. This has to sit
-    /// clearly below the row's quietest text, not level with it.
+    /// Dimmed here rather than by `.disabled`, which cannot dim a colour the view
+    /// sets itself. Plain `.secondary` is not enough: it lands level with the row's
+    /// own quietest text, and a copy button with nothing to copy still read as
+    /// live. This has to sit clearly below that, not beside it.
     private var copyTint: Color {
         return canCopy ? .accentColor : Color.secondary.opacity(0.4)
     }

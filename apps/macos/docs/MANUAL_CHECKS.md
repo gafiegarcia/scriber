@@ -53,8 +53,9 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
       warning symbol when the key is unusable. Do not diagnose this from
       `defaults` — look at the menu bar.
 - [ ] Light and dark both read comfortably, over both a light and a dark desktop:
-      the glass toolbar and its controls, the pinned day labels, the transparent
-      day cards and their separators, and the tinted copy toast in the corner.
+      the glass toolbar with its plain workspace name and glass warning control,
+      the pinned day labels against the page behind them, the transparent day
+      cards and their separators, and the tinted copy toast in the corner.
       The app icon looks right in the Dock and Finder.
 - [ ] Set the input volume to zero and dictate: the "No sound from the microphone"
       pill appears with the failure sound. This costs no credit and must stay
