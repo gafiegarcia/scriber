@@ -13,9 +13,9 @@
 
 ## Verification
 
-- **Do not add a UI test suite.** Not because the project lacks one by accident — the bar is a specific regression a package test provably cannot catch.
 - Run the routine pass in `apps/macos/docs/AUTOMATED_CHECKS.md`. Run its launch smoke check after any change to startup, the pill, or an `NSViewRepresentable`; it has caught a main-thread wedge no test did. Run it exactly as written, or its `kill` can land on the installed app.
 - **Checking the running app is encouraged.** Use a computer-use tool, with the capture restricted to Scriber so other applications are excluded. If you are Claude, do not start one before asking for explicit permission; Claude's computer-use tool moves the real pointer so it will get interrupted by the user if you don't give a heads-up.
+- **Do not add a UI test suite.** Not because the project lacks one by accident — the bar is a specific regression a package test provably cannot catch.
 - **End a session by proposing manual checks.** Name the few items from `apps/macos/docs/MANUAL_CHECKS.md` that match what actually changed. Never ask for the whole file to be run, and never spend API credit without asking first.
 - **Finish native work by shipping it.** Bump the build, build Release, install to `/Applications`, then run the sweep in `apps/macos/README.md`. Scriber is in daily use; do not leave a verified change in a build directory.
 
@@ -30,10 +30,9 @@
 - Do not push or publish unless explicitly asked.
 - `CLAUDE.md` is a symlink to this file. Apply edits to `AGENTS.md`.
 
-## Vibe-coding, ownership, and assuming a more active role
+## AI Collaboration
 
 - Scriber is a fully vibe-coded project, meaning all of the code are written by GPT and Claude models.
-- Because of that, be proactive in suggesting changes and improvements, as well as voicing opinions.
-- LLMs like you tend to fix things by adding things and not substracting things, but a healthy development process always includes some sort of deletion to a certain degree. If you genuinely believe that an overhaul, code deletion/simplification, or even a redesign—of some parts, or the entirety of the app—is the best path forward for the app and beneficial for me, the user of this app, please suggest so. Ideas are always welcomed—we can always discuss.
-- Existing code is evidence of past decisions not a constraint nor immutable truth about what the app will be.
+- Because of that, agents are recommended to assume a more active role of giving suggestions.
+- On top of that, this app is very simple in nature but very early in development. If you genuinely believe that an overhaul, code deletion/simplification, or a redesign is the best path forward for the app and beneficial for me, the user of this app, please suggest so. 
 - The user is asking you for help with coding—you can ask for help from the user too when stuck. Remember that there are tasks where human involvement can be either mandatory or make the process 10x more efficient.
