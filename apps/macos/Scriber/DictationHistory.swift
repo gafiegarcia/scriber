@@ -97,22 +97,36 @@ enum DictationHistoryLayout {
 
 /// The day a group belongs to, pinned while that group is on screen.
 ///
-/// Opaque rather than glass. Translucent, the rows sliding behind it ghost
-/// through the label — and it sits directly beneath a toolbar that is already
-/// blurring the same content, so a second translucent surface reads as a
-/// rendering artefact rather than as a header.
+/// The label fades the rows out rather than covering them: opaque under the text,
+/// clear by the band's lower edge, so a row rising into it dissolves a whole line
+/// at a time. Keep the fade **vertical and full width**. Two other shapes were
+/// tried on screen and both read as a rendering fault — a gradient anchored on the
+/// label cuts the transcript mid-glyph where its ellipse ends, and a translucent
+/// bar ghosts a hard line of text along its bottom edge.
 private struct DictationDayHeader: View {
     let title: String
 
     var body: some View {
         Text(title)
             .font(.title3.weight(.semibold))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .background(Color(nsColor: .windowBackgroundColor), in: .capsule)
-            .overlay { Capsule().strokeBorder(.separator, lineWidth: 0.5) }
-            .padding(.vertical, 10)
+            .padding(.horizontal, DictationHistoryLayout.contentInset)
+            .padding(.top, 18)
+            .padding(.bottom, 20)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                // Two opaque stops, so the band holds solid under the label and
+                // spends its whole lower half fading. One opaque stop starts
+                // fading immediately and the text loses its own backing.
+                LinearGradient(
+                    colors: [
+                        Color(nsColor: .windowBackgroundColor),
+                        Color(nsColor: .windowBackgroundColor),
+                        Color(nsColor: .windowBackgroundColor).opacity(0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
     }
 }
 
