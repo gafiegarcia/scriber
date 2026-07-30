@@ -14,8 +14,9 @@ snapshots. Ordinary development builds belong in Git history, not here.
 - The workspace name in the toolbar is plain text. It was the only thing in that
   group that looked tappable while doing nothing.
 - Row separators inside a day card now reach the card's edge.
-- The pinned day label sits on a soft fade rather than an outlined capsule, and
-  entries scrolling past it fade out instead of sliding behind a hard edge.
+- The pinned day label lost its outlined capsule. It now sits flat against the
+  page in the same colour, so entries scrolling past simply disappear under it
+  instead of sliding behind a visible shape.
 
 ## 0.8.0 — 2026-07-30
 

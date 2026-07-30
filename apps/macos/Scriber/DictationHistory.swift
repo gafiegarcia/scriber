@@ -42,6 +42,7 @@ struct DictationHistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DictationHistoryLayout.pageBackground)
         .accessibilityIdentifier("dictation-history-view")
     }
 
@@ -93,16 +94,25 @@ enum DictationHistoryLayout {
 
     /// The gap that separates one day from the next.
     static let groupSpacing: CGFloat = 28
+
+    /// The page's fill, and the pinned day label's fill.
+    ///
+    /// **One constant for both, and the page must paint it explicitly.** The label
+    /// has to hide the rows passing under it, which means being opaque, which means
+    /// being exactly the colour behind it — and no system colour matches what the
+    /// window paints on its own. `windowBackgroundColor`, `underPageBackgroundColor`
+    /// and a `Material` were each tried against the real window and each left the
+    /// label visible as a lighter band. Painting the page ourselves is what makes
+    /// the match true by construction rather than by lucky choice.
+    static let pageBackground = Color(nsColor: .windowBackgroundColor)
 }
 
 /// The day a group belongs to, pinned while that group is on screen.
 ///
-/// The label fades the rows out rather than covering them: opaque under the text,
-/// clear by the band's lower edge, so a row rising into it dissolves a whole line
-/// at a time. Keep the fade **vertical and full width**. Two other shapes were
-/// tried on screen and both read as a rendering fault — a gradient anchored on the
-/// label cuts the transcript mid-glyph where its ellipse ends, and a translucent
-/// bar ghosts a hard line of text along its bottom edge.
+/// Opaque, edge to edge, and the same colour as the page behind it, so a row
+/// passing underneath simply stops being visible. **Keep it flat.** A gradient
+/// here fades out partway through the label's own glyphs and reads as a rendering
+/// fault; a translucent fill lets the rows ghost through it.
 private struct DictationDayHeader: View {
     let title: String
 
@@ -113,20 +123,7 @@ private struct DictationDayHeader: View {
             .padding(.top, 18)
             .padding(.bottom, 20)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                // Two opaque stops, so the band holds solid under the label and
-                // spends its whole lower half fading. One opaque stop starts
-                // fading immediately and the text loses its own backing.
-                LinearGradient(
-                    colors: [
-                        Color(nsColor: .windowBackgroundColor),
-                        Color(nsColor: .windowBackgroundColor),
-                        Color(nsColor: .windowBackgroundColor).opacity(0)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
+            .background(DictationHistoryLayout.pageBackground)
     }
 }
 

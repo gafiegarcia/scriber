@@ -37,9 +37,10 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
       entries in the list — not the number the current search matches. The
       warning control appears after the count only while something is unresolved,
       and nothing else in the toolbar moves when it comes or goes.
-- [ ] Scroll the history: each day label pins below the toolbar and stays legible
-      with rows passing behind it, which fade out a whole line at a time rather
-      than appearing sliced, and the toolbar's separator appears only once
+- [ ] Scroll the history: each day label pins below the toolbar and stays legible,
+      with rows disappearing cleanly under it and no edge or change of tone
+      marking where the label's background sits, and the toolbar's separator
+      appears only once
       content is beneath it. Resize the window down to its minimum and the cards,
       day labels, and toolbar all stay intact.
 - [ ] Delete one history entry and clear all history: both confirm first, and
