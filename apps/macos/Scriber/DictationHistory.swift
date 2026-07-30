@@ -30,24 +30,8 @@ struct DictationHistoryView: View {
         }
     }
 
-    /// Broken out of the `List` builder deliberately. Inlining the row insets,
-    /// separator, group background, and context menu in one closure pushed the
-    /// expression past the type checker's budget. The row applies those itself
-    /// now — it has to, because its hover state drives the group background and
-    /// only a view can hold that state — so this is left working out where the
-    /// entry sits in its group.
-    @ViewBuilder
-    private func row(_ record: DictationRecord, at index: Int, of count: Int) -> some View {
-        DictationHistoryRow(
-            record: record,
-            isFirst: index == 0,
-            isLast: index == count - 1,
-            onCopyConfirmed: showCopyToast
-        )
-    }
-
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
             if records.isEmpty {
                 ContentUnavailableView(
                     "No Dictations Yet",
@@ -57,42 +41,10 @@ struct DictationHistoryView: View {
             } else if filtered.isEmpty {
                 ContentUnavailableView.search(text: searchQuery)
             } else {
-                List {
-                    ForEach(sections) { section in
-                        // Emitted as an ordinary row rather than a `Section` header.
-                        // A real header draws a rule beneath itself that neither
-                        // `listRowSeparator` nor the macOS-unavailable
-                        // `listSectionSeparator` removes, and it fixes its own
-                        // padding, which left the enlarged label cramped.
-                        Text(section.title)
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(.primary)
-                            .padding(.top, 26)
-                            .padding(.bottom, 14)
-                            // Exactly the card inset, so the label's leading edge
-                            // lines up with the card edge below it.
-                            .listRowInsets(EdgeInsets(
-                                top: 0,
-                                leading: DictationHistoryGroupBackground.horizontalInset,
-                                bottom: 0,
-                                trailing: DictationHistoryGroupBackground.horizontalInset
-                            ))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-
-                        ForEach(Array(section.records.enumerated()), id: \.element.id) { pair in
-                            row(pair.element, at: pair.offset, of: section.records.count)
-                        }
-                    }
-                }
-                // `.plain` rather than `.inset`: the card inset is drawn by the row
-                // background now, and `.inset` would add its own on top of it.
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(Color(nsColor: .windowBackgroundColor))
+                historyList
             }
         }
-        .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .bottom) {
             if copyToastVisible {
                 HistoryCopyToast()
@@ -100,12 +52,34 @@ struct DictationHistoryView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .accessibilityIdentifier("dictation-history-view")
         .onDisappear {
             copyToastTask?.cancel()
             copyToastTask = nil
             copyToastVisible = false
+        }
+    }
+
+    /// A `ScrollView` rather than a `List`, so the day headers can pin below the
+    /// toolbar and the rest of the page can scroll under its glass. The width cap
+    /// sits on the content and not on the scroll view, which keeps the scroll
+    /// indicator against the window edge where it belongs.
+    private var historyList: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                ForEach(sections) { section in
+                    Section {
+                        DictationDayCard(records: section.records, onCopyConfirmed: showCopyToast)
+                            .padding(.bottom, DictationHistoryLayout.groupSpacing)
+                    } header: {
+                        DictationDayHeader(title: section.title)
+                    }
+                }
+            }
+            .frame(maxWidth: DictationHistoryLayout.maxContentWidth, alignment: .leading)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, DictationHistoryLayout.horizontalInset)
+            .padding(.bottom, 24)
         }
     }
 
@@ -139,74 +113,74 @@ private struct HistoryCopyToast: View {
     }
 }
 
-private struct DictationHistoryGroupBackground: View {
-    let isFirst: Bool
-    let isLast: Bool
+enum DictationHistoryLayout {
+    /// Wider than Settings. They used to match, back when Settings was a page in
+    /// this same window; it is its own window now, so the transcript column is
+    /// free to be as wide as it reads well at.
+    static let maxContentWidth: CGFloat = 800
 
-    /// Opened up from 10 to sit with the circular controls inside the card. A
-    /// tight corner next to a circle reads as two different design languages in
-    /// one row.
-    private let radius: CGFloat = 16
-
-    private var shape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            topLeadingRadius: isFirst ? radius : 0,
-            bottomLeadingRadius: isLast ? radius : 0,
-            bottomTrailingRadius: isLast ? radius : 0,
-            topTrailingRadius: isFirst ? radius : 0,
-            // The squircle, which is what macOS actually draws — `.circular`
-            // joins a straight edge to a circular arc and the join is visible at
-            // this radius.
-            style: .continuous
-        )
-    }
-
-    /// Distance from the window edge to the card edge, and the Dictation page's
-    /// horizontal rhythm generally — the count row and the warning banner take it
-    /// too, so every leading edge on the page lines up.
-    ///
-    /// Lives here rather than on the `List`, because padding the List moves its
-    /// scroll indicator inward too and leaves the scroll bar floating away from
-    /// the window edge.
+    /// Distance from the window edge to the card edge, and the page's horizontal
+    /// rhythm generally.
     static let horizontalInset: CGFloat = 32
 
     /// Padding inside the card, between its edge and the row's content.
     ///
-    /// Small on purpose. The card already stands 32pt off the window edge, and
+    /// Small on purpose. The card already stands well off the window edge, and
     /// stacking a generous inset inside that put the entry time and the trailing
-    /// controls in the middle of an empty margin — the eye read the gap before
-    /// it read the row. This is the breathing room the fill needs to not clip
-    /// its content, and nothing beyond it.
-    static let contentInset: CGFloat = 8
+    /// controls in the middle of an empty margin — the eye read the gap before it
+    /// read the row.
+    static let contentInset: CGFloat = 12
+
+    static let cardCornerRadius: CGFloat = 16
+
+    /// The gap that separates one day from the next.
+    static let groupSpacing: CGFloat = 28
+}
+
+/// The day a group belongs to, pinned while that group is on screen.
+///
+/// Opaque rather than glass. Translucent, the rows sliding behind it ghost
+/// through the label — and it sits directly beneath a toolbar that is already
+/// blurring the same content, so a second translucent surface reads as a
+/// rendering artefact rather than as a header.
+private struct DictationDayHeader: View {
+    let title: String
 
     var body: some View {
-        shape
-            .fill(.clear)
-            .overlay {
-                // The mask keeps the continuous outer corners from `shape`, draws
-                // the vertical outline on every slice, and exposes exactly one
-                // bottom stroke per row. Adjacent rows therefore share one
-                // hairline rather than stacking two borders.
-                shape
-                    .stroke(.separator, lineWidth: 0.5)
-                    .mask(outlineMask)
-            }
-            .padding(.horizontal, Self.horizontalInset)
+        Text(title)
+            .font(.title3.weight(.semibold))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(Color(nsColor: .windowBackgroundColor), in: .capsule)
+            .overlay { Capsule().strokeBorder(.separator, lineWidth: 0.5) }
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// One day group as a single card: one shape, one outline, one rule between
+/// neighbouring rows.
+private struct DictationDayCard: View {
+    let records: [DictationRecord]
+    let onCopyConfirmed: () -> Void
+
+    private var shape: RoundedRectangle {
+        // The squircle, which is what macOS actually draws — `.circular` joins a
+        // straight edge to a circular arc and the join is visible at this radius.
+        RoundedRectangle(cornerRadius: DictationHistoryLayout.cardCornerRadius, style: .continuous)
     }
 
-    private var outlineMask: some View {
-        ZStack {
-            HStack(spacing: 0) {
-                Rectangle().frame(width: 2)
-                Spacer(minLength: 0)
-                Rectangle().frame(width: 2)
-            }
-            VStack(spacing: 0) {
-                if isFirst { Rectangle().frame(height: radius + 1) }
-                Spacer(minLength: 0)
-                Rectangle().frame(height: isLast ? radius + 1 : 2)
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(records) { record in
+                DictationHistoryRow(record: record, onCopyConfirmed: onCopyConfirmed)
+                if record.id != records.last?.id {
+                    Divider().padding(.horizontal, DictationHistoryLayout.contentInset)
+                }
             }
         }
+        .clipShape(shape)
+        .overlay { shape.strokeBorder(.separator, lineWidth: 0.5) }
     }
 }
 
@@ -227,15 +201,10 @@ private struct DictationHistorySection: Identifiable {
 private struct DictationHistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
-    let isFirst: Bool
-    let isLast: Bool
     let onCopyConfirmed: () -> Void
 
     @State private var confirmDelete = false
 
-    /// Transcript size. Larger than `.body`, which read as small next to the
-    /// generous type Flow uses for the same content.
-    fileprivate static let transcriptPointSize: CGFloat = 14
     fileprivate static let timePointSize: CGFloat = 13
 
     /// Exactly as wide as the widest time this locale can render, and no wider.
@@ -277,7 +246,6 @@ private struct DictationHistoryRow: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(rowText)
-                    .font(.system(size: Self.transcriptPointSize))
                     .lineLimit(4)
                     .textSelection(.enabled)
                 // Duration is gone. A dictation's length is not something the user
@@ -382,24 +350,8 @@ private struct DictationHistoryRow: View {
                 .accessibilityLabel("More actions")
             }
         }
-        .padding(.vertical, 4)
-        // Full-width within the card. Insetting past the time column left the
-        // time visually unseparated from the entry above it.
-        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-        // Leading/trailing clear the card inset first, then add the padding
-        // inside the card, which is deliberately tight.
-        .listRowInsets(EdgeInsets(
-            top: 10,
-            leading: DictationHistoryGroupBackground.horizontalInset
-                + DictationHistoryGroupBackground.contentInset,
-            bottom: 10,
-            trailing: DictationHistoryGroupBackground.horizontalInset
-                + DictationHistoryGroupBackground.contentInset
-        ))
-        // The card and the gaps between groups carry the grouping. Row rules
-        // inside a bordered card only added a second, competing division.
-        .listRowSeparator(.hidden)
-        .listRowBackground(DictationHistoryGroupBackground(isFirst: isFirst, isLast: isLast))
+        .padding(.horizontal, DictationHistoryLayout.contentInset)
+        .padding(.vertical, 12)
         // No row hover state and no click-to-copy. Both were built and removed
         // the same day, and the reason is worth keeping so they are not rebuilt
         // the same way: a whole-row copy target and selectable text inside it
