@@ -12,6 +12,7 @@ struct MainWindowView: View {
     @State private var workspace: Workspace = .dictation
     @State private var searchQuery = ""
     @State private var showingRecovery = false
+    @StateObject private var toasts = ToastPresenter()
     @FocusState private var searchFocused: Bool
 
     private var recoveryConditions: [RecoveryCondition] {
@@ -41,6 +42,9 @@ struct MainWindowView: View {
     var body: some View {
         workspaceContent
             .frame(minWidth: 640, minHeight: 480)
+            .environmentObject(toasts)
+            .overlay(alignment: .bottomTrailing) { ToastStackView().environmentObject(toasts) }
+            .onDisappear { toasts.cancelAll() }
             .searchable(
                 text: $searchQuery,
                 placement: .toolbar,

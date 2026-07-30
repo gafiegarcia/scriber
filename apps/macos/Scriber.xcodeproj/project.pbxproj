@@ -21,9 +21,11 @@
 		A1000000000000000000000C /* ShortcutRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* ShortcutRecorderView.swift */; };
 		A10000000000000000000030 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000030 /* MainWindow.swift */; };
 		A10000000000000000000031 /* DictationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000031 /* DictationHistory.swift */; };
+		A10000000000000000000034 /* ToastStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000034 /* ToastStack.swift */; };
 		A1000000000000000000000D /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* Views.swift */; };
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
 		A10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */; };
+		A10000000000000000000033 /* ../ScriberCore/Toasts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000033 /* ../ScriberCore/Toasts.swift */; };
 		A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */; };
 		A10000000000000000000010 /* ../ScriberCore/CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */; };
 		A10000000000000000000011 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* AppIcon.icon */; };
@@ -51,11 +53,13 @@
 		B1000000000000000000000C /* ShortcutRecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderView.swift; sourceTree = "<group>"; };
 		B10000000000000000000030 /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
 		B10000000000000000000031 /* DictationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationHistory.swift; sourceTree = "<group>"; };
+		B10000000000000000000034 /* ToastStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastStack.swift; sourceTree = "<group>"; };
 		B1000000000000000000000D /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
 		B1000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000000000000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000000000000000000011 /* Scriber.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scriber.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/RecoveryConditions.swift; sourceTree = "<group>"; };
+		B10000000000000000000033 /* ../ScriberCore/Toasts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/Toasts.swift; sourceTree = "<group>"; };
 		B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CoreModels.swift; sourceTree = "<group>"; };
 		B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CredentialStore.swift; sourceTree = "<group>"; };
 		B10000000000000000000014 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
@@ -97,6 +101,7 @@
 				B10000000000000000000015 /* RecordingFeedbackSound.swift */,
 				B10000000000000000000003 /* GlobalShortcutService.swift */,
 				B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */,
+				B10000000000000000000033 /* ../ScriberCore/Toasts.swift */,
 				B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */,
 				B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */,
 				B10000000000000000000004 /* KeychainStore.swift */,
@@ -109,6 +114,7 @@
 				B1000000000000000000000C /* ShortcutRecorderView.swift */,
 				B10000000000000000000030 /* MainWindow.swift */,
 				B10000000000000000000031 /* DictationHistory.swift */,
+				B10000000000000000000034 /* ToastStack.swift */,
 				B1000000000000000000000D /* Views.swift */,
 				B10000000000000000000018 /* UITestingHistoryFixture.swift */,
 				B10000000000000000000014 /* AppIcon.icon */,
@@ -218,8 +224,10 @@
 				A1000000000000000000000C /* ShortcutRecorderView.swift in Sources */,
 				A10000000000000000000030 /* MainWindow.swift in Sources */,
 				A10000000000000000000031 /* DictationHistory.swift in Sources */,
+				A10000000000000000000034 /* ToastStack.swift in Sources */,
 				A1000000000000000000000D /* Views.swift in Sources */,
 				A10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift in Sources */,
+				A10000000000000000000033 /* ../ScriberCore/Toasts.swift in Sources */,
 				A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */,
 				A10000000000000000000010 /* ../ScriberCore/CredentialStore.swift in Sources */,
 				A10000000000000000000014 /* UITestingHistoryFixture.swift in Sources */,

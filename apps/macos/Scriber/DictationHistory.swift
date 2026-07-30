@@ -7,13 +7,10 @@ import ScriberCore
 
 struct DictationHistoryView: View {
     @EnvironmentObject private var runtime: AppRuntime
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Already filtered to what the workspace shows; the window owns that filter
     /// so its toolbar count cannot disagree with this list.
     let records: [DictationRecord]
     let searchQuery: String
-    @State private var copyToastVisible = false
-    @State private var copyToastTask: Task<Void, Never>?
 
     private var filtered: [DictationRecord] {
         guard !searchQuery.isEmpty else { return records }
@@ -45,19 +42,7 @@ struct DictationHistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay(alignment: .bottom) {
-            if copyToastVisible {
-                HistoryCopyToast()
-                    .padding(.bottom, 18)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
         .accessibilityIdentifier("dictation-history-view")
-        .onDisappear {
-            copyToastTask?.cancel()
-            copyToastTask = nil
-            copyToastVisible = false
-        }
     }
 
     /// A `ScrollView` rather than a `List`, so the day headers can pin below the
@@ -69,7 +54,7 @@ struct DictationHistoryView: View {
             LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                 ForEach(sections) { section in
                     Section {
-                        DictationDayCard(records: section.records, onCopyConfirmed: showCopyToast)
+                        DictationDayCard(records: section.records)
                             .padding(.bottom, DictationHistoryLayout.groupSpacing)
                     } header: {
                         DictationDayHeader(title: section.title)
@@ -83,34 +68,6 @@ struct DictationHistoryView: View {
         }
     }
 
-    private func showCopyToast() {
-        copyToastTask?.cancel()
-        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16)) {
-            copyToastVisible = true
-        }
-        copyToastTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.4))
-            guard !Task.isCancelled else { return }
-            withAnimation(reduceMotion ? nil : .easeIn(duration: 0.16)) {
-                copyToastVisible = false
-            }
-            copyToastTask = nil
-        }
-    }
-}
-
-private struct HistoryCopyToast: View {
-    var body: some View {
-        Label("Transcript copied", systemImage: "checkmark")
-            .font(.callout.weight(.medium))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(.regularMaterial, in: Capsule())
-            .overlay { Capsule().stroke(.separator, lineWidth: 0.5) }
-            .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
-            .allowsHitTesting(false)
-            .accessibilityIdentifier("dictation-copy-toast")
-    }
 }
 
 enum DictationHistoryLayout {
@@ -162,7 +119,6 @@ private struct DictationDayHeader: View {
 /// neighbouring rows.
 private struct DictationDayCard: View {
     let records: [DictationRecord]
-    let onCopyConfirmed: () -> Void
 
     private var shape: RoundedRectangle {
         // The squircle, which is what macOS actually draws — `.circular` joins a
@@ -173,7 +129,7 @@ private struct DictationDayCard: View {
     var body: some View {
         VStack(spacing: 0) {
             ForEach(records) { record in
-                DictationHistoryRow(record: record, onCopyConfirmed: onCopyConfirmed)
+                DictationHistoryRow(record: record)
                 if record.id != records.last?.id {
                     Divider().padding(.horizontal, DictationHistoryLayout.contentInset)
                 }
@@ -201,7 +157,7 @@ private struct DictationHistorySection: Identifiable {
 private struct DictationHistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
-    let onCopyConfirmed: () -> Void
+    @EnvironmentObject private var toasts: ToastPresenter
 
     @State private var confirmDelete = false
 
@@ -414,7 +370,7 @@ private struct DictationHistoryRow: View {
     private func copy() {
         guard canCopy else { return }
         runtime.coordinator.copy(record)
-        onCopyConfirmed()
+        toasts.post(.transcriptCopied())
     }
 
     private var rowText: String {
