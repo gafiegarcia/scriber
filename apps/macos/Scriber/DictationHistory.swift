@@ -80,7 +80,8 @@ enum DictationHistoryLayout {
     /// rhythm generally.
     static let horizontalInset: CGFloat = 32
 
-    /// Padding inside the card, between its edge and the row's content.
+    /// Padding inside the card, between its edge and a row's content. The rule
+    /// between neighbouring rows does not share it; that one runs full width.
     ///
     /// Small on purpose. The card already stands well off the window edge, and
     /// stacking a generous inset inside that put the entry time and the trailing
@@ -131,7 +132,10 @@ private struct DictationDayCard: View {
             ForEach(records) { record in
                 DictationHistoryRow(record: record)
                 if record.id != records.last?.id {
-                    Divider().padding(.horizontal, DictationHistoryLayout.contentInset)
+                    // Edge to edge, and left to the card's `clipShape` to trim. An
+                    // inset rule draws a second, narrower edge inside a card that
+                    // already has one.
+                    Divider()
                 }
             }
         }
