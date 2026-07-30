@@ -51,6 +51,10 @@ struct MainWindowView: View {
                 prompt: workspace.searchPrompt
             )
             .toolbar {
+                // One item, because everything in it describes the workspace:
+                // which one, how much it holds, and whether it can run. Status
+                // belongs together, and the group grows rightward when the
+                // warning appears rather than reflowing the toolbar.
                 ToolbarItem(placement: .navigation) {
                     HStack(spacing: 10) {
                         // A label today, a Picker once Transcription exists. The
@@ -60,9 +64,12 @@ struct MainWindowView: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .glassEffect(.regular, in: .capsule)
+
                         Text(dictationCountLabel)
                             .foregroundStyle(.secondary)
                             .accessibilityIdentifier("dictation-count")
+
+                        if !recoveryConditions.isEmpty { recoveryControl }
                     }
                     // The toolbar compresses this group to a truncating width
                     // otherwise, which turns the workspace name into "Dictati…".
@@ -71,46 +78,6 @@ struct MainWindowView: View {
                 // Constant: varying it by state asks SwiftUI to reconcile window
                 // chrome, which is what this window has already crashed on.
                 .sharedBackgroundVisibility(.hidden)
-
-                ToolbarItem(placement: .primaryAction) {
-                    if !recoveryConditions.isEmpty {
-                        Button {
-                            showingRecovery = true
-                        } label: {
-                            Label {
-                                Text(recoveryConditions[0].title)
-                            } icon: {
-                                // Tinting the button does not reach the glyph.
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.orange)
-                            }
-                        }
-                        .help("Scriber needs attention")
-                        .accessibilityIdentifier("recovery-conditions")
-                        .popover(isPresented: $showingRecovery, arrowEdge: .bottom) {
-                            RecoveryConditionsPopover(conditions: recoveryConditions) { condition in
-                                showingRecovery = false
-                                runtime.coordinator.openSettingsWindow(
-                                    destination: condition.kind.settingsDestination
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // SwiftUI pins its search item to the trailing edge behind a
-                // flexible space, and nothing declared here can land to the
-                // right of it — so the window's controls group after the
-                // traffic lights instead of beside the search field.
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        runtime.coordinator.openSettingsWindow(destination: .settings)
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                    .help("Settings")
-                    .accessibilityIdentifier("open-settings")
-                }
             }
             .searchFocused($searchFocused)
             .focusedSceneValue(\.searchDictationHistoryAction, { searchFocused = true })
@@ -119,6 +86,32 @@ struct MainWindowView: View {
                 openOnboardingIfNeeded()
             }
             .onChange(of: runtime.preferences.onboardingComplete) { _, _ in openOnboardingIfNeeded() }
+    }
+
+    /// Present only while something is wrong, and carrying every condition at
+    /// once rather than the worst one.
+    private var recoveryControl: some View {
+        Button {
+            showingRecovery = true
+        } label: {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .glassEffect(.regular, in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .help("Scriber needs attention")
+        .accessibilityLabel("Scriber needs attention")
+        .accessibilityIdentifier("recovery-conditions")
+        .popover(isPresented: $showingRecovery, arrowEdge: .bottom) {
+            RecoveryConditionsPopover(conditions: recoveryConditions) { condition in
+                showingRecovery = false
+                runtime.coordinator.openSettingsWindow(
+                    destination: condition.kind.settingsDestination
+                )
+            }
+        }
     }
 
     @ViewBuilder

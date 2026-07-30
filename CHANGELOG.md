@@ -8,8 +8,9 @@ snapshots. Ordinary development builds belong in Git history, not here.
 ### Changed
 
 - Settings has moved out of the main window into its own window, and the sidebar
-  it lived in is gone. The main window now carries the workspace name, the
-  dictation count, a Settings button, and search in one toolbar.
+  it lived in is gone. The main window's toolbar now carries the workspace name,
+  the dictation count, and search. Settings opens with `⌘,`, from the app menu,
+  or from the menu bar item.
 - Dictation history now scrolls under that toolbar, keeps the day label pinned
   while its day is on screen, and gives each day one transparent card. The
   transcript returns to the standard text size.

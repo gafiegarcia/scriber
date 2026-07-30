@@ -28,7 +28,11 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
   Do not add an empty Transcription workspace before that workflow exists.
 - The main window has no sidebar. It owns one persistent SwiftUI toolbar
   carrying the workspace control, the dictation count, any unresolved recovery
-  condition, Settings, and search. The window title is not displayed.
+  condition, and search. The window title is not displayed.
+- Those first three form one leading group: they all describe the workspace, and
+  keeping them together is what stops the toolbar reflowing when a condition
+  appears or clears. Settings is not among them — it is reached through `⌘,`,
+  the app menu, the menu bar item, and each recovery condition's own action.
 - SwiftUI owns that toolbar alone. Never replace `window.toolbar`, never hide or
   remove a SwiftUI-created toolbar item from AppKit, and never vary a toolbar
   item's shared-background preference by state: each one makes SwiftUI reconcile

@@ -23,13 +23,15 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
 - [ ] Record a new shortcut: the recorder shows the chord live and closes at the
       *first* key release, and a chord containing `fn` displays it first.
       Disabling Hold and Toggle independently prevents only the disabled one.
-- [ ] `⌘,` opens Settings both with a window open and with all windows closed,
-      and the toolbar's Settings button does the same. In Dictation, `⌘F` focuses
+- [ ] `⌘,` opens Settings both with a window open and with all windows closed.
+      In Dictation, `⌘F` focuses
       Search Dictations; with the Settings window focused the menu command is
       disabled and the shortcut leaves it unchanged.
 - [ ] The main window shows no title, the workspace control sits immediately
       right of the traffic lights, and the count beside it matches the number of
-      entries in the list — not the number the current search matches.
+      entries in the list — not the number the current search matches. The
+      warning control appears after the count only while something is unresolved,
+      and nothing else in the toolbar moves when it comes or goes.
 - [ ] Scroll the history: each day label pins below the toolbar and stays legible
       with rows passing behind it, and the toolbar's separator appears only once
       content is beneath it. Resize the window down to its minimum and the cards,
