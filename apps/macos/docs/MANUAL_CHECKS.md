@@ -23,14 +23,17 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
 - [ ] Record a new shortcut: the recorder shows the chord live and closes at the
       *first* key release, and a chord containing `fn` displays it first.
       Disabling Hold and Toggle independently prevents only the disabled one.
-- [ ] `⌘,` opens Settings both with a window open and with all windows closed.
-      In Dictation, `⌘F` focuses Search Dictations; in Settings the menu command
-      is disabled and the shortcut leaves Settings unchanged. A Dictation query
-      survives a visit to Settings. The sidebar remains visible, has no toolbar
-      toggle, and `⌘.` does not hide it.
-- [ ] Switch Dictation → Settings → Dictation repeatedly. Search appears only in
-      Dictation; the traffic lights, title baseline and typography, sidebar
-      divider, and both sidebar rows remain fixed with no one-frame flicker.
+- [ ] `⌘,` opens Settings both with a window open and with all windows closed,
+      and the toolbar's Settings button does the same. In Dictation, `⌘F` focuses
+      Search Dictations; with the Settings window focused the menu command is
+      disabled and the shortcut leaves it unchanged.
+- [ ] The main window shows no title, the workspace control sits immediately
+      right of the traffic lights, and the count beside it matches the number of
+      entries in the list — not the number the current search matches.
+- [ ] Scroll the history: each day label pins below the toolbar and stays legible
+      with rows passing behind it, and the toolbar's separator appears only once
+      content is beneath it. Resize the window down to its minimum and the cards,
+      day labels, and toolbar all stay intact.
 - [ ] Delete one history entry and clear all history: both confirm first, and
       cancelling leaves everything alone. Copy puts the right transcript on the
       clipboard.
@@ -40,9 +43,10 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
 - [ ] The menu bar icon holds steady through a dictation and switches to the
       warning symbol when the key is unusable. Do not diagnose this from
       `defaults` — look at the menu bar.
-- [ ] Light and dark both read comfortably. Dictation history remains centred at
-      Settings width with transparent bordered cards and matching separators;
-      its copy toast is readable. The app icon looks right in the Dock and Finder.
+- [ ] Light and dark both read comfortably, over both a light and a dark desktop:
+      the glass toolbar and its controls, the pinned day labels, the transparent
+      day cards and their separators, and the tinted copy toast in the corner.
+      The app icon looks right in the Dock and Finder.
 - [ ] Set the input volume to zero and dictate: the "No sound from the microphone"
       pill appears with the failure sound. This costs no credit and must stay
       distinct from the no-words pill.
@@ -60,9 +64,11 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
 
 ## Needs revoked permissions
 
-- [ ] Revoke Microphone and Accessibility, separately and together: the warning,
-      the pill, and the Settings route all appear, and recovery works after
-      regranting. **macOS forces Quit & Reopen whenever Microphone access
+- [ ] Revoke Microphone and Accessibility, separately and together: the toolbar's
+      warning control appears, its popover lists every unresolved condition at
+      once — including a missing key alongside missing permissions — the pill and
+      the Settings route both work, and every trace of it leaves once the grants
+      return. **macOS forces Quit & Reopen whenever Microphone access
       changes**, so no-relaunch recovery is only observable for Accessibility.
 - [ ] The pill's Review button brings Scriber forward over whatever app is active
       and lands on Permissions and Input, not the top of Settings.

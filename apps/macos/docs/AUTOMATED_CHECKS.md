@@ -36,7 +36,9 @@ swiftc -frontend -parse -D DEBUG \
 swiftc -module-cache-path "$MODULE_CACHE" -typecheck \
   "$REPO_ROOT/apps/macos/ScriberCore/CoreModels.swift" \
   "$REPO_ROOT/apps/macos/ScriberCore/ScribeClient.swift" \
-  "$REPO_ROOT/apps/macos/ScriberCore/CredentialStore.swift"
+  "$REPO_ROOT/apps/macos/ScriberCore/CredentialStore.swift" \
+  "$REPO_ROOT/apps/macos/ScriberCore/RecoveryConditions.swift" \
+  "$REPO_ROOT/apps/macos/ScriberCore/Toasts.swift"
 
 CLANG_MODULE_CACHE_PATH="$MODULE_CACHE" \
 SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
@@ -158,8 +160,9 @@ pid="$(pgrep -n -x Scriber || true)"
 kill "$pid"
 ```
 
-While inspecting: the header must read **22 dictations** — 23 means the in-flight
+While inspecting: the toolbar must read **22 dictations** — 23 means the in-flight
 filter regressed. Copy writes to the real `NSPasteboard.general`, so it clobbers
 the clipboard, and which transcript landed there can only be confirmed by pasting
-elsewhere. Every `--ui-testing` launch also shows the credential banner, because
-the throwaway defaults suite starts with no key.
+elsewhere. Every `--ui-testing` launch also raises the credential condition in the
+toolbar's warning control, because the throwaway defaults suite starts with no
+key.

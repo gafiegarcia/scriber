@@ -8,8 +8,9 @@ Scriber is a native macOS menu-bar dictation app intended as a direct replacemen
 - Menu-bar presence is user-configurable and enabled by default. Removing the item through macOS updates the same Settings preference; windows, launch-at-login, and global shortcuts continue independently.
 - Show the Dock icon while a normal Scriber window is open. “Show app in Dock” is user-configurable and disabled by default; disabling it never closes a visible window. When disabled, closing the final normal window with Command-W, Command-Shift-W, or the red window control removes Scriber from the Dock while menu-bar and dictation services continue. When enabled, Scriber remains in the Dock and app switcher without an open window.
 - Save local dictation history.
-- Group Dictation history by local calendar date and vertically center each entry's time beside its transcript content. Keep the page centred at the same maximum width as Settings, with transparent continuously rounded day cards, subtle matching outlines and row separators, and each ordinary day label aligned to its card.
-- Confirm a Dictation-history copy with a brief page-level toast without changing the row's copy control.
+- Group Dictation history by local calendar date and vertically center each entry's time beside its transcript content. Keep the page centred, with one transparent continuously rounded card per day, a subtle outline and matching row separators, and each day label aligned to its card and pinned while that day is on screen.
+- Scroll Dictation history under the window's toolbar, which shows a separator only while content sits beneath it.
+- Confirm a Dictation-history copy with a brief toast in the window's bottom-right corner, without changing the row's copy control.
 - Insert each completed transcript into the text cursor that is focused when transcription completes, not the one that was focused when recording began. The user may move focus while transcription runs, and delivery follows that final cursor.
 - If insertion cannot be confirmed, preserve the transcript in Dictation history, copy it when appropriate, and present recovery actions in the floating pill.
 
@@ -23,17 +24,20 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 - The native identity was a deliberate clean reset from Scriber Dictate. Do not
   migrate its history, preferences, onboarding state, pending audio, login item,
   or Keychain item into Scriber.
-- The app exposes **Dictation** and **Settings**. Do not add an empty
-  Transcription destination before that workflow exists.
-- The main window owns one persistent native toolbar, its title, and its sidebar
-  policy. Switching destinations changes only the detail content: traffic-light
-  controls, title-bar geometry and typography, the sidebar, and sidebar rows do
-  not move or re-render. The sidebar stays visible and has no toggle item or
-  Command-period command.
-- The native toolbar search item appears only in Dictation and filters that
-  workspace in place. Its query survives a visit to Settings. Command-F focuses
-  it from Dictation and is unavailable in Settings; it never changes the active
-  destination.
+- The app exposes a **Dictation** workspace and a separate **Settings** window.
+  Do not add an empty Transcription workspace before that workflow exists.
+- The main window has no sidebar. It owns one persistent SwiftUI toolbar
+  carrying the workspace control, the dictation count, any unresolved recovery
+  condition, Settings, and search. The window title is not displayed.
+- SwiftUI owns that toolbar alone. Never replace `window.toolbar`, never hide or
+  remove a SwiftUI-created toolbar item from AppKit, and never vary a toolbar
+  item's shared-background preference by state: each one makes SwiftUI reconcile
+  chrome it still holds observers on, and the first crashed on launch.
+- The workspace control names the active workspace while Dictation is the only
+  one, and becomes a switcher when a second exists. Do not ship a picker that
+  offers a single choice.
+- The toolbar search filters the active workspace in place, and Command-F
+  focuses it. Both are unavailable in the Settings window.
 - Future long-form **Transcription** is a separate workspace with its own model,
   source-media policy, metadata, editing, export, and note lifecycle. Keep
   `DictationRecord` focused on short capture, delivery, and retry.
@@ -115,7 +119,8 @@ The current delivery transaction and its regression baseline are defined in
 - Microphone permission is required for recording.
 - Accessibility permission is required for global shortcut interception and cross-app insertion.
 - The system-audio usage description exists solely for optional recording-time muting. Scriber drives its private mute tap with a private aggregate device and an IOProc whose callback discards the buffers untouched; it never inspects, copies, records, or saves system-audio samples.
-- After onboarding, missing or revoked Microphone or Accessibility permission must be visible immediately in the Dictation window and menu bar. Scriber must present an actionable permission pill on launch, when a grant is revoked, and when it can observe an attempted dictation; the pill and in-app warning route to Scriber Settings.
+- After onboarding, missing or revoked Microphone or Accessibility permission must be visible immediately in the Dictation window and menu bar. Scriber must present an actionable permission pill on launch, when a grant is revoked, and when it can observe an attempted dictation; the pill and the window's warning control both route to Scriber Settings.
+- Unresolved permission and credential conditions appear together in the main window's chrome, never auto-dismiss, and leave only when resolved. That is what licenses the floating pill presenting one recovery at a time. A condition is never a toast: toasts are transient by contract and carry outcomes, not state.
 - Present an unchanged missing-permission state at most once per launch. Merely focusing a Scriber window refreshes permission state without presenting the same pill again or restarting its dismissal timer; a later revocation, changed missing-permission set, or attempted dictation may present it again.
 - Accessibility revocation prevents Scriber from observing the global shortcut itself, so Scriber must monitor permission state independently, stop unavailable shortcut monitoring, and restart it automatically when the grant returns. It must never rely on the blocked keypress as the only warning path.
 - Launch at Login is optional, offered during onboarding, defaults on, and requires explicit consent.

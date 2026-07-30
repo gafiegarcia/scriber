@@ -2,20 +2,14 @@
 
 ## v0.7.2
 
-- [ ] **Redesign the floating day label.** The current one never appears at any
-      scroll offset. It is being replaced, not repaired; the reference is the macOS
-      Calendar app. **Blocked: the design is the user's and is not written
-      down — ask before starting.** Worth knowing when measuring a replacement:
-      `.coordinateSpace(.named(_:))` on a `List` appears to name the scrolled
-      content rather than the viewport, so a label's `minY` never goes negative.
 - [ ] **Reduce the app icon shadow.** **Blocked: the user will edit it in Icon
       Composer and provide the updated icon asset.**
 
 ## v0.8.0
 
-- [ ] **Split `Views.swift` and `AppCoordinator.swift`.** History recovery and
-      retention are the clearest coordinator boundary. Do this before the
-      Transcription workspace lands, not after.
+- [ ] **Split `AppCoordinator.swift`.** History recovery and retention are the
+      clearest coordinator boundary. Do this before the Transcription workspace
+      lands, not after.
 - [ ] **Build the long-form Transcription workspace.** Settings is already grouped
       so Dictation options and Transcription options can sit side by side.
 - [ ] **Explore Apple Foundation Models for dictation post-processing.** Confirm
@@ -32,7 +26,9 @@
       subscription-usage state and make unavailable or restricted usage explicit.
 - [ ] **Tint pills by outcome** — green for success, amber for warnings such as
       cancellation and no-words. A design pass across every pill state in light and
-      dark on varied backgrounds, not a small edit.
+      dark on varied backgrounds, not a small edit. Take the outcome-to-tone
+      mapping from `ScriberCore/Toasts.swift`, which the window's toast stack
+      already uses, so the two surfaces cannot disagree.
 - [ ] **Offer a top pill position** beneath the notch, alongside the current
       bottom placement.
 - [ ] **Integrate the pill into the MacBook notch.** Treat this as a separate

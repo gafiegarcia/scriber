@@ -7,21 +7,27 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ### Changed
 
-- Dictation history now stays centred at Settings width on large windows, uses
-  transparent bordered day cards, and confirms copying with a toast instead of
-  changing the row icon.
+- Settings has moved out of the main window into its own window, and the sidebar
+  it lived in is gone. The main window now carries the workspace name, the
+  dictation count, a Settings button, and search in one toolbar.
+- Dictation history now scrolls under that toolbar, keeps the day label pinned
+  while its day is on screen, and gives each day one transparent card. The
+  transcript returns to the standard text size.
+- Missing permissions and an unusable key no longer take the top of the history
+  page. They appear as a warning control in the toolbar whose popover lists
+  every unresolved condition at once, and they leave when resolved.
+- Copy confirmations arrive in a stack in the window's bottom-right corner,
+  tinted by outcome.
 - Hands-free recording now puts Cancel on the pill's leading edge and Confirm on
   its trailing edge, animating both controls in when a held recording locks.
 - Shortcut labels put `fn` before the other modifiers.
-- The main sidebar stays visible without a toolbar toggle or `⌘.` command.
 
 ### Fixed
 
 - Focusing Scriber no longer respawns an unchanged missing-permissions pill or
   restarts its dismissal timer.
-- Switching between Dictation and Settings now keeps the traffic lights, title
-  bar, and sidebar aligned instead of rebuilding the window toolbar around
-  Dictation search.
+- Scriber no longer crashes shortly after launch when the missing-permissions
+  warning appears.
 
 ## 0.7.0 — 2026-07-29
 
