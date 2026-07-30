@@ -261,9 +261,7 @@ struct SettingsView: View {
                     systemImage: "keyboard",
                     allowed: runtime.coordinator.accessibilityGranted
                 ) {
-                    if !runtime.coordinator.accessibilityGranted {
-                        Button("Allow") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
-                    }
+                    accessibilityPermissionButton
                 }
                 // The section's first row rather than the `Section`: a scroll
                 // target on the Section lands on its header, which a grouped
@@ -491,6 +489,19 @@ struct SettingsView: View {
             }
         }
     }
+
+    @ViewBuilder private var accessibilityPermissionButton: some View {
+        if !runtime.coordinator.accessibilityGranted {
+            if runtime.preferences.accessibilityPromptRequested {
+                Button("Open Settings") { runtime.coordinator.openAccessibilitySettings() }
+            } else {
+                Button("Allow") {
+                    runtime.preferences.accessibilityPromptRequested = true
+                    runtime.coordinator.refreshPermissions(promptForAccessibility: true)
+                }
+            }
+        }
+    }
 }
 
 struct OnboardingView: View {
@@ -626,9 +637,7 @@ struct OnboardingView: View {
                             allowed: runtime.coordinator.accessibilityGranted
                         )
                         Spacer()
-                        if !runtime.coordinator.accessibilityGranted {
-                            Button("Allow") { runtime.coordinator.refreshPermissions(promptForAccessibility: true) }
-                        }
+                        accessibilityPermissionButton
                     }
                     Text("Accessibility lets Scriber watch global shortcuts and insert text into the app you were using.")
                         .font(.caption)
@@ -748,6 +757,19 @@ struct OnboardingView: View {
                 Button("Open Settings") { runtime.coordinator.openMicrophoneSettings() }
             case .allowed:
                 EmptyView()
+            }
+        }
+    }
+
+    @ViewBuilder private var accessibilityPermissionButton: some View {
+        if !runtime.coordinator.accessibilityGranted {
+            if runtime.preferences.accessibilityPromptRequested {
+                Button("Open Settings") { runtime.coordinator.openAccessibilitySettings() }
+            } else {
+                Button("Allow") {
+                    runtime.preferences.accessibilityPromptRequested = true
+                    runtime.coordinator.refreshPermissions(promptForAccessibility: true)
+                }
             }
         }
     }

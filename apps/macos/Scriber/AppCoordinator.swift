@@ -366,6 +366,11 @@ final class AppCoordinator: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
+    func openAccessibilitySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     func openSystemAudioPrivacySettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension") else { return }
         NSWorkspace.shared.open(url)

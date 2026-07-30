@@ -3,6 +3,16 @@
 This file records intentionally identified Scriber releases and prerelease
 snapshots. Ordinary development builds belong in Git history, not here.
 
+## Unreleased
+
+### Fixed
+
+- The Accessibility row in Settings and Onboarding always offered "Allow," even
+  after the system prompt had already been shown and the user denied it.
+  Clicking it again did nothing because macOS never re-shows that prompt. It now
+  switches to "Open Settings" once the first request has been made, matching the
+  Microphone row and taking you straight to the Accessibility pane.
+
 ## 0.8.1 — 2026-07-31
 
 Native bundle build 39, installed from an entitlement-free, locally signed
