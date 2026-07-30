@@ -62,7 +62,7 @@ private enum AppWindowIdentity {
     static let mainTitle = "Scriber"
     static let onboardingTitle = "Set Up Scriber"
     static let settingsTitle = "Settings"
-    private static let mainWindowTitles: Set<String> = [mainTitle, "Dictation"]
+    private static let mainWindowTitles: Set<String> = [mainTitle]
 
     static func isMainWindow(_ window: NSWindow) -> Bool {
         guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
@@ -233,7 +233,11 @@ struct ScriberApp: App {
                 .modelContainer(runtime.container)
                 .task { await promoteApplicationForVisibleWindow() }
         }
-        .defaultSize(width: 980, height: 640)
+        .defaultSize(width: 900, height: 640)
+        // Hides the title text only. `window.title` and `.titled` both survive,
+        // which every `AppWindowIdentity` check depends on, and SwiftUI sets
+        // `fullSizeContentView` itself so content runs under the toolbar.
+        .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
             MainWindowCommands(runtime: runtime)
             CommandGroup(replacing: .appTermination) {
@@ -402,7 +406,6 @@ private struct MainWindowCommands: Commands {
             Button("Settings…") { openSettings() }
                 .keyboardShortcut(",", modifiers: .command)
         }
-        CommandGroup(replacing: .sidebar) {}
         CommandGroup(after: .textEditing) {
             Button("Search Dictations") { searchDictationHistory?() }
                 .keyboardShortcut("f", modifiers: .command)

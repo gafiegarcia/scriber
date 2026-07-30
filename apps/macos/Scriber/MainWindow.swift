@@ -8,61 +8,38 @@ import ScriberCore
 struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var runtime: AppRuntime
-    @State private var section: MainSection? = .dictation
+    @State private var workspace: Workspace = .dictation
     @State private var searchQuery = ""
-    @FocusState private var sidebarFocused: Bool
     @FocusState private var searchFocused: Bool
 
     var body: some View {
-        NavigationSplitView(columnVisibility: .constant(.all)) {
-            List(selection: $section) {
-                Label("Dictation", systemImage: "clock.arrow.circlepath")
-                    .tag(MainSection.dictation)
-                    .accessibilityIdentifier("sidebar-dictation")
+        workspaceContent
+            .frame(minWidth: 640, minHeight: 480)
+            // Every workspace in this window is searchable, so the search field
+            // belongs to the window shell. One unconditional toolbar item is
+            // what keeps SwiftUI's toolbar — and the title-bar geometry — alive
+            // across workspace changes without any AppKit bridging.
+            .searchable(
+                text: $searchQuery,
+                placement: .toolbar,
+                prompt: workspace.searchPrompt
+            )
+            .searchFocused($searchFocused)
+            .focusedSceneValue(\.searchDictationHistoryAction, { searchFocused = true })
+            .onAppear {
+                runtime.coordinator.registerSettingsWindowOpener { openWindow(id: "settings") }
+                openOnboardingIfNeeded()
             }
-            .accessibilityIdentifier("main-sidebar")
-            .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
-            .focused($sidebarFocused)
-            .toolbar(removing: .sidebarToggle)
-        } detail: {
-            Group {
-                switch selectedSection {
-                case .dictation:
-                    DictationHistoryView(searchQuery: searchQuery)
-                }
-            }
-            .navigationTitle(selectedSection.title)
-        }
-        .frame(minWidth: 760, minHeight: 520)
-        .toolbar(removing: .sidebarToggle)
-        // Every destination in this window is searchable, so the search field
-        // belongs to the window shell. That is what keeps one toolbar, one title
-        // presentation, and one set of toolbar observers across selection.
-        .searchable(
-            text: $searchQuery,
-            placement: .toolbar,
-            prompt: selectedSection.searchPrompt
-        )
-        .searchFocused($searchFocused)
-        .focusedSceneValue(\.searchDictationHistoryAction, { searchFocused = true })
-        .onAppear {
-            runtime.coordinator.registerSettingsWindowOpener { openWindow(id: "settings") }
-            openOnboardingIfNeeded()
-            focusSidebarIfAppropriate()
-        }
-        .onChange(of: runtime.preferences.onboardingComplete) { _, _ in openOnboardingIfNeeded() }
+            .onChange(of: runtime.preferences.onboardingComplete) { _, _ in openOnboardingIfNeeded() }
     }
 
-    private func focusSidebarIfAppropriate() {
-        switch runtime.coordinator.mainWindowRequest?.destination {
-        case .apiKey, .usage, .microphone, .permissions, .settings:
-            return
-        case .dictation, nil:
-            DispatchQueue.main.async { sidebarFocused = true }
+    @ViewBuilder
+    private var workspaceContent: some View {
+        switch workspace {
+        case .dictation:
+            DictationHistoryView(searchQuery: searchQuery)
         }
     }
-
-    private var selectedSection: MainSection { section ?? .dictation }
 
     private func openOnboardingIfNeeded() {
         guard !runtime.preferences.onboardingComplete else { return }
