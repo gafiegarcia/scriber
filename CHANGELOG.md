@@ -3,7 +3,10 @@
 This file records intentionally identified Scriber releases and prerelease
 snapshots. Ordinary development builds belong in Git history, not here.
 
-## Unreleased
+## 0.8.1 — 2026-07-31
+
+Native bundle build 39, installed from an entitlement-free, locally signed
+Release build.
 
 ### Changed
 
