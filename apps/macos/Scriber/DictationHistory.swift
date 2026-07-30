@@ -8,33 +8,16 @@ import ScriberCore
 struct DictationHistoryView: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
+    /// Already filtered to what the workspace shows; the window owns that filter
+    /// so its toolbar count cannot disagree with this list.
+    let records: [DictationRecord]
     let searchQuery: String
-    @State private var stickyDayTitle: String?
     @State private var copyToastVisible = false
     @State private var copyToastTask: Task<Void, Never>?
 
-    /// The `List`'s own frame, so a day label's `minY` inside it reads as
-    /// distance below the top of the visible list rather than distance down the
-    /// scrolled content.
-    fileprivate static let scrollSpace = "dictation-history-scroll"
-
-    /// A record is inserted before its transcription starts, so that an interrupted
-    /// job keeps its audio and can be recovered at the next launch. Until the
-    /// outcome is known there is nothing truthful to show for it — the row would
-    /// read "Transcription failed." purely because no text or error exists yet — so
-    /// in-flight dictations stay out of the list. A record the user explicitly
-    /// retried is exempt: it was already on screen and keeps its "Retrying" label.
-    private var visibleRecords: [DictationRecord] {
-        records.filter {
-            $0.transcriptionState != .transcribing
-                || runtime.coordinator.retryingRecordID == $0.id
-        }
-    }
-
     private var filtered: [DictationRecord] {
-        guard !searchQuery.isEmpty else { return visibleRecords }
-        return visibleRecords.filter { ($0.text ?? "").localizedCaseInsensitiveContains(searchQuery) }
+        guard !searchQuery.isEmpty else { return records }
+        return records.filter { ($0.text ?? "").localizedCaseInsensitiveContains(searchQuery) }
     }
 
     /// Known and unfixed: this regroups every record on each body evaluation.
@@ -100,45 +83,11 @@ struct DictationHistoryView: View {
         }
     }
 
-    /// The count row, which now also carries the current day.
-    ///
-    /// The day label only appears once that day's own label has scrolled up
-    /// under this row. At rest the list's first label sits directly below, and
-    /// printing the same word twice a few points apart reads as a mistake rather
-    /// than as a header. The empty string keeps the row's height fixed so the
-    /// list does not shift down the moment the user starts scrolling.
-    private var historyHeader: some View {
-        HStack(spacing: 12) {
-            Text(stickyDayTitle ?? " ")
-                .font(.title3.weight(.semibold))
-                .opacity(stickyDayTitle == nil ? 0 : 1)
-                .contentTransition(.opacity)
-                .accessibilityHidden(stickyDayTitle == nil)
-
-            Spacer(minLength: 12)
-
-            // No overflow menu here any more. It held one item, Clear Dictation
-            // History, which is a thing you do once in a while and never from
-            // this page — so it sat permanently in the corner of a page it had
-            // no business on. It lives in Settings now, next to the other
-            // history preference.
-            Text("\(visibleRecords.count) \(visibleRecords.count == 1 ? "dictation" : "dictations")")
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, DictationHistoryGroupBackground.horizontalInset)
-        .padding(.vertical, 14)
-        .animation(.easeInOut(duration: 0.18), value: stickyDayTitle)
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             recoveryBanners
 
-            historyHeader
-
-            Divider()
-
-            if visibleRecords.isEmpty {
+            if records.isEmpty {
                 ContentUnavailableView(
                     "No Dictations Yet",
                     systemImage: "waveform",
@@ -157,7 +106,6 @@ struct DictationHistoryView: View {
                         Text(section.title)
                             .font(.title2.weight(.bold))
                             .foregroundStyle(.primary)
-                            .background(DayLabelAnchor(title: section.title))
                             .padding(.top, 26)
                             .padding(.bottom, 14)
                             // Exactly the card inset, so the label's leading edge
@@ -181,14 +129,6 @@ struct DictationHistoryView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(Color(nsColor: .windowBackgroundColor))
-                .coordinateSpace(.named(Self.scrollSpace))
-                .onPreferenceChange(DayLabelAnchorKey.self) { anchors in
-                    // Anchors arrive in list order, newest day first, so the last
-                    // one that has crossed the top is the day the rows under the
-                    // header belong to. None having crossed means the list is at
-                    // rest at the top and its own first label is doing the job.
-                    stickyDayTitle = anchors.last { $0.minY <= 0 }?.title
-                }
             }
         }
         .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity, alignment: .topLeading)
@@ -235,41 +175,6 @@ private struct HistoryCopyToast: View {
             .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
             .allowsHitTesting(false)
             .accessibilityIdentifier("dictation-copy-toast")
-    }
-}
-
-/// Where one day label currently sits relative to the top of the visible list.
-private struct DayLabelPosition: Equatable {
-    let title: String
-    let minY: CGFloat
-}
-
-private struct DayLabelAnchorKey: PreferenceKey {
-    static let defaultValue: [DayLabelPosition] = []
-
-    static func reduce(value: inout [DayLabelPosition], nextValue: () -> [DayLabelPosition]) {
-        value.append(contentsOf: nextValue())
-    }
-}
-
-/// Reports a day label's position so the header row can pick the label up as it
-/// scrolls out of sight.
-///
-/// A transparent background rather than a wrapper, so measuring the label costs
-/// it none of its own layout.
-private struct DayLabelAnchor: View {
-    let title: String
-
-    var body: some View {
-        GeometryReader { proxy in
-            Color.clear.preference(
-                key: DayLabelAnchorKey.self,
-                value: [DayLabelPosition(
-                    title: title,
-                    minY: proxy.frame(in: .named(DictationHistoryView.scrollSpace)).minY
-                )]
-            )
-        }
     }
 }
 

@@ -8,22 +8,71 @@ import ScriberCore
 struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var runtime: AppRuntime
+    @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
     @State private var workspace: Workspace = .dictation
     @State private var searchQuery = ""
     @FocusState private var searchFocused: Bool
 
+    /// A record is inserted before its transcription starts, so that an interrupted
+    /// job keeps its audio and can be recovered at the next launch. Until the
+    /// outcome is known there is nothing truthful to show for it — the row would
+    /// read "Transcription failed." purely because no text or error exists yet — so
+    /// in-flight dictations stay out of the list. A record the user explicitly
+    /// retried is exempt: it was already on screen and keeps its "Retrying" label.
+    ///
+    /// The window owns this rather than the page because the toolbar count and the
+    /// list have to agree, and two copies of the filter is how they stop agreeing.
+    private var visibleRecords: [DictationRecord] {
+        records.filter {
+            $0.transcriptionState != .transcribing
+                || runtime.coordinator.retryingRecordID == $0.id
+        }
+    }
+
     var body: some View {
         workspaceContent
             .frame(minWidth: 640, minHeight: 480)
-            // Every workspace in this window is searchable, so the search field
-            // belongs to the window shell. One unconditional toolbar item is
-            // what keeps SwiftUI's toolbar — and the title-bar geometry — alive
-            // across workspace changes without any AppKit bridging.
             .searchable(
                 text: $searchQuery,
                 placement: .toolbar,
                 prompt: workspace.searchPrompt
             )
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    HStack(spacing: 10) {
+                        // A label today, a Picker once Transcription exists. The
+                        // slot and its glass stay put across that change.
+                        Text(workspace.title)
+                            .font(.headline)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .glassEffect(.regular, in: .capsule)
+                        Text(dictationCountLabel)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("dictation-count")
+                    }
+                    // The toolbar compresses this group to a truncating width
+                    // otherwise, which turns the workspace name into "Dictati…".
+                    .fixedSize()
+                }
+                // Constant: varying it by state asks SwiftUI to reconcile window
+                // chrome, which is what this window has already crashed on.
+                .sharedBackgroundVisibility(.hidden)
+
+                // SwiftUI pins its search item to the trailing edge behind a
+                // flexible space, and nothing declared here can land to the
+                // right of it — so the window's controls group after the
+                // traffic lights instead of beside the search field.
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        runtime.coordinator.openSettingsWindow(destination: .settings)
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                    .help("Settings")
+                    .accessibilityIdentifier("open-settings")
+                }
+            }
             .searchFocused($searchFocused)
             .focusedSceneValue(\.searchDictationHistoryAction, { searchFocused = true })
             .onAppear {
@@ -37,8 +86,15 @@ struct MainWindowView: View {
     private var workspaceContent: some View {
         switch workspace {
         case .dictation:
-            DictationHistoryView(searchQuery: searchQuery)
+            DictationHistoryView(records: visibleRecords, searchQuery: searchQuery)
         }
+    }
+
+    /// Counts what the workspace holds, not what the current search matches: the
+    /// number is a property of the history, not of the query.
+    private var dictationCountLabel: String {
+        let count = visibleRecords.count
+        return "\(count) \(count == 1 ? "dictation" : "dictations")"
     }
 
     private func openOnboardingIfNeeded() {
