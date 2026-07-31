@@ -5,6 +5,15 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
+### Fixed
+
+- Turning Scriber's Accessibility access off while it was running could lock up
+  the whole Mac for about a minute — the pointer still moved, but clicks, the
+  Dock, and the keyboard all stopped responding. Scriber kept switching its
+  shortcut monitor back on after macOS switched it off, and because every event
+  on the machine passes through that monitor, the two fighting held up
+  everything else. Scriber now shuts the monitor down instead.
+
 ### Changed
 
 - Every permission button now says "Allow," in Settings and in onboarding alike.
@@ -13,6 +22,10 @@ snapshots. Ordinary development builds belong in Git history, not here.
   wanted to know and, for Accessibility, sometimes did nothing at all. One
   button, one word, and it always takes you to the place that can grant the
   permission.
+- The Accessibility "Allow" button opens System Settings and nothing else. It
+  used to also raise the system permission prompt, so two things appeared at
+  once — and since that prompt cannot grant the permission, granting it in
+  System Settings left the prompt stranded on screen.
 
 ## 0.8.1 — 2026-07-31
 

@@ -37,11 +37,6 @@ final class GlobalShortcutService {
         self.toggleEnabled = toggleEnabled
     }
 
-    func requestAccessibility() {
-        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
-    }
-
     func update(hold: ShortcutChord, toggle: ShortcutChord, holdEnabled: Bool, toggleEnabled: Bool) {
         matcher = ShortcutMatcher(hold: hold, toggle: toggle)
         self.holdEnabled = holdEnabled
@@ -117,6 +112,18 @@ final class GlobalShortcutService {
 
     private func reenableTap() {
         guard let eventTap else { return }
+        // A revoked tap must be torn down, never re-armed. This tap is head-inserted at
+        // the HID level, so the system advances the whole event stream only once the
+        // callback replies — a tap the process is no longer trusted to own gets disabled
+        // again immediately, and re-arming it in a loop stalls every click and keypress
+        // on the machine while starving the main-loop poll that would call `stop()`.
+        guard AXIsProcessTrusted() else {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+            onAvailabilityChanged?(false)
+            // Deferred: `stop()` releases the CFMachPort whose callout is running now.
+            Task { @MainActor in self.stop() }
+            return
+        }
         CGEvent.tapEnable(tap: eventTap, enable: true)
         onAvailabilityChanged?(CGEvent.tapIsEnabled(tap: eventTap))
     }

@@ -362,12 +362,12 @@ final class AppCoordinator: ObservableObject {
         refreshAudioInputDevices()
     }
 
-    /// Backs the Accessibility row's single Allow button. The Accessibility prompt can
-    /// never grant the permission — only the System Settings toggle can — and macOS
-    /// raises it once per app. Requesting is still what lists Scriber in that pane, so
-    /// both run on every click; a first click therefore shows the prompt over the pane.
+    /// Backs the Accessibility row's single Allow button. Only the System Settings
+    /// toggle can grant this, so the pane is the whole action. Raising the system
+    /// prompt as well would add nothing: it cannot grant the permission, macOS shows
+    /// it once per app, and what lists Scriber in that pane is the trust check every
+    /// launch already makes — a fresh process registers itself, a running one cannot.
     func allowAccessibility() {
-        shortcuts.requestAccessibility()
         openAccessibilitySettings()
     }
 
