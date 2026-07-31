@@ -5,13 +5,14 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
-### Fixed
+### Changed
 
-- The Accessibility row in Settings and Onboarding always offered "Allow," even
-  after the system prompt had already been shown and the user denied it.
-  Clicking it again did nothing because macOS never re-shows that prompt. It now
-  switches to "Open Settings" once the first request has been made, matching the
-  Microphone row and taking you straight to the Accessibility pane.
+- Every permission button now says "Allow," in Settings and in onboarding alike.
+  The buttons used to change their own label — "Allow" or "Open Settings" —
+  depending on how far macOS thought you had got, which told you nothing you
+  wanted to know and, for Accessibility, sometimes did nothing at all. One
+  button, one word, and it always takes you to the place that can grant the
+  permission.
 
 ## 0.8.1 — 2026-07-31
 

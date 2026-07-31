@@ -171,7 +171,6 @@ final class AppCoordinator: ObservableObject {
             .sink { [weak self] _ in
                 Task { @MainActor in
                     self?.refreshPermissions(
-                        promptForAccessibility: false,
                         presentRecoveryWhenMissing: false,
                         refreshAudioInputs: true
                     )
@@ -195,7 +194,6 @@ final class AppCoordinator: ObservableObject {
                     Task { @MainActor in
                         try? await Task.sleep(for: .milliseconds(250))
                         self?.refreshPermissions(
-                            promptForAccessibility: false,
                             presentRecoveryWhenMissing: false,
                             refreshAudioInputs: false
                         )
@@ -208,7 +206,6 @@ final class AppCoordinator: ObservableObject {
                 .sink { [weak self] _ in
                     Task { @MainActor in
                         self?.refreshPermissions(
-                            promptForAccessibility: false,
                             presentRecoveryWhenMissing: false,
                             refreshAudioInputs: false
                         )
@@ -238,7 +235,7 @@ final class AppCoordinator: ObservableObject {
             expireRetainedAudio()
         }
         lastObservedCredentialReadiness = credentialReadiness
-        refreshPermissions(promptForAccessibility: false)
+        refreshPermissions()
     }
 
     var statusText: String {
@@ -281,7 +278,6 @@ final class AppCoordinator: ObservableObject {
             onboardingComplete: preferences.onboardingComplete
         )
         refreshPermissions(
-            promptForAccessibility: false,
             presentRecoveryWhenMissing: presentInitialRecovery,
             refreshAudioInputs: true
         )
@@ -299,21 +295,18 @@ final class AppCoordinator: ObservableObject {
         shortcuts.start()
     }
 
-    func refreshPermissions(promptForAccessibility: Bool) {
+    func refreshPermissions() {
         refreshPermissions(
-            promptForAccessibility: promptForAccessibility,
             presentRecoveryWhenMissing: false,
             refreshAudioInputs: true
         )
     }
 
     private func refreshPermissions(
-        promptForAccessibility: Bool,
         presentRecoveryWhenMissing: Bool,
         refreshAudioInputs: Bool
     ) {
         let previousReadiness = permissionReadiness
-        if promptForAccessibility { shortcuts.requestAccessibility() }
         if let permissionReadinessOverride {
             accessibilityGranted = !permissionReadinessOverride.missingPermissions.contains(.accessibility)
             microphoneGranted = !permissionReadinessOverride.missingPermissions.contains(.microphone)
@@ -355,18 +348,35 @@ final class AppCoordinator: ObservableObject {
 #endif
     }
 
-    func requestMicrophone() async {
+    /// Backs the Microphone row's single Allow button. macOS raises its own prompt only
+    /// while the choice is undetermined, and that prompt is the one place the permission
+    /// can be granted without a trip to System Settings. A refusal there is a decision:
+    /// it does not chain into System Settings, it just leaves the button for next time.
+    func allowMicrophone() async {
+        guard microphonePermissionState == .notDetermined else {
+            openMicrophoneSettings()
+            return
+        }
         microphoneGranted = await AudioRecorder.requestMicrophoneAccess()
         microphonePermissionState = AudioRecorder.microphonePermissionState
         refreshAudioInputDevices()
     }
 
-    func openMicrophoneSettings() {
+    /// Backs the Accessibility row's single Allow button. The Accessibility prompt can
+    /// never grant the permission — only the System Settings toggle can — and macOS
+    /// raises it once per app. Requesting is still what lists Scriber in that pane, so
+    /// both run on every click; a first click therefore shows the prompt over the pane.
+    func allowAccessibility() {
+        shortcuts.requestAccessibility()
+        openAccessibilitySettings()
+    }
+
+    private func openMicrophoneSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") else { return }
         NSWorkspace.shared.open(url)
     }
 
-    func openAccessibilitySettings() {
+    private func openAccessibilitySettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
         NSWorkspace.shared.open(url)
     }
@@ -823,7 +833,6 @@ final class AppCoordinator: ObservableObject {
         suppressPillForCurrentTranscription = false
         guard canUseHistoryStorage() else { return }
         refreshPermissions(
-            promptForAccessibility: false,
             presentRecoveryWhenMissing: false,
             refreshAudioInputs: false
         )

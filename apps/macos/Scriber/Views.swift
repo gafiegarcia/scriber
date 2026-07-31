@@ -261,7 +261,7 @@ struct SettingsView: View {
                     systemImage: "keyboard",
                     allowed: runtime.coordinator.accessibilityGranted
                 ) {
-                    accessibilityPermissionButton
+                    AccessibilityPermissionButton()
                 }
                 // The section's first row rather than the `Section`: a scroll
                 // target on the Section lands on its header, which a grouped
@@ -273,7 +273,7 @@ struct SettingsView: View {
                     systemImage: "mic",
                     allowed: runtime.coordinator.microphoneGranted
                 ) {
-                    microphonePermissionButton
+                    MicrophonePermissionButton()
                 }
                 MicrophonePicker()
                     .id(MainWindowDestination.microphone)
@@ -307,7 +307,7 @@ struct SettingsView: View {
             }
             .onAppear {
                 apiKey = ""
-                runtime.coordinator.refreshPermissions(promptForAccessibility: false)
+                runtime.coordinator.refreshPermissions()
                 applyMainWindowRequest(runtime.coordinator.mainWindowRequest, proxy: proxy)
             }
             .onChange(of: runtime.coordinator.mainWindowRequest) { _, request in
@@ -476,32 +476,6 @@ struct SettingsView: View {
     private func removeKeyterm(_ term: String) {
         runtime.preferences.keyterms.removeAll { $0 == term }
     }
-
-    @ViewBuilder private var microphonePermissionButton: some View {
-        if !runtime.coordinator.microphoneGranted {
-            switch runtime.coordinator.microphonePermissionState {
-            case .notDetermined:
-                Button("Allow") { Task { await runtime.coordinator.requestMicrophone() } }
-            case .denied:
-                Button("Open Settings") { runtime.coordinator.openMicrophoneSettings() }
-            case .allowed:
-                EmptyView()
-            }
-        }
-    }
-
-    @ViewBuilder private var accessibilityPermissionButton: some View {
-        if !runtime.coordinator.accessibilityGranted {
-            if runtime.preferences.accessibilityPromptRequested {
-                Button("Open Settings") { runtime.coordinator.openAccessibilitySettings() }
-            } else {
-                Button("Allow") {
-                    runtime.preferences.accessibilityPromptRequested = true
-                    runtime.coordinator.refreshPermissions(promptForAccessibility: true)
-                }
-            }
-        }
-    }
 }
 
 struct OnboardingView: View {
@@ -589,7 +563,7 @@ struct OnboardingView: View {
                             allowed: runtime.coordinator.microphoneGranted
                         )
                         Spacer()
-                        microphonePermissionButton
+                        MicrophonePermissionButton()
                     }
 
                     MicrophonePicker()
@@ -637,7 +611,7 @@ struct OnboardingView: View {
                             allowed: runtime.coordinator.accessibilityGranted
                         )
                         Spacer()
-                        accessibilityPermissionButton
+                        AccessibilityPermissionButton()
                     }
                     Text("Accessibility lets Scriber watch global shortcuts and insert text into the app you were using.")
                         .font(.caption)
@@ -689,7 +663,7 @@ struct OnboardingView: View {
                 return
             }
             apiKey = ""
-            runtime.coordinator.refreshPermissions(promptForAccessibility: false)
+            runtime.coordinator.refreshPermissions()
             if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
         }
         .onDisappear { runtime.coordinator.stopMicrophoneTest() }
@@ -747,30 +721,27 @@ struct OnboardingView: View {
             keyFeedback = .failed(error.localizedDescription)
         }
     }
+}
 
-    @ViewBuilder private var microphonePermissionButton: some View {
+// Both permission rows offer one button with one word, whatever macOS has recorded
+// so far. The steps behind it — a system prompt, a trip to System Settings, or both —
+// are Scriber's problem, not something to spell out in a changing button title.
+private struct MicrophonePermissionButton: View {
+    @EnvironmentObject private var runtime: AppRuntime
+
+    var body: some View {
         if !runtime.coordinator.microphoneGranted {
-            switch runtime.coordinator.microphonePermissionState {
-            case .notDetermined:
-                Button("Allow") { Task { await runtime.coordinator.requestMicrophone() } }
-            case .denied:
-                Button("Open Settings") { runtime.coordinator.openMicrophoneSettings() }
-            case .allowed:
-                EmptyView()
-            }
+            Button("Allow") { Task { await runtime.coordinator.allowMicrophone() } }
         }
     }
+}
 
-    @ViewBuilder private var accessibilityPermissionButton: some View {
+private struct AccessibilityPermissionButton: View {
+    @EnvironmentObject private var runtime: AppRuntime
+
+    var body: some View {
         if !runtime.coordinator.accessibilityGranted {
-            if runtime.preferences.accessibilityPromptRequested {
-                Button("Open Settings") { runtime.coordinator.openAccessibilitySettings() }
-            } else {
-                Button("Allow") {
-                    runtime.preferences.accessibilityPromptRequested = true
-                    runtime.coordinator.refreshPermissions(promptForAccessibility: true)
-                }
-            }
+            Button("Allow") { runtime.coordinator.allowAccessibility() }
         }
     }
 }

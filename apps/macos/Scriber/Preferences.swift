@@ -26,7 +26,6 @@ final class Preferences: ObservableObject {
         static let playRecordingFeedbackSounds = "playRecordingFeedbackSounds"
         static let muteOtherAudioWhileRecording = "muteOtherAudioWhileRecording"
         static let deletesExpiredRetainedAudio = "deletesExpiredRetainedAudio"
-        static let accessibilityPromptRequested = "accessibilityPromptRequested"
     }
 
     private let defaults: UserDefaults
@@ -63,12 +62,6 @@ final class Preferences: ObservableObject {
     @Published var deletesExpiredRetainedAudio: Bool {
         didSet { defaults.set(deletesExpiredRetainedAudio, forKey: Keys.deletesExpiredRetainedAudio) }
     }
-    // macOS never re-shows the Accessibility system prompt once an app has been through
-    // it, whether granted or denied — so after the first ask, only System Settings can
-    // grant it. Tracked here since AXIsProcessTrusted() alone can't distinguish that.
-    @Published var accessibilityPromptRequested: Bool {
-        didSet { defaults.set(accessibilityPromptRequested, forKey: Keys.accessibilityPromptRequested) }
-    }
 
     init(
         defaults: UserDefaults = .standard,
@@ -100,7 +93,6 @@ final class Preferences: ObservableObject {
         deletesExpiredRetainedAudio = defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil
             ? true
             : defaults.bool(forKey: Keys.deletesExpiredRetainedAudio)
-        accessibilityPromptRequested = defaults.bool(forKey: Keys.accessibilityPromptRequested)
 
         // Materialize opt-in defaults so upgrades and subsequent launches share one explicit value.
         if defaults.object(forKey: Keys.playRecordingFeedbackSounds) == nil {
