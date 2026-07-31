@@ -80,6 +80,12 @@ into a single sitting. Boxes are per-release; reset them when a cycle starts.
       the Settings route both work, and every trace of it leaves once the grants
       return. **macOS forces Quit & Reopen whenever Microphone access
       changes**, so no-relaunch recovery is only observable for Accessibility.
+- [ ] Revoking Accessibility while Scriber runs never stalls the machine. The
+      shortcut monitor sits in front of every event on the system, so a monitor
+      that will not stand down takes the pointer, clicks, and keyboard with it.
+- [ ] Hold still starts a recording after the lid has been closed and reopened,
+      and after a long idle. macOS disables event taps across sleep, so this is
+      where a monitor that fails to come back shows itself.
 - [ ] The pill's Review button brings Scriber forward over whatever app is active
       and lands on Permissions and Input, not the top of Settings.
 - [ ] While the missing-permissions pill is visible, focusing and leaving Scriber
