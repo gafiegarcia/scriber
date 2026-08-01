@@ -8,9 +8,6 @@
 
 ## v0.9.0
 
-- [ ] **Split `AppCoordinator.swift`.** History recovery and retention are the
-      clearest coordinator boundary. Do this before the Transcription workspace
-      lands, not after.
 - [ ] **Redesign the menu bar menu.** Follow the Claude menu reference: lead with
       Scriber, show the marketing version and build beneath it, and place an Open
       control on the trailing edge.
