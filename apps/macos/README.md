@@ -1,7 +1,6 @@
 # Scriber for macOS
 
-This is the active native Scriber app: a Swift, SwiftUI, and AppKit menu-bar
-dictation client for ElevenLabs Scribe v2.
+This is the active native Scriber app: a Swift, SwiftUI, and AppKit dictation client for ElevenLabs Scribe v2 that lives in the menu bar by default.
 
 ## Prerequisites
 

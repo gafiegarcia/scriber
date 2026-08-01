@@ -1,7 +1,7 @@
 # Scriber
 
 Scriber is a local-first transcription product. Its active implementation is a
-native macOS menu-bar dictation app built with Swift, SwiftUI, and AppKit.
+native macOS dictation app that lives in the menu bar by default, built with Swift, SwiftUI, and AppKit.
 
 ## Repository
 
