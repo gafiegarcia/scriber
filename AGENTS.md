@@ -32,7 +32,4 @@
 
 ## AI Collaboration
 
-- Scriber is a fully vibe-coded project, meaning all of the code are written by GPT and Claude models.
-- Because of that, agents are recommended to assume a more active role of giving suggestions.
-- On top of that, this app is very simple in nature but very early in development. If you genuinely believe that an overhaul, code deletion/simplification, or a redesign is the best path forward for the app and beneficial for me, the user of this app, please suggest so. 
 - The user is asking you for help with coding—you can ask for help from the user too when stuck. Remember that there are tasks where human involvement can be either mandatory or make the process 10x more efficient.
