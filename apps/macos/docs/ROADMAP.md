@@ -3,8 +3,8 @@
 ## v0.8.2
 - [ ] **Tint pills by outcome** — green for success, amber for warnings such as cancellation and no-words. A design pass across every pill state in light and dark on varied backgrounds, not a small edit. Take the outcome-to-tone mapping from `ScriberCore/Toasts.swift`, which the window's toast stack already uses, so the two surfaces cannot disagree.
 - [ ] **Define whole-pill default actions.** Map every pill phase to an explicit, unsurprising whole-pill click before enabling that interaction; copied and cancelled outcomes need deliberate choices alongside their existing buttons.
-- [x] **Reduce the app icon shadow.** **Blocked: the user will edit it in Icon Composer and provide the updated icon asset.**
-- [ ] **Verify Speech-to-Text-only API keys.** With account-usage access disabled, confirm Scriber accepts the key, allows dictation, and reports credit usage as unavailable without marking the key invalid.
+- [x] **Reduce the app icon shadow.**
+- [x] **Verify Speech-to-Text-only API keys.** With account-usage access disabled, confirm Scriber accepts the key, allows dictation, and reports credit usage as unavailable without marking the key invalid.
 
 ## v0.9.0
 

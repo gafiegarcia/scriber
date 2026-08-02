@@ -6,9 +6,11 @@
   real SwiftData.
 - Never use a plain full-screen `screencapture`; it can expose unrelated windows
   and files.
-- A `--ui-testing` launch runs with services disabled and no Accessibility trust.
-  It shows the SwiftUI shell only — never treat it as evidence about dictation,
-  insertion, shortcuts, or credentials.
+- A `--ui-testing` launch uses throwaway defaults, an in-memory history store,
+  disabled external services, and no real Keychain. It can prove presentation,
+  interaction, and routing, but never real credential validity or storage,
+  service access, permissions, dictation, insertion, global shortcuts, or
+  menu-bar behavior.
 
 ## Routine pass
 
@@ -121,7 +123,9 @@ idles is an app failure worth sampling before blaming the harness.
 /usr/bin/log show --last 5m --predicate 'subsystem == "com.gafiegarcia.scriber"' --style compact
 ```
 
-## Visual inspection
+## Inspecting a running Debug build
+
+### Visual and interaction inspection
 
 Use a computer-use tool with the capture restricted to **Scriber**, so no other
 application appears.
@@ -139,6 +143,11 @@ guard, as with seeded history below.
 Confirm the window is centred and fully visible above the Dock, then relaunch and
 confirm it again — a restored frame behaves differently from a fresh one, and
 `fitOnboardingWindow` in `Scriber/ScriberApp.swift` is what overrides AppKit here.
+
+Also launch ordinary `--ui-testing`, open Settings, and choose **Redo
+Onboarding…** while the main window is already open. The setup window comes to
+the front, remains centred above the Dock, and shows the throwaway setup state;
+never reset Gaf's real `onboardingComplete` preference for this inspection.
 
 ### Seeded history
 
@@ -161,8 +170,42 @@ kill "$pid"
 ```
 
 While inspecting: the toolbar must read **22 dictations** — 23 means the in-flight
-filter regressed. Copy writes to the real `NSPasteboard.general`, so it clobbers
-the clipboard, and which transcript landed there can only be confirmed by pasting
-elsewhere. Every `--ui-testing` launch also raises the credential condition in the
-toolbar's warning control, because the throwaway defaults suite starts with no
-key.
+filter regressed. Copy writes to the real `NSPasteboard.general`, so leave it
+untouched unless Gaf has said the current clipboard is disposable; only then
+confirm a known fixture transcript by pasting elsewhere. Every `--ui-testing`
+launch also raises the credential condition in the toolbar's warning control,
+because the throwaway defaults suite starts with no key.
+
+Use this same isolated launch for the window, toolbar, Settings, and history
+interaction checks:
+
+- `⌘F` focuses Dictation search. In Settings, the command is disabled and leaves
+  focus unchanged.
+- Launch, the Dock icon, and reopening after `⌘W` all present the main window
+  with search focused. Returning from another app, `⌘H`, or minimising preserves
+  an existing transcript selection and search/scroll position.
+- The main window has no displayed title. Workspace, total rendered count, and
+  warning control stay grouped without reflow; search does not change the total.
+- Day labels pin cleanly below the toolbar, the separator appears only over
+  scrolled content, and the cards and toolbar survive minimum window size.
+- Single-entry Delete and Clear Dictation History both ask first. Exercise Cancel
+  and confirmation against the in-memory fixture, verify the rendered count, and
+  never repeat this against the installed app's real history.
+- Saving a dummy key and then choosing **Remove Key…** exercises only the
+  confirmation, routing, and visible missing-key state. It is not evidence about
+  the real Keychain.
+
+### Simulated recovery
+
+Use the Debug app and the same `before_pid`/absolute-`APP_PATH`/guarded-`kill`
+pattern above. Launch with `--ui-testing --ui-testing-missing-permissions` to
+inspect missing-permission recovery without changing real macOS grants.
+
+The toolbar warning lists both permissions, the pill's Review button activates
+Scriber and lands on Permissions and Input, and focusing and leaving Scriber
+does not present a second unchanged pill or restart its dismissal timer.
+
+Launch separately with `--ui-testing --ui-testing-invalid-key-pill` when the
+credential-recovery pill changes. **Update Key** activates Scriber, opens
+Settings, and focuses the key field. These fixtures prove presentation and
+routing only, never credential validity or service access.

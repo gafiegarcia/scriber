@@ -7,6 +7,10 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ### Fixed
 
+- Speech-to-Text-only ElevenLabs keys remain verified and usable without account-
+  usage access. When current credits cannot be read, Settings now identifies and
+  subdues the cached values as last-known information and offers one retry action
+  instead of presenting stale usage as current beside two refresh buttons.
 - Turning Scriber's Accessibility access off while it was running could lock up
   the whole Mac for about a minute — the pointer still moved, but clicks, the
   Dock, and the keyboard all stopped responding. Scriber kept switching its
@@ -16,6 +20,8 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ### Changed
 
+- The app icon has a lighter shadow so its shape reads more cleanly in the Dock
+  and Finder.
 - Every permission button now says "Allow," in Settings and in onboarding alike.
   The buttons used to change their own label — "Allow" or "Open Settings" —
   depending on how far macOS thought you had got, which told you nothing you

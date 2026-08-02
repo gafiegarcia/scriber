@@ -112,7 +112,7 @@ Settings.
 - [Product specification](docs/PRODUCT_SPEC.md): required behavior and durable
   product decisions.
 - [Roadmap](docs/ROADMAP.md): unbuilt work, grouped by target version.
-- [Manual checks](docs/MANUAL_CHECKS.md): checks that only a person can run.
+- [Manual checks](docs/MANUAL_CHECKS.md): checks Gaf runs in the real environment; agents only select and propose the relevant ones.
 - [Automated checks](docs/AUTOMATED_CHECKS.md): machine checks and their safety
   boundaries.
 - [Paste engine](docs/PASTE_ENGINE.md): current cross-app delivery design and
