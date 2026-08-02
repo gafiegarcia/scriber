@@ -459,7 +459,9 @@ private struct PillView: View {
     /// glass over Scriber's own window while this pill floats over whatever the
     /// user is working in.
     private static let tintAlpha: CGFloat = 0.07
-    private static let specularAlpha: CGFloat = 0.2
+    /// Faint over a light background is the accepted cost: raising this to satisfy
+    /// light overwhelms the rim on dark before it helps.
+    private static let specularAlpha: CGFloat = 0.18
 
     var body: some View {
         content
