@@ -383,10 +383,11 @@ public enum AppPhase: Equatable, Sendable {
 
     /// Cancelling is permitted in every recording mode: held recording still
     /// stops on key release, but a change of mind before that should not require
-    /// waiting for it. This governs `HandsFreePillAction.disposition(for:)` —
-    /// Escape must cancel a held recording whether or not the pointer is
-    /// anywhere near the pill. It says nothing about whether the pill currently
-    /// draws a Cancel control; see `showsCancelRecordingControl(isHovering:)`.
+    /// waiting for it. This governs `HandsFreePillAction.disposition(for:)`, so
+    /// it covers clicks on the pill's Cancel control only. It says nothing about
+    /// whether that control is currently drawn — see
+    /// `showsCancelRecordingControl(isHovering:)` — and nothing about Escape,
+    /// which cancels through `pillDismissalAction(isPresented:)` regardless.
     var permitsCancelRecording: Bool {
         guard case .recording = self else { return false }
         return true
