@@ -68,9 +68,6 @@ final class PillController {
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
     private let presentationDuration: TimeInterval = 0.18
     private let glassMargin: CGFloat = 8
-    /// 0.12 read as no tint at all against `.regular` glass; Apple's own sample
-    /// tints hold visible color around 0.2-0.3 even at this style.
-    private let pillTintAlpha: CGFloat = 0.24
 
     private(set) var isPresented = false
 
@@ -100,7 +97,9 @@ final class PillController {
         glassView.autoresizingMask = [.width, .height]
         glassView.style = .regular
         glassView.cornerRadius = glassView.bounds.height / 2
-        glassView.tintColor = nil
+        // `tintColor` is unused: it never composited anything visible against a
+        // SwiftUI-hosted `contentView` on this OS build, at any alpha up to 0.9.
+        // `PillView` paints its own tint layer into that hosted content instead.
         glassView.effectIsInteractive = true
         glassView.contentView = hostingView
         rootView.addSubview(glassView)
@@ -294,9 +293,6 @@ final class PillController {
         panel.contentView?.layoutSubtreeIfNeeded()
         glassView.layoutSubtreeIfNeeded()
         glassView.cornerRadius = CGFloat(phase.pillCornerRadius(height: Double(desiredPillSize.height)))
-        glassView.tintColor = phase.pillTone.accent.map {
-            NSColor($0).withAlphaComponent(pillTintAlpha)
-        }
     }
 
     private func copiedResultSize(for text: String) -> NSSize {
@@ -395,9 +391,17 @@ private struct PillView: View {
     @ObservedObject var model: PillModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// `NSGlassEffectView.tintColor` never composited anything visible against
+    /// this view's hosted content, at any alpha up to 0.9. This layer paints the
+    /// tint directly instead, weaker than the toast stack's 0.18 since a toast is
+    /// glass over Scriber's own window while this pill floats over whatever the
+    /// user is working in.
+    private static let tintAlpha: CGFloat = 0.08
+
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background { tintLayer.clipShape(pillShape(for: model.phase)) }
             .contentShape(pillShape(for: model.phase))
             .onTapGesture { if hasDefaultAction { model.onDefaultAction?() } }
             // Declarative rather than an `NSCursor` push/pop pair: the phase can
@@ -405,6 +409,12 @@ private struct PillView: View {
             // stack cannot stay balanced across that.
             .pointerStyle(hasDefaultAction ? .link : nil)
             .onHover { model.onHoverChanged?($0) }
+    }
+
+    @ViewBuilder private var tintLayer: some View {
+        if let accent = model.phase.pillTone.accent {
+            accent.opacity(Self.tintAlpha)
+        }
     }
 
     /// The pill is presented whenever this view is on screen, so the phase alone
