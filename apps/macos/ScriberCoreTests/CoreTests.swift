@@ -28,21 +28,33 @@ struct ShortcutMatcherTests {
         #expect(ShortcutAction.holdReleased.stopsRecording(mode: .held))
     }
 
-    @Test("Cancel is available in every recording mode; Confirm only while locked")
-    func handsFreePillControls() {
+    @Test("Cancelling is permitted in every recording mode; confirming only while locked")
+    func handsFreePillActionPermissions() {
         let held = AppPhase.recording(mode: .held, elapsed: 1, level: -20)
         let locked = AppPhase.recording(mode: .locked, elapsed: 1, level: -20)
 
-        #expect(held.showsCancelRecordingControl)
+        #expect(held.permitsCancelRecording)
         #expect(!held.showsConfirmRecordingControl)
         #expect(HandsFreePillAction.cancel.disposition(for: held) == .cancelRecording)
         #expect(HandsFreePillAction.confirm.disposition(for: held) == nil)
-        #expect(locked.showsCancelRecordingControl)
+        #expect(locked.permitsCancelRecording)
         #expect(locked.showsConfirmRecordingControl)
         #expect(HandsFreePillAction.cancel.disposition(for: locked) == .cancelRecording)
         #expect(HandsFreePillAction.confirm.disposition(for: locked) == .finishRecording)
         #expect(HandsFreePillAction.cancel.disposition(for: .transcribing(attempt: 1, retryDelay: nil)) == nil)
         #expect(HandsFreePillAction.confirm.disposition(for: .transcribing(attempt: 1, retryDelay: nil)) == nil)
+    }
+
+    @Test("Held recording draws Cancel only while hovering; hands-free draws it either way")
+    func cancelControlVisibility() {
+        let held = AppPhase.recording(mode: .held, elapsed: 1, level: -20)
+        let locked = AppPhase.recording(mode: .locked, elapsed: 1, level: -20)
+
+        #expect(!held.showsCancelRecordingControl(isHovering: false))
+        #expect(held.showsCancelRecordingControl(isHovering: true))
+        #expect(locked.showsCancelRecordingControl(isHovering: false))
+        #expect(locked.showsCancelRecordingControl(isHovering: true))
+        #expect(!AppPhase.transcribing(attempt: 1, retryDelay: nil).showsCancelRecordingControl(isHovering: true))
     }
 
     @Test("Busy state is limited to recording and transcription")

@@ -381,17 +381,32 @@ public enum AppPhase: Equatable, Sendable {
     /// phase can never fall out of the list.
     public var acceptsRecordingStart: Bool { !isBusy }
 
-    /// Cancel is available in every recording mode: held recording still stops
-    /// on key release, but a change of mind before that should not require
-    /// waiting for it.
-    var showsCancelRecordingControl: Bool {
+    /// Cancelling is permitted in every recording mode: held recording still
+    /// stops on key release, but a change of mind before that should not require
+    /// waiting for it. This governs `HandsFreePillAction.disposition(for:)` —
+    /// Escape must cancel a held recording whether or not the pointer is
+    /// anywhere near the pill. It says nothing about whether the pill currently
+    /// draws a Cancel control; see `showsCancelRecordingControl(isHovering:)`.
+    var permitsCancelRecording: Bool {
         guard case .recording = self else { return false }
         return true
     }
 
+    /// Whether the pill actually draws the Cancel control. Locked recording
+    /// shows it unconditionally; held recording keeps it out of the way until
+    /// the pointer arrives, since Escape already covers cancellation without it.
+    func showsCancelRecordingControl(isHovering: Bool) -> Bool {
+        switch self {
+        case .recording(.locked, _, _): true
+        case .recording(.held, _, _): isHovering
+        default: false
+        }
+    }
+
     /// Confirm only makes sense while locked. A held recording already has an
     /// explicit stop gesture — releasing the key — so offering a second one
-    /// would just be two ways to do the same thing.
+    /// would just be two ways to do the same thing. Unlike Cancel, its display
+    /// never depends on hover.
     var showsConfirmRecordingControl: Bool {
         guard case .recording(let mode, _, _) = self else { return false }
         return mode == .locked
@@ -426,7 +441,7 @@ enum HandsFreePillAction: Equatable, Sendable {
 
     func disposition(for phase: AppPhase) -> HandsFreePillDisposition? {
         switch self {
-        case .cancel: phase.showsCancelRecordingControl ? .cancelRecording : nil
+        case .cancel: phase.permitsCancelRecording ? .cancelRecording : nil
         case .confirm: phase.showsConfirmRecordingControl ? .finishRecording : nil
         }
     }
