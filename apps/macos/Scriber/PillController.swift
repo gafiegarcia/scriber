@@ -459,11 +459,13 @@ private struct PillView: View {
     /// glass over Scriber's own window while this pill floats over whatever the
     /// user is working in.
     private static let tintAlpha: CGFloat = 0.07
+    private static let specularAlpha: CGFloat = 0.55
 
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background { tintLayer.clipShape(pillShape(for: model.phase)) }
+            .overlay { specularHighlight }
             .contentShape(pillShape(for: model.phase))
             .onTapGesture { if hasDefaultAction { model.onDefaultAction?() } }
             // Declarative rather than an `NSCursor` push/pop pair: the phase can
@@ -477,6 +479,30 @@ private struct PillView: View {
         if let accent = model.phase.pillTone.accent {
             accent.opacity(Self.tintAlpha)
         }
+    }
+
+    /// Neither `NSGlassEffectView` nor SwiftUI's `Glass` exposes a specular rim to
+    /// switch on, so the pill paints its own: bright at the two ends, where a
+    /// capsule's curvature would gather the most light, and absent along the flat
+    /// top and bottom. The half-point padding keeps the centred stroke inside the
+    /// glass edge, which would otherwise clip its outer half away.
+    private var specularHighlight: some View {
+        pillShape(for: model.phase)
+            .stroke(
+                LinearGradient(
+                    stops: [
+                        .init(color: .white.opacity(Self.specularAlpha), location: 0),
+                        .init(color: .white.opacity(0), location: 0.28),
+                        .init(color: .white.opacity(0), location: 0.72),
+                        .init(color: .white.opacity(Self.specularAlpha), location: 1),
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ),
+                lineWidth: 1
+            )
+            .padding(0.5)
+            .allowsHitTesting(false)
     }
 
     /// The pill is presented whenever this view is on screen, so the phase alone
