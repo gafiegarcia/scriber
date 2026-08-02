@@ -299,10 +299,20 @@ final class PillController {
                     panelResizeGeneration += 1
                     let generation = panelResizeGeneration
                     isResizingPanel = true
+                    // Known and unfixed: the panel is interpolated by AppKit and its
+                    // contents by SwiftUI, so a position inside the pill that both
+                    // engines contribute to lands the difference between them as a
+                    // snap — the status text owes 38 points right to Cancel's
+                    // insertion and 20 left to the panel recentring. Holding the
+                    // panel still and giving SwiftUI the capsule fixes it and costs
+                    // four fifths of the frame rate: NSGlassEffectView re-renders
+                    // synchronously on every frame it is resized from outside an
+                    // animation. Leaving `display` to the window server measurably
+                    // helps what is left.
                     NSAnimationContext.runAnimationGroup({ context in
                         context.duration = presentationDuration
                         context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                        panel.animator().setFrame(desiredPanelFrame, display: true)
+                        panel.animator().setFrame(desiredPanelFrame, display: false)
                         glassView.animator().frame = desiredGlassFrame
                     }, completionHandler: { [weak self] in
                         MainActor.assumeIsolated {
