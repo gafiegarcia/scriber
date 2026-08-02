@@ -396,7 +396,7 @@ private struct PillView: View {
     /// tint directly instead, weaker than the toast stack's 0.18 since a toast is
     /// glass over Scriber's own window while this pill floats over whatever the
     /// user is working in.
-    private static let tintAlpha: CGFloat = 0.05
+    private static let tintAlpha: CGFloat = 0.07
 
     var body: some View {
         content

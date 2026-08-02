@@ -8,7 +8,7 @@
 
 ## v0.8.3
 
-- [x] Change tintAlpha of pill to 0.05. Exploring whether lower opacity looks better.
+- [x] Change tintAlpha of pill to 0.07.
 - [ ] **Show Cancel during held recording too.** Give every recording mode the
       leading Cancel control, so locking into hands-free animates only Confirm
       in rather than both. `showsHandsFreeRecordingControls` in
