@@ -14,9 +14,6 @@ snapshots. Ordinary development builds belong in Git history, not here.
   pill, which widens to make room and narrows back out when the pointer
   leaves; Escape still cancels without hovering. Hands-free continues to show
   Cancel unconditionally.
-- The pill widens without clipping its own edge or snapping its contents into
-  place at the end, and does so faster. Clicks beside the pill now reach the
-  application underneath instead of landing on its window.
 
 ## 0.8.2 — 2026-08-02
 

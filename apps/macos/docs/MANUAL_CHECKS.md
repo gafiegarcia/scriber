@@ -41,10 +41,6 @@ credit requires explicit approval first.**
   animating only Confirm in on its trailing edge. Hold is ignored while locked,
   and Toggle stops it. Bare `Fn` still opens the emoji picker and types a normal
   Space. **Wispr Flow must be quit first.**
-- Both widenings move the capsule alone: the pill's outline and everything inside
-  it travel together, with nothing clipped at an edge and no snap into place at
-  the end. Clicking just outside the capsule — level with it, a centimetre to
-  either side — reaches the application underneath rather than being swallowed.
 - Record a new shortcut: the recorder shows the chord live and closes at the
   first key release, and a chord containing `fn` displays it first. Disabling
   Hold and Toggle independently prevents only the disabled one. Restore the
