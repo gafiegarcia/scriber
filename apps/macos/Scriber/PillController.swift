@@ -38,7 +38,7 @@ struct DismissalCountdown: Equatable {
 /// The panel's resize and the reflow of the contents inside it are two halves of
 /// one movement, so they share a duration: a mismatch puts the capsule and what it
 /// holds on visibly different schedules.
-private let pillResizeDuration: TimeInterval = 0.1
+private let pillResizeDuration: TimeInterval = 0.15
 
 @MainActor
 final class PillModel: ObservableObject {
