@@ -304,11 +304,14 @@ final class PillController {
                     // engines contribute to lands the difference between them as a
                     // snap — the status text owes 38 points right to Cancel's
                     // insertion and 20 left to the panel recentring. Holding the
-                    // panel still and giving SwiftUI the capsule fixes it and costs
-                    // four fifths of the frame rate: NSGlassEffectView re-renders
-                    // synchronously on every frame it is resized from outside an
-                    // animation. Leaving `display` to the window server measurably
-                    // helps what is left.
+                    // panel still and giving SwiftUI the capsule fixes it, and cost
+                    // four fifths of the frame rate when it was tried: an
+                    // NSGlassEffectView re-renders synchronously on every frame it is
+                    // resized from outside an animation. Treat that figure as an
+                    // upper bound rather than the cost — it was measured over playing
+                    // video, and a live glass effect resamples whatever it sits over,
+                    // so the backdrop was paying for part of it. Redrawing is left to
+                    // the window server to schedule rather than forced on every step.
                     NSAnimationContext.runAnimationGroup({ context in
                         context.duration = presentationDuration
                         context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
