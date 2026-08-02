@@ -5,6 +5,11 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
+## 0.8.3 — 2026-08-03
+
+Native bundle build 63, installed from an entitlement-free, locally signed
+Release build.
+
 ### Changed
 
 - The floating pill now shows Cancel while holding a recording, not only once

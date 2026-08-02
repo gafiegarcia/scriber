@@ -49,6 +49,14 @@ credit requires explicit approval first.**
   transcribing carry no tint; a copied result is green; cancellation, no-words,
   no-signal, permission, credential, and failure pills are amber. The glyph and
   the glass never disagree about which of the three a pill is.
+- Compare a green pill against an amber one **in light appearance**, which is
+  where the tint has least to work with: they must be tellable apart from each
+  other, not merely visible. Checking each tone on its own hides the failure
+  that matters.
+- The pill's top and bottom edges carry a faint highlight, brightest at the
+  edges and clear at the sides. It stays faint over a light background and
+  never reads as a drawn outline over a dark one, and it follows the shape
+  through the resize into a copied result rather than popping.
 - Clicking a pill's body opens what its button would have opened, and the
   pointer becomes a link cursor only on the pills that do something. Clicking the
   body of a recording, transcribing, copied-result, or cancellation pill does

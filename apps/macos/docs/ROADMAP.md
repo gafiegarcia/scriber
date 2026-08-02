@@ -1,17 +1,5 @@
 # Native macOS Roadmap
 
-## v0.8.2
-- [x] **Tint pills by outcome** — green for success, amber for warnings such as cancellation and no-words. A design pass across every pill state in light and dark on varied backgrounds, not a small edit. Take the outcome-to-tone mapping from `ScriberCore/Toasts.swift`, which the window's toast stack already uses, so the two surfaces cannot disagree.
-- [x] **Define whole-pill default actions.** Map every pill phase to an explicit, unsurprising whole-pill click before enabling that interaction; copied and cancelled outcomes need deliberate choices alongside their existing buttons.
-- [x] **Reduce the app icon shadow.**
-- [x] **Verify Speech-to-Text-only API keys.** With account-usage access disabled, confirm Scriber accepts the key, allows dictation, and reports credit usage as unavailable without marking the key invalid.
-
-## v0.8.3
-
-- [x] Change tintAlpha of pill to 0.07.
-- [x] Show Cancel during held recording too.
-- [x] **Add specular highlight to pill.** Add specular highlights at the sides of the pill (the automatic shiny border liquid glass effect, if available).
-
 ## v0.8.4
 
 - [ ] **Overhaul the backdrop for date label.** Current implementation is adding an opaque background spanning the full width of the label, but I don't like the discontinuity it creates when scrolling: entries text going up when scrolled goes under an opaque background under the date label, but then goes under a *translucent* background under the toolbar. My idea is experiment with no opaque background at all (date label text now fighting against scrolled entries) *but* add a text shadow to the label. Might look corny, but worth to explore.
