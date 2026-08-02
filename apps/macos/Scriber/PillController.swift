@@ -39,6 +39,7 @@ struct DismissalCountdown: Equatable {
 final class PillModel: ObservableObject {
     @Published var phase: AppPhase = .idle
     @Published var dismissalCountdown: DismissalCountdown?
+    @Published var isHovering = false
     var onOpen: (() -> Void)?
     var onOpenAPIKeySettings: (() -> Void)?
     var onOpenUsageSettings: (() -> Void)?
@@ -113,7 +114,7 @@ final class PillController {
     func update(_ phase: AppPhase, autoDismiss: Bool = true) {
         clearAutoDismissal()
         guard phase != .idle else {
-            isHovering = false
+            resetHovering()
             hide(clearPhaseWhenFinished: true)
             return
         }
@@ -135,15 +136,27 @@ final class PillController {
 
     func dismiss() {
         clearAutoDismissal()
-        isHovering = false
+        resetHovering()
         hide(clearPhaseWhenFinished: false)
     }
 
     private func setHovering(_ hovering: Bool) {
         guard hovering != isHovering else { return }
         isHovering = hovering
+        model.isHovering = hovering
+        if case .recording(.held, _, _) = model.phase {
+            applyLayout(for: model.phase, forceAnimated: true)
+        }
         guard dismissalCountdown != nil else { return }
         hovering ? pauseAutoDismissal() : resumeAutoDismissal()
+    }
+
+    /// Also clears the model's copy so a pill that reappears while the pointer
+    /// happens to sit elsewhere never inherits a stale hovering state from
+    /// before it was last hidden.
+    private func resetHovering() {
+        isHovering = false
+        model.isHovering = false
     }
 
     private func startAutoDismissal(after delay: TimeInterval) {
@@ -192,7 +205,7 @@ final class PillController {
 
     private func finishAutoDismissal() {
         clearAutoDismissal()
-        isHovering = false
+        resetHovering()
         hide(clearPhaseWhenFinished: false)
     }
 
@@ -219,7 +232,7 @@ final class PillController {
     private func pillSize(for phase: AppPhase) -> NSSize {
         switch phase {
         case .recording(let mode, _, _):
-            NSSize(width: mode == .locked ? 360 : 320, height: 52)
+            NSSize(width: mode == .locked ? 360 : (isHovering ? 320 : 280), height: 52)
         case .dictationCopied(let text, _):
             copiedResultSize(for: text)
         case .cancelledTranscript:
@@ -244,7 +257,7 @@ final class PillController {
         )
     }
 
-    private func applyLayout(for phase: AppPhase) {
+    private func applyLayout(for phase: AppPhase, forceAnimated: Bool = false) {
         let desiredPillSize = pillSize(for: phase)
         let desiredPanelSize = panelSize(for: desiredPillSize)
         let desiredGlassFrame = NSRect(
@@ -264,9 +277,8 @@ final class PillController {
                 )
                 let animatesConfirmExpansion = model.phase.showsConfirmRecordingControl == false
                     && phase.showsConfirmRecordingControl
-                    && !shouldReduceMotion
 
-                if animatesConfirmExpansion {
+                if !shouldReduceMotion && (forceAnimated || animatesConfirmExpansion) {
                     keepsPanelCenterForCurrentUpdate = true
                     NSAnimationContext.runAnimationGroup { context in
                         context.duration = presentationDuration
@@ -424,6 +436,15 @@ private struct PillView: View {
         model.phase.pillDefaultAction(isPresented: true) != .none
     }
 
+    /// Held recording keeps Cancel out of the way until the pointer arrives,
+    /// since Escape already covers cancellation without it. Hands-free shows it
+    /// unconditionally: locking in is a deliberate choice with no key-release
+    /// stop gesture behind it.
+    private var showsCancelButton: Bool {
+        if case .recording(.held, _, _) = model.phase { return model.isHovering }
+        return model.phase.showsCancelRecordingControl
+    }
+
     @ViewBuilder private var content: some View {
         switch model.phase {
         case .dictationCopied(let text, let message):
@@ -438,7 +459,7 @@ private struct PillView: View {
     private var compactStatus: some View {
         HStack(spacing: 10) {
             if case .recording = model.phase {
-                if model.phase.showsCancelRecordingControl {
+                if showsCancelButton {
                     recordingControl(
                         systemImage: "xmark",
                         label: "Cancel recording",
@@ -465,10 +486,7 @@ private struct PillView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 11)
-        .animation(
-            reduceMotion ? nil : .easeInOut(duration: 0.18),
-            value: model.phase.showsCancelRecordingControl
-        )
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: showsCancelButton)
         .animation(
             reduceMotion ? nil : .easeInOut(duration: 0.18),
             value: model.phase.showsConfirmRecordingControl

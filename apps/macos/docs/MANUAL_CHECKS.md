@@ -34,12 +34,13 @@ credit requires explicit approval first.**
 - Typing during the first second of a held recording and pressing Escape during
   either recording mode each cancel with the cancellation sound. The typed key
   still reaches the foreground app.
-- Holding `Fn` shows Cancel on the pill's leading edge; clicking it cancels with
-  no credit spent. `Fn-Space` locks hands-free, widening the pill and animating
-  only Confirm in on its trailing edge — Cancel stays in place through the
-  transition. Hold is ignored while locked, and Toggle stops it. Bare `Fn` still
-  opens the emoji picker and types a normal Space. **Wispr Flow must be quit
-  first.**
+- Holding `Fn` shows no Cancel until the pointer moves over the pill, which
+  widens it in; moving off narrows it back out. Escape still cancels while held
+  with the pointer elsewhere. `Fn-Space` locks hands-free: Cancel is shown
+  unconditionally from then on (no hover needed), and the pill widens further,
+  animating only Confirm in on its trailing edge. Hold is ignored while locked,
+  and Toggle stops it. Bare `Fn` still opens the emoji picker and types a normal
+  Space. **Wispr Flow must be quit first.**
 - Record a new shortcut: the recorder shows the chord live and closes at the
   first key release, and a chord containing `fn` displays it first. Disabling
   Hold and Toggle independently prevents only the disabled one. Restore the

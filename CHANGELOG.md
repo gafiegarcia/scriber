@@ -10,6 +10,10 @@ snapshots. Ordinary development builds belong in Git history, not here.
 - The floating pill now shows Cancel while holding a recording, not only once
   it locks into hands-free. Locking in now only animates Confirm into the pill
   instead of both controls.
+- Cancel during a held recording only appears once the pointer is over the
+  pill, which widens to make room and narrows back out when the pointer
+  leaves; Escape still cancels without hovering. Hands-free continues to show
+  Cancel unconditionally.
 
 ## 0.8.2 — 2026-08-02
 
