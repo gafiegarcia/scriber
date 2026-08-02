@@ -400,16 +400,24 @@ struct SettingsView: View {
 
     @ViewBuilder private var subscriptionUsageView: some View {
         if runtime.preferences.apiKeyValidity == .valid {
+            let presentation = SubscriptionUsagePresentation(
+                hasCachedUsage: runtime.preferences.subscriptionUsage != nil,
+                usageUnavailable: runtime.coordinator.subscriptionUsageUnavailable
+            )
             if let usage = runtime.preferences.subscriptionUsage {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Label("ElevenLabs credits", systemImage: "gauge.with.dots.needle.33percent")
+                        Label(presentation.cachedUsageTitle, systemImage: "gauge.with.dots.needle.33percent")
                         Spacer()
                         Text("\(usage.remainingCredits.formatted()) of \(usage.totalCredits.formatted()) remaining")
                             .monospacedDigit()
                     }
                     ProgressView(value: Double(usage.remainingCredits), total: Double(max(usage.totalCredits, 1)))
-                        .tint(usage.remainingCredits == 0 ? .orange : .accentColor)
+                        .tint(
+                            presentation.cachedUsageIsStale
+                                ? Color.secondary
+                                : usage.remainingCredits == 0 ? .orange : .accentColor
+                        )
                     HStack {
                         Text(usage.tier.capitalized + " plan")
                         if let resetAt = usage.resetAt {
@@ -417,16 +425,18 @@ struct SettingsView: View {
                         }
                         Text("· Updated \(usage.fetchedAt.formatted(date: .abbreviated, time: .shortened))")
                         Spacer()
-                        Button {
-                            Task { await runtime.coordinator.refreshSubscriptionUsage() }
-                        } label: {
-                            if runtime.coordinator.isRefreshingSubscriptionUsage {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Label("Refresh", systemImage: "arrow.clockwise")
+                        if presentation.showsCachedUsageRefresh {
+                            Button {
+                                Task { await runtime.coordinator.refreshSubscriptionUsage() }
+                            } label: {
+                                if runtime.coordinator.isRefreshingSubscriptionUsage {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Label("Refresh", systemImage: "arrow.clockwise")
+                                }
                             }
+                            .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
                         }
-                        .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -436,10 +446,11 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .opacity(presentation.cachedUsageIsStale ? 0.58 : 1)
                 .padding(.vertical, 4)
             }
 
-            if runtime.coordinator.subscriptionUsageUnavailable {
+            if presentation.showsUnavailableRetry {
                 VStack(alignment: .leading, spacing: 4) {
                     Label("Speech-to-Text access verified", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)

@@ -543,6 +543,11 @@ final class AppCoordinator: ObservableObject {
                 if let usage = result.subscriptionUsage {
                     preferences.subscriptionUsage = usage
                     preferences.apiCreditsExhausted = usage.shouldBlockDictation
+                } else if result.subscriptionUsageAccessDenied {
+                    // Without account access, cached exhaustion is no longer a
+                    // trustworthy reason to block a verified Speech-to-Text key.
+                    // A real transcription will report exhaustion authoritatively.
+                    preferences.apiCreditsExhausted = false
                 }
                 subscriptionUsageUnavailable = result.subscriptionUsageUnavailable
                 subscriptionUsageError = result.subscriptionUsageUnavailable
@@ -579,8 +584,10 @@ final class AppCoordinator: ObservableObject {
             guard !Task.isCancelled, credentialRevision.matches(refreshRevision) else { return }
             // Subscription access has a separate optional scope. A rejection here
             // does not invalidate Speech-to-Text access that was already verified.
+            preferences.apiCreditsExhausted = false
             subscriptionUsageUnavailable = true
             subscriptionUsageError = subscriptionUsageUnavailableMessage(accessDenied: true)
+            refreshCredentialRecovery(force: false)
         } catch {
             guard !Task.isCancelled, credentialRevision.matches(refreshRevision) else { return }
             subscriptionUsageUnavailable = true

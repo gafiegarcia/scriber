@@ -516,6 +516,32 @@ struct ScribeValidationTests {
         #expect(unlimited.canExtendCredits)
         #expect(!unlimited.shouldBlockDictation)
     }
+
+    @Test("Unavailable usage presents cached credits as stale with one retry")
+    func unavailableUsagePresentation() {
+        let presentation = SubscriptionUsagePresentation(
+            hasCachedUsage: true,
+            usageUnavailable: true
+        )
+
+        #expect(presentation.cachedUsageTitle == "Last known ElevenLabs credits")
+        #expect(presentation.cachedUsageIsStale)
+        #expect(!presentation.showsCachedUsageRefresh)
+        #expect(presentation.showsUnavailableRetry)
+    }
+
+    @Test("Available usage presents current credits with its refresh action")
+    func availableUsagePresentation() {
+        let presentation = SubscriptionUsagePresentation(
+            hasCachedUsage: true,
+            usageUnavailable: false
+        )
+
+        #expect(presentation.cachedUsageTitle == "ElevenLabs credits")
+        #expect(!presentation.cachedUsageIsStale)
+        #expect(presentation.showsCachedUsageRefresh)
+        #expect(!presentation.showsUnavailableRetry)
+    }
 }
 
 @Suite("Credential state")

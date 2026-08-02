@@ -88,6 +88,11 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
   “Remove filler words and false starts” controls `no_verbatim`, defaults on, and
   remains user-configurable.
 - Include personal keyterms after validating them against Scribe limits.
+- A key with Speech-to-Text access remains verified and usable when its account-
+  usage scope is unavailable. Keep any cached credit usage as visibly subdued
+  last-known information with its update time, expose one retry action, and
+  never let cached exhaustion block a verified key whose current usage cannot be
+  read.
 - Retry transient failures up to three total attempts, waiting 3 seconds and then 5 seconds.
 - Delete audio only after a successful transcript has been saved.
 - Retain failed or interrupted audio so the job can be retried.

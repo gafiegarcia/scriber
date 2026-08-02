@@ -173,6 +173,24 @@ public enum APIKeyValidity: String, Codable, Sendable {
     case invalid
 }
 
+public struct SubscriptionUsagePresentation: Equatable, Sendable {
+    public let hasCachedUsage: Bool
+    public let usageUnavailable: Bool
+
+    public init(hasCachedUsage: Bool, usageUnavailable: Bool) {
+        self.hasCachedUsage = hasCachedUsage
+        self.usageUnavailable = usageUnavailable
+    }
+
+    public var cachedUsageTitle: String {
+        usageUnavailable ? "Last known ElevenLabs credits" : "ElevenLabs credits"
+    }
+
+    public var cachedUsageIsStale: Bool { hasCachedUsage && usageUnavailable }
+    public var showsCachedUsageRefresh: Bool { hasCachedUsage && !usageUnavailable }
+    public var showsUnavailableRetry: Bool { usageUnavailable }
+}
+
 public enum ScriberPermission: String, CaseIterable, Hashable, Sendable {
     case microphone
     case accessibility
