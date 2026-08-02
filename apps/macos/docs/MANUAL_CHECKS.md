@@ -32,8 +32,7 @@ credit requires explicit approval first.**
 ## When recording shortcuts or the pill change
 
 - Typing during the first second of a held recording and pressing Escape during
-  either recording mode each cancel with the cancellation sound. The typed key
-  still reaches the foreground app.
+  either recording mode each cancel with the cancellation sound.
 - Holding `Fn` shows no Cancel until the pointer moves over the pill, which
   widens it in; moving off narrows it back out. Escape still cancels while held
   with the pointer elsewhere. `Fn-Space` locks hands-free: Cancel is shown
