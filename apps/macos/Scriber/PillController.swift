@@ -35,6 +35,94 @@ struct DismissalCountdown: Equatable {
     }
 }
 
+/// The capsule's resize and the reflow of its contents animate the same movement
+/// from opposite ends, so one clock has to drive both: SwiftUI animates the width
+/// and the glass follows the value SwiftUI reports for each frame. Two engines
+/// interpolating the same geometry agree only at the endpoints, and land the
+/// difference between them as a snap.
+private let pillResizeDuration: TimeInterval = 0.1
+private let pillGlassMargin: CGFloat = 8
+
+/// The capsule the phase draws. Recording widens on hover to make room for Cancel.
+private func pillSize(for phase: AppPhase, isHovering: Bool) -> NSSize {
+    switch phase {
+    case .recording(let mode, _, _):
+        NSSize(width: mode == .locked ? 360 : (isHovering ? 320 : 280), height: 52)
+    case .dictationCopied(let text, _):
+        copiedResultSize(for: text)
+    case .cancelledTranscript:
+        NSSize(width: 430, height: 104)
+    case .permissionsRequired:
+        NSSize(width: 450, height: 60)
+    case .credentialsUnusable:
+        NSSize(width: 430, height: 60)
+    case .transcriptionFailed:
+        NSSize(width: 390, height: 60)
+    case .noSpeechDetected, .noAudioSignal:
+        NSSize(width: 460, height: 60)
+    default:
+        NSSize(width: 280, height: 52)
+    }
+}
+
+/// Every recording mode reserves the widest recording capsule, so the panel neither
+/// resizes nor recentres for the rest of the recording: hovering Cancel in and
+/// locking hands-free both move the capsule inside a window that holds still. A
+/// window that moved would contribute its own interpolation to every position
+/// inside it, on an engine and a frame clock SwiftUI's animation cannot match.
+private func panelSize(for phase: AppPhase) -> NSSize {
+    let reserved: NSSize = if case .recording = phase {
+        NSSize(width: 360, height: 52)
+    } else {
+        pillSize(for: phase, isHovering: false)
+    }
+    return NSSize(
+        width: reserved.width + pillGlassMargin * 2,
+        height: reserved.height + pillGlassMargin * 2
+    )
+}
+
+private func copiedResultSize(for text: String) -> NSSize {
+    let width: CGFloat = 480
+    let previewFont = NSFont.systemFont(ofSize: 14)
+    let previewWidth = width - 36 // Matches copiedResult's horizontal padding.
+    let lineHeight = ceil(previewFont.boundingRectForFont.height)
+    let measuredPreviewHeight = ceil((text as NSString).boundingRect(
+        with: NSSize(width: previewWidth, height: .greatestFiniteMagnitude),
+        options: [.usesLineFragmentOrigin, .usesFontLeading],
+        attributes: [.font: previewFont],
+        context: nil
+    ).height)
+    let previewHeight = min(max(lineHeight, measuredPreviewHeight), lineHeight * 4)
+
+    // The result has four rows, three 10-point gaps, and 14-point vertical
+    // insets. Keeping this calculation independent of SwiftUI layout avoids
+    // resizing the AppKit host in response to its own layout pass.
+    let chromeHeight: CGFloat = 116
+    return NSSize(width: width, height: chromeHeight + previewHeight)
+}
+
+/// The panel reserves the widest recording capsule, so most of it is empty space
+/// around a narrower pill. Every point outside the capsule has to fall through to
+/// whatever the user is working in; an invisible window that swallowed those clicks
+/// would be worse than the pill not being there at all.
+private final class PillRootView: NSView {
+    var capsuleFrame: NSRect = .zero
+    var capsuleCornerRadius: CGFloat = 0
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let local = convert(point, from: superview)
+        guard capsuleFrame.contains(local) else { return nil }
+        let capsule = NSBezierPath(
+            roundedRect: capsuleFrame,
+            xRadius: capsuleCornerRadius,
+            yRadius: capsuleCornerRadius
+        )
+        guard capsule.contains(local) else { return nil }
+        return super.hitTest(point)
+    }
+}
+
 @MainActor
 final class PillModel: ObservableObject {
     @Published var phase: AppPhase = .idle
@@ -52,6 +140,7 @@ final class PillModel: ObservableObject {
     var onDismiss: (() -> Void)?
     var onDefaultAction: (() -> Void)?
     var onHoverChanged: ((Bool) -> Void)?
+    var onCapsuleSizeChanged: ((CGSize) -> Void)?
 }
 
 @MainActor
@@ -59,17 +148,14 @@ final class PillController {
     let model = PillModel()
     private let panel: NSPanel
     private let glassView: NSGlassEffectView
+    private let rootView: PillRootView
     private var autoDismissTask: Task<Void, Never>?
     private var presentationTask: Task<Void, Never>?
     private var preferredScreen: NSScreen?
     private var currentPanelSize = NSSize(width: 316, height: 78)
     private var dismissalCountdown: DismissalCountdown?
-    private var keepsPanelCenterForCurrentUpdate = false
-    private var isResizingPanel = false
-    private var panelResizeGeneration = 0
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
     private let presentationDuration: TimeInterval = 0.18
-    private let glassMargin: CGFloat = 8
 
     private(set) var isPresented = false
 
@@ -81,6 +167,7 @@ final class PillController {
             defer: false
         )
         glassView = NSGlassEffectView(frame: NSRect(x: 8, y: 8, width: 300, height: 62))
+        rootView = PillRootView(frame: NSRect(x: 0, y: 0, width: 316, height: 78))
         panel.level = .statusBar
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = true
@@ -92,21 +179,24 @@ final class PillController {
 
         // SwiftUI glass only has this transparent panel's empty content to sample.
         // AppKit glass can instead sample the window beneath this overlay.
-        let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 316, height: 78))
         let hostingView = NSHostingView(rootView: PillView(model: model))
-        hostingView.frame = glassView.bounds
+        hostingView.frame = rootView.bounds
         hostingView.autoresizingMask = [.width, .height]
-        glassView.autoresizingMask = [.width, .height]
+        rootView.autoresizingMask = [.width, .height]
         glassView.style = .regular
         glassView.cornerRadius = glassView.bounds.height / 2
-        // `tintColor` is unused: it never composited anything visible against a
-        // SwiftUI-hosted `contentView` on this OS build, at any alpha up to 0.9.
-        // `PillView` paints its own tint layer into that hosted content instead.
+        // `tintColor` is unused: it never composited anything visible against
+        // SwiftUI-hosted content on this OS build, at any alpha up to 0.9.
+        // `PillView` paints its own tint layer into that content instead.
         glassView.effectIsInteractive = true
-        glassView.contentView = hostingView
+        // The content spans the whole panel rather than riding inside the glass as
+        // its `contentView`, so SwiftUI lays the capsule out in coordinates that
+        // hold still while the glass follows the width SwiftUI reports for it.
         rootView.addSubview(glassView)
+        rootView.addSubview(hostingView)
         panel.contentView = rootView
         model.onHoverChanged = { [weak self] isHovering in self?.setHovering(isHovering) }
+        model.onCapsuleSizeChanged = { [weak self] size in self?.setCapsuleSize(size) }
     }
 
     /// `autoDismiss` is disabled when the caller owns the pill's lifetime, so a
@@ -120,7 +210,6 @@ final class PillController {
             return
         }
 
-        keepsPanelCenterForCurrentUpdate = false
         applyLayout(for: phase)
         model.phase = phase
         show()
@@ -144,9 +233,6 @@ final class PillController {
     private func setHovering(_ hovering: Bool) {
         guard hovering != model.isHovering else { return }
         model.isHovering = hovering
-        if case .recording(.held, _, _) = model.phase {
-            applyLayout(for: model.phase, forceAnimated: true)
-        }
         guard dismissalCountdown != nil else { return }
         hovering ? pauseAutoDismissal() : resumeAutoDismissal()
     }
@@ -227,151 +313,60 @@ final class PillController {
         }
     }
 
-    private func pillSize(for phase: AppPhase) -> NSSize {
-        switch phase {
-        case .recording(let mode, _, _):
-            NSSize(width: mode == .locked ? 360 : (model.isHovering ? 320 : 280), height: 52)
-        case .dictationCopied(let text, _):
-            copiedResultSize(for: text)
-        case .cancelledTranscript:
-            NSSize(width: 430, height: 104)
-        case .permissionsRequired:
-            NSSize(width: 450, height: 60)
-        case .credentialsUnusable:
-            NSSize(width: 430, height: 60)
-        case .transcriptionFailed:
-            NSSize(width: 390, height: 60)
-        case .noSpeechDetected, .noAudioSignal:
-            NSSize(width: 460, height: 60)
-        default:
-            NSSize(width: 280, height: 52)
-        }
-    }
+    private func applyLayout(for phase: AppPhase) {
+        let desiredPanelSize = panelSize(for: phase)
+        guard desiredPanelSize != currentPanelSize else { return }
 
-    private func panelSize(for pillSize: NSSize) -> NSSize {
-        NSSize(
-            width: pillSize.width + glassMargin * 2,
-            height: pillSize.height + glassMargin * 2
-        )
-    }
-
-    private func applyLayout(for phase: AppPhase, forceAnimated: Bool = false) {
-        let desiredPillSize = pillSize(for: phase)
-        let desiredPanelSize = panelSize(for: desiredPillSize)
-        let desiredGlassFrame = NSRect(
-            x: glassMargin,
-            y: glassMargin,
-            width: desiredPillSize.width,
-            height: desiredPillSize.height
-        )
-        let desiredCornerRadius = CGFloat(phase.pillCornerRadius(height: Double(desiredPillSize.height)))
-
-        // Recording republishes its phase ten times a second to move the waveform and
-        // tick the timer, so most calls here change no geometry at all. Writing the
-        // destination anyway costs two forced layout passes per tick, and mid-resize it
-        // lands the animation's own target straight onto the glass, ending the animation
-        // a tenth of a second in: the capsule snaps to full width inside a panel still
-        // growing around it, and the panel clips whatever overhangs its right edge.
-        if desiredPanelSize == currentPanelSize, glassView.cornerRadius == desiredCornerRadius {
-            if isResizingPanel { return }
-            if glassView.frame == desiredGlassFrame { return }
-        }
-
-        if desiredPanelSize != currentPanelSize {
-            if panel.isVisible {
-                let desiredPanelFrame = NSRect(
+        if panel.isVisible {
+            panel.setFrame(
+                NSRect(
                     x: panel.frame.midX - desiredPanelSize.width / 2,
                     y: panel.frame.minY,
                     width: desiredPanelSize.width,
                     height: desiredPanelSize.height
-                )
-                let animatesConfirmExpansion = model.phase.showsConfirmRecordingControl == false
-                    && phase.showsConfirmRecordingControl
-
-                if !shouldReduceMotion && (forceAnimated || animatesConfirmExpansion) {
-                    // Only the update()/show() pairing consumes this note, so only set it
-                    // when this call is part of that pairing. A hover-driven resize
-                    // (forceAnimated) never calls show(), so leaving it set here would
-                    // dangle until some later, unrelated show() call reads it.
-                    if !forceAnimated {
-                        keepsPanelCenterForCurrentUpdate = true
-                    }
-                    panelResizeGeneration += 1
-                    let generation = panelResizeGeneration
-                    isResizingPanel = true
-                    NSAnimationContext.runAnimationGroup({ context in
-                        context.duration = presentationDuration
-                        context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                        panel.animator().setFrame(desiredPanelFrame, display: true)
-                        glassView.animator().frame = desiredGlassFrame
-                    }, completionHandler: { [weak self] in
-                        MainActor.assumeIsolated {
-                            guard let self, generation == self.panelResizeGeneration else { return }
-                            self.isResizingPanel = false
-                        }
-                    })
-                } else {
-                    // A resize already in flight keeps driving the panel after a plain
-                    // setter writes the new geometry, so the superseded animation wins and
-                    // the panel settles at the outgoing phase's size. Retargeting the
-                    // animator over zero seconds ends it; the direct set that follows
-                    // guarantees the frame synchronously, since `show()` reads it back in
-                    // the same turn to recentre the panel.
-                    if isResizingPanel {
-                        panelResizeGeneration += 1
-                        isResizingPanel = false
-                        NSAnimationContext.runAnimationGroup { context in
-                            context.duration = 0
-                            panel.animator().setFrame(desiredPanelFrame, display: true)
-                            glassView.animator().frame = desiredGlassFrame
-                        }
-                    }
-                    panel.setFrame(desiredPanelFrame, display: true)
-                    glassView.frame = desiredGlassFrame
-                }
-            } else {
-                panel.setContentSize(desiredPanelSize)
-                glassView.frame = desiredGlassFrame
-            }
-            currentPanelSize = desiredPanelSize
+                ),
+                display: true
+            )
         } else {
-            glassView.frame = desiredGlassFrame
+            panel.setContentSize(desiredPanelSize)
         }
+        currentPanelSize = desiredPanelSize
 
-        // Apply the destination glass geometry directly on every phase change.
-        // Relying on autoresizing alone can leave NSGlassEffectView rendering the
-        // fixed copied-result radius after its host shrinks back to a capsule.
-        panel.contentView?.layoutSubtreeIfNeeded()
-        glassView.layoutSubtreeIfNeeded()
-        glassView.cornerRadius = desiredCornerRadius
+        // A phase that resizes the panel changes the capsule faster than SwiftUI can
+        // report it, so seat it here rather than spend a frame drawing the glass at the
+        // outgoing phase's size. A phase that leaves the panel alone returns above and
+        // leaves the capsule entirely to the animation, which is what hovering Cancel in
+        // and locking hands-free both do.
+        setCapsuleSize(pillSize(for: phase, isHovering: model.isHovering), for: phase)
     }
 
-    private func copiedResultSize(for text: String) -> NSSize {
-        let width: CGFloat = 480
-        let previewFont = NSFont.systemFont(ofSize: 14)
-        let previewWidth = width - 36 // Matches copiedResult's horizontal padding.
-        let lineHeight = ceil(previewFont.boundingRectForFont.height)
-        let measuredPreviewHeight = ceil((text as NSString).boundingRect(
-            with: NSSize(width: previewWidth, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: previewFont],
-            context: nil
-        ).height)
-        let previewHeight = min(max(lineHeight, measuredPreviewHeight), lineHeight * 4)
+    /// SwiftUI reports the capsule's animated size for every frame it draws and the
+    /// glass takes it verbatim, with no animator and no second interpolation.
+    private func setCapsuleSize(_ size: CGSize, for phase: AppPhase? = nil) {
+        let phase = phase ?? model.phase
+        let frame = NSRect(
+            x: ((currentPanelSize.width - size.width) / 2).rounded(),
+            y: ((currentPanelSize.height - size.height) / 2).rounded(),
+            width: size.width,
+            height: size.height
+        )
+        glassView.frame = frame
+        rootView.capsuleFrame = frame
 
-        // The result has four rows, three 10-point gaps, and 14-point vertical
-        // insets. Keeping this calculation independent of SwiftUI layout avoids
-        // resizing the AppKit host in response to its own layout pass.
-        let chromeHeight: CGFloat = 116
-        return NSSize(width: width, height: chromeHeight + previewHeight)
+        let cornerRadius = CGFloat(phase.pillCornerRadius(height: Double(size.height)))
+        rootView.capsuleCornerRadius = cornerRadius
+        guard glassView.cornerRadius != cornerRadius else { return }
+        glassView.cornerRadius = cornerRadius
+        // Relying on autoresizing alone can leave NSGlassEffectView rendering the fixed
+        // copied-result radius after its host shrinks back to a capsule.
+        glassView.layoutSubtreeIfNeeded()
     }
 
     private func show() {
         isPresented = true
         presentationTask?.cancel()
         presentationTask = nil
-        if !keepsPanelCenterForCurrentUpdate { positionPanel() }
-        keepsPanelCenterForCurrentUpdate = false
+        positionPanel()
         guard !panel.isVisible else {
             panel.alphaValue = 1
             return
@@ -433,7 +428,7 @@ final class PillController {
         let screen = preferredScreen ?? NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) ?? NSScreen.main
         guard let frame = screen?.visibleFrame else { return }
         let x = frame.midX - panel.frame.width / 2
-        let y = frame.minY + 18 - glassMargin
+        let y = frame.minY + 18 - pillGlassMargin
         panel.setFrameOrigin(NSPoint(x: x, y: y))
     }
 }
@@ -449,9 +444,15 @@ private struct PillView: View {
     /// user is working in.
     private static let tintAlpha: CGFloat = 0.07
 
+    /// The capsule this view draws, which is narrower than the panel it is centred
+    /// in whenever the phase does not need the panel's full reserved width.
+    private var capsuleSize: CGSize {
+        pillSize(for: model.phase, isHovering: model.isHovering)
+    }
+
     var body: some View {
         content
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(width: capsuleSize.width, height: capsuleSize.height)
             .background { tintLayer.clipShape(pillShape(for: model.phase)) }
             .contentShape(pillShape(for: model.phase))
             .onTapGesture { if hasDefaultAction { model.onDefaultAction?() } }
@@ -460,6 +461,11 @@ private struct PillView: View {
             // stack cannot stay balanced across that.
             .pointerStyle(hasDefaultAction ? .link : nil)
             .onHover { model.onHoverChanged?($0) }
+            .animation(reduceMotion ? nil : .easeInOut(duration: pillResizeDuration), value: capsuleSize)
+            // Fires for every frame of that animation, which is what lets the glass
+            // behind this view track an interpolation it is not running itself.
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { model.onCapsuleSizeChanged?($0) }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder private var tintLayer: some View {
@@ -517,11 +523,11 @@ private struct PillView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 11)
         .animation(
-            reduceMotion ? nil : .easeInOut(duration: 0.18),
+            reduceMotion ? nil : .easeInOut(duration: pillResizeDuration),
             value: model.phase.showsCancelRecordingControl(isHovering: model.isHovering)
         )
         .animation(
-            reduceMotion ? nil : .easeInOut(duration: 0.18),
+            reduceMotion ? nil : .easeInOut(duration: pillResizeDuration),
             value: model.phase.showsConfirmRecordingControl
         )
     }
