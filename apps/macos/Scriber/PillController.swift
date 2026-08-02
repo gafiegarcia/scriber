@@ -35,6 +35,11 @@ struct DismissalCountdown: Equatable {
     }
 }
 
+/// The panel's resize and the reflow of the contents inside it are two halves of
+/// one movement, so they share a duration: a mismatch puts the capsule and what it
+/// holds on visibly different schedules.
+private let pillResizeDuration: TimeInterval = 0.1
+
 @MainActor
 final class PillModel: ObservableObject {
     @Published var phase: AppPhase = .idle
@@ -306,7 +311,7 @@ final class PillController {
                     // one: it owes 38 points right to Cancel's insertion and 20 left
                     // to the panel recentring under it.
                     NSAnimationContext.runAnimationGroup({ context in
-                        context.duration = presentationDuration
+                        context.duration = pillResizeDuration
                         context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                         panel.animator().setFrame(desiredPanelFrame, display: false)
                         glassView.animator().frame = desiredGlassFrame
@@ -523,11 +528,11 @@ private struct PillView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 11)
         .animation(
-            reduceMotion ? nil : .easeInOut(duration: 0.18),
+            reduceMotion ? nil : .easeInOut(duration: pillResizeDuration),
             value: model.phase.showsCancelRecordingControl(isHovering: model.isHovering)
         )
         .animation(
-            reduceMotion ? nil : .easeInOut(duration: 0.18),
+            reduceMotion ? nil : .easeInOut(duration: pillResizeDuration),
             value: model.phase.showsConfirmRecordingControl
         )
     }
