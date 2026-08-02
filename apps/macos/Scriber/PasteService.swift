@@ -324,7 +324,7 @@ final class PasteService {
             accessibilityMutationObserved: accessibilityConfirmed,
             pasteboardDataRequested: pasteboardDataRequested
         ) else {
-            return .noEditableTarget("Select a text box, then paste")
+            return .noEditableTarget("No text box was focused to paste into")
         }
         scheduleClipboardRestore(
             snapshot,

@@ -68,10 +68,9 @@ final class PillController {
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
     private let presentationDuration: TimeInterval = 0.18
     private let glassMargin: CGFloat = 8
-    /// Weaker than the toast stack's 0.18. A toast is tinted glass over Scriber's
-    /// own window; the pill floats over whatever the user is working in, so the
-    /// same strength reads as a coloured slab rather than as tinted glass.
-    private let pillTintAlpha: CGFloat = 0.12
+    /// 0.12 read as no tint at all against `.regular` glass; Apple's own sample
+    /// tints hold visible color around 0.2-0.3 even at this style.
+    private let pillTintAlpha: CGFloat = 0.24
 
     private(set) var isPresented = false
 

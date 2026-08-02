@@ -20,6 +20,16 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ### Changed
 
+- The floating pill now tints toward its outcome — amber for a recoverable
+  problem, green for a copied or pasted result — and its body is clickable
+  wherever a button already was, with the same link cursor. A recording or an
+  in-progress pill still takes no click.
+- The copied-result pill's title always reads "Copied to clipboard," with the
+  live reason underneath, and every "Open"/"Open History" button now reads
+  "See History."
+- When automatic paste can't find a focused text box after dispatching Paste,
+  the copied-result pill now says "No text box was focused to paste into"
+  instead of telling you to select one.
 - The app icon has a lighter shadow so its shape reads more cleanly in the Dock
   and Finder.
 - Every permission button now says "Allow," in Settings and in onboarding alike.

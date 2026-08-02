@@ -141,7 +141,7 @@ enum UITestingHistoryFixture {
                 too soft and too close. Move it back a metre and drop the diffusion \
                 to a single layer, then reshoot only that angle.
                 """,
-            errorMessage: "Select a text box, then paste.",
+            errorMessage: "No text box was focused to paste into.",
             state: .succeeded, delivery: .copied
         ),
         // A failed entry in a group that is not the top one, so Retry has to be
