@@ -47,7 +47,7 @@ struct ShortcutMatcherTests {
         #expect(AppPhase.recording(mode: .held, elapsed: 0, level: -80).isBusy)
         #expect(AppPhase.transcribing(attempt: 1, retryDelay: nil).isBusy)
         #expect(!AppPhase.message("Still transcribing").isBusy)
-        #expect(!AppPhase.pasteFailed("No target").isBusy)
+        #expect(!AppPhase.dictationCopied(text: "hi", message: "No target").isBusy)
     }
 
     @Test("Every notice phase still accepts the next dictation")
@@ -67,7 +67,7 @@ struct ShortcutMatcherTests {
         #expect(AppPhase.dictationCopied(text: "hi", message: "No target").acceptsRecordingStart)
         #expect(AppPhase.permissionsRequired([.microphone]).acceptsRecordingStart)
         #expect(AppPhase.credentialsUnusable(.missingAPIKey).acceptsRecordingStart)
-        #expect(AppPhase.pasteFailed("No target").acceptsRecordingStart)
+        #expect(AppPhase.transcriptCopied.acceptsRecordingStart)
         #expect(AppPhase.transcriptionFailed("Timed out").acceptsRecordingStart)
         #expect(!AppPhase.recording(mode: .held, elapsed: 0, level: -80).acceptsRecordingStart)
         #expect(!AppPhase.transcribing(attempt: 1, retryDelay: nil).acceptsRecordingStart)
@@ -289,7 +289,7 @@ struct PillShapeTests {
             (.transcribing(attempt: 1, retryDelay: nil), 62),
             (.message("Copied"), 62),
             (.permissionsRequired([.microphone, .accessibility]), 76),
-            (.pasteFailed("No target"), 72),
+            (.transcriptCopied, 62),
             (.transcriptionFailed("Offline"), 72)
         ]
 
@@ -297,6 +297,131 @@ struct PillShapeTests {
             #expect(phase.pillShapeStyle == .capsule)
             #expect(phase.pillCornerRadius(height: height) == height / 2)
         }
+    }
+}
+
+/// Every phase in this file appears in both suites below. Neither switch carries
+/// a `default:`, so a new phase is a compile error rather than an untinted pill
+/// or an inert click — but only while every case is also asserted here.
+private let everyPhase: [AppPhase] = [
+    .idle,
+    .recording(mode: .held, elapsed: 1, level: -20),
+    .transcribing(attempt: 1, retryDelay: nil),
+    .cancelledTranscript,
+    .dictationCopied(text: "hi", message: "No target"),
+    .permissionsRequired([.microphone, .accessibility]),
+    .credentialsUnusable(.missingAPIKey),
+    .transcriptionFailed("Offline"),
+    .noSpeechDetected,
+    .noAudioSignal,
+    .transcriptCopied,
+    .message("Copied")
+]
+
+@Suite("Pill tone")
+struct PillToneTests {
+    @Test("Only the two copied phases report success")
+    func success() {
+        #expect(AppPhase.dictationCopied(text: "hi", message: "No target").pillTone == .success)
+        #expect(AppPhase.transcriptCopied.pillTone == .success)
+    }
+
+    @Test("Recoverable outcomes warn")
+    func warning() {
+        let warning: [AppPhase] = [
+            .cancelledTranscript,
+            .permissionsRequired([.accessibility]),
+            .credentialsUnusable(.missingAPIKey),
+            .transcriptionFailed("Offline"),
+            .noSpeechDetected,
+            .noAudioSignal
+        ]
+        for phase in warning { #expect(phase.pillTone == .warning) }
+    }
+
+    @Test("A dictation in flight is not an outcome and carries no tint")
+    func neutral() {
+        let neutral: [AppPhase] = [
+            .idle,
+            .recording(mode: .locked, elapsed: 3, level: -20),
+            .transcribing(attempt: 2, retryDelay: 3),
+            .message("Copied")
+        ]
+        for phase in neutral { #expect(phase.pillTone == .neutral) }
+    }
+
+    /// Red is reserved for the toast stack. Every pill phase that could claim it
+    /// keeps the transcript and offers a way out on the pill itself, so escalating
+    /// them would misreport what happened.
+    @Test("No phase claims the failure tone")
+    func neverFailure() {
+        for phase in everyPhase { #expect(phase.pillTone != .failure) }
+    }
+
+    @Test("The pill agrees with the toast the copy route posts")
+    func agreesWithToastStack() {
+        #expect(AppPhase.transcriptCopied.pillTone == Toast.transcriptCopied().tone)
+    }
+}
+
+@Suite("Pill default action")
+struct PillDefaultActionTests {
+    @Test("A hidden pill has no default action to take")
+    func hiddenPill() {
+        for phase in everyPhase {
+            #expect(phase.pillDefaultAction(isPresented: false) == .none)
+        }
+    }
+
+    @Test("Phases that own their own controls ignore a body click")
+    func inertPhases() {
+        let inert: [AppPhase] = [
+            .idle,
+            // Cancel and Confirm own the hands-free pill; a stray click on the
+            // body must not reach either.
+            .recording(mode: .locked, elapsed: 3, level: -20),
+            .transcribing(attempt: 1, retryDelay: nil),
+            // Its transcript is selectable, so a body tap would fight the
+            // selection it sits on.
+            .dictationCopied(text: "hi", message: "No target"),
+            .cancelledTranscript
+        ]
+        for phase in inert { #expect(phase.pillDefaultAction(isPresented: true) == .none) }
+    }
+
+    @Test("Notices route to where they are resolved")
+    func routingPhases() {
+        #expect(AppPhase.transcriptCopied.pillDefaultAction(isPresented: true) == .openMainWindow)
+        #expect(AppPhase.transcriptionFailed("Offline")
+            .pillDefaultAction(isPresented: true) == .openMainWindow)
+        #expect(AppPhase.permissionsRequired([.microphone])
+            .pillDefaultAction(isPresented: true) == .openPermissionSettings)
+        #expect(AppPhase.credentialsUnusable(.missingAPIKey)
+            .pillDefaultAction(isPresented: true) == .openCredentialSettings)
+        #expect(AppPhase.noSpeechDetected.pillDefaultAction(isPresented: true) == .openInputSettings)
+        #expect(AppPhase.noAudioSignal.pillDefaultAction(isPresented: true) == .openInputSettings)
+        #expect(AppPhase.message("Copied").pillDefaultAction(isPresented: true) == .dismiss)
+    }
+
+    /// The whole reason the mapping is written down rather than inferred. Retry
+    /// and Undo both transcribe, and a click landed by accident must never reach
+    /// either — so the phases that offer them route somewhere harmless instead.
+    @Test("The phases whose button spends API credit keep it on the button")
+    func neverSpendsCredit() {
+        #expect(AppPhase.transcriptionFailed("Offline")
+            .pillDefaultAction(isPresented: true) == .openMainWindow)
+        #expect(AppPhase.cancelledTranscript.pillDefaultAction(isPresented: true) == .none)
+    }
+
+    /// Every phase resolves to something nameable. A phase added without a
+    /// deliberate mapping cannot reach this — the switch has no `default:` — but
+    /// this catches one silently given a wrong one.
+    @Test("Every phase has a mapping and only recording controls are inert")
+    func totality() {
+        let inertCount = everyPhase
+            .filter { $0.pillDefaultAction(isPresented: true) == .none }
+            .count
+        #expect(inertCount == 5)
     }
 }
 

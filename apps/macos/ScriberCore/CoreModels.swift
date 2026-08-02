@@ -340,7 +340,6 @@ public enum AppPhase: Equatable, Sendable {
     case dictationCopied(text: String, message: String)
     case permissionsRequired([ScriberPermission])
     case credentialsUnusable(CredentialReadiness)
-    case pasteFailed(String)
     case transcriptionFailed(String)
     /// The transcription succeeded but contained no words. Sound did reach the
     /// recorder, so the input is working — routes to input settings anyway, because
@@ -444,6 +443,17 @@ public enum PillDismissalAction: Equatable, Sendable {
     case dismiss
 }
 
+public enum PillDefaultAction: Equatable, Sendable {
+    case none
+    case openMainWindow
+    case openPermissionSettings
+    /// Resolves to the key field or the usage pane at dispatch, from the same
+    /// `CredentialReadiness` the pill's own button reads.
+    case openCredentialSettings
+    case openInputSettings
+    case dismiss
+}
+
 public enum RecordingCancellationPolicy {
     public static let recoveryThreshold: TimeInterval = 1
 
@@ -518,8 +528,41 @@ public extension AppPhase {
         case .recording: .cancelRecording
         case .transcribing: .hideTranscription
         case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
-             .pasteFailed, .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
+             .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
              .transcriptCopied, .message: .dismiss
+        }
+    }
+
+    /// What the outcome was, in the vocabulary the window's toast stack already
+    /// speaks, so the two surfaces cannot tint the same outcome differently.
+    ///
+    /// Nothing maps to `.failure`: every phase that could claim red is
+    /// recoverable in place, from the pill, without losing the transcript.
+    var pillTone: ToastTone {
+        switch self {
+        case .dictationCopied, .transcriptCopied: .success
+        case .cancelledTranscript, .permissionsRequired, .credentialsUnusable,
+             .transcriptionFailed, .noSpeechDetected, .noAudioSignal: .warning
+        case .idle, .recording, .transcribing, .message: .neutral
+        }
+    }
+
+    /// What clicking the pill body does, decided per phase before the gesture
+    /// exists rather than after someone lands one by accident.
+    ///
+    /// No case here transcribes, cancels, or discards. Retry and Undo spend API
+    /// credit and stay on their buttons, where reaching them is deliberate.
+    func pillDefaultAction(isPresented: Bool) -> PillDefaultAction {
+        guard isPresented else { return .none }
+        return switch self {
+        // The transcript in the copied result is selectable; a body tap would
+        // fight the selection it sits on.
+        case .idle, .recording, .transcribing, .dictationCopied, .cancelledTranscript: .none
+        case .transcriptCopied, .transcriptionFailed: .openMainWindow
+        case .permissionsRequired: .openPermissionSettings
+        case .credentialsUnusable: .openCredentialSettings
+        case .noSpeechDetected, .noAudioSignal: .openInputSettings
+        case .message: .dismiss
         }
     }
 }

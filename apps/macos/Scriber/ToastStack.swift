@@ -67,18 +67,26 @@ private struct ToastView: View {
             .font(.callout.weight(.medium))
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .glassEffect(.regular.tint(tint), in: .capsule)
+            .glassEffect(.regular.tint(toast.tone.glassTint), in: .capsule)
             .accessibilityIdentifier(toast.accessibilityIdentifier)
     }
+}
 
-    /// Tint, not fill: the glass still has to read as glass over whatever the
-    /// window is showing behind it.
-    private var tint: Color {
-        switch toast.tone {
-        case .success: .green.opacity(0.18)
-        case .warning: .orange.opacity(0.18)
-        case .failure: .red.opacity(0.18)
-        case .neutral: .clear
+/// Lives here rather than beside the tone itself because `ScriberCore` is
+/// deliberately free of SwiftUI. The floating pill reads the same two properties,
+/// which is what stops it and the toast stack from colouring one outcome twice.
+extension ToastTone {
+    /// Symbols carry this at full strength.
+    var accent: Color? {
+        switch self {
+        case .success: .green
+        case .warning: .orange
+        case .failure: .red
+        case .neutral: nil
         }
     }
+
+    /// Tint, not fill: the glass still has to read as glass over whatever is
+    /// behind it.
+    var glassTint: Color { accent?.opacity(0.18) ?? .clear }
 }
