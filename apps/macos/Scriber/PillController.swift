@@ -65,6 +65,8 @@ final class PillController {
     private var currentPanelSize = NSSize(width: 316, height: 78)
     private var dismissalCountdown: DismissalCountdown?
     private var keepsPanelCenterForCurrentUpdate = false
+    private var isResizingPanel = false
+    private var panelResizeGeneration = 0
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
     private let presentationDuration: TimeInterval = 0.18
     private let glassMargin: CGFloat = 8
@@ -262,6 +264,18 @@ final class PillController {
             width: desiredPillSize.width,
             height: desiredPillSize.height
         )
+        let desiredCornerRadius = CGFloat(phase.pillCornerRadius(height: Double(desiredPillSize.height)))
+
+        // Recording republishes its phase ten times a second to move the waveform and
+        // tick the timer, so most calls here change no geometry at all. Writing the
+        // destination anyway costs two forced layout passes per tick, and mid-resize it
+        // lands the animation's own target straight onto the glass, ending the animation
+        // a tenth of a second in: the capsule snaps to full width inside a panel still
+        // growing around it, and the panel clips whatever overhangs its right edge.
+        if desiredPanelSize == currentPanelSize, glassView.cornerRadius == desiredCornerRadius {
+            if isResizingPanel { return }
+            if glassView.frame == desiredGlassFrame { return }
+        }
 
         if desiredPanelSize != currentPanelSize {
             if panel.isVisible {
@@ -282,13 +296,36 @@ final class PillController {
                     if !forceAnimated {
                         keepsPanelCenterForCurrentUpdate = true
                     }
-                    NSAnimationContext.runAnimationGroup { context in
+                    panelResizeGeneration += 1
+                    let generation = panelResizeGeneration
+                    isResizingPanel = true
+                    NSAnimationContext.runAnimationGroup({ context in
                         context.duration = presentationDuration
                         context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                         panel.animator().setFrame(desiredPanelFrame, display: true)
                         glassView.animator().frame = desiredGlassFrame
-                    }
+                    }, completionHandler: { [weak self] in
+                        MainActor.assumeIsolated {
+                            guard let self, generation == self.panelResizeGeneration else { return }
+                            self.isResizingPanel = false
+                        }
+                    })
                 } else {
+                    // A resize already in flight keeps driving the panel after a plain
+                    // setter writes the new geometry, so the superseded animation wins and
+                    // the panel settles at the outgoing phase's size. Retargeting the
+                    // animator over zero seconds ends it; the direct set that follows
+                    // guarantees the frame synchronously, since `show()` reads it back in
+                    // the same turn to recentre the panel.
+                    if isResizingPanel {
+                        panelResizeGeneration += 1
+                        isResizingPanel = false
+                        NSAnimationContext.runAnimationGroup { context in
+                            context.duration = 0
+                            panel.animator().setFrame(desiredPanelFrame, display: true)
+                            glassView.animator().frame = desiredGlassFrame
+                        }
+                    }
                     panel.setFrame(desiredPanelFrame, display: true)
                     glassView.frame = desiredGlassFrame
                 }
@@ -306,7 +343,7 @@ final class PillController {
         // fixed copied-result radius after its host shrinks back to a capsule.
         panel.contentView?.layoutSubtreeIfNeeded()
         glassView.layoutSubtreeIfNeeded()
-        glassView.cornerRadius = CGFloat(phase.pillCornerRadius(height: Double(desiredPillSize.height)))
+        glassView.cornerRadius = desiredCornerRadius
     }
 
     private func copiedResultSize(for text: String) -> NSSize {
