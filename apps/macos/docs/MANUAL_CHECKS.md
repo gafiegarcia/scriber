@@ -43,6 +43,17 @@ credit requires explicit approval first.**
   first key release, and a chord containing `fn` displays it first. Disabling
   Hold and Toggle independently prevents only the disabled one. Restore the
   preferred shortcuts afterward.
+- Every pill still reads as tinted glass rather than a coloured slab, in light
+  and dark and over both a light and a dark window behind it. Recording and
+  transcribing carry no tint; a copied result is green; cancellation, no-words,
+  no-signal, permission, credential, and failure pills are amber. The glyph and
+  the glass never disagree about which of the three a pill is.
+- Clicking a pill's body opens what its button would have opened, and the
+  pointer becomes a link cursor only on the pills that do something. Clicking the
+  body of a recording, transcribing, copied-result, or cancellation pill does
+  nothing — in particular it never cancels a recording, spends credit, or
+  discards the cancelled-transcript recovery. Buttons still take their own
+  clicks.
 
 ## When visual design changes
 

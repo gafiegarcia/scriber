@@ -118,7 +118,6 @@ final class AppCoordinator: ObservableObject {
         shortcuts.onEscape = { [weak self] in self?.dismissVisiblePill() ?? false }
         shortcuts.onNonModifierKeyDown = { [weak self] in self?.cancelHeldRecordingForTypingIfNeeded() }
         shortcuts.onAvailabilityChanged = { [weak self] value in self?.shortcutMonitorAvailable = value }
-        pill.model.onCopy = { [weak self] in self?.copyCurrentResult() }
         pill.model.onOpen = { [weak self] in self?.openMainWindow() }
         pill.model.onOpenAPIKeySettings = { [weak self] in self?.openAPIKeySettings() }
         pill.model.onOpenUsageSettings = { [weak self] in self?.openUsageSettings() }
@@ -129,6 +128,7 @@ final class AppCoordinator: ObservableObject {
         pill.model.onCancelRecording = { [weak self] in self?.handleHandsFreePillAction(.cancel) }
         pill.model.onConfirmRecording = { [weak self] in self?.handleHandsFreePillAction(.confirm) }
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
+        pill.model.onDefaultAction = { [weak self] in self?.performPillDefaultAction() }
 
         Publishers.CombineLatest4(
             preferences.$holdShortcut,
@@ -257,7 +257,6 @@ final class AppCoordinator: ObservableObject {
         case .dictationCopied, .transcriptCopied: "Copied"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
-        case .pasteFailed: "Paste failed"
         case .transcriptionFailed: "Transcription failed"
         case .noSpeechDetected: "No words detected"
         case .noAudioSignal: "No microphone signal"
@@ -871,7 +870,7 @@ final class AppCoordinator: ObservableObject {
             showMessage("Microphone “\(name)” is unavailable")
         } catch {
             endOtherAudioMuting()
-            showFailure(error.localizedDescription, transcription: true)
+            showFailure(error.localizedDescription)
         }
     }
 
@@ -904,7 +903,7 @@ final class AppCoordinator: ObservableObject {
                 finishRecording(completed)
             } catch {
                 shortcuts.setMode(.idle)
-                showFailure(error.localizedDescription, transcription: true)
+                showFailure(error.localizedDescription)
             }
         }
     }
@@ -950,7 +949,7 @@ final class AppCoordinator: ObservableObject {
             Task { await transcribeCurrentRecord(delivery: .automaticPaste) }
         } catch {
             shortcuts.setMode(.idle)
-            showFailure(error.localizedDescription, transcription: true)
+            showFailure(error.localizedDescription)
         }
     }
 
@@ -1083,7 +1082,7 @@ final class AppCoordinator: ObservableObject {
                 retainCancelledRecording(completed)
             } catch {
                 shortcuts.setMode(.idle)
-                showFailure(error.localizedDescription, transcription: true)
+                showFailure(error.localizedDescription)
             }
         }
     }
@@ -1123,7 +1122,7 @@ final class AppCoordinator: ObservableObject {
             setPhase(.cancelledTranscript)
         } catch {
             shortcuts.setMode(.idle)
-            showFailure(error.localizedDescription, transcription: true)
+            showFailure(error.localizedDescription)
         }
     }
 
@@ -1163,6 +1162,26 @@ final class AppCoordinator: ObservableObject {
         return true
     }
 
+    /// Clicking the pill body. Every destination here is one the pill already
+    /// offers on a button; nothing transcribes, cancels, or discards, so landing
+    /// a click by accident costs a window at worst.
+    private func performPillDefaultAction() {
+        switch phase.pillDefaultAction(isPresented: pill.isPresented) {
+        case .none:
+            break
+        case .openMainWindow:
+            openMainWindow()
+        case .openPermissionSettings:
+            openPermissionSettings()
+        case .openCredentialSettings:
+            credentialReadiness.resolvesInUsageSettings ? openUsageSettings() : openAPIKeySettings()
+        case .openInputSettings:
+            openMicrophoneInputSettings()
+        case .dismiss:
+            returnToIdle()
+        }
+    }
+
     private func retryCurrentFailure() {
         guard let currentRecord else { return }
         retry(currentRecord)
@@ -1190,7 +1209,6 @@ final class AppCoordinator: ObservableObject {
         guard persistenceAvailable else {
             showFailure(
                 "Dictation history could not be opened. Quit and reopen Scriber.",
-                transcription: true,
                 playTerminalFeedback: false
             )
             return false
@@ -1208,21 +1226,11 @@ final class AppCoordinator: ObservableObject {
         setPhase(.permissionsRequired(permissionReadiness.missingPermissions))
     }
 
-    private func copyCurrentResult() {
-        guard let currentRecord else { return }
-        copy(currentRecord)
-        setPhase(.message("Copied"))
-    }
-
-    private func showFailure(
-        _ message: String,
-        transcription: Bool,
-        playTerminalFeedback: Bool = true
-    ) {
+    private func showFailure(_ message: String, playTerminalFeedback: Bool = true) {
         endOtherAudioMuting()
-        if transcription, playTerminalFeedback { playFeedback(.terminalFailure) }
+        if playTerminalFeedback { playFeedback(.terminalFailure) }
         shortcuts.setMode(.idle)
-        setPhase(transcription ? .transcriptionFailed(message) : .pasteFailed(message))
+        setPhase(.transcriptionFailed(message))
     }
 
     private func playFeedback(_ cue: RecordingFeedbackCue) {

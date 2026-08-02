@@ -39,7 +39,6 @@ struct DismissalCountdown: Equatable {
 final class PillModel: ObservableObject {
     @Published var phase: AppPhase = .idle
     @Published var dismissalCountdown: DismissalCountdown?
-    var onCopy: (() -> Void)?
     var onOpen: (() -> Void)?
     var onOpenAPIKeySettings: (() -> Void)?
     var onOpenUsageSettings: (() -> Void)?
@@ -50,6 +49,7 @@ final class PillModel: ObservableObject {
     var onCancelRecording: (() -> Void)?
     var onConfirmRecording: (() -> Void)?
     var onDismiss: (() -> Void)?
+    var onDefaultAction: (() -> Void)?
     var onHoverChanged: ((Bool) -> Void)?
 }
 
@@ -97,7 +97,9 @@ final class PillController {
         glassView.autoresizingMask = [.width, .height]
         glassView.style = .regular
         glassView.cornerRadius = glassView.bounds.height / 2
-        glassView.tintColor = nil
+        // `tintColor` is unused: it never composited anything visible against a
+        // SwiftUI-hosted `contentView` on this OS build, at any alpha up to 0.9.
+        // `PillView` paints its own tint layer into that hosted content instead.
         glassView.effectIsInteractive = true
         glassView.contentView = hostingView
         rootView.addSubview(glassView)
@@ -206,7 +208,7 @@ final class PillController {
         // it.
         case .dictationCopied, .transcriptCopied:
             5
-        case .cancelledTranscript, .credentialsUnusable, .pasteFailed, .transcriptionFailed,
+        case .cancelledTranscript, .credentialsUnusable, .transcriptionFailed,
              .noSpeechDetected, .noAudioSignal:
             6
         default:
@@ -226,7 +228,7 @@ final class PillController {
             NSSize(width: 450, height: 60)
         case .credentialsUnusable:
             NSSize(width: 430, height: 60)
-        case .pasteFailed, .transcriptionFailed:
+        case .transcriptionFailed:
             NSSize(width: 390, height: 60)
         case .noSpeechDetected, .noAudioSignal:
             NSSize(width: 460, height: 60)
@@ -389,11 +391,37 @@ private struct PillView: View {
     @ObservedObject var model: PillModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// `NSGlassEffectView.tintColor` never composited anything visible against
+    /// this view's hosted content, at any alpha up to 0.9. This layer paints the
+    /// tint directly instead, weaker than the toast stack's 0.18 since a toast is
+    /// glass over Scriber's own window while this pill floats over whatever the
+    /// user is working in.
+    private static let tintAlpha: CGFloat = 0.08
+
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background { tintLayer.clipShape(pillShape(for: model.phase)) }
             .contentShape(pillShape(for: model.phase))
+            .onTapGesture { if hasDefaultAction { model.onDefaultAction?() } }
+            // Declarative rather than an `NSCursor` push/pop pair: the phase can
+            // change while the pointer is still inside the pill, and a manual
+            // stack cannot stay balanced across that.
+            .pointerStyle(hasDefaultAction ? .link : nil)
             .onHover { model.onHoverChanged?($0) }
+    }
+
+    @ViewBuilder private var tintLayer: some View {
+        if let accent = model.phase.pillTone.accent {
+            accent.opacity(Self.tintAlpha)
+        }
+    }
+
+    /// The pill is presented whenever this view is on screen, so the phase alone
+    /// decides. Buttons inside still win the hit test; this only covers the body
+    /// around them.
+    private var hasDefaultAction: Bool {
+        model.phase.pillDefaultAction(isPresented: true) != .none
     }
 
     @ViewBuilder private var content: some View {
@@ -478,7 +506,7 @@ private struct PillView: View {
             HStack(spacing: 9) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 13))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(toneAccent)
                 Text("Recover cancelled transcript?")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 8)
@@ -495,7 +523,7 @@ private struct PillView: View {
                 Button("Undo") { model.onUndo?() }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
-                Button("Open History") { model.onOpen?() }
+                Button("See History") { model.onOpen?() }
                     .controlSize(.small)
             }
         }
@@ -507,8 +535,8 @@ private struct PillView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Copied")
+                    .foregroundStyle(toneAccent)
+                Text("Copied to clipboard")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 6)
                 countdown
@@ -529,7 +557,7 @@ private struct PillView: View {
 
             HStack {
                 Spacer()
-                Button("Open") { model.onOpen?() }
+                Button("See History") { model.onOpen?() }
                     .controlSize(.small)
             }
         }
@@ -551,16 +579,20 @@ private struct PillView: View {
         case .transcribing:
             ProgressView().controlSize(.small)
         case .dictationCopied, .transcriptCopied:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(toneAccent)
         case .noSpeechDetected, .noAudioSignal:
-            Image(systemName: "mic.slash.fill").foregroundStyle(.orange)
+            Image(systemName: "mic.slash.fill").foregroundStyle(toneAccent)
         case .cancelledTranscript, .permissionsRequired, .credentialsUnusable,
-             .pasteFailed, .transcriptionFailed:
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+             .transcriptionFailed:
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(toneAccent)
         default:
             Image(systemName: "waveform")
         }
     }
+
+    /// Which glyph appears is still per phase; only its colour comes from the
+    /// outcome, so a glyph and the glass behind it can never disagree.
+    private var toneAccent: Color { model.phase.pillTone.accent ?? .primary }
 
     private var title: String {
         switch model.phase {
@@ -569,13 +601,14 @@ private struct PillView: View {
         case .transcribing(let attempt, let delay):
             if attempt == 1, delay == nil { "Transcribing…" }
             else { "Retrying \(min(attempt + (delay == nil ? 0 : 1), 3))/3…" }
-        // One wording for one outcome. These were "Copied" and "Transcript copied"
-        // for the same thing, which read as two different results.
+        // Only `.transcriptCopied` reaches this: `.dictationCopied` always renders
+        // expanded and titles itself there. The two say different things on
+        // purpose — a History retry reaching the clipboard is the intended result,
+        // so this one must not read like the apology the expanded pill is making.
         case .dictationCopied, .transcriptCopied: "Copied"
         case .cancelledTranscript: "You can recover your cancelled transcript"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
-        case .pasteFailed: "Couldn't paste automatically"
         case .transcriptionFailed: "Transcription failed"
         case .noSpeechDetected: "No words detected"
         case .noAudioSignal: "No sound from the microphone"
@@ -591,7 +624,7 @@ private struct PillView: View {
         case .cancelledTranscript: "We noticed you cancelled your transcription"
         case .permissionsRequired(let missing):
             PermissionReadiness(missingPermissions: missing).recoveryMessage
-        case .dictationCopied(_, let message), .pasteFailed(let message), .transcriptionFailed(let message): message
+        case .dictationCopied(_, let message), .transcriptionFailed(let message): message
         // Kept short deliberately: the compact pill gives its subtitle one line
         // and truncates, and these phases also carry a countdown, an action, and
         // a dismiss control on the same row. The cause goes here; the fix is the
@@ -625,13 +658,9 @@ private struct PillView: View {
                     .controlSize(.small)
             }
             dismissButton
-        case .pasteFailed:
-            Button("Copy") { model.onCopy?() }.buttonStyle(.borderedProminent).controlSize(.small)
-            Button("Open") { model.onOpen?() }.controlSize(.small)
-            dismissButton
         case .transcriptionFailed:
             Button("Retry") { model.onRetry?() }.buttonStyle(.borderedProminent).controlSize(.small)
-            Button("Open") { model.onOpen?() }.controlSize(.small)
+            Button("See History") { model.onOpen?() }.controlSize(.small)
             dismissButton
         case .noSpeechDetected, .noAudioSignal:
             Button("Check Input") { model.onOpenInputSettings?() }

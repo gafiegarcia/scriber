@@ -1,10 +1,18 @@
 # Native macOS Roadmap
 
 ## v0.8.2
-- [ ] **Tint pills by outcome** — green for success, amber for warnings such as cancellation and no-words. A design pass across every pill state in light and dark on varied backgrounds, not a small edit. Take the outcome-to-tone mapping from `ScriberCore/Toasts.swift`, which the window's toast stack already uses, so the two surfaces cannot disagree.
-- [ ] **Define whole-pill default actions.** Map every pill phase to an explicit, unsurprising whole-pill click before enabling that interaction; copied and cancelled outcomes need deliberate choices alongside their existing buttons.
+- [x] **Tint pills by outcome** — green for success, amber for warnings such as cancellation and no-words. A design pass across every pill state in light and dark on varied backgrounds, not a small edit. Take the outcome-to-tone mapping from `ScriberCore/Toasts.swift`, which the window's toast stack already uses, so the two surfaces cannot disagree.
+- [x] **Define whole-pill default actions.** Map every pill phase to an explicit, unsurprising whole-pill click before enabling that interaction; copied and cancelled outcomes need deliberate choices alongside their existing buttons.
 - [x] **Reduce the app icon shadow.**
 - [x] **Verify Speech-to-Text-only API keys.** With account-usage access disabled, confirm Scriber accepts the key, allows dictation, and reports credit usage as unavailable without marking the key invalid.
+
+## v0.8.3
+
+- [ ] **Show Cancel during held recording too.** Give every recording mode the
+      leading Cancel control, so locking into hands-free animates only Confirm
+      in rather than both. `showsHandsFreeRecordingControls` in
+      `ScriberCore/CoreModels.swift` gates both today and has to split; the
+      pill's held width and its expansion animation both change with it.
 
 ## v0.9.0
 
