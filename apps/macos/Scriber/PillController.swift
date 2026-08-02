@@ -452,13 +452,21 @@ final class PillController {
 private struct PillView: View {
     @ObservedObject var model: PillModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     /// `NSGlassEffectView.tintColor` never composited anything visible against
     /// this view's hosted content, at any alpha up to 0.9. This layer paints the
     /// tint directly instead, weaker than the toast stack's 0.18 since a toast is
     /// glass over Scriber's own window while this pill floats over whatever the
     /// user is working in.
-    private static let tintAlpha: CGFloat = 0.07
+    ///
+    /// Light glass washes an accent out, so it takes roughly twice the alpha to
+    /// separate green from amber there. This tracks the system appearance, which
+    /// is not the same as what the pill happens to be floating over: a light-mode
+    /// pill sitting on dark content gets the heavier tint anyway, and no API
+    /// reports the backdrop's luminance.
+    private static let darkTintAlpha: CGFloat = 0.07
+    private static let lightTintAlpha: CGFloat = 0.15
     /// Faint over a light background is the accepted cost: raising this to satisfy
     /// light overwhelms the rim on dark before it helps.
     private static let specularAlpha: CGFloat = 0.18
@@ -477,9 +485,13 @@ private struct PillView: View {
             .onHover { model.onHoverChanged?($0) }
     }
 
+    private var tintAlpha: CGFloat {
+        colorScheme == .dark ? Self.darkTintAlpha : Self.lightTintAlpha
+    }
+
     @ViewBuilder private var tintLayer: some View {
         if let accent = model.phase.pillTone.accent {
-            accent.opacity(Self.tintAlpha)
+            accent.opacity(tintAlpha)
         }
     }
 
