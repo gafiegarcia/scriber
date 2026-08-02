@@ -11,8 +11,10 @@
 - [x] Change tintAlpha of pill to 0.07.
 - [x] Show Cancel during held recording too.
 - [x] **Add specular highlight to pill.** Add specular highlights at the sides of the pill (the automatic shiny border liquid glass effect, if available).
-- [ ] **Overhaul the backdrop for date label.** Current implementation is adding an opaque background spanning the full width of the label, but I don't like the discontinuity it creates when scrolling: entries text going up when scrolled goes under an opaque background under the date label, but then goes under a *translucent* background under the toolbar. My idea is experiment with no opaque background at all (date label text now fighting against scrolled entries) *but* add a text shadow to the label. Might look corny, but worth to explore.
 
+## v0.8.4
+
+- [ ] **Overhaul the backdrop for date label.** Current implementation is adding an opaque background spanning the full width of the label, but I don't like the discontinuity it creates when scrolling: entries text going up when scrolled goes under an opaque background under the date label, but then goes under a *translucent* background under the toolbar. My idea is experiment with no opaque background at all (date label text now fighting against scrolled entries) *but* add a text shadow to the label. Might look corny, but worth to explore.
 
 ## v0.9.0
 

@@ -14,6 +14,11 @@ snapshots. Ordinary development builds belong in Git history, not here.
   pill, which widens to make room and narrows back out when the pointer
   leaves; Escape still cancels without hovering. Hands-free continues to show
   Cancel unconditionally.
+- The pill's top and bottom edges now catch a faint highlight, so its glass
+  reads as a lit edge rather than a flat panel.
+- The pill's outcome tint is stronger in light mode. Light glass washed the
+  accents out far enough that a green success and an amber warning looked the
+  same, which is the one thing that tint exists to tell apart.
 
 ## 0.8.2 — 2026-08-02
 
