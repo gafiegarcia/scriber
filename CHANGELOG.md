@@ -3,6 +3,14 @@
 This file records intentionally identified Scriber releases and prerelease
 snapshots. Ordinary development builds belong in Git history, not here.
 
+## Unreleased
+
+### Changed
+
+- The floating pill now shows Cancel while holding a recording, not only once
+  it locks into hands-free. Locking in now only animates Confirm into the pill
+  instead of both controls.
+
 ## 0.8.2 — 2026-08-02
 
 Native bundle build 47, installed from an entitlement-free, locally signed

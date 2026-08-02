@@ -219,7 +219,7 @@ final class PillController {
     private func pillSize(for phase: AppPhase) -> NSSize {
         switch phase {
         case .recording(let mode, _, _):
-            NSSize(width: mode == .locked ? 360 : 280, height: 52)
+            NSSize(width: mode == .locked ? 360 : 320, height: 52)
         case .dictationCopied(let text, _):
             copiedResultSize(for: text)
         case .cancelledTranscript:
@@ -262,11 +262,11 @@ final class PillController {
                     width: desiredPanelSize.width,
                     height: desiredPanelSize.height
                 )
-                let animatesHandsFreeExpansion = model.phase.showsHandsFreeRecordingControls == false
-                    && phase.showsHandsFreeRecordingControls
+                let animatesConfirmExpansion = model.phase.showsConfirmRecordingControl == false
+                    && phase.showsConfirmRecordingControl
                     && !shouldReduceMotion
 
-                if animatesHandsFreeExpansion {
+                if animatesConfirmExpansion {
                     keepsPanelCenterForCurrentUpdate = true
                     NSAnimationContext.runAnimationGroup { context in
                         context.duration = presentationDuration
@@ -438,7 +438,7 @@ private struct PillView: View {
     private var compactStatus: some View {
         HStack(spacing: 10) {
             if case .recording = model.phase {
-                if model.phase.showsHandsFreeRecordingControls {
+                if model.phase.showsCancelRecordingControl {
                     recordingControl(
                         systemImage: "xmark",
                         label: "Cancel recording",
@@ -448,7 +448,7 @@ private struct PillView: View {
                 statusText
                 Spacer(minLength: 6)
                 symbol
-                if model.phase.showsHandsFreeRecordingControls {
+                if model.phase.showsConfirmRecordingControl {
                     recordingControl(
                         systemImage: "checkmark",
                         label: "Finish recording",
@@ -467,7 +467,11 @@ private struct PillView: View {
         .padding(.vertical, 11)
         .animation(
             reduceMotion ? nil : .easeInOut(duration: 0.18),
-            value: model.phase.showsHandsFreeRecordingControls
+            value: model.phase.showsCancelRecordingControl
+        )
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.18),
+            value: model.phase.showsConfirmRecordingControl
         )
     }
 

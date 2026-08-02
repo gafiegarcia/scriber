@@ -28,17 +28,20 @@ struct ShortcutMatcherTests {
         #expect(ShortcutAction.holdReleased.stopsRecording(mode: .held))
     }
 
-    @Test("Hands-free pill controls are available only while locked")
+    @Test("Cancel is available in every recording mode; Confirm only while locked")
     func handsFreePillControls() {
         let held = AppPhase.recording(mode: .held, elapsed: 1, level: -20)
         let locked = AppPhase.recording(mode: .locked, elapsed: 1, level: -20)
 
-        #expect(!held.showsHandsFreeRecordingControls)
-        #expect(HandsFreePillAction.cancel.disposition(for: held) == nil)
+        #expect(held.showsCancelRecordingControl)
+        #expect(!held.showsConfirmRecordingControl)
+        #expect(HandsFreePillAction.cancel.disposition(for: held) == .cancelRecording)
         #expect(HandsFreePillAction.confirm.disposition(for: held) == nil)
-        #expect(locked.showsHandsFreeRecordingControls)
+        #expect(locked.showsCancelRecordingControl)
+        #expect(locked.showsConfirmRecordingControl)
         #expect(HandsFreePillAction.cancel.disposition(for: locked) == .cancelRecording)
         #expect(HandsFreePillAction.confirm.disposition(for: locked) == .finishRecording)
+        #expect(HandsFreePillAction.cancel.disposition(for: .transcribing(attempt: 1, retryDelay: nil)) == nil)
         #expect(HandsFreePillAction.confirm.disposition(for: .transcribing(attempt: 1, retryDelay: nil)) == nil)
     }
 

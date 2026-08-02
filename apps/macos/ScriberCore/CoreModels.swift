@@ -381,7 +381,18 @@ public enum AppPhase: Equatable, Sendable {
     /// phase can never fall out of the list.
     public var acceptsRecordingStart: Bool { !isBusy }
 
-    var showsHandsFreeRecordingControls: Bool {
+    /// Cancel is available in every recording mode: held recording still stops
+    /// on key release, but a change of mind before that should not require
+    /// waiting for it.
+    var showsCancelRecordingControl: Bool {
+        guard case .recording = self else { return false }
+        return true
+    }
+
+    /// Confirm only makes sense while locked. A held recording already has an
+    /// explicit stop gesture — releasing the key — so offering a second one
+    /// would just be two ways to do the same thing.
+    var showsConfirmRecordingControl: Bool {
         guard case .recording(let mode, _, _) = self else { return false }
         return mode == .locked
     }
@@ -414,10 +425,9 @@ enum HandsFreePillAction: Equatable, Sendable {
     case confirm
 
     func disposition(for phase: AppPhase) -> HandsFreePillDisposition? {
-        guard phase.showsHandsFreeRecordingControls else { return nil }
-        return switch self {
-        case .cancel: .cancelRecording
-        case .confirm: .finishRecording
+        switch self {
+        case .cancel: phase.showsCancelRecordingControl ? .cancelRecording : nil
+        case .confirm: phase.showsConfirmRecordingControl ? .finishRecording : nil
         }
     }
 }
