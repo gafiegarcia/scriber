@@ -30,9 +30,13 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 - The main window has no sidebar. It owns one persistent SwiftUI toolbar
   carrying the workspace control, the dictation count, any unresolved recovery
   condition, a Settings button, and search. The window title is not displayed.
-- The first three form one leading group: they all describe the workspace, and
-  keeping them together is what stops the toolbar reflowing when a condition
-  appears or clears. The Settings button follows that group.
+- The workspace control and the count form one leading group: the count is the
+  workspace's subtitle, and adjacency is what keeps it reading as one. Settings
+  follows them, and the recovery warning comes last of all — after Settings, so
+  that a condition appearing or clearing grows into the space before the search
+  field instead of moving a control the user aims at. The warning is not part of
+  the workspace group: it reports that the app cannot run, which is not a fact
+  about the active workspace.
 - Do not move the Settings button beside the search field. `.searchable`
   anchors the field to the trailing edge behind a flexible space of its own,
   and no toolbar placement or declaration order gets past it; adding a second

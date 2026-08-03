@@ -34,6 +34,26 @@
 - [ ] **Build the long-form Transcription workspace.** Settings is already grouped
       so Dictation options and Transcription options can sit side by side, and the
       main window's workspace control becomes a picker when this lands.
+- [ ] **Order the toolbar for two workspaces.** When the workspace control stops
+      being a plain name, lay the toolbar out as workspace switcher, count, a
+      fixed gap, Settings, then the recovery warning. The switcher leads because
+      it is the subject every other item describes and the one control aimed at
+      by muscle memory; the count follows it as its subtitle, and being adjacent
+      is what keeps it reading as one rather than as a clickable fact of its
+      own. The fixed gap stands in for the trailing cluster this toolbar cannot
+      have, marking Settings as app-level rather than part of the workspace, and
+      it survives the switcher being wider than a word of text. Settings before
+      the warning, so the permanent control holds the fixed position and the
+      transient one grows into the gap.
+- [ ] **Decide the workspace switcher's control.** Apple's guidance is a tab view
+      for view switching and a segmented control only in a toolbar or inspector,
+      and this switcher is in a toolbar — so both readings are defensible.
+      Evaluate `TabView` first, because Dictation and Transcription are two
+      top-level destinations with their own list, query, and scroll position,
+      which is what a tab view models and a picker only imitates. Reject it if
+      it cannot mount its bar in the existing toolbar beside the count, Settings,
+      and search, or if it wants per-tab toolbar items: a toolbar whose items
+      vary by destination is what this window crashed on.
 - [ ] **Explore Apple Foundation Models for dictation post-processing.** Confirm
       Scriber can read adjacent context, derive a conservative word limit from
       half the smaller input/output budget or half the context window when

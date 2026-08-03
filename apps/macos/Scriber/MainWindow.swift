@@ -70,10 +70,10 @@ struct MainWindowView: View {
                 prompt: workspace.searchPrompt
             )
             .toolbar {
-                // One item, because everything in it describes the workspace:
-                // which one, how much it holds, and whether it can run. Status
-                // belongs together, and the group grows rightward when the
-                // warning appears rather than reflowing the toolbar.
+                // One item, because both parts describe the workspace: which
+                // one, and how much it holds. The count reads as the
+                // workspace's own subtitle, and adjacency is what keeps it
+                // reading as one rather than as a separate fact.
                 ToolbarItem(placement: .navigation) {
                     HStack(spacing: 10) {
                         // Plain text, because it is not a control. A background here
@@ -86,8 +86,6 @@ struct MainWindowView: View {
                         Text(dictationCountLabel)
                             .foregroundStyle(.secondary)
                             .accessibilityIdentifier("dictation-count")
-
-                        if !recoveryConditions.isEmpty { recoveryControl }
                     }
                     // The toolbar compresses this group to a truncating width
                     // otherwise, which turns the workspace name into "Dictati…".
@@ -112,15 +110,34 @@ struct MainWindowView: View {
                 // on. The button groups with the workspace instead.
                 DefaultToolbarItem(kind: .search, placement: .primaryAction)
 
+                // Both app-level controls in one item, and the warning after
+                // the button rather than before it, so a condition appearing or
+                // clearing moves nothing: the pair grows rightward into the
+                // space before the search field instead of pushing a control
+                // the user aims at. The warning sits here rather than with the
+                // workspace because it reports that the *app* cannot run, which
+                // is not a fact about Dictation.
+                //
+                // One item and not two, so the empty state needs no trust: an
+                // `HStack` holding only the button measures exactly as the
+                // button alone did. A second item that renders nothing cannot
+                // be checked here — every `--ui-testing` launch starts without
+                // a key and so always raises a condition — and shipping a
+                // titlebar gap that only appears on a correctly configured Mac
+                // is not worth the tidier declaration.
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        runtime.coordinator.openSettingsWindow(destination: .settings)
-                    } label: {
-                        Image(systemName: "gearshape")
+                    HStack(spacing: 2) {
+                        Button {
+                            runtime.coordinator.openSettingsWindow(destination: .settings)
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
+                        .help("Scriber Settings")
+                        .accessibilityLabel("Settings")
+                        .accessibilityIdentifier("open-settings")
+
+                        if !recoveryConditions.isEmpty { recoveryControl }
                     }
-                    .help("Scriber Settings")
-                    .accessibilityLabel("Settings")
-                    .accessibilityIdentifier("open-settings")
                 }
             }
             .searchFocused($searchFocused)
@@ -155,11 +172,12 @@ struct MainWindowView: View {
         Button {
             showingRecovery = true
         } label: {
+            // No glass of its own: it sits inside the Settings button's
+            // item now, and a capsule nested in that item's background reads
+            // as two surfaces stacked.
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .glassEffect(.regular, in: .capsule)
+                .padding(.horizontal, 6)
         }
         .buttonStyle(.plain)
         .help("Scriber needs attention")
