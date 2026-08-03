@@ -84,11 +84,23 @@ struct DictationDayTitlebarInstaller: NSViewRepresentable {
 /// The label as it sits in the titlebar.
 ///
 /// Its insets repeat the list's own column geometry — same width cap, same
-/// centring, same inset — so the day name lands directly above the leading edge
-/// of the card it names. Change one and the other has to follow. It does not
-/// take the card's `contentInset`: that one is interior padding the card's own
-/// edge does not carry, and adding it here pushed the label off that edge.
+/// centring, same page inset — and then step the label outside it, so the day
+/// name overhangs the leading edge of the card it names. Change the list's
+/// geometry and this has to follow.
 private struct DictationDayTitlebarLabel: View {
+    /// How far the label sits outside the card's leading edge.
+    ///
+    /// Half the page inset, which puts the label half the card's own margin from
+    /// the window at any width narrow enough that the cards still reach the
+    /// inset. Calendar hangs its month title off the grid the same way: the
+    /// heading reads as a label *for* the content below rather than as part of
+    /// it, and the shorter margin is what keeps it tied to the window edge
+    /// instead of floating between the two.
+    ///
+    /// An offset and not a padding: the column above has to keep measuring
+    /// exactly as the list's does, or the two stop being centred together.
+    private static let outdent = DictationHistoryLayout.horizontalInset / 2
+
     @ObservedObject var model: DictationDayTitle
 
     var body: some View {
@@ -98,5 +110,6 @@ private struct DictationDayTitlebarLabel: View {
             .frame(maxWidth: DictationHistoryLayout.maxContentWidth, alignment: .leading)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, DictationHistoryLayout.horizontalInset)
+            .offset(x: -Self.outdent)
     }
 }
