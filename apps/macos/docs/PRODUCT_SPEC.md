@@ -9,7 +9,8 @@ Scriber is a native macOS menu-bar dictation app intended as a direct replacemen
 - Show the Dock icon while a normal Scriber window is open. “Show app in Dock” is user-configurable and disabled by default; disabling it never closes a visible window. When disabled, closing the final normal window with Command-W, Command-Shift-W, or the red window control removes Scriber from the Dock while menu-bar and dictation services continue. When enabled, Scriber remains in the Dock and app switcher without an open window.
 - Save local dictation history.
 - Group Dictation history by local calendar date and vertically center each entry's time beside its transcript content. Keep the page centred, with one transparent continuously rounded card per day, a subtle outline, and row separators that span the card's full width. Separate one day's card from the next by a gap wide enough to mark the boundary on its own, since no label sits between them.
-- Name the day currently at the top of Dictation history in a strip inside the window's titlebar, below the toolbar items, aligned to the leading edge of the card it names. It is the only place a day is named; the list itself carries no day label. Give the strip no backdrop of its own — it shares the titlebar's, and a separate surface beneath the toolbar cannot be made to match it. Hand the name over to the next day as that day's card reaches the titlebar, and collapse the strip whenever no day is on screen.
+- Name the day currently at the top of Dictation history in a strip inside the window's titlebar, below the toolbar items, hanging off the leading edge of the cards and lined
+  up with the close button rather than with the card column. It is the only place a day is named; the list itself carries no day label. Give the strip no backdrop of its own — it shares the titlebar's, and a separate surface beneath the toolbar cannot be made to match it. Hand the name over to the next day as that day's card reaches the titlebar, and collapse the strip whenever no day is on screen.
 - Scroll Dictation history under the window's titlebar, which shows a separator only while content sits beneath it.
 - Confirm a Dictation-history copy with a brief toast in the window's bottom-right corner, without changing the row's copy control.
 - Insert each completed transcript into the text cursor that is focused when transcription completes, not the one that was focused when recording began. The user may move focus while transcription runs, and delivery follows that final cursor.
@@ -28,11 +29,18 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
   Do not add an empty Transcription workspace before that workflow exists.
 - The main window has no sidebar. It owns one persistent SwiftUI toolbar
   carrying the workspace control, the dictation count, any unresolved recovery
-  condition, and search. The window title is not displayed.
-- Those first three form one leading group: they all describe the workspace, and
+  condition, a Settings button, and search. The window title is not displayed.
+- The first three form one leading group: they all describe the workspace, and
   keeping them together is what stops the toolbar reflowing when a condition
-  appears or clears. Settings is not among them — it is reached through `⌘,`,
-  the app menu, the menu bar item, and each recovery condition's own action.
+  appears or clears. The Settings button follows that group.
+- Do not move the Settings button beside the search field. `.searchable`
+  anchors the field to the trailing edge behind a flexible space of its own,
+  and no toolbar placement or declaration order gets past it; adding a second
+  spacer only strands the button in the middle of the titlebar. Declare the
+  field with `DefaultToolbarItem(kind: .search)` and do not also ask
+  `.searchable` for `.toolbar` placement, or the toolbar gets two of each.
+  Reaching the button's drawn position in `.designs/` needs a hand-built
+  AppKit search field, which this window is forbidden from having.
 - SwiftUI owns that toolbar alone. Never replace `window.toolbar`, never hide or
   remove a SwiftUI-created toolbar item from AppKit, and never vary a toolbar
   item's shared-background preference by state: each one makes SwiftUI reconcile

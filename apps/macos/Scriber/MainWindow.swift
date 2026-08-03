@@ -62,9 +62,11 @@ struct MainWindowView: View {
             .environmentObject(toasts)
             .overlay(alignment: .bottomTrailing) { ToastStackView().environmentObject(toasts) }
             .onDisappear { toasts.cancelAll() }
+            // No `placement: .toolbar`: the toolbar's own `DefaultToolbarItem`
+            // places the field, and asking for it here as well contributes a
+            // second one with a second flexible space behind it.
             .searchable(
                 text: $searchQuery,
-                placement: .toolbar,
                 prompt: workspace.searchPrompt
             )
             .toolbar {
@@ -94,6 +96,32 @@ struct MainWindowView: View {
                 // Constant: varying it by state asks SwiftUI to reconcile window
                 // chrome, which is what this window has already crashed on.
                 .sharedBackgroundVisibility(.hidden)
+
+                // Declared rather than left implicit, because `.searchable`
+                // otherwise contributes a *second* search item and a second
+                // flexible space, and the button ends up balanced between the
+                // two springs in the middle of the titlebar.
+                //
+                // Known and unfixed: this button cannot sit beside the search
+                // field. `.searchable` anchors the field to the trailing edge
+                // behind a flexible space of its own, and nothing declared here
+                // gets past it — `.primaryAction` and `.confirmationAction`
+                // measure identically, and declaration order does not move it.
+                // Reaching the mockup's position means hand-building the field
+                // in AppKit, which is the machinery this window already crashed
+                // on. The button groups with the workspace instead.
+                DefaultToolbarItem(kind: .search, placement: .primaryAction)
+
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        runtime.coordinator.openSettingsWindow(destination: .settings)
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .help("Scriber Settings")
+                    .accessibilityLabel("Settings")
+                    .accessibilityIdentifier("open-settings")
+                }
             }
             .searchFocused($searchFocused)
             .focusedSceneValue(\.searchDictationHistoryAction, { searchFocused = true })
