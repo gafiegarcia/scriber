@@ -66,9 +66,15 @@ credit requires explicit approval first.**
 
 ## When visual design changes
 
-- Light and dark both read comfortably over light and dark desktops. Inspect the
-  toolbar, warning control, the titlebar's day strip, day cards, separators, and
-  copy toast. The app icon looks right in the Dock and Finder.
+- Both appearances read comfortably in the window: the toolbar, the titlebar's
+  day strip, the warning control, day cards, separators, and the copy toast.
+  Switch appearance only. The window is opaque and its translucent parts sample
+  the app's own background, so the desktop behind it cannot reach them and
+  changing wallpaper proves nothing about any of these.
+- Both appearances read comfortably over both a light and a dark desktop for the
+  pill, which is a borderless panel floating on the desktop rather than in a
+  window. Wallpaper is a real variable here and nowhere else.
+- The app icon looks right in the Dock and Finder.
 
 ## When real history or transcription recovery changes
 
