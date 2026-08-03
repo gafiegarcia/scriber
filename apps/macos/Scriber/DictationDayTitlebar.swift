@@ -1,7 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// The day label's text, published from the history list's scroll position.
+/// The day label's text, published from the history list's scroll position, and
+/// the leading inset it is drawn at.
 ///
 /// The label does not live in the list any more, so the two need something to
 /// talk through. `nil` means there is no day to name — an empty history, or a
@@ -9,6 +10,12 @@ import SwiftUI
 @MainActor
 final class DictationDayTitle: ObservableObject {
     @Published var title: String?
+
+    /// Where the close button's leading edge sits, in window coordinates.
+    ///
+    /// The fallback is AppKit's inset for a standard titlebar, and only stands in
+    /// if the button cannot be measured.
+    @Published var leadingInset: CGFloat = 20
 }
 
 /// Puts the day label inside the window's titlebar, below the toolbar items.
@@ -47,6 +54,15 @@ struct DictationDayTitlebarInstaller: NSViewRepresentable {
         func install(in window: NSWindow, model: DictationDayTitle) {
             guard accessory == nil else { return }
 
+            // Measured, not hardcoded: the label lines up with the close button,
+            // and only AppKit knows where it put it. A `.bottom` accessory spans
+            // the titlebar edge to edge, so the button's x in window coordinates
+            // is the inset the label needs.
+            if let close = window.standardWindowButton(.closeButton) {
+                let inWindow = close.convert(close.bounds, to: nil)
+                if inWindow.minX > 0 { model.leadingInset = inWindow.minX }
+            }
+
             // `.automatic` is the whole point: AppKit hides the separator until
             // content actually scrolls under the titlebar, so the strip reads as
             // one surface with the toolbar while the list is at rest.
@@ -83,33 +99,19 @@ struct DictationDayTitlebarInstaller: NSViewRepresentable {
 
 /// The label as it sits in the titlebar.
 ///
-/// Its insets repeat the list's own column geometry — same width cap, same
-/// centring, same page inset — and then step the label outside it, so the day
-/// name overhangs the leading edge of the card it names. Change the list's
-/// geometry and this has to follow.
+/// It hangs off the leading edge of the cards, lined up with the close button,
+/// the way Calendar sets its month title against the window rather than against
+/// the grid. The label is chrome, so it takes the titlebar's geometry — it does
+/// not follow the list's column, and above the width at which the cards stop
+/// growing and start centring, the two separate on purpose.
 private struct DictationDayTitlebarLabel: View {
-    /// How far the label sits outside the card's leading edge.
-    ///
-    /// Half the page inset, which puts the label half the card's own margin from
-    /// the window at any width narrow enough that the cards still reach the
-    /// inset. Calendar hangs its month title off the grid the same way: the
-    /// heading reads as a label *for* the content below rather than as part of
-    /// it, and the shorter margin is what keeps it tied to the window edge
-    /// instead of floating between the two.
-    ///
-    /// An offset and not a padding: the column above has to keep measuring
-    /// exactly as the list's does, or the two stop being centred together.
-    private static let outdent = DictationHistoryLayout.horizontalInset / 2
-
     @ObservedObject var model: DictationDayTitle
 
     var body: some View {
         Text(model.title ?? "")
             .font(.title3.weight(.semibold))
+            .padding(.leading, model.leadingInset)
             .padding(.bottom, 10)
-            .frame(maxWidth: DictationHistoryLayout.maxContentWidth, alignment: .leading)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, DictationHistoryLayout.horizontalInset)
-            .offset(x: -Self.outdent)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
