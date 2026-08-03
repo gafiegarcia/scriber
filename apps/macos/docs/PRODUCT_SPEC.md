@@ -6,7 +6,7 @@ Scriber is a native macOS menu-bar dictation app intended as a direct replacemen
 
 - Remain available from the menu bar.
 - Menu-bar presence is user-configurable and enabled by default. Removing the item through macOS updates the same Settings preference; windows, launch-at-login, and global shortcuts continue independently.
-- Show the Dock icon while a normal Scriber window is open. “Show app in Dock” is user-configurable and disabled by default; disabling it never closes a visible window. When disabled, closing the final normal window with Command-W, Command-Shift-W, or the red window control removes Scriber from the Dock while menu-bar and dictation services continue. When enabled, Scriber remains in the Dock and app switcher without an open window.
+- Show the Dock icon while a normal Scriber window is open. “Show in Dock” is user-configurable and disabled by default; disabling it never closes a visible window. When disabled, closing the final normal window with Command-W, Command-Shift-W, or the red window control removes Scriber from the Dock while menu-bar and dictation services continue. When enabled, Scriber remains in the Dock and app switcher without an open window.
 - Save local dictation history.
 - Group Dictation history by local calendar date and vertically center each entry's time beside its transcript content. Keep the page centred, with one transparent continuously rounded card per day, a subtle outline, and row separators that span the card's full width. Separate one day's card from the next by a gap wide enough to mark the boundary on its own, since no label sits between them.
 - Name the day currently at the top of Dictation history in a strip inside the window's titlebar, below the toolbar items, hanging off the leading edge of the cards and lined
@@ -27,6 +27,13 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
   or Keychain item into Scriber.
 - The app exposes a **Dictation** workspace and a separate **Settings** window.
   Do not add an empty Transcription workspace before that workflow exists.
+- Settings presents five tabs — General, Dictation, Sound, ElevenLabs,
+  Permissions — and every pane fits its tab without scrolling at the default
+  window size. A route that opens Settings to fix something selects the tab that
+  owns the problem; opening Settings without naming one leaves the tab the user
+  last chose alone. Match the Settings window by scene identifier before title:
+  a tabbed pane may retitle its window after the selected tab, and fronting,
+  Command-Shift-W, and the Dock activation policy all depend on recognising it.
 - The main window has no sidebar. It owns one persistent SwiftUI toolbar
   carrying the workspace control, the dictation count, any unresolved recovery
   condition, a Settings button, and search. The window title is not displayed.
@@ -95,9 +102,9 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 
 ## Recording and transcription
 
-- Recording feedback sounds are enabled by default and configurable as one setting. Play the built-in macOS Frog sound only after capture starts successfully, Bottle once for a terminal recording or transcription failure, and Morse once when recording is cancelled or automatic paste falls back to a copied transcript. Bottle also covers the two microphone outcomes — no signal at all, and signal with no words — because both are terminal and both are easy to miss on screen alone. Retry waits remain silent.
+- The sounds Scriber plays while dictating are enabled by default and configurable as one setting, under Sound. Play the built-in macOS Frog sound only after capture starts successfully, Bottle once for a terminal recording or transcription failure, and Morse once when recording is cancelled or automatic paste falls back to a copied transcript. Bottle also covers the two microphone outcomes — no signal at all, and signal with no words — because both are terminal and both are easy to miss on screen alone. Retry waits remain silent.
 - Muting other app audio while recording is enabled by default and offered during onboarding. A private Core Audio process tap silences all audio except Scriber's while playback continues; destroy the tap as soon as capture stops or is cancelled. Never pause or resume another app, and never read, inspect, log, or persist tap audio.
-- Failure to create the other-audio mute tap must never prevent dictation. Keep recording unmuted and expose the unavailable state in Settings.
+- Failure to create the other-audio mute tap must never prevent dictation. Keep recording unmuted and expose the unavailable state on the Sound tab in Settings.
 - Use ElevenLabs Scribe v2 batch transcription with no secondary rewrite model.
   “Remove filler words and false starts” controls `no_verbatim`, defaults on, and
   remains user-configurable.
@@ -155,8 +162,8 @@ The current delivery transaction and its regression baseline are defined in
 - Unresolved permission and credential conditions appear together in the main window's chrome, never auto-dismiss, and leave only when resolved. That is what licenses the floating pill presenting one recovery at a time. A condition is never a toast: toasts are transient by contract and carry outcomes, not state.
 - Present an unchanged missing-permission state at most once per launch. Merely focusing a Scriber window refreshes permission state without presenting the same pill again or restarting its dismissal timer; a later revocation, changed missing-permission set, or attempted dictation may present it again.
 - Accessibility revocation prevents Scriber from observing the global shortcut itself, so Scriber must monitor permission state independently, stop unavailable shortcut monitoring, and restart it automatically when the grant returns. It must never rely on the blocked keypress as the only warning path.
-- Launch at Login is optional, offered during onboarding, defaults on, and requires explicit consent.
-- The onboarding window must open centred and fully visible on the current display, whether it is the first launch or a Redo Onboarding request made with the main window already open. Its steps scroll rather than extend the window past the screen. AppKit's own frame is not trusted for this: a cascaded or restored frame put it under the Dock.
+- Launch at login is optional, offered during onboarding, defaults on, and requires explicit consent.
+- The onboarding window must open centred and fully visible on the current display, whether it is the first launch or a Redo Setup request made with the main window already open. Its steps scroll rather than extend the window past the screen. AppKit's own frame is not trusted for this: a cascaded or restored frame put it under the Dock.
 - Every launch presents onboarding until setup is complete, then presents the main Dictation window. Closing the final normal window still leaves menu-bar and dictation services running.
 - Onboarding must be complete and the credential definitively usable before recording or Dictation retry can begin.
 - App Sandbox remains disabled while global event interception and cross-app

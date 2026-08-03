@@ -144,8 +144,8 @@ Confirm the window is centred and fully visible above the Dock, then relaunch an
 confirm it again — a restored frame behaves differently from a fresh one, and
 `fitOnboardingWindow` in `Scriber/ScriberApp.swift` is what overrides AppKit here.
 
-Also launch ordinary `--ui-testing`, open Settings, and choose **Redo
-Onboarding…** while the main window is already open. The setup window comes to
+Also launch ordinary `--ui-testing`, open Settings, and choose **Redo Setup…**
+on the General tab while the main window is already open. The setup window comes to
 the front, remains centred above the Dock, and shows the throwaway setup state;
 never reset Gaf's real `onboardingComplete` preference for this inspection.
 
@@ -191,12 +191,21 @@ interaction checks:
   Its label stays aligned to the card's leading edge at both the minimum window
   size and full width, the separator appears only over scrolled content, and the
   cards and toolbar survive minimum window size.
-- Single-entry Delete and Clear Dictation History both ask first. Exercise Cancel
-  and confirmation against the in-memory fixture, verify the rendered count, and
+- Single-entry Delete and Clear Dictation History both ask first. Clear
+  Dictation History is on Settings' Dictation tab. Exercise Cancel and
+  confirmation against the in-memory fixture, verify the rendered count, and
   never repeat this against the installed app's real history.
-- Saving a dummy key and then choosing **Remove Key…** exercises only the
-  confirmation, routing, and visible missing-key state. It is not evidence about
-  the real Keychain.
+- Saving a dummy key and then choosing **Remove API Key…** on the ElevenLabs tab
+  exercises only the confirmation, routing, and visible missing-key state. It is
+  not evidence about the real Keychain.
+- Every route that opens Settings to fix something selects the tab that owns the
+  problem, and opening Settings without naming one leaves the selected tab alone:
+  press `⌘,` twice and the second opening stays where the first was left.
+- Start recording a shortcut binding on the General tab, then switch tabs. The
+  capture ends: typing works everywhere in Scriber again, and the recorder shows
+  its stored binding rather than a live one. A stranded recorder swallows every
+  keystroke and suspends global shortcut matching until the window closes, and
+  neither symptom names its own cause.
 
 ### Simulated recovery
 
@@ -205,10 +214,10 @@ pattern above. Launch with `--ui-testing --ui-testing-missing-permissions` to
 inspect missing-permission recovery without changing real macOS grants.
 
 The toolbar warning lists both permissions, the pill's Review button activates
-Scriber and lands on Permissions and Input, and focusing and leaving Scriber
-does not present a second unchanged pill or restart its dismissal timer.
+Scriber and opens Settings on the Permissions tab, and focusing and leaving
+Scriber does not present a second unchanged pill or restart its dismissal timer.
 
 Launch separately with `--ui-testing --ui-testing-invalid-key-pill` when the
 credential-recovery pill changes. **Update Key** activates Scriber, opens
-Settings, and focuses the key field. These fixtures prove presentation and
+Settings on the ElevenLabs tab, and focuses the key field. These fixtures prove presentation and
 routing only, never credential validity or service access.

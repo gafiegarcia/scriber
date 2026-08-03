@@ -69,11 +69,20 @@ enum AppWindowIdentity {
         return window.identifier?.rawValue == "main" || mainWindowTitles.contains(window.title)
     }
 
+    /// Scene identifier first, title second, matching `isMainWindow`. A tabbed
+    /// pane is free to retitle its window after the selected tab the way Safari's
+    /// does, and the title alone is what fronting, Command-Shift-W, and the
+    /// activation-policy count all used to match Settings on.
+    static func isSettingsWindow(_ window: NSWindow) -> Bool {
+        guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
+        return window.identifier?.rawValue == "settings" || window.title == settingsTitle
+    }
+
     static func isManagedWindow(_ window: NSWindow) -> Bool {
         guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
         return isMainWindow(window)
+            || isSettingsWindow(window)
             || window.title == onboardingTitle
-            || window.title == settingsTitle
     }
 }
 
@@ -258,7 +267,10 @@ struct ScriberApp: App {
             .modelContainer(runtime.container)
             .task { await promoteApplicationForVisibleWindow() }
         }
-        .defaultSize(width: 720, height: 660)
+        // Sized for the tallest tab rather than for all of Settings at once.
+        // Only a Mac that has never opened this window sees it: SwiftUI persists
+        // the frame per scene id, and a persisted frame wins.
+        .defaultSize(width: 660, height: 560)
         .commands {
             CommandGroup(replacing: .appTermination) {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
@@ -527,7 +539,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Brings onboarding forward for a Redo Onboarding request.
+    /// Brings onboarding forward for a Redo Setup request.
     ///
     /// Polls, because the scene may not exist yet: unlike the main window,
     /// onboarding is usually never instantiated in a session that started with
@@ -587,9 +599,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showWindow(titled title: String) -> Bool {
         guard let window = NSApp.windows.first(where: {
             guard AppWindowIdentity.isManagedWindow($0) else { return false }
-            return title == AppWindowIdentity.mainTitle
-                ? AppWindowIdentity.isMainWindow($0)
-                : $0.title == title
+            switch title {
+            case AppWindowIdentity.mainTitle: return AppWindowIdentity.isMainWindow($0)
+            case AppWindowIdentity.settingsTitle: return AppWindowIdentity.isSettingsWindow($0)
+            default: return $0.title == title
+            }
         }) else { return false }
         Self.windowLog.notice(
             "showWindow: ordering front title=\(title, privacy: .public) wasVisible=\(window.isVisible, privacy: .public)"

@@ -321,7 +321,7 @@ struct MenuBarContent: View {
                 isEnabled: runtime.preferences.holdShortcutEnabled
             )
             shortcutHint(
-                "Hands-free Toggle: \(runtime.preferences.toggleShortcut.displayName)",
+                "Hands-free Dictation: \(runtime.preferences.toggleShortcut.displayName)",
                 isEnabled: runtime.preferences.toggleShortcutEnabled
             )
             Divider()

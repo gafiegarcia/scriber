@@ -13,6 +13,12 @@
 - [ ] **Redesign the menu bar menu.** Follow the Claude menu reference: lead with
       Scriber, show the marketing version and build beneath it, and place an Open
       control on the trailing edge.
+- [ ] **Search Settings.** Type "mic" in the Settings window and land on the
+      setting, whichever of the five tabs holds it. Tabs made Settings scannable;
+      this is for the case where the user knows the setting's name but not which
+      tab owns it. SwiftUI supplies nothing here — it needs an index of every
+      setting with its keywords, a field, results, and a jump that shows which
+      control it landed on.
 - [ ] **Show ElevenLabs credit usage in the menu bar menu.** Reuse the existing
       subscription-usage state and make unavailable or restricted usage explicit.
 - [ ] **Offer a top pill position** beneath the notch, alongside the current
@@ -31,9 +37,9 @@
       READMEs, package metadata, duplicate license files, and all remaining GPL
       references, then verify that no code or asset outside Gaf's rights is
       presented as relicensed.
-- [ ] **Build the long-form Transcription workspace.** Settings is already grouped
-      so Dictation options and Transcription options can sit side by side, and the
-      main window's workspace control becomes a picker when this lands.
+- [ ] **Build the long-form Transcription workspace.** Settings has a Dictation
+      tab, and Transcription options get their own tab beside it. The main
+      window's workspace control becomes a picker when this lands.
 - [ ] **Order the toolbar for two workspaces.** When the workspace control stops
       being a plain name, lay the toolbar out like this:
 

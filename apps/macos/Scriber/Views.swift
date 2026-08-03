@@ -47,40 +47,183 @@ private enum KeySaveFeedback {
 }
 
 
+enum SettingsTab: String, Hashable, CaseIterable, Identifiable {
+    case general
+    case dictation
+    case sound
+    case elevenLabs
+    case permissions
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .general: "General"
+        case .dictation: "Dictation"
+        case .sound: "Sound"
+        case .elevenLabs: "ElevenLabs"
+        case .permissions: "Permissions"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .general: "gearshape"
+        case .dictation: "text.bubble"
+        case .sound: "speaker.wave.2"
+        case .elevenLabs: "key"
+        case .permissions: "hand.raised"
+        }
+    }
+
+    var accessibilityIdentifier: String { "settings-tab-\(rawValue.lowercased())" }
+}
+
+extension MainWindowDestination {
+    /// The tab that owns this destination, or `nil` for one that names no tab.
+    ///
+    /// Nil is not a gap: a route that exists to fix something has to land on the
+    /// tab that owns it, and an ordinary opening must leave the user on whatever
+    /// tab they last chose.
+    var settingsTab: SettingsTab? {
+        switch self {
+        case .dictation, .settings: nil
+        case .apiKey, .usage: .elevenLabs
+        case .microphone: .sound
+        case .permissions: .permissions
+        }
+    }
+}
+
+/// The shape every tab's content takes: one grouped form, capped so a wide
+/// window leaves margins rather than stretching every control across it.
+private struct SettingsPane<Content: View>: View {
+    let accessibilityIdentifier: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        Form { content }
+            .formStyle(.grouped)
+            .accessibilityIdentifier(accessibilityIdentifier)
+            .padding()
+            .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject private var runtime: AppRuntime
-    @Environment(\.openWindow) private var openWindow
-    /// Only so Clear Dictation History knows whether there is anything to clear,
-    /// and how much. Sorted to match the Dictation page rather than for display.
-    @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
     let onShortcutConfigurationCaptureChanged: (Bool) -> Void
-    @State private var confirmClearHistory = false
-    @State private var confirmRemoveKey = false
-    @State private var isRemovingAPIKey = false
-    @State private var confirmRestartOnboarding = false
-    @State private var apiKey = ""
-    @State private var keyFeedback: KeySaveFeedback?
-    @State private var isCheckingAPIKey = false
-    @State private var newKeyterm = ""
-    @State private var message: String?
-    @FocusState private var apiKeyFieldFocused: Bool
+    @State private var selectedTab: SettingsTab = .general
+    /// Held by the window rather than by the General tab. A recorder still
+    /// running when its tab goes away leaves a local key monitor installed that
+    /// swallows every event, so only something outliving the tab can revoke it.
     @State private var activeShortcutRecorderID: String?
+    /// Cleared whenever the window appears, which is a fact about the window and
+    /// not about the tab that happens to draw the field.
+    @State private var apiKey = ""
+    /// Set by a route into the key field, consumed by the pane once it exists.
+    /// The pane is not mounted in the turn that selects its tab, and a
+    /// `@FocusState` write SwiftUI cannot satisfy yet is dropped, not queued.
+    @State private var pendingKeyFieldFocus = false
 
     init(onShortcutConfigurationCaptureChanged: @escaping (Bool) -> Void = { _ in }) {
         self.onShortcutConfigurationCaptureChanged = onShortcutConfigurationCaptureChanged
     }
 
-    /// A dictation still being transcribed is not shown in history and must not
-    /// be swept up by a clear — its audio is still in use. Matches the filter the
-    /// Dictation page applies to what it displays.
-    private var clearableRecords: [DictationRecord] {
-        records.filter { $0.transcriptionState != .transcribing }
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            Tab(value: SettingsTab.general) {
+                GeneralSettingsPane(activeShortcutRecorderID: $activeShortcutRecorderID)
+            } label: {
+                tabLabel(.general)
+            }
+            Tab(value: SettingsTab.dictation) {
+                DictationSettingsPane()
+            } label: {
+                tabLabel(.dictation)
+            }
+            Tab(value: SettingsTab.sound) {
+                SoundSettingsPane()
+            } label: {
+                tabLabel(.sound)
+            }
+            Tab(value: SettingsTab.elevenLabs) {
+                ElevenLabsSettingsPane(
+                    apiKey: $apiKey,
+                    pendingKeyFieldFocus: $pendingKeyFieldFocus
+                )
+            } label: {
+                tabLabel(.elevenLabs)
+            }
+            Tab(value: SettingsTab.permissions) {
+                PermissionsSettingsPane()
+            } label: {
+                tabLabel(.permissions)
+            }
+        }
+        .accessibilityIdentifier("settings-view")
+        .frame(minWidth: 560, minHeight: 420)
+        // Every one of these is on the window and not on a pane: a tab that is
+        // not selected may not be mounted, and each of them has to run for state
+        // the window owns.
+        .onChange(of: activeShortcutRecorderID) { _, activeRecorderID in
+            onShortcutConfigurationCaptureChanged(activeRecorderID != nil)
+        }
+        .onChange(of: runtime.coordinator.phase.isBusy) { _, isBusy in
+            if isBusy { activeShortcutRecorderID = nil }
+        }
+        .onChange(of: selectedTab) { _, tab in
+            // Leaving General mid-recording would strand the recorder's local
+            // monitor, which returns nil for every key event: nothing in Scriber
+            // could be typed into, and global shortcut matching would stay
+            // suspended, until the window was closed. Clearing the ID is what
+            // `ShortcutRecorderView` watches to tear the monitor down.
+            if tab != .general { activeShortcutRecorderID = nil }
+            // The same call refreshes the audio device list, so a microphone
+            // plugged in since the window opened is there on arrival.
+            if tab == .sound || tab == .permissions { runtime.coordinator.refreshPermissions() }
+        }
+        .onAppear {
+            apiKey = ""
+            runtime.coordinator.refreshPermissions()
+            applyMainWindowRequest(runtime.coordinator.mainWindowRequest)
+        }
+        .onChange(of: runtime.coordinator.mainWindowRequest) { _, request in
+            applyMainWindowRequest(request)
+        }
+        .onDisappear {
+            activeShortcutRecorderID = nil
+            onShortcutConfigurationCaptureChanged(false)
+        }
     }
 
+    private func tabLabel(_ tab: SettingsTab) -> some View {
+        Label(tab.title, systemImage: tab.systemImage)
+            .accessibilityIdentifier(tab.accessibilityIdentifier)
+    }
+
+    private func applyMainWindowRequest(_ request: MainWindowRequest?) {
+        guard let request else { return }
+        if let tab = request.destination.settingsTab { selectedTab = tab }
+        if request.destination == .apiKey { pendingKeyFieldFocus = true }
+        // Deferred one turn. Clearing the request writes an `@Published` this
+        // view is observing, from inside that view's own update, which is the
+        // shape AttributeGraph aborts the process for.
+        Task { @MainActor in runtime.coordinator.consumeMainWindowRequest() }
+    }
+}
+
+private struct GeneralSettingsPane: View {
+    @EnvironmentObject private var runtime: AppRuntime
+    @Environment(\.openWindow) private var openWindow
+    @Binding var activeShortcutRecorderID: String?
+    @State private var confirmRestartSetup = false
+    @State private var launchAtLoginError: String?
+
     var body: some View {
-        ScrollViewReader { proxy in
-            Form {
-            Section("General") {
+        SettingsPane(accessibilityIdentifier: "settings-general-pane") {
+            Section("Shortcuts") {
                 ShortcutRecorderView(
                     title: "Hold to Dictate",
                     identifier: "hold",
@@ -91,7 +234,7 @@ struct SettingsView: View {
                     isCaptureAllowed: !runtime.coordinator.phase.isBusy
                 )
                 ShortcutRecorderView(
-                    title: "Hands-free Toggle",
+                    title: "Hands-free Dictation",
                     identifier: "toggle",
                     isEnabled: $runtime.preferences.toggleShortcutEnabled,
                     chord: $runtime.preferences.toggleShortcut,
@@ -99,40 +242,164 @@ struct SettingsView: View {
                     conflictingChord: runtime.preferences.holdShortcutEnabled ? runtime.preferences.holdShortcut : nil,
                     isCaptureAllowed: !runtime.coordinator.phase.isBusy
                 )
-                Text("Modifier-only chords are supported. Press Escape while recording a binding to cancel.")
+                Text("A shortcut can be modifier keys on their own. Press Escape while recording one to cancel.")
                     .font(.caption).foregroundStyle(.secondary)
-                Toggle("Launch at Login", isOn: Binding(
+            }
+            Section("Startup and Presence") {
+                Toggle("Launch at login", isOn: Binding(
                     get: { runtime.preferences.launchAtLoginRequested },
                     set: { enabled in
-                        do { try runtime.coordinator.setLaunchAtLogin(enabled) }
-                        catch { message = error.localizedDescription }
+                        do {
+                            try runtime.coordinator.setLaunchAtLogin(enabled)
+                            launchAtLoginError = nil
+                        } catch {
+                            launchAtLoginError = error.localizedDescription
+                        }
                     }
                 ))
-                Toggle("Show in Menu Bar", isOn: $runtime.preferences.showInMenuBar)
-                Toggle("Show app in Dock", isOn: $runtime.preferences.showAppInDock)
+                if let launchAtLoginError {
+                    Text(launchAtLoginError).font(.caption).foregroundStyle(.red)
+                }
+                Toggle("Show in menu bar", isOn: $runtime.preferences.showInMenuBar)
+                Toggle("Show in Dock", isOn: $runtime.preferences.showAppInDock)
                     .accessibilityIdentifier("show-app-in-dock-toggle")
-                // Onboarding was previously reachable only by deleting a defaults
-                // key. Nothing is destroyed by walking it again — it reads current
+            }
+            Section {
+                // Nothing is destroyed by walking setup again — it reads current
                 // state, so a step already satisfied is presented as satisfied —
                 // but it does replace the window in front of you, so it asks.
                 HStack {
-                    Button("Redo Onboarding…") { confirmRestartOnboarding = true }
+                    Button("Redo Setup…") { confirmRestartSetup = true }
                         .accessibilityIdentifier("restart-onboarding")
                     Spacer()
                 }
             }
-            .onChange(of: activeShortcutRecorderID) { _, activeRecorderID in
-                onShortcutConfigurationCaptureChanged(activeRecorderID != nil)
+        }
+        .confirmationDialog("Go through setup again?", isPresented: $confirmRestartSetup) {
+            Button("Redo Setup") {
+                // Create the scene first, then let the coordinator order it
+                // front — it waits for the window to exist.
+                openWindow(id: "onboarding")
+                runtime.coordinator.restartOnboarding()
             }
-            .onChange(of: runtime.coordinator.phase.isBusy) { _, isBusy in
-                if isBusy { activeShortcutRecorderID = nil }
+        } message: {
+            Text("Your key, permissions, and history are kept. Setup shows each step's current state.")
+        }
+    }
+}
+
+private struct DictationSettingsPane: View {
+    @EnvironmentObject private var runtime: AppRuntime
+    /// Only so Clear Dictation History knows whether there is anything to clear,
+    /// and how much. Sorted to match the Dictation page rather than for display.
+    @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
+    @State private var newKeyterm = ""
+    @State private var keytermError: String?
+    @State private var confirmClearHistory = false
+
+    /// A dictation still being transcribed is not shown in history and must not
+    /// be swept up by a clear — its audio is still in use. Matches the filter the
+    /// Dictation page applies to what it displays.
+    private var clearableRecords: [DictationRecord] {
+        records.filter { $0.transcriptionState != .transcribing }
+    }
+
+    var body: some View {
+        SettingsPane(accessibilityIdentifier: "settings-dictation-pane") {
+            Section("Transcription") {
+                Picker("Language", selection: $runtime.preferences.languageCode) {
+                    Text("Automatic").tag("auto")
+                    Text("English").tag("en")
+                    Text("Indonesian").tag("id")
+                }
+                Toggle("Remove filler words and false starts", isOn: $runtime.preferences.noVerbatim)
+                LabeledContent("Keyterms") {
+                    HStack {
+                        TextField("Name or term", text: $newKeyterm)
+                            .accessibilityIdentifier("keyterm-field")
+                        Button("Add") { addKeyterm() }
+                            .disabled(newKeyterm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+                Text("Names, brands, and jargon you want spelled correctly.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if let keytermError {
+                    Text(keytermError).font(.caption).foregroundStyle(.red)
+                }
+                ForEach(runtime.preferences.keyterms, id: \.self) { term in
+                    HStack {
+                        Text(term)
+                        Spacer()
+                        Button { removeKeyterm(term) } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.plain)
+                    }
+                }
+                Text("ElevenLabs applies an additional usage charge when keyterms are sent.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("History") {
+                Toggle(
+                    "Delete saved recordings after 30 days",
+                    isOn: $runtime.preferences.deletesExpiredRetainedAudio
+                )
+                .accessibilityIdentifier("delete-expired-audio-toggle")
+                Text("Failed and cancelled dictations keep their audio so you can retry them. Transcripts and history entries are always kept; only the unused recording is removed.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Button("Clear Dictation History…", role: .destructive) {
+                        confirmClearHistory = true
+                    }
+                    .disabled(clearableRecords.isEmpty)
+                    .accessibilityIdentifier("clear-dictation-history")
+                    Spacer()
+                    Text("\(clearableRecords.count) \(clearableRecords.count == 1 ? "entry" : "entries")")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .confirmationDialog("Delete all dictation history?", isPresented: $confirmClearHistory) {
+            Button("Delete All", role: .destructive) {
+                runtime.coordinator.clearDictationHistory(clearableRecords)
+            }
+        } message: {
+            Text("This permanently removes transcripts and any retained failed recordings.")
+        }
+    }
+
+    private func addKeyterm() {
+        do {
+            let validated = try ScribeClient.validateKeyterms(runtime.preferences.keyterms + [newKeyterm])
+            runtime.preferences.keyterms = validated
+            newKeyterm = ""
+            keytermError = nil
+        } catch { keytermError = error.localizedDescription }
+    }
+
+    private func removeKeyterm(_ term: String) {
+        runtime.preferences.keyterms.removeAll { $0 == term }
+    }
+}
+
+private struct SoundSettingsPane: View {
+    @EnvironmentObject private var runtime: AppRuntime
+
+    var body: some View {
+        SettingsPane(accessibilityIdentifier: "settings-sound-pane") {
+            Section("Input") {
+                MicrophonePicker()
+                    .accessibilityIdentifier("microphone-input-picker")
             }
             Section("Feedback") {
                 Toggle(
-                    "Play recording feedback sounds",
+                    "Play sounds while dictating",
                     isOn: $runtime.preferences.playRecordingFeedbackSounds
                 )
                 .accessibilityIdentifier("recording-feedback-sounds-toggle")
+                Text("You hear one sound when recording starts, and another when a dictation fails or is cancelled.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 Toggle(
                     "Mute other audio while recording",
@@ -156,7 +423,23 @@ struct SettingsView: View {
                     }
                 }
             }
-            Section("ElevenLabs") {
+        }
+    }
+}
+
+private struct ElevenLabsSettingsPane: View {
+    @EnvironmentObject private var runtime: AppRuntime
+    @Binding var apiKey: String
+    @Binding var pendingKeyFieldFocus: Bool
+    @State private var keyFeedback: KeySaveFeedback?
+    @State private var isCheckingAPIKey = false
+    @State private var isRemovingAPIKey = false
+    @State private var confirmRemoveKey = false
+    @FocusState private var apiKeyFieldFocused: Bool
+
+    var body: some View {
+        SettingsPane(accessibilityIdentifier: "settings-elevenlabs-pane") {
+            Section("API Key") {
                 VStack(alignment: .leading, spacing: 10) {
                     SecureField(
                         text: $apiKey,
@@ -173,7 +456,6 @@ struct SettingsView: View {
                         .disabled(isCheckingAPIKey)
                         .focused($apiKeyFieldFocused)
                         .onSubmit(submitAPIKey)
-                        .id(MainWindowDestination.apiKey)
                     HStack {
                         Button(action: submitAPIKey) {
                             if isCheckingAPIKey {
@@ -197,13 +479,10 @@ struct SettingsView: View {
                             apiKeyStatusLabel
                         }
                         Spacer(minLength: 0)
-                        // There was no way to remove a saved key from inside the
-                        // app, so reaching Scriber's own missing-key state meant
-                        // deleting the item in Keychain Access. Confirmed, because
-                        // the key does not come back and dictation stops until it
-                        // is re-entered.
+                        // Confirmed, because the key does not come back and
+                        // dictation stops until it is entered again.
                         if runtime.preferences.apiKeyConfigured {
-                            Button("Remove Key…", role: .destructive) {
+                            Button("Remove API Key…", role: .destructive) {
                                 confirmRemoveKey = true
                             }
                             .disabled(isCheckingAPIKey || isRemovingAPIKey)
@@ -211,118 +490,37 @@ struct SettingsView: View {
                         }
                     }
                 }
-                subscriptionUsageView
-                    .id(MainWindowDestination.usage)
             }
-            Section("Dictation") {
-                Picker("Language", selection: $runtime.preferences.languageCode) {
-                    Text("Automatic").tag("auto")
-                    Text("English").tag("en")
-                    Text("Indonesian").tag("id")
+            // Guarded here rather than inside the block: `subscriptionUsageView`
+            // renders nothing while a valid key's usage has yet to arrive, and an
+            // empty section still draws its header.
+            if showsUsageSection {
+                Section("Usage") {
+                    subscriptionUsageView
                 }
-                Toggle("Remove filler words and false starts", isOn: $runtime.preferences.noVerbatim)
-                HStack {
-                    TextField("Name or term", text: $newKeyterm)
-                    Button("Add") { addKeyterm() }.disabled(newKeyterm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-                ForEach(runtime.preferences.keyterms, id: \.self) { term in
-                    HStack { Text(term); Spacer(); Button { removeKeyterm(term) } label: { Image(systemName: "minus.circle") }.buttonStyle(.plain) }
-                }
-                Text("ElevenLabs applies an additional usage charge when keyterms are sent.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section("Dictation History") {
-                Toggle(
-                    "Delete unused recordings after 30 days",
-                    isOn: $runtime.preferences.deletesExpiredRetainedAudio
-                )
-                .accessibilityIdentifier("delete-expired-audio-toggle")
-                Text("Failed and cancelled dictations keep their audio so you can retry them. Transcripts and history entries are always kept; only the unused recording is removed.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                // Moved here from the Dictation page's header, where it was the
-                // only item in an overflow menu that sat in the corner of every
-                // session for the sake of something done once in a while.
-                HStack {
-                    Button("Clear Dictation History…", role: .destructive) {
-                        confirmClearHistory = true
-                    }
-                    .disabled(clearableRecords.isEmpty)
-                    .accessibilityIdentifier("clear-dictation-history")
-                    Spacer()
-                    Text("\(clearableRecords.count) \(clearableRecords.count == 1 ? "entry" : "entries")")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Section("Permissions and Input") {
-                PermissionStatusRow(
-                    title: "Accessibility",
-                    systemImage: "keyboard",
-                    allowed: runtime.coordinator.accessibilityGranted
-                ) {
-                    AccessibilityPermissionButton()
-                }
-                // The section's first row rather than the `Section`: a scroll
-                // target on the Section lands on its header, which a grouped
-                // Form insets away from the content it names.
-                .id(MainWindowDestination.permissions)
-
-                PermissionStatusRow(
-                    title: "Microphone",
-                    systemImage: "mic",
-                    allowed: runtime.coordinator.microphoneGranted
-                ) {
-                    MicrophonePermissionButton()
-                }
-                MicrophonePicker()
-                    .id(MainWindowDestination.microphone)
-            }
-            if let message { Text(message).foregroundStyle(.secondary) }
-            }
-            .formStyle(.grouped)
-            .accessibilityIdentifier("settings-view")
-            .padding()
-            .confirmationDialog("Delete all dictation history?", isPresented: $confirmClearHistory) {
-                Button("Delete All", role: .destructive) {
-                    runtime.coordinator.clearDictationHistory(clearableRecords)
-                }
-            } message: {
-                Text("This permanently removes transcripts and any retained failed recordings.")
-            }
-            .confirmationDialog("Remove the stored API key?", isPresented: $confirmRemoveKey) {
-                Button("Remove Key", role: .destructive) { removeAPIKey() }
-            } message: {
-                Text("Dictation stops working until you enter a key again. Scriber cannot recover the removed key.")
-            }
-            .confirmationDialog("Go through onboarding again?", isPresented: $confirmRestartOnboarding) {
-                Button("Redo Onboarding") {
-                    // Create the scene first, then let the coordinator order it
-                    // front — it waits for the window to exist.
-                    openWindow(id: "onboarding")
-                    runtime.coordinator.restartOnboarding()
-                }
-            } message: {
-                Text("Your key, permissions, and history are kept. Onboarding shows each step's current state.")
-            }
-            .onAppear {
-                apiKey = ""
-                runtime.coordinator.refreshPermissions()
-                applyMainWindowRequest(runtime.coordinator.mainWindowRequest, proxy: proxy)
-            }
-            .onChange(of: runtime.coordinator.mainWindowRequest) { _, request in
-                applyMainWindowRequest(request, proxy: proxy)
-            }
-            .onChange(of: apiKey) { _, newValue in
-                if !newValue.isEmpty { keyFeedback = nil }
-            }
-            .onDisappear {
-                activeShortcutRecorderID = nil
-                onShortcutConfigurationCaptureChanged(false)
             }
         }
-        .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .confirmationDialog("Remove the stored API key?", isPresented: $confirmRemoveKey) {
+            Button("Remove API Key", role: .destructive) { removeAPIKey() }
+        } message: {
+            Text("Dictation stops working until you enter a key again. Scriber cannot recover the removed key.")
+        }
+        .onChange(of: apiKey) { _, newValue in
+            if !newValue.isEmpty { keyFeedback = nil }
+        }
+        // `initial: true` covers the ordinary case, where the flag was already
+        // set by the route that selected this tab before the pane existed.
+        .onChange(of: pendingKeyFieldFocus, initial: true) { _, pending in
+            guard pending else { return }
+            apiKeyFieldFocused = true
+            pendingKeyFieldFocus = false
+        }
+    }
+
+    private var showsUsageSection: Bool {
+        guard runtime.preferences.apiKeyValidity == .valid else { return false }
+        return runtime.preferences.subscriptionUsage != nil
+            || runtime.coordinator.subscriptionUsageUnavailable
     }
 
     private var canSubmitAPIKey: Bool {
@@ -346,29 +544,6 @@ struct SettingsView: View {
             } catch {
                 keyFeedback = .failed(error.localizedDescription)
             }
-        }
-    }
-
-    private func applyMainWindowRequest(_ request: MainWindowRequest?, proxy: ScrollViewProxy) {
-        guard let request else { return }
-        switch request.destination {
-        case .apiKey:
-            proxy.scrollTo(MainWindowDestination.apiKey, anchor: .top)
-            DispatchQueue.main.async { apiKeyFieldFocused = true }
-        case .usage:
-            apiKeyFieldFocused = false
-            proxy.scrollTo(MainWindowDestination.usage, anchor: .center)
-        case .microphone:
-            apiKeyFieldFocused = false
-            proxy.scrollTo(MainWindowDestination.microphone, anchor: .center)
-        case .permissions:
-            apiKeyFieldFocused = false
-            // `.top`, not `.center`: this is the last section in the pane, so
-            // there is nothing below it to centre against and the scroll view
-            // clamps at its end either way.
-            proxy.scrollTo(MainWindowDestination.permissions, anchor: .top)
-        case .dictation, .settings:
-            apiKeyFieldFocused = false
         }
     }
 
@@ -399,93 +574,103 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var subscriptionUsageView: some View {
-        if runtime.preferences.apiKeyValidity == .valid {
-            let presentation = SubscriptionUsagePresentation(
-                hasCachedUsage: runtime.preferences.subscriptionUsage != nil,
-                usageUnavailable: runtime.coordinator.subscriptionUsageUnavailable
-            )
-            if let usage = runtime.preferences.subscriptionUsage {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Label(presentation.cachedUsageTitle, systemImage: "gauge.with.dots.needle.33percent")
-                        Spacer()
-                        Text("\(usage.remainingCredits.formatted()) of \(usage.totalCredits.formatted()) remaining")
-                            .monospacedDigit()
+        let presentation = SubscriptionUsagePresentation(
+            hasCachedUsage: runtime.preferences.subscriptionUsage != nil,
+            usageUnavailable: runtime.coordinator.subscriptionUsageUnavailable
+        )
+        if let usage = runtime.preferences.subscriptionUsage {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label(presentation.cachedUsageTitle, systemImage: "gauge.with.dots.needle.33percent")
+                    Spacer()
+                    Text("\(usage.remainingCredits.formatted()) of \(usage.totalCredits.formatted()) remaining")
+                        .monospacedDigit()
+                }
+                ProgressView(value: Double(usage.remainingCredits), total: Double(max(usage.totalCredits, 1)))
+                    .tint(
+                        presentation.cachedUsageIsStale
+                            ? Color.secondary
+                            : usage.remainingCredits == 0 ? .orange : .accentColor
+                    )
+                HStack {
+                    Text(usage.tier.capitalized + " plan")
+                    if let resetAt = usage.resetAt {
+                        Text("· Resets \(resetAt.formatted(date: .abbreviated, time: .shortened))")
                     }
-                    ProgressView(value: Double(usage.remainingCredits), total: Double(max(usage.totalCredits, 1)))
-                        .tint(
-                            presentation.cachedUsageIsStale
-                                ? Color.secondary
-                                : usage.remainingCredits == 0 ? .orange : .accentColor
-                        )
-                    HStack {
-                        Text(usage.tier.capitalized + " plan")
-                        if let resetAt = usage.resetAt {
-                            Text("· Resets \(resetAt.formatted(date: .abbreviated, time: .shortened))")
-                        }
-                        Text("· Updated \(usage.fetchedAt.formatted(date: .abbreviated, time: .shortened))")
-                        Spacer()
-                        if presentation.showsCachedUsageRefresh {
-                            Button {
-                                Task { await runtime.coordinator.refreshSubscriptionUsage() }
-                            } label: {
-                                if runtime.coordinator.isRefreshingSubscriptionUsage {
-                                    ProgressView().controlSize(.small)
-                                } else {
-                                    Label("Refresh", systemImage: "arrow.clockwise")
-                                }
+                    Text("· Updated \(usage.fetchedAt.formatted(date: .abbreviated, time: .shortened))")
+                    Spacer()
+                    if presentation.showsCachedUsageRefresh {
+                        Button {
+                            Task { await runtime.coordinator.refreshSubscriptionUsage() }
+                        } label: {
+                            if runtime.coordinator.isRefreshingSubscriptionUsage {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Label("Refresh", systemImage: "arrow.clockwise")
                             }
-                            .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
                         }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    if usage.remainingCredits == 0, usage.canExtendCredits {
-                        Text("Included credits are depleted, but ElevenLabs reports that extended usage is available.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
                     }
                 }
-                .opacity(presentation.cachedUsageIsStale ? 0.58 : 1)
-                .padding(.vertical, 4)
-            }
-
-            if presentation.showsUnavailableRetry {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label("Speech-to-Text access verified", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text(runtime.coordinator.subscriptionUsageError ?? "Credit usage is unavailable for this API key.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                if usage.remainingCredits == 0, usage.canExtendCredits {
+                    Text("Included credits are depleted, but ElevenLabs reports that extended usage is available.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Button {
-                        Task { await runtime.coordinator.refreshSubscriptionUsage() }
-                    } label: {
-                        if runtime.coordinator.isRefreshingSubscriptionUsage {
-                            HStack(spacing: 6) {
-                                ProgressView().controlSize(.small)
-                                Text("Checking…")
-                            }
-                        } else {
-                            Text("Retry Credit Usage")
-                        }
-                    }
-                    .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
                 }
+            }
+            .opacity(presentation.cachedUsageIsStale ? 0.58 : 1)
+            .padding(.vertical, 4)
+        }
+
+        if presentation.showsUnavailableRetry {
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Speech-to-Text access verified", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text(runtime.coordinator.subscriptionUsageError ?? "Credit usage is unavailable for this API key.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button {
+                    Task { await runtime.coordinator.refreshSubscriptionUsage() }
+                } label: {
+                    if runtime.coordinator.isRefreshingSubscriptionUsage {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small)
+                            Text("Checking…")
+                        }
+                    } else {
+                        Text("Retry Credit Usage")
+                    }
+                }
+                .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
             }
         }
     }
+}
 
-    private func addKeyterm() {
-        do {
-            let validated = try ScribeClient.validateKeyterms(runtime.preferences.keyterms + [newKeyterm])
-            runtime.preferences.keyterms = validated
-            newKeyterm = ""
-            message = nil
-        } catch { message = error.localizedDescription }
-    }
+private struct PermissionsSettingsPane: View {
+    @EnvironmentObject private var runtime: AppRuntime
 
-    private func removeKeyterm(_ term: String) {
-        runtime.preferences.keyterms.removeAll { $0 == term }
+    var body: some View {
+        SettingsPane(accessibilityIdentifier: "settings-permissions-pane") {
+            Section {
+                PermissionStatusRow(
+                    title: "Accessibility",
+                    systemImage: "keyboard",
+                    allowed: runtime.coordinator.accessibilityGranted
+                ) {
+                    AccessibilityPermissionButton()
+                }
+                PermissionStatusRow(
+                    title: "Microphone",
+                    systemImage: "mic",
+                    allowed: runtime.coordinator.microphoneGranted
+                ) {
+                    MicrophonePermissionButton()
+                }
+            }
+        }
     }
 }
 
@@ -706,7 +891,7 @@ struct OnboardingView: View {
         runtime.coordinator.stopMicrophoneTest()
         if runtime.preferences.launchAtLoginRequested {
             do { try runtime.coordinator.setLaunchAtLogin(true) }
-            catch { self.error = "Setup finished, but Launch at Login could not be enabled: \(error.localizedDescription)" }
+            catch { self.error = "Setup finished, but Scriber could not be set to launch at login: \(error.localizedDescription)" }
         }
         runtime.preferences.onboardingComplete = true
         runtime.coordinator.startServices()

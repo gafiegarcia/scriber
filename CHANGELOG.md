@@ -5,6 +5,18 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
+### Changed
+
+- Settings is five tabs — General, Dictation, Sound, ElevenLabs, Permissions —
+  instead of one long scrolling pane, and every route that opens Settings to fix
+  something now lands on the tab that owns it.
+- The microphone input picker sits under Sound, beside the sounds Scriber plays
+  and the option to mute other audio.
+- Clearer labels throughout Settings: the sounds setting says what you will
+  actually hear, keyterms explain what they are for, "Hands-free Toggle" is now
+  "Hands-free Dictation", "Redo Onboarding…" is "Redo Setup…", and "Remove Key…"
+  is "Remove API Key…".
+
 ## 0.8.4 — 2026-08-03
 
 Native bundle build 64, installed from an entitlement-free, locally signed

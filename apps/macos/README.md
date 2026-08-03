@@ -102,8 +102,8 @@ done
 ## First launch
 
 Onboarding requests the ElevenLabs key, Microphone access, Accessibility access,
-optional Launch at Login, and the other-audio-muting preference. Default
-shortcuts are Hold `Fn` and Toggle `Fn-Space`. If macOS still performs a Globe/Fn
+the option to launch at login, and the other-audio-muting preference. Default
+shortcuts are Hold `Fn` and Hands-free `Fn-Space`. If macOS still performs a Globe/Fn
 action during shortcut testing, set that action to **Do Nothing** in System
 Settings.
 

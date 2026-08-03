@@ -22,7 +22,7 @@ credit requires explicit approval first.**
 - From the installed app, hold to dictate, speak, and release. **This spends API
   credit; ask first.** The text lands at the cursor focused when transcription
   completes, including when focus moves to another app during transcription.
-- With **Show app in Dock** off, close the last window, start recording with a
+- With **Show in Dock** off, close the last window, start recording with a
   global shortcut, then cancel with Escape before transcription. The menu bar
   remains available and **Open Scriber** restores the window.
 - Quit and reopen Scriber, then check again after a macOS restart. Microphone and
@@ -92,9 +92,9 @@ credit requires explicit approval first.**
 
 - Only with a disposable second key whose full value has been retained outside
   Scriber: save it, quit and reopen Scriber, restart macOS, and use Settings →
-  Remove Key…. The key reads back across both launches, and removal makes
-  dictation unavailable. Restore the intended key afterward. Never use this
-  procedure on the only recoverable key.
+  ElevenLabs → Remove API Key…. The key reads back across both launches, and
+  removal makes dictation unavailable. Restore the intended key afterward. Never
+  use this procedure on the only recoverable key.
 - Only when an already exhausted account or a disposable zero-quota key is
   available: confirm recovery opens the usage panel rather than focusing the key
   field. Never consume credits merely to reach exhaustion.
@@ -129,14 +129,14 @@ credit requires explicit approval first.**
 
 ## When installed-app lifecycle or menu-bar behavior changes
 
-- With **Show app in Dock** on, Scriber remains in the Dock and app switcher
+- With **Show in Dock** on, Scriber remains in the Dock and app switcher
   without an open window. Turning it off never closes a visible window. Restore
   the preferred setting afterward.
 - The menu-bar icon remains steady through dictation and switches to the warning
   symbol when the real key is unusable. Exercise the warning only with an already
   unusable or disposable key; never disable the sole working key to manufacture
   it. Inspect the actual menu bar; do not diagnose this from `defaults`.
-- Launch at Login works in both directions across a macOS restart. Restore the
+- Launch at login works in both directions across a macOS restart. Restore the
   preferred setting afterward.
 
 ## When the paste engine changes

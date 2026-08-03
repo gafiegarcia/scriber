@@ -20,10 +20,10 @@ enum MainWindowDestination: Hashable {
     case apiKey
     case usage
     case microphone
-    /// Settings, scrolled to Permissions and Input. Distinct from `.settings`,
-    /// which opens the pane at the top: Permissions and Input is the last
-    /// section of a long pane, so landing on Settings alone leaves the user
-    /// looking at General with no sign of what they were sent to fix.
+    /// Settings, on the Permissions tab. Distinct from `.settings`, which names
+    /// no tab and so leaves the one already showing alone: a route that exists
+    /// to fix something has to land on the tab that owns it, and an ordinary
+    /// opening must not drag the user off the tab they chose.
     case permissions
 }
 
@@ -789,6 +789,16 @@ final class AppCoordinator: ObservableObject {
 
     func selectMainWindowDestination(_ destination: MainWindowDestination) {
         mainWindowRequest = MainWindowRequest(destination: destination)
+    }
+
+    /// Discards a request once the window has acted on it.
+    ///
+    /// A request that outlives its own delivery gets re-applied every time the
+    /// window appears again, so a single trip to the key field would go on
+    /// selecting the ElevenLabs tab and taking focus on every later opening.
+    /// Settings is the only reader, so nothing else loses anything by this.
+    func consumeMainWindowRequest() {
+        mainWindowRequest = nil
     }
 
     /// Only a SwiftUI scene can create the Settings window, so the main window
