@@ -5,6 +5,15 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
+### Changed
+
+- The day a group belongs to is now named in a strip inside the window's
+  titlebar rather than on a band pinned inside the list. The strip shares the
+  titlebar's own material, so scrolled entries pass under one continuous
+  surface instead of meeting an opaque band and then a translucent one.
+- The empty Dictation history now reads "No Dictations Yet" on its own, without
+  the sentence that followed it.
+
 ## 0.8.3 — 2026-08-03
 
 Native bundle build 63, installed from an entitlement-free, locally signed

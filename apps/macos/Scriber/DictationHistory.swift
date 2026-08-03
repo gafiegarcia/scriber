@@ -11,6 +11,7 @@ struct DictationHistoryView: View {
     /// so its toolbar count cannot disagree with this list.
     let records: [DictationRecord]
     let searchQuery: String
+    @StateObject private var dayTitle = DictationDayTitle()
 
     private var filtered: [DictationRecord] {
         guard !searchQuery.isEmpty else { return records }
@@ -30,11 +31,7 @@ struct DictationHistoryView: View {
     var body: some View {
         Group {
             if records.isEmpty {
-                ContentUnavailableView(
-                    "No Dictations Yet",
-                    systemImage: "waveform",
-                    description: Text("Your completed dictations and retryable failures will appear here.")
-                )
+                ContentUnavailableView("No Dictations Yet", systemImage: "waveform")
             } else if filtered.isEmpty {
                 ContentUnavailableView.search(text: searchQuery)
             } else {
@@ -43,32 +40,97 @@ struct DictationHistoryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DictationHistoryLayout.pageBackground)
+        .background {
+            DictationDayTitlebarInstaller(model: dayTitle).frame(width: 0, height: 0)
+        }
+        .onChange(of: filtered.isEmpty) { _, isEmpty in
+            if isEmpty { dayTitle.title = nil }
+        }
         .accessibilityIdentifier("dictation-history-view")
     }
 
-    /// A `ScrollView` rather than a `List`, so the day headers can pin below the
-    /// toolbar and the rest of the page can scroll under its glass. The width cap
-    /// sits on the content and not on the scroll view, which keeps the scroll
-    /// indicator against the window edge where it belongs.
+    /// A `ScrollView` rather than a `List`, so the page can scroll under the
+    /// titlebar's glass. The width cap sits on the content and not on the scroll
+    /// view, which keeps the scroll indicator against the window edge where it
+    /// belongs.
+    ///
+    /// The outer reader is here for the safe-area inset alone: it is the height of
+    /// the titlebar, and so the line a card's top crosses when it starts sliding
+    /// out of sight. Measuring it beats hardcoding it — the strip's height follows
+    /// the label's font, which follows the user's text size.
     private var historyList: some View {
+        GeometryReader { outer in
+            scrollingHistory(titlebarHeight: outer.safeAreaInsets.top)
+        }
+    }
+
+    private func scrollingHistory(titlebarHeight: CGFloat) -> some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(sections) { section in
-                    Section {
-                        DictationDayCard(records: section.records)
-                            .padding(.bottom, DictationHistoryLayout.groupSpacing)
-                    } header: {
-                        DictationDayHeader(title: section.title)
-                    }
+                    DictationDayCard(records: section.records)
+                        .padding(.bottom, DictationHistoryLayout.groupSpacing)
+                        .background {
+                            GeometryReader { proxy in
+                                Color.clear.preference(
+                                    key: DictationSectionTopKey.self,
+                                    value: [
+                                        DictationSectionTop(
+                                            id: section.id,
+                                            title: section.title,
+                                            top: proxy.frame(in: .named(Self.scrollSpace)).minY
+                                        )
+                                    ]
+                                )
+                            }
+                        }
                 }
             }
             .frame(maxWidth: DictationHistoryLayout.maxContentWidth, alignment: .leading)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, DictationHistoryLayout.horizontalInset)
+            .padding(.top, DictationHistoryLayout.topInset)
             .padding(.bottom, 24)
+        }
+        .coordinateSpace(.named(Self.scrollSpace))
+        .onPreferenceChange(DictationSectionTopKey.self) { tops in
+            MainActor.assumeIsolated {
+                dayTitle.title = Self.currentTitle(from: tops, crossing: titlebarHeight)
+            }
         }
     }
 
+    private static let scrollSpace = "dictation-history-scroll"
+
+    /// The day the titlebar names: the last card whose top has already reached the
+    /// titlebar, or the first one still below it before any has.
+    ///
+    /// Sorted rather than trusted in order — preference values arrive in whatever
+    /// order SwiftUI collected the children, which is not the list's order.
+    private static func currentTitle(
+        from tops: [DictationSectionTop],
+        crossing titlebarHeight: CGFloat
+    ) -> String? {
+        let ordered = tops.sorted { $0.id > $1.id }
+        guard let first = ordered.first else { return nil }
+        return ordered.last { $0.top <= titlebarHeight }?.title ?? first.title
+    }
+}
+
+/// Where each day's card sits relative to the top of the scroll view. Negative
+/// once the card has begun passing under the titlebar.
+private struct DictationSectionTop: Equatable, Sendable {
+    let id: Date
+    let title: String
+    let top: CGFloat
+}
+
+private struct DictationSectionTopKey: PreferenceKey {
+    static let defaultValue: [DictationSectionTop] = []
+
+    static func reduce(value: inout [DictationSectionTop], nextValue: () -> [DictationSectionTop]) {
+        value.append(contentsOf: nextValue())
+    }
 }
 
 enum DictationHistoryLayout {
@@ -93,37 +155,21 @@ enum DictationHistoryLayout {
     static let cardCornerRadius: CGFloat = 16
 
     /// The gap that separates one day from the next.
-    static let groupSpacing: CGFloat = 28
-
-    /// The page's fill, and the pinned day label's fill.
     ///
-    /// **One constant for both, and the page paints it explicitly.** The label has
-    /// to hide the rows passing under it, so it must be opaque in exactly the
-    /// colour behind it. Do not reach for a system colour to match the window's own
-    /// background instead: none of them does, and the label shows as a lighter
-    /// band. Painting the page here is what makes the two agree by construction,
-    /// in both appearances, without anyone having to look.
+    /// Wider than it looks like it needs to be on its own. The day label sits in
+    /// the titlebar rather than between the cards, so this gap is the only thing
+    /// left marking where one day ends and the next begins.
+    static let groupSpacing: CGFloat = 40
+
+    /// Clearance between the titlebar's day label and the first card under it.
+    static let topInset: CGFloat = 20
+
+    /// The page's fill, painted explicitly rather than inherited.
+    ///
+    /// Do not reach for another system colour to stand in for the window's own
+    /// background: none of them matches it, and the difference shows as a band
+    /// wherever the two meet.
     static let pageBackground = Color(nsColor: .windowBackgroundColor)
-}
-
-/// The day a group belongs to, pinned while that group is on screen.
-///
-/// Opaque, edge to edge, and the same colour as the page behind it, so a row
-/// passing underneath simply stops being visible. **Keep it flat.** A gradient
-/// here fades out partway through the label's own glyphs and reads as a rendering
-/// fault; a translucent fill lets the rows ghost through it.
-private struct DictationDayHeader: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(.title3.weight(.semibold))
-            .padding(.horizontal, DictationHistoryLayout.contentInset)
-            .padding(.top, 18)
-            .padding(.bottom, 20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(DictationHistoryLayout.pageBackground)
-    }
 }
 
 /// One day group as a single card: one shape, one outline, one rule between

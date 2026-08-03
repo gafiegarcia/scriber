@@ -67,8 +67,8 @@ credit requires explicit approval first.**
 ## When visual design changes
 
 - Light and dark both read comfortably over light and dark desktops. Inspect the
-  toolbar, warning control, pinned day labels, day cards, separators, and copy
-  toast. The app icon looks right in the Dock and Finder.
+  toolbar, warning control, the titlebar's day strip, day cards, separators, and
+  copy toast. The app icon looks right in the Dock and Finder.
 
 ## When real history or transcription recovery changes
 

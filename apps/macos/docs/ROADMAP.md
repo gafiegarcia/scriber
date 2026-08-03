@@ -1,8 +1,12 @@
 # Native macOS Roadmap
 
-## v0.8.4
+## v0.8.5
 
-- [ ] **Overhaul the backdrop for date label.** Current implementation is adding an opaque background spanning the full width of the label, but I don't like the discontinuity it creates when scrolling: entries text going up when scrolled goes under an opaque background under the date label, but then goes under a *translucent* background under the toolbar. My idea is experiment with no opaque background at all (date label text now fighting against scrolled entries) *but* add a text shadow to the label. Might look corny, but worth to explore.
+- [ ] **Improve scrolling performance.** A long dictation history makes the
+      window lag while scrolling it; no other part of the app does. Investigation
+      needed. Measure before blaming anything: `sections` regroups every record
+      on each body evaluation, and each day card publishes its offset through a
+      preference key on every frame.
 
 ## v0.9.0
 

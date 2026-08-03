@@ -186,8 +186,11 @@ interaction checks:
   an existing transcript selection and search/scroll position.
 - The main window has no displayed title. Workspace, total rendered count, and
   warning control stay grouped without reflow; search does not change the total.
-- Day labels pin cleanly below the toolbar, the separator appears only over
-  scrolled content, and the cards and toolbar survive minimum window size.
+- The titlebar's day strip names the day at the top of the list, hands over as
+  the next day's card reaches it, and collapses when a search matches nothing.
+  Its label stays aligned to the card's leading edge at both the minimum window
+  size and full width, the separator appears only over scrolled content, and the
+  cards and toolbar survive minimum window size.
 - Single-entry Delete and Clear Dictation History both ask first. Exercise Cancel
   and confirmation against the in-memory fixture, verify the rendered count, and
   never repeat this against the installed app's real history.
