@@ -172,14 +172,26 @@ struct MainWindowView: View {
         Button {
             showingRecovery = true
         } label: {
-            // No glass of its own: it sits inside the Settings button's
-            // item now, and a capsule nested in that item's background reads
-            // as two surfaces stacked.
-            Image(systemName: "exclamationmark.triangle.fill")
+            // Nothing around the glyph, and no `.plain`. Both are what the
+            // toolbar's own button treatment supplies: the control metrics that
+            // size it to match Settings beside it, and the hover highlight
+            // every other button in the window has. Hand-padding a plain button
+            // opted out of both — it rendered at text metrics inside a control
+            // that is not text, and gave no sign it could be clicked.
+            //
+            // It also carries no glass of its own: it shares the Settings
+            // button's item, and a capsule nested in that item's background
+            // reads as two surfaces stacked.
+            //
+            // A circle and not the triangle the other surfaces use. Sitting
+            // beside a gear, matching metrics are not enough — a triangle fills
+            // less of its box than a round glyph does, so at the same size it
+            // reads as the smaller of the two. Matching the gear's silhouette
+            // gets optical parity without tuning a scale factor. The pill and
+            // the menus keep the triangle: nothing round sits next to them.
+            Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(.orange)
-                .padding(.horizontal, 6)
         }
-        .buttonStyle(.plain)
         .help("Scriber needs attention")
         .accessibilityLabel("Scriber needs attention")
         .accessibilityIdentifier("recovery-conditions")

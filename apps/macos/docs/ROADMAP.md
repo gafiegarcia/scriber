@@ -35,8 +35,14 @@
       so Dictation options and Transcription options can sit side by side, and the
       main window's workspace control becomes a picker when this lands.
 - [ ] **Order the toolbar for two workspaces.** When the workspace control stops
-      being a plain name, lay the toolbar out as workspace switcher, count, a
-      fixed gap, Settings, then the recovery warning. The switcher leads because
+      being a plain name, lay the toolbar out like this:
+
+      ```
+      [ Dictation | Transcription ]  353 dictations   ·gap·   ⚙  ⚠        ·······  [ Search ]
+      └──────── what you're looking at ────────┘        └── app-level ──┘
+      ```
+
+      The switcher leads because
       it is the subject every other item describes and the one control aimed at
       by muscle memory; the count follows it as its subtitle, and being adjacent
       is what keeps it reading as one rather than as a clickable fact of its
