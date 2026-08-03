@@ -1,5 +1,13 @@
 # Native macOS Roadmap
 
+## v0.8.5
+
+- [ ] **Improve scrolling performance.** A long dictation history makes the
+      window lag while scrolling it; no other part of the app does. Investigation
+      needed. Measure before blaming anything: `sections` regroups every record
+      on each body evaluation, and each day card publishes its offset through a
+      preference key on every frame.
+
 ## v0.9.0
 
 - [ ] **Redesign the menu bar menu.** Follow the Claude menu reference: lead with
