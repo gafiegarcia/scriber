@@ -84,15 +84,16 @@ struct DictationDayTitlebarInstaller: NSViewRepresentable {
 /// The label as it sits in the titlebar.
 ///
 /// Its insets repeat the list's own column geometry — same width cap, same
-/// centring, same two insets — so the day name lands directly above the leading
-/// edge of the card it names. Change one and the other has to follow.
+/// centring, same inset — so the day name lands directly above the leading edge
+/// of the card it names. Change one and the other has to follow. It does not
+/// take the card's `contentInset`: that one is interior padding the card's own
+/// edge does not carry, and adding it here pushed the label off that edge.
 private struct DictationDayTitlebarLabel: View {
     @ObservedObject var model: DictationDayTitle
 
     var body: some View {
         Text(model.title ?? "")
             .font(.title3.weight(.semibold))
-            .padding(.horizontal, DictationHistoryLayout.contentInset)
             .padding(.bottom, 10)
             .frame(maxWidth: DictationHistoryLayout.maxContentWidth, alignment: .leading)
             .frame(maxWidth: .infinity)
