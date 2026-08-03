@@ -5,6 +5,11 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
+## 0.8.4 — 2026-08-03
+
+Native bundle build 64, installed from an entitlement-free, locally signed
+Release build.
+
 ### Changed
 
 - The day a group belongs to is now named in a strip inside the window's
