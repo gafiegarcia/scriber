@@ -418,10 +418,16 @@ private struct DictationSettingsPane: View {
                         // A tooltip, not a caption line: this is what the
                         // "Names, brands, and jargon…" row used to be, spent
                         // on every launch whether or not anyone needed it.
-                        // Hovering the label is the one place someone unsure
-                        // what a keyterm is would already be looking.
-                        Text("Keyterms")
-                            .help("Names, brands, and jargon you want spelled correctly.")
+                        // The icon, not the word "Keyterms" itself, carries
+                        // `.help()` — plain `Text` inside a Form row's label
+                        // has no hoverable region of its own here, and an
+                        // icon is also the more familiar "hover me" signal.
+                        HStack(spacing: 4) {
+                            Text("Keyterms")
+                            Image(systemName: "questionmark.circle")
+                                .foregroundStyle(.secondary)
+                                .help("Names, brands, and jargon you want spelled correctly.")
+                        }
                     }
                     if let keytermError {
                         Text(keytermError).font(.caption).foregroundStyle(.red)
