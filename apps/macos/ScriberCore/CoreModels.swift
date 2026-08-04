@@ -123,6 +123,27 @@ public enum KeyCodeNames {
     public static func name(for keyCode: UInt16) -> String {
         names[keyCode] ?? "Key \(keyCode)"
     }
+
+    /// The reverse, so a table of chords can be written in the names a person
+    /// reads instead of in codes they have to trust. The positional layout makes
+    /// those codes genuinely misleading — 23 is `5` and 22 is `6`, F3 is 99 and
+    /// F5 is 96 — and a mistyped one is a rule that silently never matches.
+    public static func code(for name: String) -> UInt16? { codes[name] }
+
+    private static let codes: [String: UInt16] = Dictionary(
+        names.map { ($0.value, $0.key) },
+        uniquingKeysWith: { first, _ in first }
+    )
+
+    /// Keys macOS reports with the function modifier already set, whatever else is
+    /// held. A chord bound to one of them arrives carrying `.function` that the
+    /// user never pressed.
+    static let intrinsicallyFunctionKeyed: Set<UInt16> = [
+        122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111,  // F1–F12
+        105, 106, 107, 113,                                      // F13–F16
+        123, 124, 125, 126,                                      // arrows
+        114, 115, 116, 121, 117, 119,                            // Help, Home, Page Up/Down, Fwd Delete, End
+    ]
 }
 
 public enum RecordingMode: Equatable, Sendable {
@@ -920,5 +941,155 @@ public struct ShortcutTapMachine: Sendable {
         // flagsChanged event. Swallowing it can leave the focused app with a
         // stale modifier state, which in turn makes ordinary Space input fail.
         return .passedThrough
+    }
+}
+
+/// Chords Scriber refuses to bind, because something else already answers to them.
+///
+/// This matters more than a preference usually would: the event tap *swallows*
+/// what it matches, system-wide. A shortcut bound to ⌘C does not merely conflict
+/// with copy, it replaces copy in every application on the Mac.
+public enum ReservedShortcuts {
+    /// Why this chord cannot be bound, or nil when it can.
+    public static func refusal(for chord: ShortcutChord) -> String? {
+        if chord.modifiers == [.command] {
+            return "⌘ with a single key belongs to whatever app you are typing in. Add another modifier."
+        }
+        if systemChords.contains(normalized(chord)) {
+            return "macOS reserves \(chord.displayName). Choose another shortcut."
+        }
+        return nil
+    }
+
+    public static func reserves(_ chord: ShortcutChord) -> Bool { refusal(for: chord) != nil }
+
+    /// Drops the function modifier macOS attaches to the arrow, function, and
+    /// navigation keys on its own, so ⌃↑ matches whether it arrives as `[.control]`
+    /// or as `[.control, .function]`. Only for those keys: stripping it everywhere
+    /// would make `fn⌘Q` match plain ⌘Q, which is a different chord.
+    private static func normalized(_ chord: ShortcutChord) -> ShortcutChord {
+        guard let keyCode = chord.keyCode,
+              KeyCodeNames.intrinsicallyFunctionKeyed.contains(keyCode) else { return chord }
+        return ShortcutChord(modifiers: chord.modifiers.subtracting(.function), keyCode: keyCode)
+    }
+
+    private static func chord(_ modifiers: KeyModifiers, _ key: String) -> ShortcutChord {
+        guard let keyCode = KeyCodeNames.code(for: key) else {
+            preconditionFailure("No key code named \(key)")
+        }
+        return ShortcutChord(modifiers: modifiers, keyCode: keyCode)
+    }
+
+    /// Written in key names rather than codes on purpose — see `KeyCodeNames.code(for:)`.
+    ///
+    /// Single-Command chords are absent because the rule above already covers all
+    /// of them. ⌘⇧D is absent because it is free: no part of macOS claims it, and
+    /// it is a good chord to dictate with.
+    ///
+    /// Known and unfixed: this can only know the shortcuts macOS ships with, never
+    /// the ones another application has registered.
+    private static let systemChords: Set<ShortcutChord> = [
+        // Screenshots and screen recording
+        chord([.command, .shift], "3"),
+        chord([.command, .shift], "4"),
+        chord([.command, .shift], "5"),
+        chord([.command, .shift], "6"),
+        chord([.control, .command, .shift], "3"),
+        chord([.control, .command, .shift], "4"),
+
+        // Spotlight, input sources, character viewer
+        chord([.option, .command], "Space"),
+        chord([.control, .command], "Space"),
+        chord([.control], "Space"),
+        chord([.control, .option], "Space"),
+
+        // Mission Control
+        chord([.control], "↑"),
+        chord([.control], "↓"),
+        chord([.control], "←"),
+        chord([.control], "→"),
+
+        // Switching spaces
+        chord([.control], "1"),
+        chord([.control], "2"),
+        chord([.control], "3"),
+        chord([.control], "4"),
+        chord([.control], "5"),
+        chord([.control], "6"),
+        chord([.control], "7"),
+        chord([.control], "8"),
+        chord([.control], "9"),
+
+        // The Dock
+        chord([.option, .command], "D"),
+
+        // Locking, logging out, force quitting
+        chord([.control, .command], "Q"),
+        chord([.command, .shift], "Q"),
+        chord([.option, .command, .shift], "Q"),
+        chord([.option, .command], "Escape"),
+
+        // Windows
+        chord([.command, .shift], "W"),
+        chord([.control, .command], "F"),
+
+        // Accessibility and zoom
+        chord([.command], "F5"),
+        chord([.option, .command], "F5"),
+        chord([.option, .command], "8"),
+        chord([.option, .command], "="),
+        chord([.option, .command], "-"),
+        chord([.control, .option, .command], "8"),
+
+        // Keyboard navigation, and display mirroring
+        chord([.control], "F1"),
+        chord([.control], "F2"),
+        chord([.control], "F3"),
+        chord([.control], "F4"),
+        chord([.control], "F5"),
+        chord([.control], "F6"),
+        chord([.control], "F7"),
+        chord([.control], "F8"),
+        chord([.command], "F1"),
+
+        // Help
+        chord([.command, .shift], "/"),
+
+        // Text editing every macOS text field honours. AppKit implements these in
+        // the field editor, so binding one replaces it in every app at once.
+        chord([.control], "A"),
+        chord([.control], "B"),
+        chord([.control], "D"),
+        chord([.control], "E"),
+        chord([.control], "F"),
+        chord([.control], "H"),
+        chord([.control], "K"),
+        chord([.control], "N"),
+        chord([.control], "O"),
+        chord([.control], "P"),
+        chord([.control], "T"),
+        chord([.control], "V"),
+        chord([.control], "Y"),
+    ]
+}
+
+/// Resolves what was loaded from disk into a pair Scriber can actually run.
+public enum ShortcutPreferences {
+    /// A stored chord predates every rule added since it was stored, and nothing
+    /// on the load path has ever checked one. Replaces anything unbindable with
+    /// its default, and refuses to hand back a pair that is the same chord twice.
+    public static func resolve(
+        hold: ShortcutChord,
+        toggle: ShortcutChord
+    ) -> (hold: ShortcutChord, toggle: ShortcutChord) {
+        var hold = usable(hold) ? hold : .defaultHold
+        var toggle = usable(toggle) ? toggle : .defaultToggle
+        if hold == toggle { toggle = .defaultToggle }
+        if hold == toggle { hold = .defaultHold }
+        return (hold, toggle)
+    }
+
+    private static func usable(_ chord: ShortcutChord) -> Bool {
+        chord.isValid && !ReservedShortcuts.reserves(chord)
     }
 }

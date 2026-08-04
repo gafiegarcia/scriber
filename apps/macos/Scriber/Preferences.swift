@@ -72,8 +72,11 @@ final class Preferences: ObservableObject {
         apiKeyValidity = defaults.string(forKey: Keys.apiKeyValidity).flatMap(APIKeyValidity.init(rawValue:)) ?? .unchecked
         subscriptionUsage = Self.decode(ElevenLabsSubscriptionUsage.self, key: Keys.subscriptionUsage, defaults: defaults)
         apiCreditsExhausted = defaults.bool(forKey: Keys.apiCreditsExhausted)
-        holdShortcut = Self.decode(ShortcutChord.self, key: Keys.holdShortcut, defaults: defaults) ?? .defaultHold
-        toggleShortcut = Self.decode(ShortcutChord.self, key: Keys.toggleShortcut, defaults: defaults) ?? .defaultToggle
+        let storedHold = Self.decode(ShortcutChord.self, key: Keys.holdShortcut, defaults: defaults) ?? .defaultHold
+        let storedToggle = Self.decode(ShortcutChord.self, key: Keys.toggleShortcut, defaults: defaults) ?? .defaultToggle
+        let resolvedShortcuts = ShortcutPreferences.resolve(hold: storedHold, toggle: storedToggle)
+        holdShortcut = resolvedShortcuts.hold
+        toggleShortcut = resolvedShortcuts.toggle
         holdShortcutEnabled = defaults.object(forKey: Keys.holdShortcutEnabled) == nil ? true : defaults.bool(forKey: Keys.holdShortcutEnabled)
         toggleShortcutEnabled = defaults.object(forKey: Keys.toggleShortcutEnabled) == nil ? true : defaults.bool(forKey: Keys.toggleShortcutEnabled)
         languageCode = defaults.string(forKey: Keys.languageCode) ?? "auto"
@@ -104,6 +107,11 @@ final class Preferences: ObservableObject {
         if defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil {
             defaults.set(true, forKey: Keys.deletesExpiredRetainedAudio)
         }
+        // A chord replaced above was read before `didSet` was live, so it has to
+        // be written back here or the stored value survives to be replaced again
+        // on the next launch.
+        if resolvedShortcuts.hold != storedHold { save(resolvedShortcuts.hold, key: Keys.holdShortcut) }
+        if resolvedShortcuts.toggle != storedToggle { save(resolvedShortcuts.toggle, key: Keys.toggleShortcut) }
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

@@ -1267,3 +1267,109 @@ struct ShortcutTapMachineTests {
         #expect(machine.handle(flags([]), pillConsumesEscape: false).effects.isEmpty)
     }
 }
+
+@Suite("Reserved shortcuts")
+struct ReservedShortcutsTests {
+    private func chord(_ modifiers: KeyModifiers, _ key: String) -> ShortcutChord {
+        ShortcutChord(modifiers: modifiers, keyCode: KeyCodeNames.code(for: key))
+    }
+
+    @Test("Command with a single key is never bindable")
+    func singleCommandIsRefused() {
+        for key in ["Q", "W", "H", "M", "C", "V", "X", "Z", "A", "Space", "Tab", "`"] {
+            #expect(ReservedShortcuts.reserves(chord([.command], key)), "⌘\(key) should be refused")
+        }
+        // Bare Command as a modifier-only chord would swallow every Command
+        // shortcut on the system.
+        #expect(ReservedShortcuts.reserves(ShortcutChord(modifiers: [.command], keyCode: nil)))
+    }
+
+    @Test("⌘⇧D stays bindable")
+    func commandShiftDIsAllowed() {
+        // Gaf uses this one. Nothing in macOS claims it, and the single-Command
+        // rule must never be widened to "any chord containing Command".
+        #expect(ReservedShortcuts.refusal(for: chord([.command, .shift], "D")) == nil)
+    }
+
+    @Test("Named system combinations are refused")
+    func systemCombinationsAreRefused() {
+        let reserved: [(KeyModifiers, String)] = [
+            ([.command, .shift], "3"), ([.command, .shift], "4"), ([.command, .shift], "5"),
+            ([.command, .shift], "6"), ([.control, .command, .shift], "4"),
+            ([.option, .command], "Space"), ([.control, .command], "Space"),
+            ([.control], "Space"), ([.control, .option], "Space"),
+            ([.control], "↑"), ([.control], "↓"), ([.control], "←"), ([.control], "→"),
+            ([.control], "1"), ([.control], "5"), ([.control], "9"),
+            ([.option, .command], "D"),
+            ([.control, .command], "Q"), ([.command, .shift], "Q"),
+            ([.option, .command, .shift], "Q"), ([.option, .command], "Escape"),
+            ([.command, .shift], "W"), ([.control, .command], "F"),
+            ([.command], "F5"), ([.option, .command], "F5"), ([.option, .command], "8"),
+            ([.option, .command], "="), ([.option, .command], "-"),
+            ([.control, .option, .command], "8"),
+            ([.control], "F1"), ([.control], "F8"), ([.command], "F1"),
+            ([.command, .shift], "/"),
+            ([.control], "A"), ([.control], "D"), ([.control], "K"), ([.control], "Y"),
+        ]
+        for (modifiers, key) in reserved {
+            let value = chord(modifiers, key)
+            let refusal = ReservedShortcuts.refusal(for: value)
+            #expect(refusal != nil, "\(value.displayName) should be refused")
+        }
+    }
+
+    @Test("A refusal names the chord it is refusing")
+    func refusalNamesTheChord() {
+        let refusal = ReservedShortcuts.refusal(for: chord([.command, .shift], "4"))
+        #expect(refusal?.contains("⇧+⌘+4") == true)
+    }
+
+    @Test("Arrow and function chords are refused whichever way macOS spells them")
+    func functionFlagIsNormalized() {
+        // macOS sets the function modifier on these keys itself, so the chord
+        // arrives carrying a modifier the user never pressed.
+        #expect(ReservedShortcuts.reserves(chord([.control], "↑")))
+        #expect(ReservedShortcuts.reserves(chord([.control, .function], "↑")))
+        #expect(ReservedShortcuts.reserves(chord([.control], "F3")))
+        #expect(ReservedShortcuts.reserves(chord([.control, .function], "F3")))
+
+        // But the flag is only dropped for those keys. fn⌘Q is not ⌘Q.
+        #expect(!ReservedShortcuts.reserves(chord([.function, .command], "Q")))
+    }
+
+    @Test("An ordinary chord is allowed")
+    func ordinaryChordsAreAllowed() {
+        #expect(ReservedShortcuts.refusal(for: .defaultHold) == nil)
+        #expect(ReservedShortcuts.refusal(for: .defaultToggle) == nil)
+        #expect(ReservedShortcuts.refusal(for: chord([.control, .shift], "D")) == nil)
+        #expect(ReservedShortcuts.refusal(for: chord([.option], "R")) == nil)
+        #expect(ReservedShortcuts.refusal(for: ShortcutChord(modifiers: [.function, .control, .option], keyCode: nil)) == nil)
+    }
+
+    @Test("A stored reserved chord is replaced on load")
+    func storedReservedChordIsReplaced() {
+        let resolved = ShortcutPreferences.resolve(
+            hold: ShortcutChord(modifiers: [.command], keyCode: KeyCodeNames.code(for: "Q")),
+            toggle: .defaultToggle
+        )
+        #expect(resolved.hold == .defaultHold)
+        #expect(resolved.toggle == .defaultToggle)
+    }
+
+    @Test("Sanitizing never leaves Hold and Toggle the same chord")
+    func resolvedPairIsAlwaysDistinct() {
+        let resolved = ShortcutPreferences.resolve(
+            hold: ShortcutChord(modifiers: [.command], keyCode: KeyCodeNames.code(for: "Q")),
+            toggle: .defaultHold
+        )
+        #expect(resolved.hold != resolved.toggle)
+    }
+
+    @Test("An already-valid pair is returned untouched")
+    func validPairSurvives() {
+        let hold = ShortcutChord(modifiers: [.command, .shift], keyCode: 2)
+        let resolved = ShortcutPreferences.resolve(hold: hold, toggle: .defaultToggle)
+        #expect(resolved.hold == hold)
+        #expect(resolved.toggle == .defaultToggle)
+    }
+}
