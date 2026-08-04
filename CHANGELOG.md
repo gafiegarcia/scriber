@@ -20,9 +20,11 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ### Changed
 
-- The keyterms you've added now sit as one indented, undivided list under the
-  field that adds them, instead of each one reading as its own settings row
-  with the same divider treatment as Language or the filler-word toggle.
+- The keyterms you've added now sit in their own card under the field that
+  adds them, one row per term with a divider between them, instead of each
+  reading as its own settings row with the same divider treatment as Language
+  or the filler-word toggle. Rows are roomier too, so the delete button on a
+  crowded list is easy to tie to the entry beside it at a glance.
 - The Keyterms row no longer spends a permanent caption line explaining what a
   keyterm is. Click the small **ⓘ** beside **Keyterms** for the same
   explanation in a popover.

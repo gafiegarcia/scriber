@@ -372,9 +372,9 @@ private struct DictationSettingsPane: View {
                 // so a divider sat between every keyterm the same as it sat
                 // between Language and this section — the list read as more
                 // settings rather than as the contents of this one setting.
-                // Grouping them removes those dividers; the list's own indent
-                // below is what now says it belongs to Keyterms.
-                VStack(alignment: .leading, spacing: 8) {
+                // Grouping them removes those dividers; the card below is what
+                // now says the list belongs to Keyterms.
+                VStack(alignment: .leading, spacing: 12) {
                     LabeledContent {
                         HStack {
                             // Prompt rather than a title: inside `LabeledContent`
@@ -449,23 +449,7 @@ private struct DictationSettingsPane: View {
                         Text(keytermError).font(.caption).foregroundStyle(.red)
                     }
                     if !runtime.preferences.keyterms.isEmpty {
-                        // Indented off the captions above it: this is the
-                        // contents of Keyterms, not another setting beside it.
-                        VStack(alignment: .leading, spacing: 6) {
-                            ForEach(runtime.preferences.keyterms, id: \.self) { term in
-                                HStack {
-                                    Text(term)
-                                    Spacer()
-                                    Button {
-                                        removeKeyterm(term)
-                                    } label: {
-                                        Image(systemName: "minus.circle")
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                        .padding(.leading, 16)
+                        KeytermsCard(terms: runtime.preferences.keyterms, onRemove: removeKeyterm)
                     }
                     Text("ElevenLabs applies an additional usage charge when keyterms are sent.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -522,6 +506,50 @@ private struct DictationSettingsPane: View {
 
     private func removeKeyterm(_ term: String) {
         runtime.preferences.keyterms.removeAll { $0 == term }
+    }
+}
+
+/// The added keyterms as their own card, matching `DictationDayCard`'s recipe:
+/// one shape, one outline, one rule between neighbouring rows. Not drawn when
+/// there are no keyterms — an empty card would just be an empty box.
+///
+/// Not indented. The card's own border and per-row padding is what marks this
+/// as the contents of Keyterms rather than another setting; indenting on top
+/// of that read as two hierarchy cues for the same thing.
+private struct KeytermsCard: View {
+    let terms: [String]
+    let onRemove: (String) -> Void
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(terms, id: \.self) { term in
+                HStack {
+                    Text(term)
+                    Spacer()
+                    Button {
+                        onRemove(term)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.plain)
+                }
+                // Roomier than the row it replaced: cramped rows were exactly
+                // what made the delete button hard to tie to its entry — the
+                // eye had too little vertical room to anchor "this row" before
+                // scanning across it.
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                if term != terms.last {
+                    Divider()
+                }
+            }
+        }
+        .clipShape(shape)
+        .overlay { shape.strokeBorder(.separator, lineWidth: 0.5) }
     }
 }
 
