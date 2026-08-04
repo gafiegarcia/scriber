@@ -22,6 +22,8 @@ final class GlobalShortcutService {
     /// Every decision this tap makes. Kept in `ScriberCore` so it can be tested:
     /// nothing in this file can be, and a mistake here stalls the whole machine.
     private var machine: ShortcutTapMachine
+    private var pendingEffects: [ShortcutTapEffect] = []
+    private var isDrainScheduled = false
 
     init(hold: ShortcutChord, toggle: ShortcutChord, holdEnabled: Bool, toggleEnabled: Bool) {
         machine = ShortcutTapMachine(
@@ -49,6 +51,10 @@ final class GlobalShortcutService {
         machine.setConfigurationCaptureActive(active)
     }
 
+    /// Never call this from inside the tap's own callback. Its first act is
+    /// `stop()`, which releases the `CFMachPort` whose callout would be on the
+    /// stack. Everything the tap triggers is deferred a run-loop turn precisely so
+    /// that no handler can reach back here while the callback is still running.
     func start() {
         stop()
         let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
@@ -112,6 +118,8 @@ final class GlobalShortcutService {
         runLoopSource = nil
         eventTap = nil
         machine.reset()
+        // Anything still queued was decided against a tap that no longer exists.
+        pendingEffects.removeAll()
     }
 
     private func reenableTap() {
@@ -136,13 +144,43 @@ final class GlobalShortcutService {
 
     private func process(_ input: ShortcutTapInput) -> Bool {
         let outcome = machine.handle(input, pillConsumesEscape: pillConsumesEscape?() ?? false)
-        for effect in outcome.effects {
+        schedule(outcome.effects)
+        return outcome.suppressesEvent
+    }
+
+    /// Hands the work back to the run loop, so the callback returns the moment it
+    /// has decided.
+    ///
+    /// Starting a recording opens an `AVCaptureSession`, builds a CoreAudio
+    /// aggregate device, and asks the window server for every window on screen.
+    /// Run inline, all of that happened while the system was blocked waiting for
+    /// this tap to reply, which is what let a stalled callback take the machine
+    /// with it.
+    ///
+    /// One buffer drained by one task, not a task per effect: a press and its
+    /// release inverted would either leave a recording nothing stops or stop one
+    /// that never started, and unstructured tasks have no order relative to each
+    /// other. Ordering comes from the array here, not from the scheduler.
+    /// `DispatchQueue.main.async` is FIFO too, but it wants an `@escaping
+    /// @Sendable` closure and this class is neither.
+    private func schedule(_ effects: [ShortcutTapEffect]) {
+        guard !effects.isEmpty else { return }
+        pendingEffects.append(contentsOf: effects)
+        guard !isDrainScheduled else { return }
+        isDrainScheduled = true
+        Task { @MainActor in self.drainPendingEffects() }
+    }
+
+    private func drainPendingEffects() {
+        isDrainScheduled = false
+        let effects = pendingEffects
+        pendingEffects.removeAll(keepingCapacity: true)
+        for effect in effects {
             switch effect {
             case .action(let action): onAction?(action)
             case .nonModifierKeyDown: onNonModifierKeyDown?()
             }
         }
-        return outcome.suppressesEvent
     }
 }
 
