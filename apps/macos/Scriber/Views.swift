@@ -549,7 +549,12 @@ private struct KeytermsCard: View {
             }
         }
         .clipShape(shape)
-        .overlay { shape.strokeBorder(.separator, lineWidth: 0.5) }
+        // Wider than `DictationDayCard`'s: that 0.5pt hairline reads fine
+        // against the main window's plain background, but nested inside the
+        // Settings section's own bordered, materialed card it looked fainter
+        // than the `Divider()`s it sits beside — the two need the same weight
+        // to read as one visual language rather than two.
+        .overlay { shape.strokeBorder(.separator, lineWidth: 1) }
     }
 }
 
