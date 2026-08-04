@@ -432,10 +432,16 @@ private struct DictationSettingsPane: View {
                             }
                             .buttonStyle(.plain)
                             .popover(isPresented: $showsKeytermHelp) {
+                                // Without `.fixedSize`, the popover sizes
+                                // itself to `Text`'s single-line ideal height
+                                // even though `maxWidth` wraps it, so the
+                                // second line rendered outside the bubble
+                                // instead of growing it.
                                 Text("Names, brands, and jargon you want spelled correctly.")
                                     .font(.callout)
                                     .padding()
                                     .frame(maxWidth: 220)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                     }
