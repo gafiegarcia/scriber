@@ -143,6 +143,12 @@ enum DictationHistoryLayout {
     /// rhythm generally.
     static let horizontalInset: CGFloat = 32
 
+    /// The day label sits 2pt inside the cards' leading edge rather than out at
+    /// the close button. Enough to clear the edge without reading as an indent of
+    /// its own: the label and the card it names line up, and the row content
+    /// inside the card is the only thing that steps in.
+    static let dayLabelLeadingInset: CGFloat = horizontalInset + 2
+
     /// Padding inside the card, between its edge and a row's content. The rule
     /// between neighbouring rows does not share it; that one runs full width.
     ///

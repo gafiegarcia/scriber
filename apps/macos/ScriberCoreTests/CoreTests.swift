@@ -1284,6 +1284,18 @@ struct ReservedShortcutsTests {
         #expect(ReservedShortcuts.reserves(ShortcutChord(modifiers: [.command], keyCode: nil)))
     }
 
+    @Test("A single modifier held alone is refused, except fn")
+    func loneModifiersAreRefused() {
+        for modifier in [KeyModifiers.command, .shift, .control, .option] {
+            let chord = ShortcutChord(modifiers: modifier, keyCode: nil)
+            #expect(ReservedShortcuts.reserves(chord), "\(chord.displayName) alone should be refused")
+        }
+        // fn alone is the default Hold binding and must stay bindable.
+        #expect(ReservedShortcuts.refusal(for: .defaultHold) == nil)
+        // Two modifiers together are a deliberate chord, not a key someone leans on.
+        #expect(ReservedShortcuts.refusal(for: ShortcutChord(modifiers: [.control, .option], keyCode: nil)) == nil)
+    }
+
     @Test("⌘⇧D stays bindable")
     func commandShiftDIsAllowed() {
         // Gaf uses this one. Nothing in macOS claims it, and the single-Command

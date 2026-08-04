@@ -12,6 +12,10 @@ struct ShortcutRecorderView: View {
     @Binding var activeRecorderID: String?
     let conflictingChord: ShortcutChord?
     let isCaptureAllowed: Bool
+    /// Bumped when the Settings window closes. A refusal explains a key the user
+    /// just pressed, so it has no business still being there the next time they
+    /// open Settings — the guard that produced it has not gone anywhere.
+    let refusalResetToken: Int
 
     @State private var monitor: Any?
     @State private var modifierCapture = ModifierChordCaptureState()
@@ -43,6 +47,10 @@ struct ShortcutRecorderView: View {
         }
         .onChange(of: isCaptureAllowed) { _, isCaptureAllowed in
             if !isCaptureAllowed { stopRecording() }
+        }
+        .onChange(of: refusalResetToken) { _, _ in
+            stopRecording()
+            error = nil
         }
     }
 

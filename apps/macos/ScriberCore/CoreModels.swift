@@ -952,6 +952,17 @@ public struct ShortcutTapMachine: Sendable {
 public enum ReservedShortcuts {
     /// Why this chord cannot be bound, or nil when it can.
     public static func refusal(for chord: ShortcutChord) -> String? {
+        // One modifier held alone, before the Command rule below, so a bare ⌘ is
+        // refused for the reason that actually applies to it. Shift on its own is
+        // how every capital letter is typed, and Control, Option, and Command are
+        // each held as the first half of most other shortcuts on the system.
+        // `fn` is the exception and Scriber's own default: macOS gives it no role
+        // beyond the function keys, so holding it alone means nothing else.
+        if chord.keyCode == nil,
+           chord.modifiers.rawValue.nonzeroBitCount == 1,
+           chord.modifiers != [.function] {
+            return "\(chord.displayName) on its own is held as part of other shortcuts. Add a key, or another modifier."
+        }
         if chord.modifiers == [.command] {
             return "⌘ with a single key belongs to whatever app you are typing in. Add another modifier."
         }

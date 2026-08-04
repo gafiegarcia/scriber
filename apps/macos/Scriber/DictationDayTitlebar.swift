@@ -11,11 +11,6 @@ import SwiftUI
 final class DictationDayTitle: ObservableObject {
     @Published var title: String?
 
-    /// Where the close button's leading edge sits, in window coordinates.
-    ///
-    /// The fallback is AppKit's inset for a standard titlebar, and only stands in
-    /// if the button cannot be measured.
-    @Published var leadingInset: CGFloat = 20
 }
 
 /// Puts the day label inside the window's titlebar, below the toolbar items.
@@ -53,16 +48,6 @@ struct DictationDayTitlebarInstaller: NSViewRepresentable {
 
         func install(in window: NSWindow, model: DictationDayTitle) {
             guard accessory == nil else { return }
-
-            // Measured, not hardcoded: the label lines up with the close button,
-            // and only AppKit knows where it put it. A `.bottom` accessory spans
-            // the titlebar edge to edge, so the button's x in window coordinates
-            // is the inset the label needs.
-            if let close = window.standardWindowButton(.closeButton) {
-                let inWindow = close.convert(close.bounds, to: nil)
-                if inWindow.minX > 0 { model.leadingInset = inWindow.minX }
-            }
-
             // `.automatic` is the whole point: AppKit hides the separator until
             // content actually scrolls under the titlebar, so the strip reads as
             // one surface with the toolbar while the list is at rest.
@@ -110,7 +95,7 @@ private struct DictationDayTitlebarLabel: View {
     var body: some View {
         Text(model.title ?? "")
             .font(.title3.weight(.semibold))
-            .padding(.leading, model.leadingInset)
+            .padding(.leading, DictationHistoryLayout.dayLabelLeadingInset)
             .padding(.bottom, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

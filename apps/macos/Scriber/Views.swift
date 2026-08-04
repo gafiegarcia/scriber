@@ -96,11 +96,19 @@ extension MainWindowDestination {
 }
 
 private enum SettingsPaneLayout {
-    /// Hangs a section header off the leading edge of its card, the way the main
-    /// window's day label hangs off the day cards. A grouped form draws the header
-    /// at the row content's inset instead, which puts it inside the card it names
-    /// and reads as indentation pointing the wrong way.
-    static let sectionHeaderOutdent: CGFloat = -20
+    /// Lands a section header 2pt inside the leading edge of its card, matching
+    /// the main window's day label.
+    ///
+    /// A grouped form draws the header at the row content's inset, ~8pt further
+    /// in, which reads as the header being indented under the card rather than
+    /// naming it. Two points is enough to sit clear of the edge without becoming
+    /// an indent of its own — the header and the card read as one block, and the
+    /// row content inside is what is indented.
+    /// Known and unfixed: the ~8pt is AppKit's, not ours, so this is one number
+    /// short of derivable. If the header ever drifts against the day label in the
+    /// main window, this is the constant to move — they are meant to sit the same
+    /// distance inside their respective cards.
+    static let sectionHeaderOutdent: CGFloat = -8
 }
 
 /// A `Section` whose header sits outside its card, and which has no header at all
@@ -158,6 +166,7 @@ struct SettingsView: View {
     /// The pane is not mounted in the turn that selects its tab, and a
     /// `@FocusState` write SwiftUI cannot satisfy yet is dropped, not queued.
     @State private var pendingKeyFieldFocus = false
+    @State private var refusalResetToken = 0
 
     init(onShortcutConfigurationCaptureChanged: @escaping (Bool) -> Void = { _ in }) {
         self.onShortcutConfigurationCaptureChanged = onShortcutConfigurationCaptureChanged
@@ -166,7 +175,10 @@ struct SettingsView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab(value: SettingsTab.general) {
-                GeneralSettingsPane(activeShortcutRecorderID: $activeShortcutRecorderID)
+                GeneralSettingsPane(
+                    activeShortcutRecorderID: $activeShortcutRecorderID,
+                    refusalResetToken: refusalResetToken
+                )
             } label: {
                 tabLabel(.general)
             }
@@ -228,6 +240,13 @@ struct SettingsView: View {
             activeShortcutRecorderID = nil
             onShortcutConfigurationCaptureChanged(false)
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+            guard let window = note.object as? NSWindow,
+                  AppWindowIdentity.isSettingsWindow(window) else { return }
+            activeShortcutRecorderID = nil
+            onShortcutConfigurationCaptureChanged(false)
+            refusalResetToken += 1
+        }
     }
 
     private func tabLabel(_ tab: SettingsTab) -> some View {
@@ -250,6 +269,7 @@ private struct GeneralSettingsPane: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Environment(\.openWindow) private var openWindow
     @Binding var activeShortcutRecorderID: String?
+    let refusalResetToken: Int
     @State private var confirmRestartSetup = false
     @State private var launchAtLoginError: String?
 
@@ -263,7 +283,8 @@ private struct GeneralSettingsPane: View {
                     chord: $runtime.preferences.holdShortcut,
                     activeRecorderID: $activeShortcutRecorderID,
                     conflictingChord: runtime.preferences.toggleShortcutEnabled ? runtime.preferences.toggleShortcut : nil,
-                    isCaptureAllowed: !runtime.coordinator.phase.isBusy
+                    isCaptureAllowed: !runtime.coordinator.phase.isBusy,
+                    refusalResetToken: refusalResetToken
                 )
                 ShortcutRecorderView(
                     title: "Hands-free Dictation",
@@ -272,9 +293,10 @@ private struct GeneralSettingsPane: View {
                     chord: $runtime.preferences.toggleShortcut,
                     activeRecorderID: $activeShortcutRecorderID,
                     conflictingChord: runtime.preferences.holdShortcutEnabled ? runtime.preferences.holdShortcut : nil,
-                    isCaptureAllowed: !runtime.coordinator.phase.isBusy
+                    isCaptureAllowed: !runtime.coordinator.phase.isBusy,
+                    refusalResetToken: refusalResetToken
                 )
-                Text("A shortcut can be modifier keys on their own. Press Escape while recording one to cancel.")
+                Text("A shortcut can be modifier keys on their own, like fn or ⌃⌥. Press Escape while recording one to cancel.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             SettingsSection("Startup and Presence") {
@@ -358,11 +380,11 @@ private struct DictationSettingsPane: View {
                         // you pick, this one is empty until typed into and has
                         // nothing else to announce itself as a field.
                         .textFieldStyle(.roundedBorder)
-                        // Sized for a name or a product, which is what the caption
-                        // below asks for, rather than growing to whatever the row
-                        // will give it. Fixed, so widening the window does not
-                        // reflow the row.
-                        .frame(width: 220)
+                        // Sized to what is in it: a field for a name should not
+                        // open the width of the row. It grows as the term does,
+                        // between the width of the prompt and what the row can give.
+                        .fixedSize(horizontal: true, vertical: false)
+                        .frame(minWidth: 140, maxWidth: 360)
                         .onSubmit(submitKeyterm)
                         .accessibilityIdentifier("keyterm-field")
                         Button("Add", action: submitKeyterm)
