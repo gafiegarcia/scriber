@@ -374,7 +374,7 @@ private struct DictationSettingsPane: View {
                 // Grouping them removes those dividers; the list's own indent
                 // below is what now says it belongs to Keyterms.
                 VStack(alignment: .leading, spacing: 8) {
-                    LabeledContent("Keyterms") {
+                    LabeledContent {
                         HStack {
                             // Prompt rather than a title: inside `LabeledContent`
                             // a titled field draws its own label too, so the row
@@ -414,9 +414,15 @@ private struct DictationSettingsPane: View {
                             Button("Add", action: submitKeyterm)
                                 .disabled(!canAddKeyterm)
                         }
+                    } label: {
+                        // A tooltip, not a caption line: this is what the
+                        // "Names, brands, and jargon…" row used to be, spent
+                        // on every launch whether or not anyone needed it.
+                        // Hovering the label is the one place someone unsure
+                        // what a keyterm is would already be looking.
+                        Text("Keyterms")
+                            .help("Names, brands, and jargon you want spelled correctly.")
                     }
-                    Text("Names, brands, and jargon you want spelled correctly.")
-                        .font(.caption).foregroundStyle(.secondary)
                     if let keytermError {
                         Text(keytermError).font(.caption).foregroundStyle(.red)
                     }

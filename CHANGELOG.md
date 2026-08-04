@@ -23,6 +23,9 @@ snapshots. Ordinary development builds belong in Git history, not here.
 - The keyterms you've added now sit as one indented, undivided list under the
   field that adds them, instead of each one reading as its own settings row
   with the same divider treatment as Language or the filler-word toggle.
+- The Keyterms row no longer spends a permanent caption line explaining what a
+  keyterm is. Hover the **Keyterms** label for the same explanation as a
+  tooltip.
 
 ## 0.8.5 — 2026-08-04
 
