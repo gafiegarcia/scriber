@@ -14,7 +14,15 @@ snapshots. Ordinary development builds belong in Git history, not here.
   frame.
 - The Keyterms field in Settings' Dictation tab no longer shrinks the instant
   you type or overflows past the Add button on a long entry. It's back to a
-  fixed width, sized for the short word or phrase a keyterm actually is.
+  fixed width, sized for the short word or phrase a keyterm actually is, and
+  its placeholder and typed text stay left-aligned instead of hugging the
+  field's right edge.
+
+### Changed
+
+- The keyterms you've added now sit as one indented, undivided list under the
+  field that adds them, instead of each one reading as its own settings row
+  with the same divider treatment as Language or the filler-word toggle.
 
 ## 0.8.5 — 2026-08-04
 

@@ -366,50 +366,82 @@ private struct DictationSettingsPane: View {
                     Text("Indonesian").tag("id")
                 }
                 Toggle("Remove filler words and false starts", isOn: $runtime.preferences.noVerbatim)
-                LabeledContent("Keyterms") {
-                    HStack {
-                        // Prompt rather than a title: inside `LabeledContent` a
-                        // titled field draws its own label too, so the row read
-                        // "Keyterms  Name or term  <field>".
-                        TextField(text: $newKeyterm, prompt: Text("Name or term")) {
-                            Text("Keyterm")
+                // One VStack, one Form row: the field, its captions, and the
+                // list of what's been added used to each be a separate row,
+                // so a divider sat between every keyterm the same as it sat
+                // between Language and this section — the list read as more
+                // settings rather than as the contents of this one setting.
+                // Grouping them removes those dividers; the list's own indent
+                // below is what now says it belongs to Keyterms.
+                VStack(alignment: .leading, spacing: 8) {
+                    LabeledContent("Keyterms") {
+                        HStack {
+                            // Prompt rather than a title: inside `LabeledContent`
+                            // a titled field draws its own label too, so the row
+                            // read "Keyterms  Name or term  <field>".
+                            TextField(text: $newKeyterm, prompt: Text("Name or term")) {
+                                Text("Keyterm")
+                            }
+                            .labelsHidden()
+                            // Bordered, unlike the rows above it: those show a
+                            // value you pick, this one is empty until typed
+                            // into and has nothing else to announce itself as
+                            // a field.
+                            .textFieldStyle(.roundedBorder)
+                            // Left, not the field's default: with no alignment
+                            // set, an empty focused field with a prompt longer
+                            // than the box scrolled to keep the caret — which
+                            // sits after the prompt's last character — in
+                            // view, showing the prompt's tail pinned to the
+                            // right edge instead of its start.
+                            .multilineTextAlignment(.leading)
+                            // Sized for a word or short phrase, which is what a
+                            // keyterm actually is, rather than growing to
+                            // whatever the row will give it. Fixed, so
+                            // widening the window does not reflow the row, and
+                            // so the field never changes size as you type —
+                            // pairing `.fixedSize` with an outer
+                            // `.frame(minWidth:maxWidth:)` here once let the
+                            // field's true rendered width ignore both bounds,
+                            // shrinking below the minimum on the first
+                            // keystroke and overflowing past the maximum on a
+                            // long one. Wider than the prompt text alone, so
+                            // the same scroll-to-keep-caret-visible quirk does
+                            // not put this right back where it started.
+                            .frame(width: 200)
+                            .onSubmit(submitKeyterm)
+                            .accessibilityIdentifier("keyterm-field")
+                            Button("Add", action: submitKeyterm)
+                                .disabled(!canAddKeyterm)
                         }
-                        .labelsHidden()
-                        // Bordered, unlike the rows above it: those show a value
-                        // you pick, this one is empty until typed into and has
-                        // nothing else to announce itself as a field.
-                        .textFieldStyle(.roundedBorder)
-                        // Sized for a word or short phrase, which is what a
-                        // keyterm actually is, rather than growing to whatever
-                        // the row will give it. Fixed, so widening the window
-                        // does not reflow the row, and so the field never
-                        // changes size as you type — pairing `.fixedSize` with
-                        // an outer `.frame(minWidth:maxWidth:)` here once let
-                        // the field's true rendered width ignore both bounds,
-                        // shrinking below the minimum on the first keystroke
-                        // and overflowing past the maximum on a long one.
-                        .frame(width: 160)
-                        .onSubmit(submitKeyterm)
-                        .accessibilityIdentifier("keyterm-field")
-                        Button("Add", action: submitKeyterm)
-                            .disabled(!canAddKeyterm)
                     }
-                }
-                Text("Names, brands, and jargon you want spelled correctly.")
-                    .font(.caption).foregroundStyle(.secondary)
-                if let keytermError {
-                    Text(keytermError).font(.caption).foregroundStyle(.red)
-                }
-                ForEach(runtime.preferences.keyterms, id: \.self) { term in
-                    HStack {
-                        Text(term)
-                        Spacer()
-                        Button { removeKeyterm(term) } label: { Image(systemName: "minus.circle") }
-                            .buttonStyle(.plain)
+                    Text("Names, brands, and jargon you want spelled correctly.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let keytermError {
+                        Text(keytermError).font(.caption).foregroundStyle(.red)
                     }
+                    if !runtime.preferences.keyterms.isEmpty {
+                        // Indented off the captions above it: this is the
+                        // contents of Keyterms, not another setting beside it.
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(runtime.preferences.keyterms, id: \.self) { term in
+                                HStack {
+                                    Text(term)
+                                    Spacer()
+                                    Button {
+                                        removeKeyterm(term)
+                                    } label: {
+                                        Image(systemName: "minus.circle")
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        .padding(.leading, 16)
+                    }
+                    Text("ElevenLabs applies an additional usage charge when keyterms are sent.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                Text("ElevenLabs applies an additional usage charge when keyterms are sent.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
             SettingsSection("History") {
                 Toggle(
