@@ -24,8 +24,8 @@ snapshots. Ordinary development builds belong in Git history, not here.
   field that adds them, instead of each one reading as its own settings row
   with the same divider treatment as Language or the filler-word toggle.
 - The Keyterms row no longer spends a permanent caption line explaining what a
-  keyterm is. Hover the small **ⓘ** beside **Keyterms** for the same
-  explanation as a tooltip.
+  keyterm is. Click the small **ⓘ** beside **Keyterms** for the same
+  explanation in a popover.
 
 ## 0.8.5 — 2026-08-04
 

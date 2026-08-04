@@ -349,6 +349,7 @@ private struct DictationSettingsPane: View {
     @State private var newKeyterm = ""
     @State private var keytermError: String?
     @State private var confirmClearHistory = false
+    @State private var showsKeytermHelp = false
 
     /// A dictation still being transcribed is not shown in history and must not
     /// be swept up by a clear — its audio is still in use. Matches the filter the
@@ -415,18 +416,27 @@ private struct DictationSettingsPane: View {
                                 .disabled(!canAddKeyterm)
                         }
                     } label: {
-                        // A tooltip, not a caption line: this is what the
+                        // A popover, not a caption line: this is what the
                         // "Names, brands, and jargon…" row used to be, spent
                         // on every launch whether or not anyone needed it.
-                        // The icon, not the word "Keyterms" itself, carries
-                        // `.help()` — plain `Text` inside a Form row's label
-                        // has no hoverable region of its own here, and an
-                        // icon is also the more familiar "hover me" signal.
+                        // Click rather than `.help()` — a hover tooltip waits
+                        // out AppKit's fixed delay before it appears, which
+                        // reads as unresponsive for something this small.
                         HStack(spacing: 4) {
                             Text("Keyterms")
-                            Image(systemName: "questionmark.circle")
-                                .foregroundStyle(.secondary)
-                                .help("Names, brands, and jargon you want spelled correctly.")
+                            Button {
+                                showsKeytermHelp = true
+                            } label: {
+                                Image(systemName: "questionmark.circle")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .popover(isPresented: $showsKeytermHelp) {
+                                Text("Names, brands, and jargon you want spelled correctly.")
+                                    .font(.callout)
+                                    .padding()
+                                    .frame(maxWidth: 220)
+                            }
                         }
                     }
                     if let keytermError {
