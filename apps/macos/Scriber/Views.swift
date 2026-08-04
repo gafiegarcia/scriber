@@ -96,19 +96,18 @@ extension MainWindowDestination {
 }
 
 private enum SettingsPaneLayout {
-    /// Lands a section header 2pt inside the leading edge of its card, matching
-    /// the main window's day label.
+    /// Hangs a section header 2pt off the leading edge of its card, matching the
+    /// main window's day label and a Finder sidebar heading.
     ///
-    /// A grouped form draws the header at the row content's inset, ~8pt further
-    /// in, which reads as the header being indented under the card rather than
-    /// naming it. Two points is enough to sit clear of the edge without becoming
-    /// an indent of its own — the header and the card read as one block, and the
-    /// row content inside is what is indented.
-    /// Known and unfixed: the ~8pt is AppKit's, not ours, so this is one number
+    /// A grouped form draws the header at the row content's inset, ~10pt inside
+    /// the card, which reads as the header being indented under the thing it
+    /// names. What should look indented is the content.
+    ///
+    /// Known and unfixed: that ~10pt is AppKit's, not ours, so this is one number
     /// short of derivable. If the header ever drifts against the day label in the
-    /// main window, this is the constant to move — they are meant to sit the same
-    /// distance inside their respective cards.
-    static let sectionHeaderOutdent: CGFloat = -8
+    /// main window, this is the constant to move — the two are meant to hang the
+    /// same distance off their respective cards.
+    static let sectionHeaderOutdent: CGFloat = -12
 }
 
 /// A `Section` whose header sits outside its card, and which has no header at all
