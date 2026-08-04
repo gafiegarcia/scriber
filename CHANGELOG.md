@@ -12,6 +12,9 @@ snapshots. Ordinary development builds belong in Git history, not here.
   day it named actually changed, and each rewrite invalidated the whole
   history list, forcing it to regroup every record in the history on every
   frame.
+- The Keyterms field in Settings' Dictation tab no longer shrinks the instant
+  you type or overflows past the Add button on a long entry. It's back to a
+  fixed width, sized for the short word or phrase a keyterm actually is.
 
 ## 0.8.5 — 2026-08-04
 

@@ -379,11 +379,16 @@ private struct DictationSettingsPane: View {
                         // you pick, this one is empty until typed into and has
                         // nothing else to announce itself as a field.
                         .textFieldStyle(.roundedBorder)
-                        // Sized to what is in it: a field for a name should not
-                        // open the width of the row. It grows as the term does,
-                        // between the width of the prompt and what the row can give.
-                        .fixedSize(horizontal: true, vertical: false)
-                        .frame(minWidth: 140, maxWidth: 360)
+                        // Sized for a word or short phrase, which is what a
+                        // keyterm actually is, rather than growing to whatever
+                        // the row will give it. Fixed, so widening the window
+                        // does not reflow the row, and so the field never
+                        // changes size as you type — pairing `.fixedSize` with
+                        // an outer `.frame(minWidth:maxWidth:)` here once let
+                        // the field's true rendered width ignore both bounds,
+                        // shrinking below the minimum on the first keystroke
+                        // and overflowing past the maximum on a long one.
+                        .frame(width: 160)
                         .onSubmit(submitKeyterm)
                         .accessibilityIdentifier("keyterm-field")
                         Button("Add", action: submitKeyterm)
