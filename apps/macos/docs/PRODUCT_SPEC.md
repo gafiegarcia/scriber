@@ -106,7 +106,7 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 
 ## Recording and transcription
 
-- The sounds Scriber plays while dictating are enabled by default and configurable as one setting, under Sound. Play the built-in macOS Frog sound only after capture starts successfully, Bottle once for a terminal recording or transcription failure, and Morse once when recording is cancelled or automatic paste falls back to a copied transcript. Bottle also covers the two microphone outcomes — no signal at all, and signal with no words — because both are terminal and both are easy to miss on screen alone. Retry waits remain silent.
+- The sounds Scriber plays while dictating are enabled by default and configurable as one setting, under Sound. Play the built-in macOS Blow sound only after capture starts successfully, Bottle once for a terminal recording or transcription failure, and Morse once when recording is cancelled or automatic paste falls back to a copied transcript. Bottle also covers the two microphone outcomes — no signal at all, and signal with no words — because both are terminal and both are easy to miss on screen alone. Retry waits remain silent.
 - Muting other app audio while recording is enabled by default and offered during onboarding. A private Core Audio process tap silences all audio except Scriber's while playback continues; destroy the tap as soon as capture stops or is cancelled. Never pause or resume another app, and never read, inspect, log, or persist tap audio.
 - Failure to create the other-audio mute tap must never prevent dictation. Keep recording unmuted and expose the unavailable state on the Sound tab in Settings.
 - Use ElevenLabs Scribe v2 batch transcription with no secondary rewrite model.
