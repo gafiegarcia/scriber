@@ -95,6 +95,38 @@ extension MainWindowDestination {
     }
 }
 
+private enum SettingsPaneLayout {
+    /// Hangs a section header off the leading edge of its card, the way the main
+    /// window's day label hangs off the day cards. A grouped form draws the header
+    /// at the row content's inset instead, which puts it inside the card it names
+    /// and reads as indentation pointing the wrong way.
+    static let sectionHeaderOutdent: CGFloat = -20
+}
+
+/// A `Section` whose header sits outside its card, and which has no header at all
+/// when it is not given one — an empty header view still takes vertical space.
+private struct SettingsSection<Content: View>: View {
+    let title: String?
+    @ViewBuilder let content: Content
+
+    init(_ title: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        if let title {
+            Section {
+                content
+            } header: {
+                Text(title).padding(.leading, SettingsPaneLayout.sectionHeaderOutdent)
+            }
+        } else {
+            Section { content }
+        }
+    }
+}
+
 /// The shape every tab's content takes: one grouped form, capped so a wide
 /// window leaves margins rather than stretching every control across it.
 private struct SettingsPane<Content: View>: View {
@@ -223,7 +255,7 @@ private struct GeneralSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-general-pane") {
-            Section("Shortcuts") {
+            SettingsSection("Shortcuts") {
                 ShortcutRecorderView(
                     title: "Hold to Dictate",
                     identifier: "hold",
@@ -245,7 +277,7 @@ private struct GeneralSettingsPane: View {
                 Text("A shortcut can be modifier keys on their own. Press Escape while recording one to cancel.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Startup and Presence") {
+            SettingsSection("Startup and Presence") {
                 Toggle("Launch at login", isOn: Binding(
                     get: { runtime.preferences.launchAtLoginRequested },
                     set: { enabled in
@@ -306,7 +338,7 @@ private struct DictationSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-dictation-pane") {
-            Section("Transcription") {
+            SettingsSection("Transcription") {
                 Picker("Language", selection: $runtime.preferences.languageCode) {
                     Text("Automatic").tag("auto")
                     Text("English").tag("en")
@@ -326,9 +358,15 @@ private struct DictationSettingsPane: View {
                         // you pick, this one is empty until typed into and has
                         // nothing else to announce itself as a field.
                         .textFieldStyle(.roundedBorder)
+                        // Sized for a name or a product, which is what the caption
+                        // below asks for, rather than growing to whatever the row
+                        // will give it. Fixed, so widening the window does not
+                        // reflow the row.
+                        .frame(width: 220)
+                        .onSubmit(submitKeyterm)
                         .accessibilityIdentifier("keyterm-field")
-                        Button("Add") { addKeyterm() }
-                            .disabled(newKeyterm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Button("Add", action: submitKeyterm)
+                            .disabled(!canAddKeyterm)
                     }
                 }
                 Text("Names, brands, and jargon you want spelled correctly.")
@@ -347,7 +385,7 @@ private struct DictationSettingsPane: View {
                 Text("ElevenLabs applies an additional usage charge when keyterms are sent.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("History") {
+            SettingsSection("History") {
                 Toggle(
                     "Delete saved recordings after 30 days",
                     isOn: $runtime.preferences.deletesExpiredRetainedAudio
@@ -378,6 +416,15 @@ private struct DictationSettingsPane: View {
         }
     }
 
+    private var canAddKeyterm: Bool {
+        !newKeyterm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func submitKeyterm() {
+        guard canAddKeyterm else { return }
+        addKeyterm()
+    }
+
     private func addKeyterm() {
         do {
             let validated = try ScribeClient.validateKeyterms(runtime.preferences.keyterms + [newKeyterm])
@@ -399,11 +446,11 @@ private struct SoundSettingsPane: View {
         SettingsPane(accessibilityIdentifier: "settings-sound-pane") {
             // Not "Input": the picker inside already carries that label, and a
             // section repeating its only row's name reads as a stutter.
-            Section("Microphone") {
+            SettingsSection("Microphone") {
                 MicrophonePicker()
                     .accessibilityIdentifier("microphone-input-picker")
             }
-            Section("While Dictating") {
+            SettingsSection("While Dictating") {
                 Toggle(
                     "Play sounds while dictating",
                     isOn: $runtime.preferences.playRecordingFeedbackSounds
@@ -451,7 +498,7 @@ private struct ElevenLabsSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-elevenlabs-pane") {
-            Section("API Key") {
+            SettingsSection("API Key") {
                 VStack(alignment: .leading, spacing: 10) {
                     SecureField(
                         text: $apiKey,
@@ -507,7 +554,7 @@ private struct ElevenLabsSettingsPane: View {
             // renders nothing while a valid key's usage has yet to arrive, and an
             // empty section still draws its header.
             if showsUsageSection {
-                Section("Usage") {
+                SettingsSection("Usage") {
                     subscriptionUsageView
                 }
             }

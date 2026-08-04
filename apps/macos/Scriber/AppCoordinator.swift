@@ -32,6 +32,17 @@ struct MainWindowRequest: Equatable {
     let destination: MainWindowDestination
 }
 
+/// Whether a Settings shortcut recorder currently owns the keyboard.
+///
+/// Shared rather than held on the coordinator because the reader is
+/// `AppDelegate`, which SwiftUI creates on its own and which is handed no
+/// runtime. It describes one app-wide keyboard mode, and both the app and the
+/// delegate are singletons, so there is nothing here for an instance to own.
+@MainActor
+enum ShortcutConfigurationCapture {
+    static var isActive = false
+}
+
 @MainActor
 final class AppCoordinator: ObservableObject {
     /// Fallback cadence for permission state that macOS does not announce. This
@@ -692,6 +703,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func setShortcutConfigurationCaptureActive(_ active: Bool) {
+        ShortcutConfigurationCapture.isActive = active
         shortcuts.setConfigurationCaptureActive(active)
     }
 

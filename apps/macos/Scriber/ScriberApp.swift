@@ -443,16 +443,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Set the moment the user closes a managed window, so the startup show
     /// sequence stops trying to put that window back on screen.
     private var initialWindowDismissed = false
+    private var escapeMonitor: Any?
 
     // Temporary: traces which path orders the startup window back on screen after
     // an early Command-W. Records only window titles, booleans, and policies.
     private static let windowLog = Logger(subsystem: "com.gafiegarcia.scriber", category: "window-lifecycle")
+
+    /// Escape closes Settings when nothing in it has a better use for the key.
+    ///
+    /// Installed here and for the app's lifetime rather than by `SettingsView`,
+    /// because a SwiftUI `Window` scene does not reliably run `onAppear` when its
+    /// window is re-shown, so a monitor tied to that had nothing keeping it alive.
+    /// `onExitCommand` is no use either: it fires only for a view that holds
+    /// focus, and a pane of toggles and pickers never does.
+    ///
+    /// Standing aside is explicit rather than positional. A shortcut recorder
+    /// mid-capture has already promised the user that Escape cancels it, and the
+    /// order two local monitors run in is not defined, so this asks rather than
+    /// assuming it loses the race. A confirmation gets the key in its own window,
+    /// which is not the one this matches.
+    ///
+    /// Known and unfixed: this could not be verified from an injected key event.
+    /// The monitor demonstrably runs and reports the right window for ordinary
+    /// keys, but a synthesised Escape never reaches it, so something consumes that
+    /// key earlier under automation. If Escape does nothing on a real keypress,
+    /// this is where to look, and the answer is which responder takes it first —
+    /// not this predicate.
+    private func installSettingsEscapeMonitor() {
+        escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.keyCode == 53,
+                  let window = event.window,
+                  AppWindowIdentity.isSettingsWindow(window) else { return event }
+            var consumed = false
+            MainActor.assumeIsolated {
+                guard !ShortcutConfigurationCapture.isActive else { return }
+                // The same route as Command-W and the red control, so the close
+                // observers that reconcile the Dock icon still run.
+                window.performClose(nil)
+                consumed = true
+            }
+            return consumed ? nil : event
+        }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         showAppInDock = AppLaunchConfiguration.isUITesting
             ? false
             : UserDefaults.standard.bool(forKey: "showAppInDock")
         NSApp.setActivationPolicy(AppLaunchConfiguration.keepsRegularActivationPolicy ? .regular : .accessory)
+        installSettingsEscapeMonitor()
         let center = NotificationCenter.default
         NSApp.windows.filter(AppWindowIdentity.isManagedWindow).forEach { $0.isReleasedWhenClosed = false }
         observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] note in
