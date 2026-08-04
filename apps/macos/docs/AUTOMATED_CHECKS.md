@@ -201,6 +201,16 @@ interaction checks:
 - Every route that opens Settings to fix something selects the tab that owns the
   problem, and opening Settings without naming one leaves the selected tab alone:
   press `⌘,` twice and the second opening stays where the first was left.
+- Record `⌘Q` on the General tab. It is refused with a reason, the recorder
+  closes, the stored binding is unchanged, and typing works everywhere in Scriber
+  again. `⌘⇧D` is accepted.
+- `Escape` closes Settings. While a shortcut recorder is capturing it ends the
+  capture and leaves the window open; with a confirmation on screen it dismisses
+  only the confirmation.
+- Type a keyterm and press Return. It is added, the field clears, and the Add
+  button stays disabled for whitespace alone.
+- Every section header sits left of its card's leading edge, on every tab, and
+  every tab still fits 660x560 without scrolling.
 - Start recording a shortcut binding on the General tab, then switch tabs. The
   capture ends: typing works everywhere in Scriber again, and the recorder shows
   its stored binding rather than a live one. A stranded recorder swallows every

@@ -40,6 +40,17 @@ credit requires explicit approval first.**
   animating only Confirm in on its trailing edge. Hold is ignored while locked,
   and Toggle stops it. Bare `Fn` still opens the emoji picker and types a normal
   Space. **Wispr Flow must be quit first.**
+- Bind Hold to a keyed chord such as `⌘⇧D`, hold it well past the auto-repeat
+  delay, speak, and release. One recording starts, nothing restarts it, no
+  repeated characters reach the app in front, and letting go stops it. `Fn`
+  cannot show this: a modifier-only chord never auto-repeats, which is why the
+  default configuration looks fine either way. Restore the preferred shortcut
+  afterward.
+- Bind Toggle to a keyed chord and hold it down to stop a hands-free recording.
+  It stops once, does not repeat a notice, and does not start a new recording
+  when transcription finishes.
+- A refused chord such as `⌘Q` closes the recorder with its reason, leaves the
+  stored binding alone, and leaves the keyboard usable.
 - Record a new shortcut: the recorder shows the chord live and closes at the
   first key release, and a chord containing `fn` displays it first. Disabling
   Hold and Toggle independently prevents only the disabled one. Restore the
@@ -112,6 +123,9 @@ credit requires explicit approval first.**
   Settings route both work. Restore both grants before finishing; every warning
   should then leave. **macOS forces Quit & Reopen whenever Microphone access
   changes**, so no-relaunch recovery is observable only for Accessibility.
+- A keyed Hold binding held down does not stall the machine either. The tap sits
+  in front of every system event, and work done while its callback is on the
+  stack delays every keystroke and click on the Mac.
 - Revoking Accessibility while Scriber runs never stalls the machine. The
   shortcut monitor sits in front of every system event, so a monitor that will
   not stand down takes the pointer, clicks, and keyboard with it.

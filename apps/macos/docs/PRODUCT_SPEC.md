@@ -34,6 +34,10 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
   last chose alone. Match the Settings window by scene identifier before title:
   a tabbed pane may retitle its window after the selected tab, and fronting,
   Command-Shift-W, and the Dock activation policy all depend on recognising it.
+- `Escape` closes the Settings window, unless a shortcut recorder is capturing —
+  where it ends the capture — or a confirmation is presented, which answers it
+  itself. A Settings section header hangs off the leading edge of its card, the
+  way the main window's day label hangs off the day cards.
 - The main window has no sidebar. It owns one persistent SwiftUI toolbar
   carrying the workspace control, the dictation count, any unresolved recovery
   condition, a Settings button, and search. The window title is not displayed.
@@ -77,14 +81,16 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 
 - Default Hold shortcut: hold `Fn` to record; release it to stop and transcribe.
 - Default Toggle shortcut: press `Fn-Space` to start hands-free recording; press the configured Toggle shortcut again to stop and transcribe. Hold never stops a hands-free recording.
-- Both bindings are configurable.
+- Both bindings are configurable, and Hold and Toggle must be different chords. A stored pair that is not, or a stored chord that is no longer bindable, is replaced with the defaults when it loads.
+- Refuse a binding that macOS or the foreground app already answers to: any chord whose only modifier is Command, and the system combinations for screenshots, Mission Control, switching spaces, Spotlight and input sources, the character viewer, the Dock, locking, logging out, force quit, full screen, zoom and the other accessibility bindings, keyboard navigation, display mirroring, Help, and the text-editing keys every macOS text field honours. The tap swallows what it matches, so a binding taken from one of these replaces it everywhere, not just in Scriber. `⌘⇧D` remains bindable.
+- A refused chord says why, and ends the capture exactly as `Escape` does. The reason stays on screen until the next recording begins. No rejection leaves a recorder listening.
 - Display `fn` before Control, Option, Shift, and Command whenever it is part of a multi-modifier shortcut label.
 - While either binding is being configured, all existing global shortcut matching is suspended without removing the Accessibility event tap. Only one shortcut recorder may listen at a time, recognized keys are displayed live, and modifier-only chords preserve the largest combination that was actually held simultaneously.
-- The Accessibility event tap sits in front of every keystroke on the system, and consumes only the configured Hold and Toggle chords and `Escape` while a pill is showing. Every other key reaches the foreground app unchanged and in its normal position in the event stream, never withheld and resent. Whatever a key triggers in Scriber happens as that key passes, so nothing on this path may block: work done there delays the user's own typing everywhere.
+- The Accessibility event tap sits in front of every keystroke on the system, and consumes only the configured Hold and Toggle chords and `Escape` while a pill is showing. Every other key reaches the foreground app unchanged and in its normal position in the event stream, never withheld and resent. The tap decides whether to consume a key while that key is passing, because the decision is what gates the event, and it does nothing else there: every resulting action runs on the next main-loop turn, in the order the keys arrived. Work done inside the tap delays the user's own typing everywhere.
 - Each binding can be disabled independently without losing its configured chord; both are enabled by default. Menu-started hands-free dictation remains available when its keyboard binding is disabled.
 - A custom Hold chord such as `Fn-Control-Option` must coexist correctly with Toggle.
 - While converting a held recording to hands-free, modifiers used only by Hold are ignored when matching Toggle. Stopping a locked recording requires the exact configured Toggle chord; the Hold chord is ignored while locked.
-- During the first second of a held recording, any non-modifier key cancels and discards it.
+- During the first second of a held recording, any non-modifier key cancels and discards it. The Hold and Toggle chords are not typing, and neither is their auto-repeat: a chord held down produces one press and one release, and only a fresh press starts the next recording.
 - `Escape` cancels either recording mode. Cancelled recordings retain retryable
   audio only when they are at least one second long and contain detected speech;
   shorter or silent cancellations are discarded. This one-second recovery rule
@@ -108,7 +114,7 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 - Use ElevenLabs Scribe v2 batch transcription with no secondary rewrite model.
   “Remove filler words and false starts” controls `no_verbatim`, defaults on, and
   remains user-configurable.
-- Include personal keyterms after validating them against Scribe limits.
+- Include personal keyterms after validating them against Scribe limits. Return adds the keyterm in the field.
 - A key with Speech-to-Text access remains verified and usable when its account-
   usage scope is unavailable. Keep any cached credit usage as visibly subdued
   last-known information with its update time, expose one retry action, and
