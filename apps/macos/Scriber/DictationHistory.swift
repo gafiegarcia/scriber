@@ -195,6 +195,16 @@ enum DictationHistoryLayout {
 private struct DictationDayCard: View {
     let records: [DictationRecord]
 
+    // One number for the outline's weight and each rule's horizontal inset, and
+    // they have to stay equal. It matches the weight a plain `Divider()` draws
+    // at, so the border and the rules between rows read as the same line. And
+    // because `strokeBorder` draws inward, the border owns exactly this outer
+    // band on every edge: insetting each rule by the same width lands its ends
+    // on the border's inner edge. Run them full width instead and the rule and
+    // the border both lay a semi-transparent `.separator` over that band,
+    // stacking into a darker dot at each end; inset any more and a gap opens.
+    private let borderWidth: CGFloat = 1
+
     private var shape: RoundedRectangle {
         // The squircle, which is what macOS actually draws — `.circular` joins a
         // straight edge to a circular arc and the join is visible at this radius.
@@ -206,15 +216,13 @@ private struct DictationDayCard: View {
             ForEach(records) { record in
                 DictationHistoryRow(record: record)
                 if record.id != records.last?.id {
-                    // Edge to edge, and left to the card's `clipShape` to trim. An
-                    // inset rule draws a second, narrower edge inside a card that
-                    // already has one.
                     Divider()
+                        .padding(.horizontal, borderWidth)
                 }
             }
         }
         .clipShape(shape)
-        .overlay { shape.strokeBorder(.separator, lineWidth: 0.5) }
+        .overlay { shape.strokeBorder(.separator, lineWidth: borderWidth) }
     }
 }
 

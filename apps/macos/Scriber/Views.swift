@@ -520,6 +520,12 @@ private struct KeytermsCard: View {
     let terms: [String]
     let onRemove: (String) -> Void
 
+    // One number for the outline's weight and each rule's horizontal inset, kept
+    // equal for the reasons `DictationDayCard.borderWidth` spells out: the rules
+    // read as the same line as the border, and their ends butt the border's
+    // inner edge instead of stacking on it into a darker dot.
+    private let borderWidth: CGFloat = 1
+
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
     }
@@ -545,16 +551,12 @@ private struct KeytermsCard: View {
                 .padding(.vertical, 10)
                 if term != terms.last {
                     Divider()
+                        .padding(.horizontal, borderWidth)
                 }
             }
         }
         .clipShape(shape)
-        // Wider than `DictationDayCard`'s: that 0.5pt hairline reads fine
-        // against the main window's plain background, but nested inside the
-        // Settings section's own bordered, materialed card it looked fainter
-        // than the `Divider()`s it sits beside — the two need the same weight
-        // to read as one visual language rather than two.
-        .overlay { shape.strokeBorder(.separator, lineWidth: 1) }
+        .overlay { shape.strokeBorder(.separator, lineWidth: borderWidth) }
     }
 }
 
