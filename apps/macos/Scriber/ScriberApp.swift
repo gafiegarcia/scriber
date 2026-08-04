@@ -35,6 +35,14 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-history")
     }
 
+    /// Fills the in-memory history with several hundred synthetic records spread
+    /// across many days, for reproducing and measuring scroll performance with a
+    /// history far longer than the curated fixture provides. Mutually exclusive in
+    /// practice with `seedsDictationHistory` — pass only one seeding flag.
+    static var seedsLargeDictationHistory: Bool {
+        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-history-large")
+    }
+
     /// Opens onboarding under `--ui-testing`, which otherwise marks setup
     /// complete so every other check starts in the app proper. Without it the
     /// onboarding window is reachable only by resetting Gaf's real preferences.
@@ -165,6 +173,9 @@ final class AppRuntime: ObservableObject {
 #if DEBUG
         if AppLaunchConfiguration.seedsDictationHistory {
             UITestingHistoryFixture.seed(into: container.mainContext)
+        }
+        if AppLaunchConfiguration.seedsLargeDictationHistory {
+            UITestingLargeHistoryFixture.seed(into: container.mainContext)
         }
 #endif
 

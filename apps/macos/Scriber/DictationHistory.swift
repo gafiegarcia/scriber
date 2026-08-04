@@ -18,8 +18,11 @@ struct DictationHistoryView: View {
         return records.filter { ($0.text ?? "").localizedCaseInsensitiveContains(searchQuery) }
     }
 
-    /// Known and unfixed: this regroups every record on each body evaluation.
-    /// Only worth revisiting if a large history makes it measurable.
+    /// Regroups every record on each body evaluation. `body` no longer runs on
+    /// every scroll frame — the day-title write in `scrollingHistory` below
+    /// only fires when the titlebar's label actually needs to change — so this
+    /// stays off the per-frame scroll path rather than scaling with history
+    /// length.
     private var sections: [DictationHistorySection] {
         let calendar = Calendar.autoupdatingCurrent
         let grouped = Dictionary(grouping: filtered) { calendar.startOfDay(for: $0.createdAt) }
@@ -95,7 +98,17 @@ struct DictationHistoryView: View {
         .coordinateSpace(.named(Self.scrollSpace))
         .onPreferenceChange(DictationSectionTopKey.self) { tops in
             MainActor.assumeIsolated {
-                dayTitle.title = Self.currentTitle(from: tops, crossing: titlebarHeight)
+                let title = Self.currentTitle(from: tops, crossing: titlebarHeight)
+                // `top` moves every scroll frame, so this fires every frame too.
+                // `@Published` publishes on assignment regardless of whether the
+                // value changed, and `dayTitle` is a `@StateObject` this view
+                // owns, so an unconditional write here invalidated the whole
+                // view — recomputing `sections` over the entire history — on
+                // every frame of every scroll, not just when a card actually
+                // crossed the titlebar.
+                if dayTitle.title != title {
+                    dayTitle.title = title
+                }
             }
         }
     }

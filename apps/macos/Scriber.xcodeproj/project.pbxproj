@@ -35,6 +35,7 @@
 		A10000000000000000000015 /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* Workspace.swift */; };
 		A10000000000000000000016 /* DictationHistoryMaintenance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001A /* DictationHistoryMaintenance.swift */; };
 		A10000000000000000000040 /* DictationDayTitlebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000040 /* DictationDayTitlebar.swift */; };
+		A10000000000000000000041 /* UITestingLargeHistoryFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000041 /* UITestingLargeHistoryFixture.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +73,7 @@
 		B10000000000000000000019 /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
 		B1000000000000000000001A /* DictationHistoryMaintenance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationHistoryMaintenance.swift; sourceTree = "<group>"; };
 		B10000000000000000000040 /* DictationDayTitlebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationDayTitlebar.swift; sourceTree = "<group>"; };
+		B10000000000000000000041 /* UITestingLargeHistoryFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestingLargeHistoryFixture.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -123,6 +125,7 @@
 				B10000000000000000000034 /* ToastStack.swift */,
 				B1000000000000000000000D /* Views.swift */,
 				B10000000000000000000018 /* UITestingHistoryFixture.swift */,
+				B10000000000000000000041 /* UITestingLargeHistoryFixture.swift */,
 				B10000000000000000000014 /* AppIcon.icon */,
 				B1000000000000000000000E /* Assets.xcassets */,
 				B1000000000000000000000F /* Info.plist */,
@@ -239,6 +242,7 @@
 				A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */,
 				A10000000000000000000010 /* ../ScriberCore/CredentialStore.swift in Sources */,
 				A10000000000000000000014 /* UITestingHistoryFixture.swift in Sources */,
+				A10000000000000000000041 /* UITestingLargeHistoryFixture.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -278,7 +282,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 79;
+				CURRENT_PROJECT_VERSION = 80;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Scriber/Info.plist;
@@ -304,7 +308,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 79;
+				CURRENT_PROJECT_VERSION = 80;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;

@@ -5,6 +5,13 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
+### Fixed
+
+- Scrolling a long dictation history no longer lags. The titlebar's day label
+  was rewriting itself on every scroll frame regardless of whether the day it
+  named had actually changed, and each rewrite invalidated the whole history
+  list, forcing it to regroup every record in the history on every frame.
+
 ## 0.8.5 — 2026-08-04
 
 Native bundle build 79, installed from an entitlement-free, locally signed
