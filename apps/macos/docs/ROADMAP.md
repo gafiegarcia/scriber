@@ -29,7 +29,7 @@
       exists in both places at once. Try the cheap fix first; the transition in
       the fuller one is the hard part and may not be worth it.
 
-## Long-term
+## Long-term and backlog
 
 - [ ] **Cap dictation history to a configurable maximum.** A year of daily use
       could mean thousands of records loaded into memory every time the main
@@ -49,6 +49,15 @@
       READMEs, package metadata, duplicate license files, and all remaining GPL
       references, then verify that no code or asset outside Gaf's rights is
       presented as relicensed.
+- [ ] **Support other providers like Groq** (which also has a generous free tier just like ElevenLabs).
+    - Changing the Settings tab name from ElevenLabs to something else. Could be "Providers", "API keys", or something else.
+    - Reorganize that tab, now that each provider owns its own API Key and (possibly) Usage section. May need to redesign to ensure good UX and proper visual hierarchy.
+    - Explore Groq Whisper API and incorporate it into Scriber engine.
+    - In anticipation of the upcoming long-form Transcription feature (which may own its own tab in Settings when it arrives), Dictation tab should include an option to select the provider for Dictation—when Transcription lands, it can be configured to use a different provider (yeah I think that's cool). The setting/option row should have a "configure providers..." (copy wording may change) button to jump to the providers settings tab and a picker that lists configured providers. I currently imagine the best UX for this is to only list *configured* providers indicated by a successful verification (reference: ElevenLabs current "Verified" badge check); so the Picker would show cleaner lists, excluding unconfigured providers and providers with unverified API keys.
+    - Just below that setting (or in the same group), also add a model picker, as Groq provides two Whisper v3 variants (large and Turbo if I'm not mistaken). Users have the freedom to choose, but Scriber always recommend the better models based on interal testing by adding "(Recommended)" tag on the picker option or an icon that indicates similar intent/info (⭐ for example).
+    - Tag ElevenLabs (only list Scribe v2 for now, model picker greyed out) as "(Recommended)" because it's the one I use, tested, and doesn't need post-processing layer to produce filler-free, accurate transcripts with auto-punctuations. Whisper v3 (and the Turbo variant) is also good in this regard, but falls behind in WER benchmark by considerable points compared to ElevenLabs Scribe v2. To summarize: 
+        - Recommended Provider: ElevenLabs (Scribe v2 as the only model option, for now)
+        - Recommended Model from Groq: to be determined
 - [ ] **Build the long-form Transcription workspace.** Settings has a Dictation
       tab, and Transcription options get their own tab beside it. The main
       window's workspace control becomes a picker when this lands.
