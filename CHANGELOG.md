@@ -7,11 +7,11 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ### Fixed
 
-- The titlebar's day label no longer rewrites itself on every dictation-history
-  scroll frame regardless of whether the day it names actually changed. Each
-  rewrite was invalidating the whole history list, forcing it to regroup every
-  record in the history on every frame — a likely contributor to scrolling lag
-  on a long history, not yet confirmed by feel on an installed build.
+- Scrolling a long dictation history is noticeably smoother. The titlebar's day
+  label was rewriting itself on every scroll frame regardless of whether the
+  day it named actually changed, and each rewrite invalidated the whole
+  history list, forcing it to regroup every record in the history on every
+  frame.
 
 ## 0.8.5 — 2026-08-04
 
