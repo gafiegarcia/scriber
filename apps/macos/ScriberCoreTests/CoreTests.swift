@@ -1097,3 +1097,173 @@ struct TextInputTargetPolicyTests {
         ))
     }
 }
+
+@Suite("Shortcut tap")
+struct ShortcutTapMachineTests {
+    /// The chord that wedged the machine: Hold bound to a key, not a bare
+    /// modifier. Only a keyed chord auto-repeats, which is why the default `Fn`
+    /// configuration never showed any of this.
+    private let keyedHold = ShortcutChord(modifiers: [.command, .shift], keyCode: 2)
+
+    private func machine(hold: ShortcutChord, toggle: ShortcutChord = .defaultToggle) -> ShortcutTapMachine {
+        ShortcutTapMachine(hold: hold, toggle: toggle, holdEnabled: true, toggleEnabled: true)
+    }
+
+    private func down(_ keyCode: UInt16, _ modifiers: KeyModifiers, repeating: Bool = false) -> ShortcutTapInput {
+        ShortcutTapInput(kind: .keyDown, keyCode: keyCode, modifiers: modifiers, isRepeat: repeating)
+    }
+
+    private func up(_ keyCode: UInt16, _ modifiers: KeyModifiers) -> ShortcutTapInput {
+        ShortcutTapInput(kind: .keyUp, keyCode: keyCode, modifiers: modifiers)
+    }
+
+    private func flags(_ modifiers: KeyModifiers) -> ShortcutTapInput {
+        ShortcutTapInput(kind: .flagsChanged, keyCode: 0, modifiers: modifiers)
+    }
+
+    @Test("A held chord's auto-repeat starts one recording, not eleven")
+    func heldChordStartsOnce() {
+        var machine = machine(hold: keyedHold)
+        var starts = 0
+
+        if machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false)
+            .effects.contains(.action(.holdPressed)) { starts += 1 }
+        machine.setMode(.held)
+        for _ in 0..<10 {
+            if machine.handle(down(2, [.command, .shift], repeating: true), pillConsumesEscape: false)
+                .effects.contains(.action(.holdPressed)) { starts += 1 }
+        }
+
+        #expect(starts == 1)
+    }
+
+    @Test("A typing cancel cannot be restarted by the chord still being held")
+    func cancelledHoldDoesNotRestartItself() {
+        var machine = machine(hold: keyedHold)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.holdPressed)])
+        machine.setMode(.held)
+        #expect(machine.handle(down(2, [.command, .shift], repeating: true), pillConsumesEscape: false).effects.isEmpty)
+
+        // What `cancelRecording` does. It clears the latch, which used to re-open
+        // the start guard so the next repeat began a whole new recording — and the
+        // one after that cancelled it again, at the key-repeat rate, forever.
+        machine.setMode(.idle)
+        #expect(machine.handle(down(2, [.command, .shift], repeating: true), pillConsumesEscape: false).effects.isEmpty)
+
+        // Releasing and pressing again is still how you start the next one.
+        _ = machine.handle(up(2, [.command, .shift]), pillConsumesEscape: false)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.holdPressed)])
+    }
+
+    @Test("The held chord's repeats never reach the app in front")
+    func heldChordRepeatsAreSwallowed() {
+        var machine = machine(hold: keyedHold)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).suppressesEvent)
+        machine.setMode(.held)
+        for _ in 0..<3 {
+            #expect(machine.handle(down(2, [.command, .shift], repeating: true), pillConsumesEscape: false).suppressesEvent)
+        }
+        #expect(machine.handle(up(2, [.command, .shift]), pillConsumesEscape: false).suppressesEvent)
+    }
+
+    @Test("The hold chord is not typing")
+    func heldChordIsNotTyping() {
+        var machine = machine(hold: keyedHold)
+        _ = machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false)
+        machine.setMode(.held)
+
+        let outcome = machine.handle(down(2, [.command, .shift], repeating: true), pillConsumesEscape: false)
+        #expect(!outcome.effects.contains(.nonModifierKeyDown))
+    }
+
+    @Test("Any other key while held still counts as typing")
+    func otherKeysStillCountAsTyping() {
+        var machine = machine(hold: keyedHold)
+        _ = machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false)
+        machine.setMode(.held)
+
+        let outcome = machine.handle(down(0, []), pillConsumesEscape: false)
+        #expect(outcome.effects == [.nonModifierKeyDown])
+        #expect(!outcome.suppressesEvent)
+    }
+
+    @Test("A toggle chord's auto-repeat neither nags nor restarts")
+    func heldToggleChordFiresOnce() {
+        var machine = machine(hold: .defaultHold)
+        #expect(machine.handle(down(49, [.function]), pillConsumesEscape: false).effects == [.action(.togglePressed)])
+
+        // `stopAndTranscribe` goes busy, which clears the latches.
+        machine.setMode(.busy)
+        #expect(machine.handle(down(49, [.function], repeating: true), pillConsumesEscape: false).effects.isEmpty)
+
+        // And the still-held key must not start a recording when transcription ends.
+        machine.setMode(.idle)
+        #expect(machine.handle(down(49, [.function], repeating: true), pillConsumesEscape: false).effects.isEmpty)
+    }
+
+    @Test("A press and its release survive a mode that has not caught up")
+    func releaseArrivesBeforeTheModeDoes() {
+        var machine = machine(hold: .defaultHold)
+        #expect(machine.handle(flags([.function]), pillConsumesEscape: false).effects == [.action(.holdPressed)])
+
+        // No `setMode`: the press reaches the coordinator a run-loop turn later,
+        // and a release landing first used to be dropped, leaving a recording
+        // running that nothing was going to stop.
+        #expect(machine.handle(flags([]), pillConsumesEscape: false).effects == [.action(.holdReleased)])
+    }
+
+    @Test("A second press before the mode catches up starts nothing")
+    func secondPressStartsNothing() {
+        var machine = machine(hold: keyedHold)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.holdPressed)])
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects.isEmpty)
+    }
+
+    @Test("Escape is consumed only while a pill wants it")
+    func escapeFollowsThePill() {
+        var machine = machine(hold: .defaultHold)
+
+        let ignored = machine.handle(down(53, []), pillConsumesEscape: false)
+        #expect(!ignored.suppressesEvent)
+        #expect(ignored.effects.isEmpty)
+
+        let taken = machine.handle(down(53, []), pillConsumesEscape: true)
+        #expect(taken.suppressesEvent)
+        #expect(taken.effects == [.action(.cancel)])
+
+        // Holding Escape must not queue a cancel per repeat.
+        let repeated = machine.handle(down(53, [], repeating: true), pillConsumesEscape: true)
+        #expect(repeated.suppressesEvent)
+        #expect(repeated.effects.isEmpty)
+    }
+
+    @Test("Configuration capture passes every key through")
+    func configurationCapturePassesEverythingThrough() {
+        var machine = machine(hold: keyedHold)
+        machine.setConfigurationCaptureActive(true)
+
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false) == .passedThrough)
+        #expect(machine.handle(down(49, [.function]), pillConsumesEscape: false) == .passedThrough)
+        #expect(machine.handle(flags([.function]), pillConsumesEscape: false) == .passedThrough)
+        #expect(machine.handle(down(53, []), pillConsumesEscape: true) == .passedThrough)
+    }
+
+    @Test("Locked recording ignores the hold release")
+    func lockedRecordingIgnoresHoldRelease() {
+        var machine = machine(hold: .defaultHold)
+        _ = machine.handle(flags([.function]), pillConsumesEscape: false)
+        machine.setMode(.locked)
+
+        #expect(machine.handle(flags([]), pillConsumesEscape: false).effects.isEmpty)
+    }
+
+    @Test("A modifier-only hold chord still presses and releases exactly once")
+    func modifierOnlyHoldStillWorks() {
+        var machine = machine(hold: .defaultHold)
+        #expect(machine.handle(flags([.function]), pillConsumesEscape: false).effects == [.action(.holdPressed)])
+        machine.setMode(.held)
+        #expect(machine.handle(flags([.function]), pillConsumesEscape: false).effects.isEmpty)
+        #expect(machine.handle(flags([]), pillConsumesEscape: false).effects == [.action(.holdReleased)])
+        #expect(machine.handle(flags([]), pillConsumesEscape: false).effects.isEmpty)
+    }
+}

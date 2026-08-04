@@ -699,3 +699,226 @@ public struct ShortcutMatcher: Sendable {
         return normalized == toggle.modifiers
     }
 }
+
+public enum ShortcutMonitorMode: Equatable, Sendable {
+    case idle
+    case held
+    case locked
+    case busy
+}
+
+/// One keyboard event, reduced to what a shortcut decision needs.
+public struct ShortcutTapInput: Equatable, Sendable {
+    public enum Kind: Equatable, Sendable {
+        case keyDown
+        case keyUp
+        case flagsChanged
+    }
+
+    public let kind: Kind
+    public let keyCode: UInt16
+    public let modifiers: KeyModifiers
+    /// True for the stream macOS sends while a key stays down. A repeat is not a
+    /// new press, and every place that treats it as one has to say so explicitly.
+    public let isRepeat: Bool
+
+    public init(kind: Kind, keyCode: UInt16, modifiers: KeyModifiers, isRepeat: Bool = false) {
+        self.kind = kind
+        self.keyCode = keyCode
+        self.modifiers = modifiers
+        self.isRepeat = isRepeat
+    }
+}
+
+public enum ShortcutTapEffect: Equatable, Sendable {
+    case action(ShortcutAction)
+    case nonModifierKeyDown
+}
+
+public struct ShortcutTapOutcome: Equatable, Sendable {
+    public let suppressesEvent: Bool
+    public let effects: [ShortcutTapEffect]
+
+    public init(suppressesEvent: Bool, effects: [ShortcutTapEffect] = []) {
+        self.suppressesEvent = suppressesEvent
+        self.effects = effects
+    }
+
+    public static let passedThrough = ShortcutTapOutcome(suppressesEvent: false)
+    public static let suppressed = ShortcutTapOutcome(suppressesEvent: true)
+}
+
+/// Every decision the global shortcut tap makes, with no CoreGraphics in reach.
+///
+/// It lives here and not beside the tap because that tap is head-inserted at the
+/// HID level: the whole machine's event stream advances only when its callback
+/// replies, so a wrong decision there wedges the Mac rather than misbehaving
+/// quietly. Separating the decision from the C API is what lets a test reach it.
+public struct ShortcutTapMachine: Sendable {
+    public private(set) var mode: ShortcutMonitorMode = .idle
+    public private(set) var holdLatched = false
+    public private(set) var toggleLatched = false
+
+    private var matcher: ShortcutMatcher
+    private var holdEnabled: Bool
+    private var toggleEnabled: Bool
+    private var isConfigurationCaptureActive = false
+    private var suppressedKeyCodes = Set<UInt16>()
+    /// Whether the Escape press that began a run of repeats was consumed, so the
+    /// repeats agree with it without asking again or cancelling a second time.
+    private var escapeConsumed = false
+
+    public init(hold: ShortcutChord, toggle: ShortcutChord, holdEnabled: Bool, toggleEnabled: Bool) {
+        matcher = ShortcutMatcher(hold: hold, toggle: toggle)
+        self.holdEnabled = holdEnabled
+        self.toggleEnabled = toggleEnabled
+    }
+
+    public mutating func reconfigure(
+        hold: ShortcutChord,
+        toggle: ShortcutChord,
+        holdEnabled: Bool,
+        toggleEnabled: Bool
+    ) {
+        matcher = ShortcutMatcher(hold: hold, toggle: toggle)
+        self.holdEnabled = holdEnabled
+        self.toggleEnabled = toggleEnabled
+        reset()
+    }
+
+    public mutating func setMode(_ mode: ShortcutMonitorMode) {
+        self.mode = mode
+        if mode == .idle || mode == .busy { resetLatches() }
+    }
+
+    /// Leaves the tap running while a Settings shortcut recorder owns keyboard
+    /// input, but passes every event through without interpreting it.
+    public mutating func setConfigurationCaptureActive(_ active: Bool) {
+        isConfigurationCaptureActive = active
+        reset()
+    }
+
+    /// Forgets every key believed to be down, for the cases where the releases
+    /// will never arrive: the tap stopped, macOS disabled and it was re-armed, or
+    /// keyboard input went to a shortcut recorder.
+    public mutating func reset() {
+        resetLatches()
+        suppressedKeyCodes.removeAll()
+        escapeConsumed = false
+    }
+
+    /// Clears what is held without forgetting what to swallow on the way up. A
+    /// chord still physically down when a recording is cancelled still owes a
+    /// key-up, and letting that one through types the character into whatever the
+    /// user was aiming at.
+    private mutating func resetLatches() {
+        holdLatched = false
+        toggleLatched = false
+    }
+
+    /// A locked recording is stopped by Toggle alone, and a busy one is not the
+    /// keyboard's to stop. Anything else: letting go of Hold ends it.
+    private var stopsOnHoldRelease: Bool {
+        mode != .locked && mode != .busy
+    }
+
+    public mutating func handle(
+        _ input: ShortcutTapInput,
+        pillConsumesEscape: @autoclosure () -> Bool
+    ) -> ShortcutTapOutcome {
+        guard !isConfigurationCaptureActive else { return .passedThrough }
+
+        if input.kind == .keyDown, input.keyCode == Self.escapeKeyCode {
+            // Known and unfixed: this consumes Escape key-down while a pill is
+            // visible but lets the matching key-up reach the foreground app. No
+            // consequence has been observed.
+            if input.isRepeat { return ShortcutTapOutcome(suppressesEvent: escapeConsumed) }
+            escapeConsumed = pillConsumesEscape()
+            return ShortcutTapOutcome(
+                suppressesEvent: escapeConsumed,
+                effects: escapeConsumed ? [.action(.cancel)] : []
+            )
+        }
+
+        switch input.kind {
+        case .keyUp: return handleKeyUp(input)
+        case .keyDown: return handleKeyDown(input)
+        case .flagsChanged: return handleFlagsChanged(input)
+        }
+    }
+
+    private static let escapeKeyCode: UInt16 = 53
+
+    private mutating func handleKeyUp(_ input: ShortcutTapInput) -> ShortcutTapOutcome {
+        let wasSuppressed = suppressedKeyCodes.remove(input.keyCode) != nil
+        if matcher.toggle.keyCode == input.keyCode { toggleLatched = false }
+        if matcher.hold.keyCode == input.keyCode, holdLatched {
+            holdLatched = false
+            return ShortcutTapOutcome(
+                suppressesEvent: true,
+                effects: stopsOnHoldRelease ? [.action(.holdReleased)] : []
+            )
+        }
+        return ShortcutTapOutcome(suppressesEvent: wasSuppressed)
+    }
+
+    private mutating func handleKeyDown(_ input: ShortcutTapInput) -> ShortcutTapOutcome {
+        if holdEnabled, matcher.hold.keyCode != nil,
+           matcher.matchesExactly(matcher.hold, modifiers: input.modifiers, keyCode: input.keyCode) {
+            // The chord bound to Hold is Scriber's in every mode, so it returns
+            // here rather than falling through. Falling through let the chord's
+            // own auto-repeat read as the user typing, which cancelled the
+            // recording and cleared the latch, so the next repeat started another
+            // one — and leaked the character to the app in front on the way past.
+            suppressedKeyCodes.insert(input.keyCode)
+            guard !input.isRepeat, !holdLatched, mode == .idle else { return .suppressed }
+            holdLatched = true
+            return ShortcutTapOutcome(suppressesEvent: true, effects: [.action(.holdPressed)])
+        }
+
+        let toggleMatches = mode == .held
+            ? matcher.matchesToggleWhileHeld(modifiers: input.modifiers, keyCode: input.keyCode)
+            : matcher.matchesExactly(matcher.toggle, modifiers: input.modifiers, keyCode: input.keyCode)
+        if toggleEnabled, toggleMatches {
+            // Same shape as Hold above. A held Toggle chord used to re-fire once
+            // per repeat, nagging "Still transcribing" and then starting a fresh
+            // recording the moment transcription finished.
+            suppressedKeyCodes.insert(input.keyCode)
+            guard !input.isRepeat, !toggleLatched else { return .suppressed }
+            toggleLatched = true
+            return ShortcutTapOutcome(suppressesEvent: true, effects: [.action(.togglePressed)])
+        }
+
+        if mode == .held {
+            return ShortcutTapOutcome(suppressesEvent: false, effects: [.nonModifierKeyDown])
+        }
+        return .passedThrough
+    }
+
+    private mutating func handleFlagsChanged(_ input: ShortcutTapInput) -> ShortcutTapOutcome {
+        let holdSatisfied = holdEnabled && matcher.hold.modifiers.isSubset(of: input.modifiers)
+
+        if holdEnabled, matcher.hold.keyCode == nil, !holdLatched, mode == .idle,
+           matcher.matchesExactly(matcher.hold, modifiers: input.modifiers, keyCode: nil) {
+            holdLatched = true
+            return ShortcutTapOutcome(suppressesEvent: false, effects: [.action(.holdPressed)])
+        }
+
+        // Latch-driven rather than mode-driven. The press reaches the coordinator
+        // a run-loop turn before the mode comes back, and a release landing in
+        // that window used to be dropped on the `.idle` branch — leaving a
+        // recording running that nothing was going to stop.
+        if holdLatched, !holdSatisfied {
+            holdLatched = false
+            return ShortcutTapOutcome(
+                suppressesEvent: false,
+                effects: stopsOnHoldRelease ? [.action(.holdReleased)] : []
+            )
+        }
+
+        // Modifier-only shortcuts (including bare Fn) must not consume the
+        // flagsChanged event. Swallowing it can leave the focused app with a
+        // stale modifier state, which in turn makes ordinary Space input fail.
+        return .passedThrough
+    }
+}

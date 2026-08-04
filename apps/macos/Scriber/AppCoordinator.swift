@@ -115,7 +115,12 @@ final class AppCoordinator: ObservableObject {
         )
 
         shortcuts.onAction = { [weak self] action in self?.handle(action) }
-        shortcuts.onEscape = { [weak self] in self?.dismissVisiblePill() ?? false }
+        // A query, not the dismissal: the tap asks this while the key is passing,
+        // and the dismissal itself arrives as an ordinary `.cancel` action.
+        shortcuts.pillConsumesEscape = { [weak self] in
+            guard let self else { return false }
+            return phase.pillDismissalAction(isPresented: pill.isPresented) != .passThrough
+        }
         shortcuts.onNonModifierKeyDown = { [weak self] in self?.cancelHeldRecordingForTypingIfNeeded() }
         shortcuts.onAvailabilityChanged = { [weak self] value in self?.shortcutMonitorAvailable = value }
         pill.model.onOpen = { [weak self] in self?.openMainWindow() }
