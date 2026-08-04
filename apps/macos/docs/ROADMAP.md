@@ -1,6 +1,6 @@
 # Native macOS Roadmap
 
-## v0.8.5
+## v0.8.6
 
 - [ ] **Improve scrolling performance.** A long dictation history makes the
       window lag while scrolling it; no other part of the app does. Investigation

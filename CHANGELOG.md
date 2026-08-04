@@ -5,6 +5,38 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
+## 0.8.5 — 2026-08-04
+
+Native bundle build 79, installed from an entitlement-free, locally signed
+Release build.
+
+### Fixed
+
+- Holding a shortcut bound to a key, such as `⌘⇧D`, no longer stalls the Mac.
+  macOS repeats a held key about eleven times a second, and Scriber read each
+  repeat of the chord you were holding as you starting to type — which cancelled
+  the recording and let the next repeat start a new one, several times a second,
+  with all of it running inside the callback the whole system's keyboard and
+  mouse input waits on. A held Hold or Toggle chord is now one press and one
+  release, and none of the work it triggers happens inside that callback.
+  A modifier-only shortcut such as the default `fn` never showed this.
+- A refused shortcut no longer leaves the recorder listening. It used to keep a
+  keyboard monitor that swallowed every keystroke, so nothing in Scriber could
+  be typed into until the window was closed.
+
+### Added
+
+- Shortcuts macOS already owns are refused with a reason: any chord whose only
+  modifier is `⌘`, a single modifier held on its own, and the system
+  combinations for screenshots, Mission Control, spaces, Spotlight, input
+  sources, the character viewer, the Dock, locking, logging out, force quit,
+  full screen, zoom and the other accessibility bindings, keyboard navigation,
+  and Help. Scriber's shortcuts are taken from every app at once, so a binding
+  on `⌘C` would replace copy everywhere.
+- `Escape` closes the Settings window, unless a shortcut recorder is capturing —
+  where it still cancels the capture — or a confirmation is on screen.
+- Return adds the keyterm in the field.
+
 ### Changed
 
 - Settings is five tabs — General, Dictation, Sound, ElevenLabs, Permissions —
@@ -16,6 +48,8 @@ snapshots. Ordinary development builds belong in Git history, not here.
   actually hear, keyterms explain what they are for, "Hands-free Toggle" is now
   "Hands-free Dictation", "Redo Onboarding…" is "Redo Setup…", and "Remove Key…"
   is "Remove API Key…".
+- The day label in Dictation and the Settings section headers sit a little left
+  of the cards they name, so the content is what reads as indented.
 
 ## 0.8.4 — 2026-08-03
 
