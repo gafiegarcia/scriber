@@ -1,17 +1,25 @@
 # Native macOS Roadmap
 
+## v0.8.6
+
+- [ ] **Beautify time format:** 1.02 → 01.02 or 01:02 . [Task detail in Notion](https://app.notion.com/p/change-time-format-display-3ab7193704028008a5c2ca8cf70175fc?source=copy_link)
+
 ## v0.9.0
 
 - [ ] **Redesign the menu bar menu.** Follow the Claude menu reference: lead with
       Scriber, show the marketing version and build beneath it, and place an Open
       control on the trailing edge.
-- [ ] **Search Settings.** Type "mic" in the Settings window and land on the
+    - Show ElevenLabs credit usage in the menu bar menu. Reuse the existing Usage display in Settings, "cloning" it into the menu bar if possible
+- [ ] **Overhaul Settings layout.**
+    - Change "Transcription" section name in setting to avoid confusion: under Dictation tab, the “Transcription” section naming doesn’t make sense, as it may conflict with a future long-form Transcription feature I may introduce to Scriber. It should be changed. My draft: Dictation settings, Dictation options, Options, Configuration. I’m not sure what to pick, I need a section name with a meaning that a normie user can immediately understand/infer.
+    - Search Settings: Type "mic" in the Settings window and land on the
       setting, whichever of the five tabs holds it. Tabs made Settings scannable;
       this is for the case where the user knows the setting's name but not which
       tab owns it. SwiftUI supplies nothing here — it needs an index of every
       setting with its keywords, a field, results, and a jump that shows which
-      control it landed on.
-- [ ] **Show ElevenLabs credit usage in the menu bar menu.** Reuse the existing
+      control it landed on. (Update) also consider implementation difficulty now
+      that Settings window is a tabbed interface.
+    - Simplify, consider best UX.
       subscription-usage state and make unavailable or restricted usage explicit.
 - [ ] **Offer a top pill position** beneath the notch, alongside the current
       bottom placement.
@@ -28,6 +36,7 @@
       `DictationHistoryView.currentTitle` already computes — so the label never
       exists in both places at once. Try the cheap fix first; the transition in
       the fuller one is the hard part and may not be worth it.
+- [ ] **Make paste-fail detection a toggle-able setting.** Some users may not like the interruption of the feature, and just like the dictation get auto-pasted as quickly as possible and optionally copied.
 
 ## Long-term and backlog
 
@@ -91,6 +100,11 @@
       Scriber can read adjacent context, derive a conservative word limit from
       half the smaller input/output budget or half the context window when
       separate limits are unavailable, and reject requests that exceed it.
+- [ ] **Offer "Private" mode.** in Onboarding, users should be informed of a "Private" mode where Scriber will exclusively use local models instead. Current idea: macOS built-in dictation + foundation models for post-processing cleanup. Many other apps utilize Apple ANE (neural engine) for faster inference and less memory, minimizing CPU usage and avoiding GPU/MPS entirely using in-app CoreML audio models: [FluidAudio](https://github.com/FluidInference/FluidAudio) (written in Swift). [Some other](https://github.com/mrinalwadhwa/unramble) uses Cohere Transcribe + Qwen3 0.6B local setup. Drawback is big app bundle (could exceed 1.5GB)
+- [ ] **Overhaul onboarding.** Current onboarding is one-paged, boring first-time setup with incomplete "get started" information. 
+    - Refer to Wispr Flow onboarding: one-page per step, carefully crafted design.
+    - `fn` is default recommended key; but also offer my own personal favorite as an option called something like "favorite alternative":`fn+^+⌥` for hold-to-dictate.
+    - onboarding should also hint the user to click “always allow” (check if this is still the case if app is notarized)
 - [ ] **Extend window-owned search to Transcription.** After the long-form
       Transcription workspace exists, reuse the persistent native search item
       with a contextual `Search Transcriptions` placeholder, retain a separate
