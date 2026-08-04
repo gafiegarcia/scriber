@@ -315,8 +315,18 @@ private struct DictationSettingsPane: View {
                 Toggle("Remove filler words and false starts", isOn: $runtime.preferences.noVerbatim)
                 LabeledContent("Keyterms") {
                     HStack {
-                        TextField("Name or term", text: $newKeyterm)
-                            .accessibilityIdentifier("keyterm-field")
+                        // Prompt rather than a title: inside `LabeledContent` a
+                        // titled field draws its own label too, so the row read
+                        // "Keyterms  Name or term  <field>".
+                        TextField(text: $newKeyterm, prompt: Text("Name or term")) {
+                            Text("Keyterm")
+                        }
+                        .labelsHidden()
+                        // Bordered, unlike the rows above it: those show a value
+                        // you pick, this one is empty until typed into and has
+                        // nothing else to announce itself as a field.
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("keyterm-field")
                         Button("Add") { addKeyterm() }
                             .disabled(newKeyterm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
@@ -387,11 +397,13 @@ private struct SoundSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-sound-pane") {
-            Section("Input") {
+            // Not "Input": the picker inside already carries that label, and a
+            // section repeating its only row's name reads as a stutter.
+            Section("Microphone") {
                 MicrophonePicker()
                     .accessibilityIdentifier("microphone-input-picker")
             }
-            Section("Feedback") {
+            Section("While Dictating") {
                 Toggle(
                     "Play sounds while dictating",
                     isOn: $runtime.preferences.playRecordingFeedbackSounds
