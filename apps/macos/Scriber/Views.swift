@@ -367,13 +367,11 @@ private struct DictationSettingsPane: View {
                     Text("Indonesian").tag("id")
                 }
                 Toggle("Remove filler words and false starts", isOn: $runtime.preferences.noVerbatim)
-                // One VStack, one Form row: the field, its captions, and the
-                // list of what's been added used to each be a separate row,
-                // so a divider sat between every keyterm the same as it sat
-                // between Language and this section — the list read as more
-                // settings rather than as the contents of this one setting.
-                // Grouping them removes those dividers; the card below is what
-                // now says the list belongs to Keyterms.
+                // Field, captions, and the added-terms list share one Form row
+                // so the grouped form draws no divider between them. A divider
+                // per keyterm would read as more settings rows rather than as
+                // the contents of this one setting; the card below is what marks
+                // the list as belonging to Keyterms.
                 VStack(alignment: .leading, spacing: 12) {
                     LabeledContent {
                         HStack {
@@ -396,19 +394,16 @@ private struct DictationSettingsPane: View {
                             // view, showing the prompt's tail pinned to the
                             // right edge instead of its start.
                             .multilineTextAlignment(.leading)
-                            // Sized for a word or short phrase, which is what a
-                            // keyterm actually is, rather than growing to
-                            // whatever the row will give it. Fixed, so
-                            // widening the window does not reflow the row, and
-                            // so the field never changes size as you type —
-                            // pairing `.fixedSize` with an outer
-                            // `.frame(minWidth:maxWidth:)` here once let the
-                            // field's true rendered width ignore both bounds,
-                            // shrinking below the minimum on the first
-                            // keystroke and overflowing past the maximum on a
-                            // long one. Wider than the prompt text alone, so
-                            // the same scroll-to-keep-caret-visible quirk does
-                            // not put this right back where it started.
+                            // Fixed, and sized for the word or short phrase a
+                            // keyterm actually is: a fixed width keeps the field
+                            // from reflowing as the window widens or changing
+                            // size as you type. Not `.fixedSize` paired with a
+                            // `.frame(minWidth:maxWidth:)` — that lets the true
+                            // rendered width ignore both bounds, shrinking below
+                            // the minimum on the first keystroke and overflowing
+                            // the maximum on a long entry. Wider than the prompt
+                            // text alone, so the caret-scrolling quirk noted
+                            // above does not pin the prompt's tail right again.
                             .frame(width: 200)
                             .onSubmit(submitKeyterm)
                             .accessibilityIdentifier("keyterm-field")
@@ -416,12 +411,12 @@ private struct DictationSettingsPane: View {
                                 .disabled(!canAddKeyterm)
                         }
                     } label: {
-                        // A popover, not a caption line: this is what the
-                        // "Names, brands, and jargon…" row used to be, spent
-                        // on every launch whether or not anyone needed it.
-                        // Click rather than `.help()` — a hover tooltip waits
-                        // out AppKit's fixed delay before it appears, which
-                        // reads as unresponsive for something this small.
+                        // A popover behind a click, not a permanent caption
+                        // line: the explanation is one click away when wanted
+                        // instead of spending a row on every launch. Click
+                        // rather than `.help()` — a hover tooltip waits out
+                        // AppKit's fixed delay before it appears, which reads as
+                        // unresponsive for something this small.
                         HStack(spacing: 4) {
                             Text("Keyterms")
                             Button {

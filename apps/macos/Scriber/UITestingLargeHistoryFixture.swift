@@ -10,10 +10,12 @@ import SwiftData
 /// Not used by any existing check — `AUTOMATED_CHECKS.md`'s "22 dictations"
 /// assertion depends on the other fixture and must keep passing unchanged.
 ///
-/// Follows the same invariants as `UITestingHistoryFixture`: audio filenames stay
-/// namespaced `ui-testing-fixture-*.m4a` so `AppCoordinator.delete` can never
-/// touch a real recording, and no entry is older than the 30-day retention
-/// window `expireRetainedAudio` enforces.
+/// These records carry no retained audio: `pendingAudioRelativePath` stays nil,
+/// so `AppCoordinator.delete` skips file removal and `expireRetainedAudio` skips
+/// the record entirely — neither can reach one of Gaf's real recordings.
+/// `UITestingHistoryFixture` namespaces its `ui-testing-fixture-*.m4a` filenames
+/// precisely because it seeds retryable failures that do reference audio; these
+/// scroll-performance rows never do.
 @MainActor
 enum UITestingLargeHistoryFixture {
     private static let dayCount = 29
