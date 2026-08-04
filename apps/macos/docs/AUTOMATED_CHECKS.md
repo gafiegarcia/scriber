@@ -176,6 +176,29 @@ confirm a known fixture transcript by pasting elsewhere. Every `--ui-testing`
 launch also raises the credential condition in the toolbar's warning control,
 because the throwaway defaults suite starts with no key.
 
+### Scroll-load history
+
+`--ui-testing-seed-history-large` fills the in-memory store with 406 synthetic
+records over 29 days, for inspecting the history list under a load the curated
+fixture above cannot produce — scrolling smoothness and the day strip's
+handover behavior across many more crossings than four days gives you. It is a
+separate flag from `--ui-testing-seed-history`; pass only one.
+`Scriber/UITestingLargeHistoryFixture.swift` documents the fixture. It is not
+the fixture the "22 dictations" check above depends on.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+before_pid="$(pgrep -n -x Scriber || true)"
+APP_PATH="$REPO_ROOT/apps/macos/.build/xcode-debug/Build/Products/Debug/Scriber.app"
+
+open -n -a "$APP_PATH" --args --ui-testing --ui-testing-seed-history-large
+sleep 6
+pid="$(pgrep -n -x Scriber || true)"
+[ -n "$pid" ] && [ "$pid" != "$before_pid" ] || { echo "REFUSING: never launched" >&2; exit 1; }
+# … scroll through the full history, then …
+kill "$pid"
+```
+
 Use this same isolated launch for the window, toolbar, Settings, and history
 interaction checks:
 

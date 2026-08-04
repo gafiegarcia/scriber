@@ -18,11 +18,10 @@ struct DictationHistoryView: View {
         return records.filter { ($0.text ?? "").localizedCaseInsensitiveContains(searchQuery) }
     }
 
-    /// Regroups every record on each body evaluation. `body` no longer runs on
-    /// every scroll frame — the day-title write in `scrollingHistory` below
-    /// only fires when the titlebar's label actually needs to change — so this
-    /// stays off the per-frame scroll path rather than scaling with history
-    /// length.
+    /// Regroups every record on each body evaluation. The day-title write in
+    /// `scrollingHistory` below is guarded to fire only when the titlebar's
+    /// label actually changes, rather than on every scroll frame — see that
+    /// guard if this ever needs revisiting for a large history.
     private var sections: [DictationHistorySection] {
         let calendar = Calendar.autoupdatingCurrent
         let grouped = Dictionary(grouping: filtered) { calendar.startOfDay(for: $0.createdAt) }
