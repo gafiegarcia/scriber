@@ -17,9 +17,29 @@
       bottom placement.
 - [ ] **Integrate the pill into the MacBook notch.** Treat this as a separate
       capability from placing the existing pill beneath it.
+- [ ] **Make a card's date readable without scrolling it to the top.** The
+      titlebar's day strip only names the day at the very top of the list, so a
+      card lower down — especially on a light day with only a few entries — has
+      no visible date at all until it is scrolled there. The cheap fix: show the
+      card's full date, greyed out, in its three-dot menu, above **Delete…**, so
+      the date is at least reachable per-entry without scrolling. The fuller fix:
+      put the date directly on each card and have it hand off to the titlebar
+      label exactly when the card reaches the top — the same crossing point
+      `DictationHistoryView.currentTitle` already computes — so the label never
+      exists in both places at once. Try the cheap fix first; the transition in
+      the fuller one is the hard part and may not be worth it.
 
 ## Long-term
 
+- [ ] **Cap dictation history to a configurable maximum.** A year of daily use
+      could mean thousands of records loaded into memory every time the main
+      window opens, similar to how a shell caps its command history
+      (`HISTSIZE`). Add a Settings option — generous by default — for the
+      maximum number of retained dictations, and decide what happens to
+      entries past the cap: delete oldest-first, matching how `Clear Dictation
+      History` already removes retained audio, or offer an export first.
+      Confirm the cap is actually needed before building it — measure real
+      memory use at a few thousand records rather than assuming.
 - [ ] **Relicense Scriber under MIT.** Replace GPL-3.0-or-later with the standard
       MIT license for original Scriber code, documentation, and branding assets.
       Remove `COPYRIGHT.md` and the root `THIRD_PARTY_NOTICES.md`; keep only
