@@ -1,9 +1,5 @@
 # Native macOS Roadmap
 
-## v0.8.6
-
-- [ ] **Beautify time format:** 1.02 → 01.02 or 01:02 . [Task detail in Notion](https://app.notion.com/p/change-time-format-display-3ab7193704028008a5c2ca8cf70175fc?source=copy_link)
-
 ## v0.9.0
 
 - [ ] **Redesign the menu bar menu.** Follow the Claude menu reference: lead with

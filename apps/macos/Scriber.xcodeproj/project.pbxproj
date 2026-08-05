@@ -282,7 +282,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 95;
+				CURRENT_PROJECT_VERSION = 96;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Scriber/Info.plist;
@@ -291,7 +291,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.8.5;
+				MARKETING_VERSION = 0.8.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber;
 				PRODUCT_NAME = Scriber;
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -308,7 +308,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 95;
+				CURRENT_PROJECT_VERSION = 96;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -318,7 +318,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.8.5;
+				MARKETING_VERSION = 0.8.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber;
 				PRODUCT_NAME = Scriber;
 				SWIFT_STRICT_CONCURRENCY = complete;

@@ -5,6 +5,11 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
+## 0.8.6 — 2026-08-05
+
+Native bundle build 96, installed from an entitlement-free, locally signed
+Release build.
+
 ### Fixed
 
 - Scrolling a long dictation history is noticeably smoother. The titlebar's day
@@ -20,6 +25,13 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ### Changed
 
+- Times in the dictation list line up. The hour is zero-padded, so `08.30`
+  sits directly under `10.30` instead of hanging a digit short of it; your
+  Mac's locale still decides the separator, the 12- or 24-hour clock, and any
+  AM/PM.
+- The failure cue is your Mac's own system alert sound, played at your alert
+  volume, rather than a fixed sound Scriber picked. The start and cancel cues
+  are different system sounds too.
 - The keyterms you've added now sit in their own card under the field that
   adds them, one row per term with a divider between them, instead of each
   reading as its own settings row with the same divider treatment as Language
