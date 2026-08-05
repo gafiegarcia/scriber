@@ -7,7 +7,7 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## 0.8.6 — 2026-08-05
 
-Native bundle build 98, installed from an entitlement-free, locally signed
+Native bundle build 99, installed from an entitlement-free, locally signed
 Release build.
 
 ### Fixed
@@ -17,11 +17,6 @@ Release build.
   day it named actually changed, and each rewrite invalidated the whole
   history list, forcing it to regroup every record in the history on every
   frame.
-- Times in the dictation list no longer look oddly spaced out or occasionally
-  wrap onto two lines. Forcing every digit to the same width padded narrow
-  ones like `1`, which read as gaps in times like `15.16`; the column width
-  is now measured against every possible time rather than two samples, which
-  were narrow enough that a time like `03.28` could wrap.
 - The Keyterms field in Settings' Dictation tab no longer shrinks the instant
   you type or overflows past the Add button on a long entry. It's back to a
   fixed width, sized for the short word or phrase a keyterm actually is, and

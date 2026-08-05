@@ -259,23 +259,24 @@ private struct DictationHistoryRow: View {
 
     /// Exactly as wide as the widest time this locale can render, and no wider.
     ///
-    /// Digits are proportional, not tabular, so the widest string isn't
-    /// necessarily `23.59` — a stray `4` can measure wider than a `9`. Sweeping
-    /// every hour and minute is the only way to find the true max; two
-    /// hand-picked candidates measured narrow enough that `03.28` once wrapped
-    /// inside the frame this width sets on the label. Kept in step with
+    /// A hardcoded width is either too loose — parking slack beside every short
+    /// time — or too tight for locales that do not use a 24-hour clock: `16.26`
+    /// is five characters here, while a 12-hour locale produces `11:59 PM`.
+    /// Measuring `timeFormat`'s own output covers both. Kept in step with
     /// `timePointSize`; measuring a different size than the label renders is how
-    /// this silently starts clipping again.
+    /// this silently starts clipping.
     fileprivate static let timeColumnWidth: CGFloat = {
-        let font = NSFont.systemFont(ofSize: timePointSize, weight: .regular)
+        let font = NSFont.monospacedDigitSystemFont(ofSize: timePointSize, weight: .regular)
         let calendar = Calendar.autoupdatingCurrent
-        let widest = (0..<24).flatMap { hour in
-            (0..<60).map { minute in DateComponents(hour: hour, minute: minute) }
-        }
-        .compactMap { calendar.date(from: $0) }
-        .map { $0.formatted(timeFormat) }
-        .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
-        .max() ?? 44
+        // Late-evening and late-morning both, so the measurement covers whichever
+        // of the 24-hour and 12-hour renderings this locale uses, including its
+        // day-period suffix.
+        let candidates = [DateComponents(hour: 23, minute: 59), DateComponents(hour: 11, minute: 59)]
+        let widest = candidates
+            .compactMap { calendar.date(from: $0) }
+            .map { $0.formatted(timeFormat) }
+            .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
+            .max() ?? 44
         return ceil(widest)
     }()
 
@@ -289,8 +290,8 @@ private struct DictationHistoryRow: View {
         HStack(alignment: .center, spacing: 28) {
             Text(record.createdAt.formatted(Self.timeFormat))
                 .font(.system(size: Self.timePointSize))
+                .monospacedDigit()
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
                 .frame(width: timeColumnWidth, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 6) {
