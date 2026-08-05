@@ -19,7 +19,7 @@ final class RecordingFeedbackSoundPlayer: RecordingFeedbackSoundPlaying {
 
     init(volume: Float = 0.55) {
         startSound = NSSound(named: NSSound.Name("Blow"))
-        cancellationOrCopyFallbackSound = NSSound(named: NSSound.Name("Morse"))
+        cancellationOrCopyFallbackSound = NSSound(named: NSSound.Name("Tink"))
         startSound?.volume = volume
         cancellationOrCopyFallbackSound?.volume = volume
     }
