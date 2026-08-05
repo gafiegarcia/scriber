@@ -266,7 +266,7 @@ private struct DictationHistoryRow: View {
     /// `timePointSize`; measuring a different size than the label renders is how
     /// this silently starts clipping.
     fileprivate static let timeColumnWidth: CGFloat = {
-        let font = NSFont.monospacedDigitSystemFont(ofSize: timePointSize, weight: .regular)
+        let font = NSFont.systemFont(ofSize: timePointSize, weight: .regular)
         let calendar = Calendar.autoupdatingCurrent
         // Late-evening and late-morning both, so the measurement covers whichever
         // of the 24-hour and 12-hour renderings this locale uses, including its
@@ -290,7 +290,6 @@ private struct DictationHistoryRow: View {
         HStack(alignment: .center, spacing: 28) {
             Text(record.createdAt.formatted(Self.timeFormat))
                 .font(.system(size: Self.timePointSize))
-                .monospacedDigit()
                 .foregroundStyle(.secondary)
                 .frame(width: timeColumnWidth, alignment: .leading)
 
