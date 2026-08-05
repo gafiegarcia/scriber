@@ -101,6 +101,13 @@
     - Refer to Wispr Flow onboarding: one-page per step, carefully crafted design.
     - `fn` is default recommended key; but also offer my own personal favorite as an option called something like "favorite alternative":`fn+^+⌥` for hold-to-dictate.
     - onboarding should also hint the user to click “always allow” (check if this is still the case if app is notarized)
+- [ ] **Offer a theme override.** Add an Appearance section to Settings' General
+      tab with a picker for System (default), Light, and Dark, applied through
+      `NSApp.appearance`. Decide what the override does to the pill before
+      building it: the pill is an `NSPanel` floating over other apps' windows and
+      today follows the system setting, so a forced Light pill can sit over a
+      dark app — consistent with the rest of Scriber, inconsistent with whatever
+      is behind it.
 - [ ] **Extend window-owned search to Transcription.** After the long-form
       Transcription workspace exists, reuse the persistent native search item
       with a contextual `Search Transcriptions` placeholder, retain a separate
