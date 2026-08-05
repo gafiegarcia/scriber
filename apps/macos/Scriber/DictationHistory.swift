@@ -249,12 +249,20 @@ private struct DictationHistoryRow: View {
 
     fileprivate static let timePointSize: CGFloat = 13
 
+    /// Two-digit hour so every entry's time is the same width — `08.30` lines
+    /// up under `10.30` instead of hanging a digit short. The locale still
+    /// chooses the separator, the 12- or 24-hour clock, and any day-period
+    /// suffix; only the padding is forced.
+    fileprivate static let timeFormat = Date.FormatStyle()
+        .hour(.twoDigits(amPM: .abbreviated))
+        .minute(.twoDigits)
+
     /// Exactly as wide as the widest time this locale can render, and no wider.
     ///
     /// A hardcoded width is either too loose — parking slack beside every short
     /// time — or too tight for locales that do not use a 24-hour clock: `16.26`
     /// is five characters here, while a 12-hour locale produces `11:59 PM`.
-    /// Measuring the formatter's own output covers both. Kept in step with
+    /// Measuring `timeFormat`'s own output covers both. Kept in step with
     /// `timePointSize`; measuring a different size than the label renders is how
     /// this silently starts clipping.
     fileprivate static let timeColumnWidth: CGFloat = {
@@ -266,7 +274,7 @@ private struct DictationHistoryRow: View {
         let candidates = [DateComponents(hour: 23, minute: 59), DateComponents(hour: 11, minute: 59)]
         let widest = candidates
             .compactMap { calendar.date(from: $0) }
-            .map { $0.formatted(date: .omitted, time: .shortened) }
+            .map { $0.formatted(timeFormat) }
             .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
             .max() ?? 44
         return ceil(widest)
@@ -280,7 +288,7 @@ private struct DictationHistoryRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 28) {
-            Text(record.createdAt.formatted(date: .omitted, time: .shortened))
+            Text(record.createdAt.formatted(Self.timeFormat))
                 .font(.system(size: Self.timePointSize))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
