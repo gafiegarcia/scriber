@@ -63,13 +63,11 @@ here are the ones I found. tried some, but not really tested. you can just check
 
 ## Repository
 
-- [`apps/macos`](apps/macos) contains the active native app.
-- [`apps/electron`](apps/electron) is the frozen `0.6.0` Electron/Next.js
-  implementation, retained as a feature reference and possible foundation for
-  future Windows or Linux work.
+- [`apps/macos`](apps/macos) contains the app. It is the only implementation.
 
-The implementations are self-contained. There is no root JavaScript package or
-shared runtime layer.
+Scriber started as an Electron/Next.js app and was rewritten in Swift. That
+earlier implementation stopped at `0.6.0` and is no longer in the tree. It
+remains in Git history; `v0.8.6` is the last tag whose tree still contains it.
 
 The native line continues the product version after Electron `0.6.0`. The Xcode
 project is the source of truth for the bundle build number. See the

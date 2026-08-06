@@ -2,8 +2,7 @@
 
 ## Scope
 
-- `apps/macos` is the active native app. Ignore the archived `apps/electron` implementation unless the user explicitly asks about it.
-- Preserve the native Swift/SwiftUI/AppKit architecture; do not add Electron or a web renderer.
+- `apps/macos` is the only app. Preserve the native Swift/SwiftUI/AppKit architecture; do not add Electron or a web renderer.
 
 ## Native invariants
 

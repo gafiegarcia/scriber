@@ -307,5 +307,6 @@ The names `0.7.0-alpha.3`, `.4`, and `.5` were used while discussing installatio
 candidates, but no Git tags with those names were created. They are not releases
 and therefore do not receive changelog entries.
 
-Electron `0.6.0` and earlier are recorded in the frozen
-[Electron changelog](apps/electron/CHANGELOG.md).
+Electron `0.6.0` and earlier belong to the retired Electron implementation. Its
+source and changelog were never tagged under their own version; they remain in
+Git history, and `v0.8.6` is the last tag whose tree still contains them.
