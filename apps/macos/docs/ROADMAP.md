@@ -1,19 +1,40 @@
 # Native macOS Roadmap
 
-## Unsorted ideas
-
-- Settings: delete unused recordings, not “saved”
-- Settings: add “Start minimized” under Launch at Login
-- Add persistent date label above each card, except for the first card
-- retrying an “audio too short” entry should just delete the entry
-  - it shouldn’t even get logged or saved at all. “audio too short” pill message is also not needed; just close the currently showing pill (basically forget that recording, just like “no words detected” and “no sound from the microphone”)
-  - investigate why an entry of this type exists at all, as a short misfiring of a held shortcut (or quickly double-firing toggle shortcut) usually triggers either “no words detected” or “no sound from the microphone”, both of which discard the entry. this type of entry is hard to reproduce in my experience, I’d like to know the exact condition that triggers this that doesn’t trigger the other two
-
 ## v0.8.7 (publish repo)
 
 - [ ] Make the repository public. Enable Issues; leave pull requests
-      unsolicited. Do not use GitHub's Archive flag — it makes the repository
-      read-only, and this halt is meant to be reversible.
+      unsolicited. Do not use GitHub's Archive flag — it makes a repository
+      read-only.
+
+## v0.8.8
+
+- [ ] **Discard a recording ElevenLabs rejects as too short.** It should
+      vanish like the two local discard cases do: no history row, no retained
+      audio, no pill message, just the pill closing.
+
+      `AppCoordinator.finishRecording` gates twice before committing anything —
+      `completed.detectedSignal` and `completed.duration >= 0.1` — and both
+      delete the audio and return without inserting a record. Audio that clears
+      both is inserted and saved *before* transcription, so a later rejection
+      lands on the transcription-failure path and keeps the entry with its audio
+      for Retry. "Audio too short" is not Scriber's wording: it is ElevenLabs'
+      message passed through verbatim by `ScribeError.invalidRequest`. The
+      trigger is therefore audio with signal, longer than 0.1 s, and still under
+      the API's own minimum — which is why it is hard to reproduce and why the
+      other two never reach the network.
+
+      Prefer raising the local floor to the API's real minimum so the request is
+      never made: it costs no round trip and no credit. Determining that minimum
+      needs one deliberate probe, so ask before spending it. Failing that,
+      recognize the rejection and delete the record and its audio on the failure
+      path.
+- [ ] **Say "unused recordings" in the retention toggle.** `Views.swift:455`
+      reads "Delete saved recordings after 30 days" while the explanation
+      directly beneath it at `:459` says only the *unused* recording is removed.
+      The toggle contradicts its own caption and implies transcripts expire too.
+- [ ] **Add "Start minimized" under Launch at Login** in Settings
+      (`Views.swift:302`). Launching at login into a visible window defeats the
+      point for a menu bar app.
 
 ## v0.9.0
 
@@ -48,6 +69,11 @@
       `DictationHistoryView.currentTitle` already computes — so the label never
       exists in both places at once. Try the cheap fix first; the transition in
       the fuller one is the hard part and may not be worth it.
+    - Preferred shape for the fuller fix: a persistent date label above every
+      card *except the first*, since the titlebar already names that one. It
+      sidesteps the hand-off entirely — nothing has to animate at the crossing
+      point, because no card ever needs a label at the moment the titlebar is
+      showing its date.
 - [ ] **Make paste-fail detection a toggle-able setting.** Some users may not like the interruption of the feature, and just like the dictation get auto-pasted as quickly as possible and optionally copied.
 
 ## Long-term and backlog

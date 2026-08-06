@@ -88,7 +88,14 @@ these accepted outcomes with clipboard history running:
 | Finder | none | no | `copied` |
 | Raycast command bar | text field, another app frontmost | yes | `pasted` |
 | Raycast Notes | text area, another app frontmost | yes | `pasted` |
+| Zed | editor | no | `pasted` |
+| VS Code experimental markdown editor | editor | no | `pasted` |
 | Scriber Dictation search | search field | never | `pasted` |
+
+The two editor rows are the reason the engine never requires Accessibility
+evidence. Both hide their real text field from Accessibility well enough that a
+delivery gated on finding one refuses to paste at all; both accept an ordinary
+dispatched Paste and request the concealed item, which is what confirms them.
 
 Also verify that moving focus during transcription delivers to the final cursor,
 and that clipboard restoration never overwrites a newer user copy.

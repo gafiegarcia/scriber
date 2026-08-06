@@ -22,7 +22,7 @@ Its Scribe v2 model is not just benchmark-accurate, but also cover my personal u
 
 ## (Better) Alternatives...
 
-I've been personally using Scriber for weeks, and the latest version accommodate my simple not-too-frequent needs just fine. I initially planned to keep maintaining it (read: report bugs and ask for features & improvements to tha clankers) and using it personally as I haven't found one I really like among the available free Wispr Flow alternatives I found. I now decided to **stop spending tokens to vibe-code and halt development of Scriber after I found [Spokenly](https://spokenly.app/)**.
+I've been personally using Scriber for weeks, and the latest version accommodates my simple not-too-frequent needs just fine. While I might keep maintaining it (read: report bugs and ask for features & improvements to tha clankers) and using it personally, as I haven't found one I really like among the available free Wispr Flow alternatives I found, I most likely don't have enough tokens to squash bugs and fulfill requests as much/as fast as an actual project with an actual dev. You might want to check out these personal recommendations of mine + open source options I discovered:
 
 ### [Wispr Flow](https://wisprflow.ai/)
 
@@ -30,6 +30,8 @@ Seriously, if you're okay with its privacy policy (just got updated after the ne
 
 - it's a trend-setter and used by many for a reason
 - great ux, great onboarding, easy-to-use
+- good accuracy+speed combo
+- built-in cleanup post-processing is reliable
 - free users get 2000 words/week on desktop, 1000 words/week on mobile. more than enough for many
 - aside from the word limit, most features (except for the history sync, command mode and synced scratchpad, as far as I remember) are *not paywalled*.
 - app-aware transcription style customization. email format, casual/formal/original style (lowercase for chats, polished grammer and capitalization for email/the rest, etc.), etc. and very easy to understand and configure
@@ -55,6 +57,8 @@ Ofc it comes with some caveats:
 - *closed source*. I can't learn how it works (read: can't steal ideas from its code)
 - can't paste into some text fields, like Zed editor and VS Code's new experimental markdown editor. I presume it's trying to determine the exact text field via AX tree or something, and when it can't find one, it just cannot paste it there, both the first auto attempt and the drag to insert don't work (even though it successfully detected which app)
 
+I might go back to this if they made changes that enable to use it in those apps (or all apps for that matter, like how Scriber is designed)
+
 ### Open source alternatives
 
 here are the ones I found. tried some, but not really tested. you can just check them out
@@ -64,6 +68,8 @@ here are the ones I found. tried some, but not really tested. you can just check
 3. [unramble](https://github.com/mrinalwadhwa/unramble)
 
 ---
+
+=========== BELOW IS AI SLOP ===========
 
 ## Repository
 
@@ -132,9 +138,9 @@ if you plan to change anything.
 
 ## Issues and contributions
 
-Bug reports and ideas are welcome — they're useful signal if I come back to
-this. I'm not promising to reply, and I'm not soliciting pull requests while
-development is halted. Fork freely; that's what the license is for.
+Bug reports and ideas are welcome. Development is real but slow — this is one
+person's daily-driver tool, built with a $20 token budget rather than a team, so
+expect slow progress. Fork freely.
 
 ## License
 
