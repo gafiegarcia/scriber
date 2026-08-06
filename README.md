@@ -82,10 +82,5 @@ and the verification checks live under [`apps/macos/docs`](apps/macos/docs).
 
 ## License
 
-Original Scriber source code and documentation are copyright © 2026 Gafie
-Garcia and licensed under the [GNU General Public License, version 3 or
-later](LICENSE).
-
-Third-party components retain their own licenses; see
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The GPL does not grant
-trademark rights in the Scriber name or logo; see [COPYRIGHT.md](COPYRIGHT.md).
+[MIT](LICENSE), copyright © 2026 Gafie Garcia. The app declares no third-party
+dependency: it uses only Apple's own frameworks.

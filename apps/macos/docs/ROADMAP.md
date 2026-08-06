@@ -11,15 +11,7 @@
 
 ## v0.8.7 (publish repo, halt development)
 
-- [ ] **Relicense Scriber under MIT.** Replace GPL-3.0-or-later with the standard
-      MIT license for original Scriber code, documentation, and branding assets.
-      Remove `COPYRIGHT.md` and the root `THIRD_PARTY_NOTICES.md`; keep only
-      distribution guidance that remains relevant inside the archived Electron
-      app, and retain every third-party component's own terms. Reduce
-      `ICON_PROVENANCE.md` to the current artwork's useful provenance, update the
-      READMEs, package metadata, duplicate license files, and all remaining GPL
-      references, then verify that no code or asset outside Gaf's rights is
-      presented as relicensed.
+- [x] Relicense Scriber under MIT.
 - [ ] Rework root README to explain the project's current state (and sprinkle in some personal info and takes)
 - [ ] Figure out a way to make this project build-able and installable by other people without Apple Developer ID, notarization etc. If possible to do that cleanly (unlike how I made a local certificate), then write the build instructions to `../README.md`.
 
@@ -136,8 +128,6 @@
       Data Protection Keychain, drop the per-binary **Always Allow** step from the
       README, and add Hardened Runtime, which the local Release configuration
       deliberately omits.
-- [ ] **Notarize a downloadable binary**, generating artifact-specific third-party
-      notices at that point. A source tag does not need them: the native app
-      declares no third-party Swift package dependency, so
-      [`THIRD_PARTY_NOTICES.md`](../../../THIRD_PARTY_NOTICES.md) is already
-      complete.
+- [ ] **Notarize a downloadable binary.** Generate artifact-specific third-party
+      notices at that point. A source tag needs none: the app declares no
+      third-party Swift package dependency and uses only Apple frameworks.
