@@ -1,5 +1,28 @@
 # Native macOS Roadmap
 
+## Inbox (to be organized)
+
+- Settings: delete unused recordings, not “saved”
+- Settings: add “Start minimized” under Launch at Login
+- Add persistent date label above each card, except for the first card
+- retrying an “audio too short” entry should just delete the entry
+  - it shouldn’t even get logged or saved at all. “audio too short” pill message is also not needed; just close the currently showing pill (basically forget that recording, just like “no words detected” and “no sound from the microphone”)
+  - investigate why an entry of this type exists at all, as a short misfiring of a held shortcut (or quickly double-firing toggle shortcut) usually triggers either “no words detected” or “no sound from the microphone”, both of which discard the entry. this type of entry is hard to reproduce in my experience, I’d like to know the exact condition that triggers this that doesn’t trigger the other two
+
+## v0.8.7 (publish repo, halt development)
+
+- [ ] **Relicense Scriber under MIT.** Replace GPL-3.0-or-later with the standard
+      MIT license for original Scriber code, documentation, and branding assets.
+      Remove `COPYRIGHT.md` and the root `THIRD_PARTY_NOTICES.md`; keep only
+      distribution guidance that remains relevant inside the archived Electron
+      app, and retain every third-party component's own terms. Reduce
+      `ICON_PROVENANCE.md` to the current artwork's useful provenance, update the
+      READMEs, package metadata, duplicate license files, and all remaining GPL
+      references, then verify that no code or asset outside Gaf's rights is
+      presented as relicensed.
+- [ ] Rework root README to explain the project's current state (and sprinkle in some personal info and takes)
+- [ ] Figure out a way to make this project build-able and installable by other people without Apple Developer ID, notarization etc. If possible to do that cleanly (unlike how I made a local certificate), then write the build instructions to `../README.md`.
+
 ## v0.9.0
 
 - [ ] **Redesign the menu bar menu.** Follow the Claude menu reference: lead with
@@ -45,15 +68,6 @@
       History` already removes retained audio, or offer an export first.
       Confirm the cap is actually needed before building it — measure real
       memory use at a few thousand records rather than assuming.
-- [ ] **Relicense Scriber under MIT.** Replace GPL-3.0-or-later with the standard
-      MIT license for original Scriber code, documentation, and branding assets.
-      Remove `COPYRIGHT.md` and the root `THIRD_PARTY_NOTICES.md`; keep only
-      distribution guidance that remains relevant inside the archived Electron
-      app, and retain every third-party component's own terms. Reduce
-      `ICON_PROVENANCE.md` to the current artwork's useful provenance, update the
-      READMEs, package metadata, duplicate license files, and all remaining GPL
-      references, then verify that no code or asset outside Gaf's rights is
-      presented as relicensed.
 - [ ] **Support other providers like Groq** (which also has a generous free tier just like ElevenLabs).
     - Changing the Settings tab name from ElevenLabs to something else. Could be "Providers", "API keys", or something else.
     - Reorganize that tab, now that each provider owns its own API Key and (possibly) Usage section. May need to redesign to ensure good UX and proper visual hierarchy.
