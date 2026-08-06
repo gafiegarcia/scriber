@@ -1,5 +1,8 @@
 # Scriber
 
+> **Development is halted.** Source only — no downloadable build. Issues are
+> open, but replies aren't promised. Details below.
+
 If you're looking for a dictation app for macOS to daily-drive, you might want to check out [these alternatives I wrote below](#better-alternatives) first (unless you're curious enough to build this yourself and try it out).
 
 I asked Codex and Claude to build a Wispr Flow alternative (didn't like its RAM usage). Scriber is a native macOS dictation app that lives in the menu bar by default, built with Swift, SwiftUI, and AppKit. Let me rephrase: Scriber is an ElevenLabs Scribe v2 API wrapper written in Swift that works just like Wispr Flow (mostly).
@@ -74,11 +77,63 @@ project is the source of truth for the bundle build number. See the
 [changelog](CHANGELOG.md) for released snapshots and the
 [versioning policy](docs/VERSIONING.md) for how versions, builds, and tags differ.
 
-## Native macOS app
+## Build it yourself
 
-See the [native README](apps/macos/README.md) for prerequisites, building,
-verification, installation, and first launch. Required behavior, planned work,
-and the verification checks live under [`apps/macos/docs`](apps/macos/docs).
+There is no download. The app needs Accessibility and Microphone access to do
+its job, and shipping a build without a paid Apple Developer ID means macOS
+greets everyone with a scary warning — so you build it.
+
+You need macOS 27 and Xcode 27 beta. A **free** Apple ID is enough; you do not
+need a paid developer account. Create `apps/macos/Signing.local.xcconfig` with
+your own team identifier, then build the **Debug** configuration:
+
+```text
+DEVELOPMENT_TEAM = ABCDE12345
+```
+
+Xcode shows that identifier under Settings → Accounts → Manage Certificates.
+The file is gitignored, so it stays yours.
+
+Two things to expect, neither of which means the build is broken:
+
+- **macOS asks for your login Keychain password** the first time each freshly
+  built binary reads the stored API key. Choose **Always Allow**. This is what
+  a paid Developer ID would fix, and it's why the roadmap still lists one.
+- **The Release configuration won't work for you.** It signs with a local
+  certificate that exists only on my machine, so Release is my install path,
+  not yours. Build Debug.
+
+If you'd rather not involve an Apple ID at all, ad-hoc signing
+(`CODE_SIGN_IDENTITY="-"`) builds a working app — but its signature changes on
+every build, so macOS treats each one as a brand-new app and makes you re-grant
+Accessibility and Microphone every single time. For an app whose whole point is
+a global shortcut that types into other apps, that gets old fast.
+
+The [native README](apps/macos/README.md) has the full detail: prerequisites,
+command-line builds, verification, installation, and first launch.
+
+## If you fork it
+
+The bundle identifier `com.gafiegarcia.scriber` is hardcoded in more places than
+`Info.plist`. Change it in all of them, or your fork will read and write the
+same login Keychain item my build does:
+
+- `apps/macos/Scriber/Info.plist`
+- `apps/macos/Scriber/KeychainStore.swift` — the Keychain service name
+- `apps/macos/Scriber/AudioRecorder.swift` — the capture queue label
+- `apps/macos/Scriber/PasteService.swift` and `ScriberApp.swift` — logging
+  subsystems
+- `PRODUCT_BUNDLE_IDENTIFIER` in both configurations of the Xcode target
+
+Required behavior, unbuilt ideas, and the verification checks live under
+[`apps/macos/docs`](apps/macos/docs). `PRODUCT_SPEC.md` is the one to read first
+if you plan to change anything.
+
+## Issues and contributions
+
+Bug reports and ideas are welcome — they're useful signal if I come back to
+this. I'm not promising to reply, and I'm not soliciting pull requests while
+development is halted. Fork freely; that's what the license is for.
 
 ## License
 
