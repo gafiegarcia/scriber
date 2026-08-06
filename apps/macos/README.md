@@ -38,7 +38,7 @@ and checked-in project disagree.
 
 ## Build from the command line
 
-Run from this directory:
+Run from `apps/macos` (this directory):
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
