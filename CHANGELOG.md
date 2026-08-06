@@ -5,6 +5,23 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 ## Unreleased
 
+## 0.8.7 — 2026-08-06
+
+Native bundle build 100, installed from an entitlement-free, locally signed
+Release build. The app itself is unchanged from `0.8.6`; this release opens the
+source and pauses development.
+
+### Changed
+
+- Scriber is now under the MIT license instead of GPL-3.0-or-later.
+- Active development is halted. Scriber remains usable and installed, and the
+  repository stays open rather than archived, but no new work is planned.
+
+### Removed
+
+- The retired Electron implementation is no longer in the repository. It stopped
+  at `0.6.0` and remains in Git history.
+
 ## 0.8.6 — 2026-08-05
 
 Native bundle build 99, installed from an entitlement-free, locally signed
