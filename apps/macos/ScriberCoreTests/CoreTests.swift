@@ -561,8 +561,8 @@ struct PasteConfirmationTests {
 struct ScribeValidationTests {
     @Test("Trims and removes empty keyterms")
     func trimsKeyterms() throws {
-        let result = try ScribeClient.validateKeyterms(["  Scriber  ", "", "Sobat HAPE"])
-        #expect(result == ["Scriber", "Sobat HAPE"])
+        let result = try ScribeClient.validateKeyterms(["  Scriber  ", "", "Studio Delapan"])
+        #expect(result == ["Scriber", "Studio Delapan"])
     }
 
     @Test("Rejects unsupported characters")
