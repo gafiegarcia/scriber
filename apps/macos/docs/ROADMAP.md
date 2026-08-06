@@ -1,6 +1,6 @@
 # Native macOS Roadmap
 
-## Inbox (to be organized)
+## Unsorted ideas
 
 - Settings: delete unused recordings, not “saved”
 - Settings: add “Start minimized” under Launch at Login
@@ -11,9 +11,9 @@
 
 ## v0.8.7 (publish repo, halt development)
 
-- [x] Relicense Scriber under MIT.
-- [ ] Rework root README to explain the project's current state (and sprinkle in some personal info and takes)
-- [ ] Figure out a way to make this project build-able and installable by other people without Apple Developer ID, notarization etc. If possible to do that cleanly (unlike how I made a local certificate), then write the build instructions to `../README.md`.
+- [ ] Make the repository public. Enable Issues; leave pull requests
+      unsolicited. Do not use GitHub's Archive flag — it makes the repository
+      read-only, and this halt is meant to be reversible.
 
 ## v0.9.0
 
