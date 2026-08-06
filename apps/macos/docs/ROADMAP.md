@@ -1,11 +1,69 @@
 # Native macOS Roadmap
 
+## v0.8.7 (publish repo)
+
+- [ ] Make the repository public. Enable Issues; leave pull requests
+      unsolicited. Do not use GitHub's Archive flag — it makes a repository
+      read-only.
+
+## v0.8.8
+
+- [ ] **Discard a recording ElevenLabs rejects as too short.** It should
+      vanish like the two local discard cases do: no history row, no retained
+      audio, no pill message, just the pill closing.
+
+      `AppCoordinator.finishRecording` gates twice before committing anything —
+      `completed.detectedSignal` and `completed.duration >= 0.1` — and both
+      delete the audio and return without inserting a record. Audio that clears
+      both is inserted and saved *before* transcription, so a later rejection
+      lands on the transcription-failure path and keeps the entry with its audio
+      for Retry. "Audio too short" is not Scriber's wording: it is ElevenLabs'
+      message passed through verbatim by `ScribeError.invalidRequest`. The
+      trigger is therefore audio with signal, longer than 0.1 s, and still under
+      the API's own minimum — which is why it is hard to reproduce and why the
+      other two never reach the network.
+
+      Prefer raising the local floor to the API's real minimum so the request is
+      never made: it costs no round trip and no credit. Determining that minimum
+      needs one deliberate probe, so ask before spending it. Failing that,
+      recognize the rejection and delete the record and its audio on the failure
+      path.
+- [ ] **Say "unused recordings" in the retention toggle.** `Views.swift:455`
+      reads "Delete saved recordings after 30 days" while the explanation
+      directly beneath it at `:459` says only the *unused* recording is removed.
+      The toggle contradicts its own caption and implies transcripts expire too.
+- [ ] **Add "Start minimized" under Launch at Login** in Settings
+      (`Views.swift:302`). Launching at login into a visible window defeats the
+      point for a menu bar app.
+- [ ] **Name the stale-entry case in the Accessibility recovery copy.** When
+      macOS keeps a Privacy list entry whose recorded identity no longer
+      validates, the checkbox reads as enabled while `AXIsProcessTrusted()`
+      stays false. Unchecking and rechecking does not rebuild the entry;
+      removing Scriber from the list and adding the app again does. The current
+      message (`CoreModels.swift:248`) says "Enable Accessibility so Scriber can
+      detect global shortcuts and insert text", which tells someone in that
+      state to do what they have already done, and there is no way for Scriber
+      to detect the case and adapt — it cannot read the Privacy database. So the
+      copy has to carry the escape hatch unconditionally: say that an entry
+      already showing as enabled may need to be removed and re-added. Reproduce
+      by deleting the installed app, reinstalling it, and granting from the
+      leftover entry.
+- [ ] **Log permission transitions.** `refreshPermissions`
+      (`AppCoordinator.swift:327`) flips `accessibilityGranted`, starts and stops
+      the shortcut monitor, and records none of it; the app's only categories are
+      `window-lifecycle` and `paste-target`. A grant that the poll never observes
+      and a grant that arrives normally therefore look identical afterwards. Log
+      one line per change — which permission, its new value, and which of the
+      three refresh paths saw it — so the paste engine's "capture the log first"
+      rule can apply to permissions too.
+
 ## v0.9.0
 
 - [ ] **Redesign the menu bar menu.** Follow the Claude menu reference: lead with
       Scriber, show the marketing version and build beneath it, and place an Open
       control on the trailing edge.
     - Show ElevenLabs credit usage in the menu bar menu. Reuse the existing Usage display in Settings, "cloning" it into the menu bar if possible
+    - "Paste/copy last transcription" or "Recent dictation", showing submenu on hover that shows last 3-5 successful transcripts which when clicked will be either copied to clipboard or pasted to the cursor
 - [ ] **Overhaul Settings layout.**
     - Change "Transcription" section name in setting to avoid confusion: under Dictation tab, the “Transcription” section naming doesn’t make sense, as it may conflict with a future long-form Transcription feature I may introduce to Scriber. It should be changed. My draft: Dictation settings, Dictation options, Options, Configuration. I’m not sure what to pick, I need a section name with a meaning that a normie user can immediately understand/infer.
     - Search Settings: Type "mic" in the Settings window and land on the
@@ -32,6 +90,11 @@
       `DictationHistoryView.currentTitle` already computes — so the label never
       exists in both places at once. Try the cheap fix first; the transition in
       the fuller one is the hard part and may not be worth it.
+    - Preferred shape for the fuller fix: a persistent date label above every
+      card *except the first*, since the titlebar already names that one. It
+      sidesteps the hand-off entirely — nothing has to animate at the crossing
+      point, because no card ever needs a label at the moment the titlebar is
+      showing its date.
 - [ ] **Make paste-fail detection a toggle-able setting.** Some users may not like the interruption of the feature, and just like the dictation get auto-pasted as quickly as possible and optionally copied.
 
 ## Long-term and backlog
@@ -45,15 +108,6 @@
       History` already removes retained audio, or offer an export first.
       Confirm the cap is actually needed before building it — measure real
       memory use at a few thousand records rather than assuming.
-- [ ] **Relicense Scriber under MIT.** Replace GPL-3.0-or-later with the standard
-      MIT license for original Scriber code, documentation, and branding assets.
-      Remove `COPYRIGHT.md` and the root `THIRD_PARTY_NOTICES.md`; keep only
-      distribution guidance that remains relevant inside the archived Electron
-      app, and retain every third-party component's own terms. Reduce
-      `ICON_PROVENANCE.md` to the current artwork's useful provenance, update the
-      READMEs, package metadata, duplicate license files, and all remaining GPL
-      references, then verify that no code or asset outside Gaf's rights is
-      presented as relicensed.
 - [ ] **Support other providers like Groq** (which also has a generous free tier just like ElevenLabs).
     - Changing the Settings tab name from ElevenLabs to something else. Could be "Providers", "API keys", or something else.
     - Reorganize that tab, now that each provider owns its own API Key and (possibly) Usage section. May need to redesign to ensure good UX and proper visual hierarchy.
@@ -121,8 +175,6 @@
       Data Protection Keychain, drop the per-binary **Always Allow** step from the
       README, and add Hardened Runtime, which the local Release configuration
       deliberately omits.
-- [ ] **Notarize a downloadable binary**, generating artifact-specific third-party
-      notices at that point. A source tag does not need them: the native app
-      declares no third-party Swift package dependency, so
-      [`THIRD_PARTY_NOTICES.md`](../../../THIRD_PARTY_NOTICES.md) is already
-      complete.
+- [ ] **Notarize a downloadable binary.** Generate artifact-specific third-party
+      notices at that point. A source tag needs none: the app declares no
+      third-party Swift package dependency and uses only Apple frameworks.

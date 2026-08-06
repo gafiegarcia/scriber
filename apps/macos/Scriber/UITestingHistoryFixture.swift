@@ -222,7 +222,7 @@ enum UITestingHistoryFixture {
         ),
         Entry(
             index: 22, dayOffset: 6, hour: 11, minute: 48, duration: 4.1,
-            text: "Follow up on the invoice from the Sobat HAPE batch.",
+            text: "Follow up on the invoice from the Studio Delapan batch.",
             errorMessage: "No editable text box was focused.",
             state: .succeeded, delivery: .copied
         ),

@@ -3,12 +3,13 @@
 ## Product lineage
 
 Versions identify the Scriber product, not the age of a repository or a specific
-implementation. The frozen Electron app reached `0.6.0`; the native macOS app is
+implementation. The retired Electron app reached `0.6.0`; the native macOS app is
 its successor on the `0.7.0` line. Rewriting the app in Swift and adopting a new
 native bundle identity did not restart the product at `0.1.0`.
 
 Platform implementations do not have to ship every product version. The Electron
-snapshot remains `0.6.0` unless its development resumes.
+source is no longer in the tree. It was never tagged under its own version;
+`v0.8.6` is the last tag whose tree still contains it.
 
 ## Separate identifiers
 

@@ -14,7 +14,7 @@ Files:
 - [`../apps/macos/Branding/ScriberIcon-Transparent.svg`](../apps/macos/Branding/ScriberIcon-Transparent.svg)
 - [`../apps/macos/Scriber/AppIcon.icon`](../apps/macos/Scriber/AppIcon.icon), the Icon Composer source connected to the native app target
 
-The artwork is offered under `GPL-3.0-or-later` to the extent that Gafie Garcia holds rights that can be licensed. The separate trademark boundary in [`../COPYRIGHT.md`](../COPYRIGHT.md) continues to apply to the Scriber name and branding.
+The artwork is offered under the MIT license in [`../LICENSE`](../LICENSE), to the extent that Gafie Garcia holds rights that can be licensed.
 
 `AppIcon.icon` is tool-managed. Icon Composer may preserve or regenerate imported asset filenames when it saves; those internal names do not change the provenance of the canonical SVG artwork above.
 
