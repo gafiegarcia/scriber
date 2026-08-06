@@ -35,6 +35,27 @@
 - [ ] **Add "Start minimized" under Launch at Login** in Settings
       (`Views.swift:302`). Launching at login into a visible window defeats the
       point for a menu bar app.
+- [ ] **Name the stale-entry case in the Accessibility recovery copy.** When
+      macOS keeps a Privacy list entry whose recorded identity no longer
+      validates, the checkbox reads as enabled while `AXIsProcessTrusted()`
+      stays false. Unchecking and rechecking does not rebuild the entry;
+      removing Scriber from the list and adding the app again does. The current
+      message (`CoreModels.swift:248`) says "Enable Accessibility so Scriber can
+      detect global shortcuts and insert text", which tells someone in that
+      state to do what they have already done, and there is no way for Scriber
+      to detect the case and adapt — it cannot read the Privacy database. So the
+      copy has to carry the escape hatch unconditionally: say that an entry
+      already showing as enabled may need to be removed and re-added. Reproduce
+      by deleting the installed app, reinstalling it, and granting from the
+      leftover entry.
+- [ ] **Log permission transitions.** `refreshPermissions`
+      (`AppCoordinator.swift:327`) flips `accessibilityGranted`, starts and stops
+      the shortcut monitor, and records none of it; the app's only categories are
+      `window-lifecycle` and `paste-target`. A grant that the poll never observes
+      and a grant that arrives normally therefore look identical afterwards. Log
+      one line per change — which permission, its new value, and which of the
+      three refresh paths saw it — so the paste engine's "capture the log first"
+      rule can apply to permissions too.
 
 ## v0.9.0
 

@@ -93,6 +93,21 @@ password before releasing the saved ElevenLabs key. Choose **Always Allow**. The
 grant then persists for that binary; the limitation is tracked as an accepted
 constraint in the [roadmap](docs/ROADMAP.md).
 
+## When Accessibility looks enabled but is not
+
+After the app is deleted and installed again, macOS can keep a Privacy list
+entry whose recorded identity no longer validates against the new bundle.
+Scriber then reports Accessibility as missing and global shortcuts stay dead
+while System Settings shows the checkbox ticked.
+
+Unchecking and rechecking that entry does not fix it. Remove Scriber from
+**Privacy & Security → Accessibility** entirely, then add it back by dragging
+`Scriber.app` from `/Applications` into the list.
+
+Replacing the app in place — quit, `trash`, `ditto`, launch — does not usually
+trigger this. Leaving the path empty for a while, as a real uninstall does, is
+what strands the entry.
+
 ## Build directory housekeeping
 
 `.build` gains a DerivedData root for every one-off `-derivedDataPath` and never
