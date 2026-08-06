@@ -21,9 +21,18 @@ DEVELOPMENT_TEAM = ABCDE12345
 The local file is ignored by Git. Without it, the project leaves the team empty
 instead of failing configuration loading.
 
+A free Apple ID works here. The seven-day expiry people associate with free
+accounts is an iOS provisioning-profile rule; this app ships no entitlements and
+no embedded profile, so nothing expires out from under a macOS build.
+
 Release builds use the long-lived `Scriber Local Code Signing` identity from the
-login Keychain. Keep its password-protected `.p12` backup private and outside the
-repository. Before producing a distinct installable candidate, increment
+login Keychain. **That identity exists only on Gaf's machine.** It is what keeps
+the app's designated requirement stable across rebuilds, so Accessibility,
+Microphone, and Launch at Login grants survive a reinstall — an automatic
+`Apple Development` signature changes identity every build and loses them. If
+you are not Gaf, build Debug with your own team and ignore this configuration.
+Keep the password-protected `.p12` backup private and outside the repository.
+Before producing a distinct installable candidate, increment
 `CURRENT_PROJECT_VERSION` in both configurations of the Scriber target. Do not
 override it on one `xcodebuild` invocation: that would make the installed binary
 and checked-in project disagree.
@@ -57,7 +66,9 @@ The app is written to
 ## Verify and install
 
 Run all relevant checks in [Automated checks](docs/AUTOMATED_CHECKS.md) before replacing the
-installed app. In particular, a Release build's designated requirement must be:
+installed app. In particular, a Release build signed with Gaf's local identity
+must report this designated requirement — the hash is that certificate's, so a
+build signed with any other identity will and should differ:
 
 ```text
 identifier "com.gafiegarcia.scriber" and certificate root = H"fb7719074d66edfec627e3108437cbe34e7b7bfd"
