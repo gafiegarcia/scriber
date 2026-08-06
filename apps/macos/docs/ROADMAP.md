@@ -29,6 +29,7 @@
       Scriber, show the marketing version and build beneath it, and place an Open
       control on the trailing edge.
     - Show ElevenLabs credit usage in the menu bar menu. Reuse the existing Usage display in Settings, "cloning" it into the menu bar if possible
+    - "Paste/copy last transcription" or "Recent dictation", showing submenu on hover that shows last 3-5 successful transcripts which when clicked will be either copied to clipboard or pasted to the cursor
 - [ ] **Overhaul Settings layout.**
     - Change "Transcription" section name in setting to avoid confusion: under Dictation tab, the “Transcription” section naming doesn’t make sense, as it may conflict with a future long-form Transcription feature I may introduce to Scriber. It should be changed. My draft: Dictation settings, Dictation options, Options, Configuration. I’m not sure what to pick, I need a section name with a meaning that a normie user can immediately understand/infer.
     - Search Settings: Type "mic" in the Settings window and land on the
