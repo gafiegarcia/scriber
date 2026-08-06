@@ -9,13 +9,11 @@ snapshots. Ordinary development builds belong in Git history, not here.
 
 Native bundle build 100, installed from an entitlement-free, locally signed
 Release build. The app itself is unchanged from `0.8.6`; this release opens the
-source and pauses development.
+source.
 
 ### Changed
 
 - Scriber is now under the MIT license instead of GPL-3.0-or-later.
-- Active development is halted. Scriber remains usable and installed, and the
-  repository stays open rather than archived, but no new work is planned.
 
 ### Removed
 

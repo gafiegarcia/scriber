@@ -9,7 +9,7 @@
   - it shouldn’t even get logged or saved at all. “audio too short” pill message is also not needed; just close the currently showing pill (basically forget that recording, just like “no words detected” and “no sound from the microphone”)
   - investigate why an entry of this type exists at all, as a short misfiring of a held shortcut (or quickly double-firing toggle shortcut) usually triggers either “no words detected” or “no sound from the microphone”, both of which discard the entry. this type of entry is hard to reproduce in my experience, I’d like to know the exact condition that triggers this that doesn’t trigger the other two
 
-## v0.8.7 (publish repo, halt development)
+## v0.8.7 (publish repo)
 
 - [ ] Make the repository public. Enable Issues; leave pull requests
       unsolicited. Do not use GitHub's Archive flag — it makes the repository

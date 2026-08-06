@@ -1,7 +1,7 @@
 # Scriber
 
-> **Development is halted.** Source only — no downloadable build. Issues are
-> open, but replies aren't promised. Details below.
+> **Source only** — no downloadable build; see [Build it yourself](#build-it-yourself).
+> Issues are open, but replies aren't promised.
 
 If you're looking for a dictation app for macOS to daily-drive, you might want to check out [these alternatives I wrote below](#better-alternatives) first (unless you're curious enough to build this yourself and try it out).
 
@@ -37,7 +37,7 @@ Seriously, if you're okay with its privacy policy (just got updated after the ne
 
 ### [Spokenly](https://spokenly.app/)
 
-- what I currently use
+- ~~what I currently use~~ (see the last caveat below)
 - supports hosted, BYOK, and local models
 - good UX (arguably better than Wispr Flow at some parts): smart paste, hold + toggle in one shortcut, etc.
 - defaults to ElevenLabs Scribe v2 (biased...)
@@ -47,12 +47,13 @@ Seriously, if you're okay with its privacy policy (just got updated after the ne
 - claude code & cowork, cursor, and codex integration via mcp (what?)
 - cli
 
-Ofc it comes with some minor caveats:
+Ofc it comes with some caveats:
 
 - unfamiliar settings UI
 - so many features are not paywalled, except for the one I want to enable the most. it's sad that I must subscribe to select the option to have the dictation interface on the notch
-- shipped with sane defaults, but you'll need to spend some time to learn all features and possible configurations
+- shipped with sane defaults, but you'll need to spend some time to learn all features and possible options/configurations
 - *closed source*. I can't learn how it works (read: can't steal ideas from its code)
+- can't paste into some text fields, like Zed editor and VS Code's new experimental markdown editor. I presume it's trying to determine the exact text field via AX tree or something, and when it can't find one, it just cannot paste it there, both the first auto attempt and the drag to insert don't work (even though it successfully detected which app)
 
 ### Open source alternatives
 
