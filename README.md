@@ -1,3 +1,5 @@
+<img src="apps/macos/Branding/ScriberIcon-BlackBackground.svg" width="65px" align="left">
+
 # Scriber
 
 > **Source only** — no downloadable build; see [Build it yourself](#build-it-yourself).
