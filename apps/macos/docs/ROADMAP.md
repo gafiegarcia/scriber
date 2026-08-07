@@ -22,10 +22,6 @@
       needs one deliberate probe, so ask before spending it. Failing that,
       recognize the rejection and delete the record and its audio on the failure
       path.
-- [ ] **Say "unused recordings" in the retention toggle.** `Views.swift:455`
-      reads "Delete saved recordings after 30 days" while the explanation
-      directly beneath it at `:459` says only the *unused* recording is removed.
-      The toggle contradicts its own caption and implies transcripts expire too.
 - [ ] **Add "Start minimized" under Launch at Login** in Settings
       (`Views.swift:302`). Launching at login into a visible window defeats the
       point for a menu bar app.

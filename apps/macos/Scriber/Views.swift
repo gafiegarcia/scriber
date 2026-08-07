@@ -452,7 +452,7 @@ private struct DictationSettingsPane: View {
             }
             SettingsSection("History") {
                 Toggle(
-                    "Delete saved recordings after 30 days",
+                    "Delete unused recordings after 30 days",
                     isOn: $runtime.preferences.deletesExpiredRetainedAudio
                 )
                 .accessibilityIdentifier("delete-expired-audio-toggle")
