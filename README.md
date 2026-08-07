@@ -57,7 +57,7 @@ Ofc it comes with some caveats:
 - so many features are not paywalled, except for the one I want to enable the most. it's sad that I must subscribe to select the option to have the dictation interface on the notch
 - shipped with sane defaults, but you'll need to spend some time to learn all features and possible options/configurations
 - *closed source*. I can't learn how it works (read: can't steal ideas from its code)
-- can't paste into some text fields, like Zed editor and VS Code's new experimental markdown editor. I presume it's trying to determine the exact text field via AX tree or something, and when it can't find one, it just cannot paste it there, neither the first auto attempt nor the drag-to-insert works (even though it successfully detected which app)
+- It works almost in any app people mostly use, but not everywhere; can't paste into some text fields, like ~~Zed editor~~ and VS Code's new experimental markdown editor. I presume it's trying to determine the exact text field via AX tree or something, and when it can't find one, it just cannot paste it there, neither the first auto attempt nor the drag-to-insert works (even though it successfully detected which app). Update 2026-08-07: the dev updated it to work in Zed, but I found it not working in Raycast too, I suppose due to their strategy of not blindly pasting and making sure a text field exists and has focus first
 
 I might go back to this if they made changes that let me use it in those apps (or all apps for that matter, like how Scriber is designed)
 
