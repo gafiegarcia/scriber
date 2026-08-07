@@ -1,11 +1,5 @@
 # Native macOS Roadmap
 
-## v0.8.7 (publish repo)
-
-- [ ] Make the repository public. Enable Issues; leave pull requests
-      unsolicited. Do not use GitHub's Archive flag — it makes a repository
-      read-only.
-
 ## v0.8.8
 
 - [ ] **Discard a recording ElevenLabs rejects as too short.** It should
