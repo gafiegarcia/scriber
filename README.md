@@ -7,11 +7,14 @@
 
 If you're looking for a dictation app for macOS to daily-drive, you might want to check out [these alternatives I listed below](#better-alternatives) first (unless you're curious enough to build this yourself and try it out).
 
-I asked Codex and Claude to build a Wispr Flow alternative (didn't like its RAM usage). Scriber is a native macOS dictation app that lives in the menu bar by default, built with Swift, SwiftUI, and AppKit. Let me rephrase: Scriber is an ElevenLabs Scribe v2 API wrapper written in Swift that works just like Wispr Flow (mostly).
+I asked Codex and Claude to build a Wispr Flow alternative (didn't like its RAM usage). It's good enough that I uninstalled the other for the time being.
 
-- <100MB of RAM usage
+Scriber is a native macOS dictation app that lives in the menu bar by default, built with Swift, SwiftUI, and AppKit. Let me rephrase: Scriber is an ElevenLabs Scribe v2 API wrapper written in Swift that works just like Wispr Flow (kinda).
+
+- <100MB of RAM usage, <5MB of bundle size (native Swift app)
 - BYOK (only supports ElevenLabs)
 - Auto-paste with paste-fail detection (jargon-y enough?)
+- (currently) Does one job: record -> transcribe -> paste; that's it.
 
 ## Why ElevenLabs?
 
@@ -22,9 +25,18 @@ Its Scribe v2 model is not just benchmark-accurate, but also covers my personal 
 - generous free monthly credits (for non-heavy dictation users, 10k credits, which equals 2h30m of transcription via API, just won't run out for me)
 - auto-punctuation, filler-word removal, and (slight) grammar correction work so well that it doesn't need any post-processing at all (unless you need context-aware refinement, like querying text on the screen/around the cursor to give context to the post-processing AI, which I don't need)
 
+## Why not local models?
+
+I'm on a base model macbook. Running a local model means:
+
+- Downloading 1+++GB model if I want a bigger model for better accuracy
+- or sticking with small models (like Parakeet or Whisper small) or Apple's built-in dictation service, which are not smart and accurate enough to be reliable *and* usually doesn't support my first language (Bahasa).
+- When it's processing the transcription, a huge chunk of memory is used (may be up to 4gigs or something). At one point, when I tried using local Whisper-based dictation app while my usual apps are open (browser, WA, text editor, etc.), my mac stuttered for a second (I presume when loading the model to memory). I won't try doing that while other resource-heavy apps like DaVinci Resolve or FCPX is open... not like unusable, but uncomfortable.
+- I don't dictate private or incriminating information; I just type it (not the incriminating one) with the help of text replacements. I'm not worried my dictation being processed somewhere on a server.
+
 ## (Better) Alternatives...
 
-I've been personally using Scriber for weeks, and the latest version accommodates my simple, not-too-frequent needs just fine. While I might keep maintaining it (read: report bugs and ask for features & improvements to tha clankers) and using it personally as I haven't found one I really like among the available free Wispr Flow alternatives I managed to find, I most likely don't have enough tokens to squash bugs and fulfill requests as much/as fast as an actual project with an actual dev. You might want to check out these personal recommendations of mine + open source options I discovered:
+I've been personally using Scriber for weeks, and the latest version accommodates my simple, not-too-frequent needs just fine. While I might keep maintaining it (read: report bugs and ask for features & improvements to tha clankers) and using it personally, I most likely don't have enough tokens to squash bugs and fulfill requests as much/as fast as an actual project with an actual dev. You might want to check out these personal recommendations of mine + open source options I discovered instead:
 
 ### [Wispr Flow](https://wisprflow.ai/)
 
@@ -60,6 +72,12 @@ Ofc it comes with some caveats:
 - It works almost in any app people mostly use, but not everywhere; can't paste into some text fields, like ~~Zed editor~~ and VS Code's new experimental markdown editor. I presume it's trying to determine the exact text field via AX tree or something, and when it can't find one, it just cannot paste it there, neither the first auto attempt nor the drag-to-insert works (even though it successfully detected which app). Update 2026-08-07: the dev updated it to work in Zed, but I found it not working in Raycast too, I suppose due to their strategy of not blindly pasting and making sure a text field exists and has focus first
 
 I might go back to this if they made changes that let me use it in those apps (or all apps for that matter, like how Scriber is designed)
+
+### [Cloudless Voice](https://www.cloudless.so/) (previously Onit)
+
+- offline first
+- has been around for a while, and I remember the guys being very helpful and responsive on Discord
+- non-intrusive indicator pill (like Wispr Flow, but at the side)
 
 ### Open source alternatives
 
