@@ -49,6 +49,7 @@ Seriously, if you're okay with its privacy policy (just got updated after the ne
 - good accuracy+speed combo
 - built-in cleanup post-processing is reliable
 - free users get 2000 words/week on desktop, 1000 words/week on mobile. more than enough for many
+- and yes, fully-functional mobile app (and afaik, syncs with all your devices if you subscribe)
 - aside from the word limit, most features (except for the history sync, command mode and synced scratchpad, as far as I remember) are *not paywalled*.
 - app-aware transcription style customization. email format, casual/formal/original style (lowercase for chats, polished grammar and capitalization for email/the rest, etc.), etc. and very easy to understand and configure
 - now also has a meeting transcription feature called "Notetaker" with real-time notes, speaker diarization, and summary notes (which I believe includes your jotted down notes as well)
