@@ -87,17 +87,8 @@
       showing its date.
 - [ ] **Make paste-fail detection a toggle-able setting.** Some users may not like the interruption of the feature, and just like the dictation get auto-pasted as quickly as possible and optionally copied.
 
-## Long-term and backlog
+## Long-term
 
-- [ ] **Cap dictation history to a configurable maximum.** A year of daily use
-      could mean thousands of records loaded into memory every time the main
-      window opens, similar to how a shell caps its command history
-      (`HISTSIZE`). Add a Settings option — generous by default — for the
-      maximum number of retained dictations, and decide what happens to
-      entries past the cap: delete oldest-first, matching how `Clear Dictation
-      History` already removes retained audio, or offer an export first.
-      Confirm the cap is actually needed before building it — measure real
-      memory use at a few thousand records rather than assuming.
 - [ ] **Support other providers like Groq** (which also has a generous free tier just like ElevenLabs).
     - Changing the Settings tab name from ElevenLabs to something else. Could be "Providers", "API keys", or something else.
     - Reorganize that tab, now that each provider owns its own API Key and (possibly) Usage section. May need to redesign to ensure good UX and proper visual hierarchy.
@@ -136,11 +127,6 @@
       it cannot mount its bar in the existing toolbar beside the count, Settings,
       and search, or if it wants per-tab toolbar items: a toolbar whose items
       vary by destination is what this window crashed on.
-- [ ] **Explore Apple Foundation Models for dictation post-processing.** Confirm
-      Scriber can read adjacent context, derive a conservative word limit from
-      half the smaller input/output budget or half the context window when
-      separate limits are unavailable, and reject requests that exceed it.
-- [ ] **Offer "Private" mode.** in Onboarding, users should be informed of a "Private" mode where Scriber will exclusively use local models instead. Current idea: macOS built-in dictation + foundation models for post-processing cleanup. Many other apps utilize Apple ANE (neural engine) for faster inference and less memory, minimizing CPU usage and avoiding GPU/MPS entirely using in-app CoreML audio models: [FluidAudio](https://github.com/FluidInference/FluidAudio) (written in Swift). [Some other](https://github.com/mrinalwadhwa/unramble) uses Cohere Transcribe + Qwen3 0.6B local setup. Drawback is big app bundle (could exceed 1.5GB)
 - [ ] **Overhaul onboarding.** Current onboarding is one-paged, boring first-time setup with incomplete "get started" information. 
     - Refer to Wispr Flow onboarding: one-page per step, carefully crafted design.
     - `fn` is default recommended key; but also offer my own personal favorite as an option called something like "favorite alternative":`fn+^+⌥` for hold-to-dictate.
