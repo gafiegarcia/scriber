@@ -670,7 +670,7 @@ private struct ElevenLabsSettingsPane: View {
             // renders nothing while a valid key's usage has yet to arrive, and an
             // empty section still draws its header.
             if showsUsageSection {
-                SettingsSection("Usage") {
+                SettingsSection("Credits") {
                     subscriptionUsageView
                 }
             }
@@ -761,12 +761,23 @@ private struct ElevenLabsSettingsPane: View {
                     Text("\(usage.remainingCredits.formatted()) of \(usage.totalCredits.formatted()) remaining")
                         .monospacedDigit()
                 }
-                ProgressView(value: Double(usage.remainingCredits), total: Double(max(usage.totalCredits, 1)))
-                    .tint(
-                        presentation.cachedUsageIsStale
-                            ? Color.secondary
-                            : usage.remainingCredits == 0 ? .orange : .accentColor
-                    )
+                HStack(spacing: 8) {
+                    ProgressView(value: Double(usage.remainingCredits), total: Double(max(usage.totalCredits, 1)))
+                        .tint(
+                            presentation.cachedUsageIsStale
+                                ? Color.secondary
+                                : usage.remainingCredits == 0 ? .orange : .accentColor
+                        )
+                    if let percentage = usage.remainingPercentage {
+                        Text(percentage, format: .percent)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            // Reserves room for three digits so the bar keeps its
+                            // width as the number shrinks.
+                            .frame(minWidth: 34, alignment: .trailing)
+                            .accessibilityLabel("\(percentage) percent of credits remaining")
+                    }
+                }
                 HStack {
                     Text(usage.tier.capitalized + " plan")
                     if let resetAt = usage.resetAt {

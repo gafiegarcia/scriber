@@ -43,6 +43,18 @@ public struct ElevenLabsSubscriptionUsage: Codable, Equatable, Sendable {
         remainingCredits == 0 && !canExtendCredits
     }
 
+    /// Remaining credits as a whole percentage, or nil when there is no total to
+    /// measure against. 0 and 100 are reserved for genuinely empty and genuinely
+    /// full, so a sliver either way rounds to 1 and 99 instead of reading as the
+    /// endpoint it has not reached.
+    public var remainingPercentage: Int? {
+        guard totalCredits > 0 else { return nil }
+        if remainingCredits == 0 { return 0 }
+        if remainingCredits >= totalCredits { return 100 }
+        let rounded = Int((Double(remainingCredits) / Double(totalCredits) * 100).rounded())
+        return min(99, max(1, rounded))
+    }
+
     public init(
         tier: String,
         usedCredits: Int,

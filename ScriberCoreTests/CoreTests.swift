@@ -657,6 +657,27 @@ struct ScribeValidationTests {
         #expect(!unlimited.shouldBlockDictation)
     }
 
+    @Test("Reserves 0 and 100 percent for empty and full credits")
+    func remainingPercentage() {
+        func usage(used: Int, total: Int) -> ElevenLabsSubscriptionUsage {
+            ElevenLabsSubscriptionUsage(
+                tier: "free",
+                usedCredits: used,
+                totalCredits: total,
+                canExtendCredits: false,
+                resetAt: nil
+            )
+        }
+
+        #expect(usage(used: 0, total: 10_000).remainingPercentage == 100)
+        #expect(usage(used: 10_000, total: 10_000).remainingPercentage == 0)
+        #expect(usage(used: 9_800, total: 10_000).remainingPercentage == 2)
+        #expect(usage(used: 3_333, total: 10_000).remainingPercentage == 67)
+        #expect(usage(used: 9_999, total: 10_000).remainingPercentage == 1)
+        #expect(usage(used: 1, total: 10_000).remainingPercentage == 99)
+        #expect(usage(used: 0, total: 0).remainingPercentage == nil)
+    }
+
     @Test("Unavailable usage presents cached credits as stale with one retry")
     func unavailableUsagePresentation() {
         let presentation = SubscriptionUsagePresentation(
