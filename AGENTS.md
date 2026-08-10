@@ -28,6 +28,7 @@
 - Every roadmap item names a target version (`## v0.8.1`, `## v0.9.0`, `## Long-term`). Do not park work in an unscheduled pile. Something broken that nobody plans to fix is not a roadmap item — put a `Known and unfixed:` comment on the code that owns it.
 - Versioning policy: `docs/VERSIONING.md`. Before tagging, agents run the automated pass and propose the applicable manual checks for Gaf to run; also confirm no credentials, recordings, history, or build output ship.
 - Follow Conventional Commits, using Angular's type set with no custom types added. Add a scope only when a commit is confined to one subsystem (`fix(paste):`); there is one app, so never scope by platform.
+- Merges into `main` are fast-forward only: rebase the branch onto `main` first when `--ff-only` refuses, and merge locally rather than from GitHub's pull request buttons. Tag releases on `main` after the merge lands, never on the branch — a rebase gives the branch's commits new identities, and a tag made beforehand names one that never reaches `main`.
 - Do not push or publish unless explicitly asked.
 - `CLAUDE.md` is a symlink to this file. Apply edits to `AGENTS.md`.
 
