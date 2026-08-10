@@ -2,89 +2,28 @@
 
 ## v0.8.8
 
-- [ ] **Discard a recording ElevenLabs rejects as too short.** It should
-      vanish like the two local discard cases do: no history row, no retained
-      audio, no pill message, just the pill closing.
+- [ ] **Discard a recording ElevenLabs rejects as too short.** It should vanish like the two local discard cases do: no history row, no retained audio, no pill message, just the pill closing.
 
-      `AppCoordinator.finishRecording` gates twice before committing anything —
-      `completed.detectedSignal` and `completed.duration >= 0.1` — and both
-      delete the audio and return without inserting a record. Audio that clears
-      both is inserted and saved *before* transcription, so a later rejection
-      lands on the transcription-failure path and keeps the entry with its audio
-      for Retry. "Audio too short" is not Scriber's wording: it is ElevenLabs'
-      message passed through verbatim by `ScribeError.invalidRequest`. The
-      trigger is therefore audio with signal, longer than 0.1 s, and still under
-      the API's own minimum — which is why it is hard to reproduce and why the
-      other two never reach the network.
+      `AppCoordinator.finishRecording` gates twice before committing anything — `completed.detectedSignal` and `completed.duration >= 0.1` — and both delete the audio and return without inserting a record. Audio that clears both is inserted and saved *before* transcription, so a later rejection lands on the transcription-failure path and keeps the entry with its audio for Retry. "Audio too short" is not Scriber's wording: it is ElevenLabs' message passed through verbatim by `ScribeError.invalidRequest`. The trigger is therefore audio with signal, longer than 0.1 s, and still under the API's own minimum — which is why it is hard to reproduce and why the other two never reach the network.
 
-      Prefer raising the local floor to the API's real minimum so the request is
-      never made: it costs no round trip and no credit. Determining that minimum
-      needs one deliberate probe, so ask before spending it. Failing that,
-      recognize the rejection and delete the record and its audio on the failure
-      path.
-- [ ] **Add "Start minimized" under Launch at Login** in Settings
-      (`Views.swift:302`). Launching at login into a visible window defeats the
-      point for a menu bar app.
-- [ ] **Name the stale-entry case in the Accessibility recovery copy.** When
-      macOS keeps a Privacy list entry whose recorded identity no longer
-      validates, the checkbox reads as enabled while `AXIsProcessTrusted()`
-      stays false. Unchecking and rechecking does not rebuild the entry;
-      removing Scriber from the list and adding the app again does. The current
-      message (`CoreModels.swift:248`) says "Enable Accessibility so Scriber can
-      detect global shortcuts and insert text", which tells someone in that
-      state to do what they have already done, and there is no way for Scriber
-      to detect the case and adapt — it cannot read the Privacy database. So the
-      copy has to carry the escape hatch unconditionally: say that an entry
-      already showing as enabled may need to be removed and re-added. Reproduce
-      by deleting the installed app, reinstalling it, and granting from the
-      leftover entry.
-- [ ] **Log permission transitions.** `refreshPermissions`
-      (`AppCoordinator.swift:327`) flips `accessibilityGranted`, starts and stops
-      the shortcut monitor, and records none of it; the app's only categories are
-      `window-lifecycle` and `paste-target`. A grant that the poll never observes
-      and a grant that arrives normally therefore look identical afterwards. Log
-      one line per change — which permission, its new value, and which of the
-      three refresh paths saw it — so the paste engine's "capture the log first"
-      rule can apply to permissions too.
+      Prefer raising the local floor to the API's real minimum so the request is never made: it costs no round trip and no credit. Determining that minimum needs one deliberate probe, so ask before spending it. Failing that, recognize the rejection and delete the record and its audio on the failure path.
+- [ ] **Add "Start minimized" under Launch at Login** in Settings (`Views.swift:302`). Launching at login into a visible window defeats the point for a menu bar app.
+- [ ] **Name the stale-entry case in the Accessibility recovery copy.** When macOS keeps a Privacy list entry whose recorded identity no longer validates, the checkbox reads as enabled while `AXIsProcessTrusted()` stays false. Unchecking and rechecking does not rebuild the entry; removing Scriber from the list and adding the app again does. The current message (`CoreModels.swift:248`) says "Enable Accessibility so Scriber can detect global shortcuts and insert text", which tells someone in that state to do what they have already done, and there is no way for Scriber to detect the case and adapt — it cannot read the Privacy database. So the copy has to carry the escape hatch unconditionally: say that an entry already showing as enabled may need to be removed and re-added. Reproduce by deleting the installed app, reinstalling it, and granting from the leftover entry.
+- [ ] **Log permission transitions.** `refreshPermissions` (`AppCoordinator.swift:327`) flips `accessibilityGranted`, starts and stops the shortcut monitor, and records none of it; the app's only categories are `window-lifecycle` and `paste-target`. A grant that the poll never observes and a grant that arrives normally therefore look identical afterwards. Log one line per change — which permission, its new value, and which of the three refresh paths saw it — so the paste engine's "capture the log first" rule can apply to permissions too.
 
 ## v0.9.0
 
-- [ ] **Redesign the menu bar menu.** Follow the Claude menu reference: lead with
-      Scriber, show the marketing version and build beneath it, and place an Open
-      control on the trailing edge.
+- [ ] **Redesign the menu bar menu.** Follow the Claude menu reference: lead with Scriber, show the marketing version and build beneath it, and place an Open control on the trailing edge.
     - Show ElevenLabs credit usage in the menu bar menu. Reuse the existing Usage display in Settings, "cloning" it into the menu bar if possible
     - "Paste/copy last transcription" or "Recent dictation", showing submenu on hover that shows last 3-5 successful transcripts which when clicked will be either copied to clipboard or pasted to the cursor
 - [ ] **Overhaul Settings layout.**
     - Change "Transcription" section name in setting to avoid confusion: under Dictation tab, the “Transcription” section naming doesn’t make sense, as it may conflict with a future long-form Transcription feature I may introduce to Scriber. It should be changed. My draft: Dictation settings, Dictation options, Options, Configuration. I’m not sure what to pick, I need a section name with a meaning that a normie user can immediately understand/infer.
-    - Search Settings: Type "mic" in the Settings window and land on the
-      setting, whichever of the five tabs holds it. Tabs made Settings scannable;
-      this is for the case where the user knows the setting's name but not which
-      tab owns it. SwiftUI supplies nothing here — it needs an index of every
-      setting with its keywords, a field, results, and a jump that shows which
-      control it landed on. (Update) also consider implementation difficulty now
-      that Settings window is a tabbed interface.
-    - Simplify, consider best UX.
-      subscription-usage state and make unavailable or restricted usage explicit.
-- [ ] **Offer a top pill position** beneath the notch, alongside the current
-      bottom placement.
-- [ ] **Integrate the pill into the MacBook notch.** Treat this as a separate
-      capability from placing the existing pill beneath it.
-- [ ] **Make a card's date readable without scrolling it to the top.** The
-      titlebar's day strip only names the day at the very top of the list, so a
-      card lower down — especially on a light day with only a few entries — has
-      no visible date at all until it is scrolled there. The cheap fix: show the
-      card's full date, greyed out, in its three-dot menu, above **Delete…**, so
-      the date is at least reachable per-entry without scrolling. The fuller fix:
-      put the date directly on each card and have it hand off to the titlebar
-      label exactly when the card reaches the top — the same crossing point
-      `DictationHistoryView.currentTitle` already computes — so the label never
-      exists in both places at once. Try the cheap fix first; the transition in
-      the fuller one is the hard part and may not be worth it.
-    - Preferred shape for the fuller fix: a persistent date label above every
-      card *except the first*, since the titlebar already names that one. It
-      sidesteps the hand-off entirely — nothing has to animate at the crossing
-      point, because no card ever needs a label at the moment the titlebar is
-      showing its date.
+    - Search Settings: Type "mic" in the Settings window and land on the setting, whichever of the five tabs holds it. Tabs made Settings scannable; this is for the case where the user knows the setting's name but not which tab owns it. SwiftUI supplies nothing here — it needs an index of every setting with its keywords, a field, results, and a jump that shows which control it landed on. (Update) also consider implementation difficulty now that Settings window is a tabbed interface.
+    - Simplify, consider best UX. subscription-usage state and make unavailable or restricted usage explicit.
+- [ ] **Offer a top pill position** beneath the notch, alongside the current bottom placement.
+- [ ] **Integrate the pill into the MacBook notch.** Treat this as a separate capability from placing the existing pill beneath it.
+- [ ] **Make a card's date readable without scrolling it to the top.** The titlebar's day strip only names the day at the very top of the list, so a card lower down — especially on a light day with only a few entries — has no visible date at all until it is scrolled there. The cheap fix: show the card's full date, greyed out, in its three-dot menu, above **Delete…**, so the date is at least reachable per-entry without scrolling. The fuller fix: put the date directly on each card and have it hand off to the titlebar label exactly when the card reaches the top — the same crossing point `DictationHistoryView.currentTitle` already computes — so the label never exists in both places at once. Try the cheap fix first; the transition in the fuller one is the hard part and may not be worth it.
+    - Preferred shape for the fuller fix: a persistent date label above every card *except the first*, since the titlebar already names that one. It sidesteps the hand-off entirely — nothing has to animate at the crossing point, because no card ever needs a label at the moment the titlebar is showing its date.
 - [ ] **Make paste-fail detection a toggle-able setting.** Some users may not like the interruption of the feature, and just like the dictation get auto-pasted as quickly as possible and optionally copied.
 
 ## Long-term
@@ -95,62 +34,25 @@
     - Explore Groq Whisper API and incorporate it into Scriber engine.
     - In anticipation of the upcoming long-form Transcription feature (which may own its own tab in Settings when it arrives), Dictation tab should include an option to select the provider for Dictation—when Transcription lands, it can be configured to use a different provider (yeah I think that's cool). The setting/option row should have a "configure providers..." (copy wording may change) button to jump to the providers settings tab and a picker that lists configured providers. I currently imagine the best UX for this is to only list *configured* providers indicated by a successful verification (reference: ElevenLabs current "Verified" badge check); so the Picker would show cleaner lists, excluding unconfigured providers and providers with unverified API keys.
     - Just below that setting (or in the same group), also add a model picker, as Groq provides two Whisper v3 variants (large and Turbo if I'm not mistaken). Users have the freedom to choose, but Scriber always recommend the better models based on interal testing by adding "(Recommended)" tag on the picker option or an icon that indicates similar intent/info (⭐ for example).
-    - Tag ElevenLabs (only list Scribe v2 for now, model picker greyed out) as "(Recommended)" because it's the one I use, tested, and doesn't need post-processing layer to produce filler-free, accurate transcripts with auto-punctuations. Whisper v3 (and the Turbo variant) is also good in this regard, but falls behind in WER benchmark by considerable points compared to ElevenLabs Scribe v2. To summarize: 
+    - Tag ElevenLabs (only list Scribe v2 for now, model picker greyed out) as "(Recommended)" because it's the one I use, tested, and doesn't need post-processing layer to produce filler-free, accurate transcripts with auto-punctuations. Whisper v3 (and the Turbo variant) is also good in this regard, but falls behind in WER benchmark by considerable points compared to ElevenLabs Scribe v2. To summarize:
         - Recommended Provider: ElevenLabs (Scribe v2 as the only model option, for now)
         - Recommended Model from Groq: to be determined
-- [ ] **Build the long-form Transcription workspace.** Settings has a Dictation
-      tab, and Transcription options get their own tab beside it. The main
-      window's workspace control becomes a picker when this lands.
-- [ ] **Order the toolbar for two workspaces.** When the workspace control stops
-      being a plain name, lay the toolbar out like this:
+- [ ] **Build the long-form Transcription workspace.** Settings has a Dictation tab, and Transcription options get their own tab beside it. The main window's workspace control becomes a picker when this lands.
+- [ ] **Order the toolbar for two workspaces.** When the workspace control stops being a plain name, lay the toolbar out like this:
 
       ```
       [ Dictation | Transcription ]  353 dictations   ·gap·   ⚙  ⚠        ·······  [ Search ]
       └──────── what you're looking at ────────┘        └── app-level ──┘
       ```
 
-      The switcher leads because
-      it is the subject every other item describes and the one control aimed at
-      by muscle memory; the count follows it as its subtitle, and being adjacent
-      is what keeps it reading as one rather than as a clickable fact of its
-      own. The fixed gap stands in for the trailing cluster this toolbar cannot
-      have, marking Settings as app-level rather than part of the workspace, and
-      it survives the switcher being wider than a word of text. Settings before
-      the warning, so the permanent control holds the fixed position and the
-      transient one grows into the gap.
-- [ ] **Decide the workspace switcher's control.** Apple's guidance is a tab view
-      for view switching and a segmented control only in a toolbar or inspector,
-      and this switcher is in a toolbar — so both readings are defensible.
-      Evaluate `TabView` first, because Dictation and Transcription are two
-      top-level destinations with their own list, query, and scroll position,
-      which is what a tab view models and a picker only imitates. Reject it if
-      it cannot mount its bar in the existing toolbar beside the count, Settings,
-      and search, or if it wants per-tab toolbar items: a toolbar whose items
-      vary by destination is what this window crashed on.
-- [ ] **Overhaul onboarding.** Current onboarding is one-paged, boring first-time setup with incomplete "get started" information. 
+      The switcher leads because it is the subject every other item describes and the one control aimed at by muscle memory; the count follows it as its subtitle, and being adjacent is what keeps it reading as one rather than as a clickable fact of its own. The fixed gap stands in for the trailing cluster this toolbar cannot have, marking Settings as app-level rather than part of the workspace, and it survives the switcher being wider than a word of text. Settings before the warning, so the permanent control holds the fixed position and the transient one grows into the gap.
+- [ ] **Decide the workspace switcher's control.** Apple's guidance is a tab view for view switching and a segmented control only in a toolbar or inspector, and this switcher is in a toolbar — so both readings are defensible. Evaluate `TabView` first, because Dictation and Transcription are two top-level destinations with their own list, query, and scroll position, which is what a tab view models and a picker only imitates. Reject it if it cannot mount its bar in the existing toolbar beside the count, Settings, and search, or if it wants per-tab toolbar items: a toolbar whose items vary by destination is what this window crashed on.
+- [ ] **Overhaul onboarding.** Current onboarding is one-paged, boring first-time setup with incomplete "get started" information.
     - Refer to Wispr Flow onboarding: one-page per step, carefully crafted design.
     - `fn` is default recommended key; but also offer my own personal favorite as an option called something like "favorite alternative":`fn+^+⌥` for hold-to-dictate.
     - onboarding should also hint the user to click “always allow” (check if this is still the case if app is notarized)
-- [ ] **Offer a theme override.** Add an Appearance section to Settings' General
-      tab with a picker for System (default), Light, and Dark, applied through
-      `NSApp.appearance`. Decide what the override does to the pill before
-      building it: the pill is an `NSPanel` floating over other apps' windows and
-      today follows the system setting, so a forced Light pill can sit over a
-      dark app — consistent with the rest of Scriber, inconsistent with whatever
-      is behind it.
-- [ ] **Extend window-owned search to Transcription.** After the long-form
-      Transcription workspace exists, reuse the persistent native search item
-      with a contextual `Search Transcriptions` placeholder, retain a separate
-      query for each workspace, and make Command-F focus the active searchable
-      workspace.
-- [ ] **Add an all-content search scope.** After Dictation and Transcription
-      search both exist, let users broaden the current query without replacing
-      it, keep the selected scope visible while text is present, and present
-      mixed results grouped by workspace.
-- [ ] **Move to a Developer ID identity.** Then return credential storage to the
-      Data Protection Keychain, drop the per-binary **Always Allow** step from the
-      README, and add Hardened Runtime, which the local Release configuration
-      deliberately omits.
-- [ ] **Notarize a downloadable binary.** Generate artifact-specific third-party
-      notices at that point. A source tag needs none: the app declares no
-      third-party Swift package dependency and uses only Apple frameworks.
+- [ ] **Offer a theme override.** Add an Appearance section to Settings' General tab with a picker for System (default), Light, and Dark, applied through `NSApp.appearance`. Decide what the override does to the pill before building it: the pill is an `NSPanel` floating over other apps' windows and today follows the system setting, so a forced Light pill can sit over a dark app — consistent with the rest of Scriber, inconsistent with whatever is behind it.
+- [ ] **Extend window-owned search to Transcription.** After the long-form Transcription workspace exists, reuse the persistent native search item with a contextual `Search Transcriptions` placeholder, retain a separate query for each workspace, and make Command-F focus the active searchable workspace.
+- [ ] **Add an all-content search scope.** After Dictation and Transcription search both exist, let users broaden the current query without replacing it, keep the selected scope visible while text is present, and present mixed results grouped by workspace.
+- [ ] **Move to a Developer ID identity.** Then return credential storage to the Data Protection Keychain, drop the per-binary **Always Allow** step from the README, and add Hardened Runtime, which the local Release configuration deliberately omits.
+- [ ] **Notarize a downloadable binary.** Generate artifact-specific third-party notices at that point. A source tag needs none: the app declares no third-party Swift package dependency and uses only Apple frameworks.

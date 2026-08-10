@@ -19,61 +19,20 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 
 ## Identity and workspace boundary
 
-- The product name is **Scriber**, the app bundle is `Scriber.app`, and the
-  native bundle identifier is `com.gafiegarcia.scriber`.
-- The native identity was a deliberate clean reset from Scriber Dictate. Do not
-  migrate its history, preferences, onboarding state, pending audio, login item,
-  or Keychain item into Scriber.
-- The app exposes a **Dictation** workspace and a separate **Settings** window.
-  Do not add an empty Transcription workspace before that workflow exists.
-- Settings presents five tabs — General, Dictation, Sound, ElevenLabs,
-  Permissions — and every pane fits its tab without scrolling at the default
-  window size. A route that opens Settings to fix something selects the tab that
-  owns the problem; opening Settings without naming one leaves the tab the user
-  last chose alone. Match the Settings window by scene identifier before title:
-  a tabbed pane may retitle its window after the selected tab, and fronting,
-  Command-Shift-W, and the Dock activation policy all depend on recognising it.
-- `Escape` closes the Settings window, unless a shortcut recorder is capturing —
-  where it ends the capture — or a confirmation is presented, which answers it
-  itself.
-- The main window has no sidebar. It owns one persistent SwiftUI toolbar
-  carrying the workspace control, the dictation count, any unresolved recovery
-  condition, a Settings button, and search. The window title is not displayed.
-- The workspace control and the count form one leading group: the count is the
-  workspace's subtitle, and adjacency is what keeps it reading as one. Settings
-  follows them, and the recovery warning comes last of all — after Settings, so
-  that a condition appearing or clearing grows into the space before the search
-  field instead of moving a control the user aims at. The warning is not part of
-  the workspace group: it reports that the app cannot run, which is not a fact
-  about the active workspace.
-- Do not move the Settings button beside the search field. `.searchable`
-  anchors the field to the trailing edge behind a flexible space of its own,
-  and no toolbar placement or declaration order gets past it; adding a second
-  spacer only strands the button in the middle of the titlebar. Declare the
-  field with `DefaultToolbarItem(kind: .search)` and do not also ask
-  `.searchable` for `.toolbar` placement, or the toolbar gets two of each.
-  Reaching the button's drawn position in `.designs/` needs a hand-built
-  AppKit search field, which this window is forbidden from having.
-- SwiftUI owns that toolbar alone. Never replace `window.toolbar`, never hide or
-  remove a SwiftUI-created toolbar item from AppKit, and never vary a toolbar
-  item's shared-background preference by state: each one makes SwiftUI reconcile
-  chrome it still holds observers on, and the first crashed on launch.
-- The workspace control names the active workspace while Dictation is the only
-  one, and becomes a switcher when a second exists. Do not ship a picker that
-  offers a single choice. While it is a plain name it carries no background; it
-  earns one when it becomes a control.
-- The toolbar search filters the active workspace in place, and Command-F
-  focuses it. Both are unavailable in the Settings window.
-- Presenting the main window gives the toolbar search keyboard focus, so the
-  first thing typed into a window that just opened searches. Merely returning to
-  a window that stayed open must leave focus, selection, and scroll position
-  alone.
-- Future long-form **Transcription** is a separate workspace with its own model,
-  source-media policy, metadata, editing, export, and note lifecycle. Keep
-  `DictationRecord` focused on short capture, delivery, and retry.
-- Reuse credentials, `ScribeClient`, language, usage, and keyterm behavior only
-  through real shared boundaries. Split coordinator responsibilities when the
-  Transcription workflow is implemented.
+- The product name is **Scriber**, the app bundle is `Scriber.app`, and the native bundle identifier is `com.gafiegarcia.scriber`.
+- The native identity was a deliberate clean reset from Scriber Dictate. Do not migrate its history, preferences, onboarding state, pending audio, login item, or Keychain item into Scriber.
+- The app exposes a **Dictation** workspace and a separate **Settings** window. Do not add an empty Transcription workspace before that workflow exists.
+- Settings presents five tabs — General, Dictation, Sound, ElevenLabs, Permissions — and every pane fits its tab without scrolling at the default window size. A route that opens Settings to fix something selects the tab that owns the problem; opening Settings without naming one leaves the tab the user last chose alone. Match the Settings window by scene identifier before title: a tabbed pane may retitle its window after the selected tab, and fronting, Command-Shift-W, and the Dock activation policy all depend on recognising it.
+- `Escape` closes the Settings window, unless a shortcut recorder is capturing — where it ends the capture — or a confirmation is presented, which answers it itself.
+- The main window has no sidebar. It owns one persistent SwiftUI toolbar carrying the workspace control, the dictation count, any unresolved recovery condition, a Settings button, and search. The window title is not displayed.
+- The workspace control and the count form one leading group: the count is the workspace's subtitle, and adjacency is what keeps it reading as one. Settings follows them, and the recovery warning comes last of all — after Settings, so that a condition appearing or clearing grows into the space before the search field instead of moving a control the user aims at. The warning is not part of the workspace group: it reports that the app cannot run, which is not a fact about the active workspace.
+- Do not move the Settings button beside the search field. `.searchable` anchors the field to the trailing edge behind a flexible space of its own, and no toolbar placement or declaration order gets past it; adding a second spacer only strands the button in the middle of the titlebar. Declare the field with `DefaultToolbarItem(kind: .search)` and do not also ask `.searchable` for `.toolbar` placement, or the toolbar gets two of each. Reaching the button's drawn position in `.designs/` needs a hand-built AppKit search field, which this window is forbidden from having.
+- SwiftUI owns that toolbar alone. Never replace `window.toolbar`, never hide or remove a SwiftUI-created toolbar item from AppKit, and never vary a toolbar item's shared-background preference by state: each one makes SwiftUI reconcile chrome it still holds observers on, and the first crashed on launch.
+- The workspace control names the active workspace while Dictation is the only one, and becomes a switcher when a second exists. Do not ship a picker that offers a single choice. While it is a plain name it carries no background; it earns one when it becomes a control.
+- The toolbar search filters the active workspace in place, and Command-F focuses it. Both are unavailable in the Settings window.
+- Presenting the main window gives the toolbar search keyboard focus, so the first thing typed into a window that just opened searches. Merely returning to a window that stayed open must leave focus, selection, and scroll position alone.
+- Future long-form **Transcription** is a separate workspace with its own model, source-media policy, metadata, editing, export, and note lifecycle. Keep `DictationRecord` focused on short capture, delivery, and retry.
+- Reuse credentials, `ScribeClient`, language, usage, and keyterm behavior only through real shared boundaries. Split coordinator responsibilities when the Transcription workflow is implemented.
 
 ## Shortcuts and job lifecycle
 
@@ -89,19 +48,9 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 - A custom Hold chord such as `Fn-Control-Option` must coexist correctly with Toggle.
 - While converting a held recording to hands-free, modifiers used only by Hold are ignored when matching Toggle. Stopping a locked recording requires the exact configured Toggle chord; the Hold chord is ignored while locked.
 - During the first second of a held recording, any non-modifier key cancels and discards it. The Hold and Toggle chords are not typing, and neither is their auto-repeat: a chord held down produces one press and one release, and only a fresh press starts the next recording.
-- `Escape` cancels either recording mode. Cancelled recordings retain retryable
-  audio only when they are at least one second long and contain detected speech;
-  shorter or silent cancellations are discarded. This one-second recovery rule
-  does not replace the configured signal threshold for normally completed
-  recordings. The recovery pill can undo cancellation and resume transcription
-  plus automatic insertion, while History retry transcribes and copies the
-  result without inserting it.
+- `Escape` cancels either recording mode. Cancelled recordings retain retryable audio only when they are at least one second long and contain detected speech; shorter or silent cancellations are discarded. This one-second recovery rule does not replace the configured signal threshold for normally completed recordings. The recovery pill can undo cancellation and resume transcription plus automatic insertion, while History retry transcribes and copies the result without inserting it.
 - Only one recording or transcription job runs at a time.
-- A notice about a dictation that already ended — a failure, a cancellation, a
-  copied result, a permission or credential block, or “No words detected” — never
-  blocks the next one. Both shortcuts start recording immediately from any such
-  state, whether or not its pill is still on screen. Only an in-flight recording
-  or transcription may refuse a start.
+- A notice about a dictation that already ended — a failure, a cancellation, a copied result, a permission or credential block, or “No words detected” — never blocks the next one. Both shortcuts start recording immediately from any such state, whether or not its pill is still on screen. Only an in-flight recording or transcription may refuse a start.
 - Maximum recording duration is 10 minutes.
 
 ## Recording and transcription
@@ -109,15 +58,9 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 - The sounds Scriber plays while dictating are enabled by default and configurable as one setting, under Sound. Play the built-in macOS Blow sound only after capture starts successfully, the user's own system alert sound once for a terminal recording or transcription failure, and Tink once when recording is cancelled or automatic paste falls back to a copied transcript. The failure cue is the system alert sound so it matches what the user already recognises as an error, and it also covers the two microphone outcomes — no signal at all, and signal with no words — because both are terminal and both are easy to miss on screen alone. Silencing the system alert sound silences this cue with it. Retry waits remain silent.
 - Muting other app audio while recording is enabled by default and offered during onboarding. A private Core Audio process tap silences all audio except Scriber's while playback continues; destroy the tap as soon as capture stops or is cancelled. Never pause or resume another app, and never read, inspect, log, or persist tap audio.
 - Failure to create the other-audio mute tap must never prevent dictation. Keep recording unmuted and expose the unavailable state on the Sound tab in Settings.
-- Use ElevenLabs Scribe v2 batch transcription with no secondary rewrite model.
-  “Remove filler words and false starts” controls `no_verbatim`, defaults on, and
-  remains user-configurable.
+- Use ElevenLabs Scribe v2 batch transcription with no secondary rewrite model. “Remove filler words and false starts” controls `no_verbatim`, defaults on, and remains user-configurable.
 - Include personal keyterms after validating them against Scribe limits. Return adds the keyterm in the field.
-- A key with Speech-to-Text access remains verified and usable when its account-
-  usage scope is unavailable. Keep any cached credit usage as visibly subdued
-  last-known information with its update time, expose one retry action, and
-  never let cached exhaustion block a verified key whose current usage cannot be
-  read.
+- A key with Speech-to-Text access remains verified and usable when its account- usage scope is unavailable. Keep any cached credit usage as visibly subdued last-known information with its update time, expose one retry action, and never let cached exhaustion block a verified key whose current usage cannot be read.
 - Retry transient failures up to three total attempts, waiting 3 seconds and then 5 seconds.
 - Delete audio only after a successful transcript has been saved.
 - Retain failed or interrupted audio so the job can be retried.
@@ -126,8 +69,7 @@ Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONIN
 
 ## Delivery and floating pill
 
-The current delivery transaction and its regression baseline are defined in
-[`PASTE_ENGINE.md`](PASTE_ENGINE.md).
+The current delivery transaction and its regression baseline are defined in [`PASTE_ENGINE.md`](PASTE_ENGINE.md).
 
 - Starting a recording must never send an Accessibility message. Accessibility calls are synchronous cross-process requests whose cost is controlled by the destination app, so target discovery belongs to delivery time only. Recording start may resolve the pill's screen from the window server, which does not traverse another app's Accessibility tree.
 - Confirming delivery is explicitly allowed to be slow. Waiting several seconds for a destination to request the promised transcript is correct; reporting a false failure is not.
@@ -170,8 +112,7 @@ The current delivery transaction and its regression baseline are defined in
 - The onboarding window must open centred and fully visible on the current display, whether it is the first launch or a Redo Setup request made with the main window already open. Its steps scroll rather than extend the window past the screen. AppKit's own frame is not trusted for this: a cascaded or restored frame put it under the Dock.
 - Every launch presents onboarding until setup is complete, then presents the main Dictation window. Closing the final normal window still leaves menu-bar and dictation services running.
 - Onboarding must be complete and the credential definitively usable before recording or Dictation retry can begin.
-- App Sandbox remains disabled while global event interception and cross-app
-  Accessibility insertion are core behavior.
+- App Sandbox remains disabled while global event interception and cross-app Accessibility insertion are core behavior.
 
 ## Platform and release boundary
 

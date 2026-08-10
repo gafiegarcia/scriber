@@ -84,7 +84,7 @@ I might go back to this if they made changes that let me use it in those apps (o
 here are the ones I found. tried some, but not really tested. you can just check them out
 
 1. paid-turned-open-source: [https://github.com/Beingpax/VoiceInk](https://github.com/Beingpax/VoiceInk)
-2. [freeflow](https://github.com/zachlatta/freeflow) 
+2. [freeflow](https://github.com/zachlatta/freeflow)
 3. [unramble](https://github.com/mrinalwadhwa/unramble)
 
 ---
@@ -95,74 +95,47 @@ here are the ones I found. tried some, but not really tested. you can just check
 
 - [`apps/macos`](apps/macos) contains the app. It is the only implementation.
 
-Scriber started as an Electron/Next.js app and was rewritten in Swift. That
-earlier implementation stopped at `0.6.0` and is no longer in the tree. It
-remains in Git history; `v0.8.6` is the last tag whose tree still contains it.
+Scriber started as an Electron/Next.js app and was rewritten in Swift. That earlier implementation stopped at `0.6.0` and is no longer in the tree. It remains in Git history; `v0.8.6` is the last tag whose tree still contains it.
 
-The native line continues the product version after Electron `0.6.0`. The Xcode
-project is the source of truth for the bundle build number. See the
-[changelog](CHANGELOG.md) for released snapshots and the
-[versioning policy](docs/VERSIONING.md) for how versions, builds, and tags differ.
+The native line continues the product version after Electron `0.6.0`. The Xcode project is the source of truth for the bundle build number. See the [changelog](CHANGELOG.md) for released snapshots and the [versioning policy](docs/VERSIONING.md) for how versions, builds, and tags differ.
 
 ## Build it yourself
 
-There is no download. The app needs Accessibility and Microphone access to do
-its job, and shipping a build without a paid Apple Developer ID means macOS
-greets everyone with a scary warning — so you build it.
+There is no download. The app needs Accessibility and Microphone access to do its job, and shipping a build without a paid Apple Developer ID means macOS greets everyone with a scary warning — so you build it.
 
-You need macOS 27 and Xcode 27 beta. A **free** Apple ID is enough; you do not
-need a paid developer account. Create `apps/macos/Signing.local.xcconfig` with
-your own team identifier, then build the **Debug** configuration:
+You need macOS 27 and Xcode 27 beta. A **free** Apple ID is enough; you do not need a paid developer account. Create `apps/macos/Signing.local.xcconfig` with your own team identifier, then build the **Debug** configuration:
 
 ```text
 DEVELOPMENT_TEAM = ABCDE12345
 ```
 
-Xcode shows that identifier under Settings → Accounts → Manage Certificates.
-The file is gitignored, so it stays yours.
+Xcode shows that identifier under Settings → Accounts → Manage Certificates. The file is gitignored, so it stays yours.
 
 Two things to expect, neither of which means the build is broken:
 
-- **macOS asks for your login Keychain password** the first time each freshly
-  built binary reads the stored API key. Choose **Always Allow**. This is what
-  a paid Developer ID would fix, and it's why the roadmap still lists one.
-- **The Release configuration won't work for you.** It signs with a local
-  certificate that exists only on my machine, so Release is my install path,
-  not yours. Build Debug.
+- **macOS asks for your login Keychain password** the first time each freshly built binary reads the stored API key. Choose **Always Allow**. This is what a paid Developer ID would fix, and it's why the roadmap still lists one.
+- **The Release configuration won't work for you.** It signs with a local certificate that exists only on my machine, so Release is my install path, not yours. Build Debug.
 
-If you'd rather not involve an Apple ID at all, ad-hoc signing
-(`CODE_SIGN_IDENTITY="-"`) builds a working app — but its signature changes on
-every build, so macOS treats each one as a brand-new app and makes you re-grant
-Accessibility and Microphone every single time. For an app whose whole point is
-a global shortcut that types into other apps, that gets old fast.
+If you'd rather not involve an Apple ID at all, ad-hoc signing (`CODE_SIGN_IDENTITY="-"`) builds a working app — but its signature changes on every build, so macOS treats each one as a brand-new app and makes you re-grant Accessibility and Microphone every single time. For an app whose whole point is a global shortcut that types into other apps, that gets old fast.
 
-The [native README](apps/macos/README.md) has the full detail: prerequisites,
-command-line builds, verification, installation, and first launch.
+The [native README](apps/macos/README.md) has the full detail: prerequisites, command-line builds, verification, installation, and first launch.
 
 ## If you fork it
 
-The bundle identifier `com.gafiegarcia.scriber` is hardcoded in more places than
-`Info.plist`. Change it in all of them, or your fork will read and write the
-same login Keychain item my build does:
+The bundle identifier `com.gafiegarcia.scriber` is hardcoded in more places than `Info.plist`. Change it in all of them, or your fork will read and write the same login Keychain item my build does:
 
 - `apps/macos/Scriber/Info.plist`
 - `apps/macos/Scriber/KeychainStore.swift` — the Keychain service name
 - `apps/macos/Scriber/AudioRecorder.swift` — the capture queue label
-- `apps/macos/Scriber/PasteService.swift` and `ScriberApp.swift` — logging
-  subsystems
+- `apps/macos/Scriber/PasteService.swift` and `ScriberApp.swift` — logging subsystems
 - `PRODUCT_BUNDLE_IDENTIFIER` in both configurations of the Xcode target
 
-Required behavior, unbuilt ideas, and the verification checks live under
-[`apps/macos/docs`](apps/macos/docs). `PRODUCT_SPEC.md` is the one to read first
-if you plan to change anything.
+Required behavior, unbuilt ideas, and the verification checks live under [`apps/macos/docs`](apps/macos/docs). `PRODUCT_SPEC.md` is the one to read first if you plan to change anything.
 
 ## Issues and contributions
 
-Bug reports and ideas are welcome. Development is real but slow — this is one
-person's daily-driver tool, built with a $20 token budget rather than a team, so
-expect slow progress. Fork freely.
+Bug reports and ideas are welcome. Development is real but slow — this is one person's daily-driver tool, built with a $20 token budget rather than a team, so expect slow progress. Fork freely.
 
 ## License
 
-[MIT](LICENSE), copyright © 2026 Gafie Garcia. The app declares no third-party
-dependency: it uses only Apple's own frameworks.
+[MIT](LICENSE), copyright © 2026 Gafie Garcia. The app declares no third-party dependency: it uses only Apple's own frameworks.
