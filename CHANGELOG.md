@@ -4,6 +4,11 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Changed
+
+- Cancelling a dictation no longer looks like something went wrong. The recovery pill drops the amber tint and the warning triangle and reads in the app's plain colours; **Undo** is still there if you want the recording back.
+- The cancellation pill and the "No words detected" pill now close after 5 seconds instead of 6.
+
 ## 0.8.7 — 2026-08-06
 
 Native bundle build 100, installed from an entitlement-free, locally signed Release build. The app itself is unchanged from `0.8.6`; this release opens the source.

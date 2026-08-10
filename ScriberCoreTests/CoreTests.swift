@@ -344,7 +344,6 @@ struct PillToneTests {
     @Test("Recoverable outcomes warn")
     func warning() {
         let warning: [AppPhase] = [
-            .cancelledTranscript,
             .permissionsRequired([.accessibility]),
             .credentialsUnusable(.missingAPIKey),
             .transcriptionFailed("Offline"),
@@ -354,12 +353,13 @@ struct PillToneTests {
         for phase in warning { #expect(phase.pillTone == .warning) }
     }
 
-    @Test("A dictation in flight is not an outcome and carries no tint")
+    @Test("A dictation in flight, and a cancellation, carry no tint")
     func neutral() {
         let neutral: [AppPhase] = [
             .idle,
             .recording(mode: .locked, elapsed: 3, level: -20),
             .transcribing(attempt: 2, retryDelay: 3),
+            .cancelledTranscript,
             .message("Copied")
         ]
         for phase in neutral { #expect(phase.pillTone == .neutral) }

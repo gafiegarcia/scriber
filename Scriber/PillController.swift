@@ -224,8 +224,9 @@ final class PillController {
         // it.
         case .dictationCopied, .transcriptCopied:
             5
-        case .cancelledTranscript, .credentialsUnusable, .transcriptionFailed,
-             .noSpeechDetected, .noAudioSignal:
+        case .cancelledTranscript, .noSpeechDetected:
+            5
+        case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
             6
         default:
             nil
@@ -610,9 +611,6 @@ private struct PillView: View {
     private var cancellationRecovery: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 9) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(toneAccent)
                 Text("Recover cancelled transcript?")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 8)
@@ -688,8 +686,7 @@ private struct PillView: View {
             Image(systemName: "checkmark.circle.fill").foregroundStyle(toneAccent)
         case .noSpeechDetected, .noAudioSignal:
             Image(systemName: "mic.slash.fill").foregroundStyle(toneAccent)
-        case .cancelledTranscript, .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed:
+        case .permissionsRequired, .credentialsUnusable, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(toneAccent)
         default:
             Image(systemName: "waveform")

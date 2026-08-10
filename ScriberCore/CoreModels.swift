@@ -585,12 +585,16 @@ public extension AppPhase {
     ///
     /// Nothing maps to `.failure`: every phase that could claim red is
     /// recoverable in place, from the pill, without losing the transcript.
+    ///
+    /// Cancelling is the one recoverable outcome that stays neutral. The user
+    /// asked for it, so amber would be the app disagreeing with a deliberate
+    /// choice; the Undo button carries the recovery on its own.
     var pillTone: ToastTone {
         switch self {
         case .dictationCopied, .transcriptCopied: .success
-        case .cancelledTranscript, .permissionsRequired, .credentialsUnusable,
+        case .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .noAudioSignal: .warning
-        case .idle, .recording, .transcribing, .message: .neutral
+        case .idle, .recording, .transcribing, .cancelledTranscript, .message: .neutral
         }
     }
 
