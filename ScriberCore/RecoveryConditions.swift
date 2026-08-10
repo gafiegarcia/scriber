@@ -77,7 +77,7 @@ public enum RecoveryConditions {
                     kind: credential.resolvesInUsageSettings ? .usage : .apiKey,
                     title: credential.title,
                     message: credential.recoveryMessage,
-                    actionTitle: credential.resolvesInUsageSettings ? "View Usage" : "Update Key",
+                    actionTitle: credential.resolvesInUsageSettings ? "View Credits" : "Update Key",
                     accessibilityIdentifier: "credential-recovery-banner"
                 )
             )

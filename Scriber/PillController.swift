@@ -752,7 +752,7 @@ private struct PillView: View {
             dismissButton
         case .credentialsUnusable(let readiness):
             if readiness.resolvesInUsageSettings {
-                Button("View Usage") { model.onOpenUsageSettings?() }
+                Button("View Credits") { model.onOpenUsageSettings?() }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
             } else {

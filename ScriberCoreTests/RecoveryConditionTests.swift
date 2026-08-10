@@ -59,7 +59,7 @@ struct RecoveryConditionTests {
             credential: .creditsExhausted
         )
         #expect(conditions.map(\.kind) == [.usage])
-        #expect(conditions[0].actionTitle == "View Usage")
+        #expect(conditions[0].actionTitle == "View Credits")
     }
 
     @Test("Condition copy comes from readiness, not from a second copy of it")
