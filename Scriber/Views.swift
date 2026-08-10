@@ -777,9 +777,10 @@ private struct ElevenLabsSettingsPane: View {
                             .frame(minWidth: 34, alignment: .trailing)
                             // The HStack centers the text's *box*, but the system
                             // font's ascent exceeds its descent, so the glyphs sit
-                            // half a point below the bar. Optical correction only;
-                            // `offset` deliberately leaves the layout alone.
-                            .offset(y: -0.5)
+                            // below the bar. Settled by eye on an installed build.
+                            // Optical correction only; `offset` deliberately
+                            // leaves the layout alone.
+                            .offset(y: -0.7)
                             .accessibilityLabel("\(percentage) percent of credits remaining")
                     }
                 }
