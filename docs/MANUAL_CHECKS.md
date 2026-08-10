@@ -41,8 +41,8 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 ## When credentials, Keychain storage, or usage change
 
 - Only with a disposable second key whose full value has been retained outside Scriber: save it, quit and reopen Scriber, restart macOS, and use Settings → ElevenLabs → Remove API Key…. The key reads back across both launches, and removal makes dictation unavailable. Restore the intended key afterward. Never use this procedure on the only recoverable key.
-- Only when an already exhausted account or a disposable zero-quota key is available: confirm recovery opens the usage panel rather than focusing the key field. Never consume credits merely to reach exhaustion.
-- With User → Read disabled on an otherwise valid Speech-to-Text key, the key remains verified and dictation works across relaunch. **Dictation spends API credit; ask first.** Cached credits are labelled as last known and subdued, only one usage-retry action appears, and a failed retry never marks the key invalid. Restoring User → Read and retrying returns the current usage display.
+- Only when an already exhausted account or a disposable zero-quota key is available: confirm recovery opens the Credits section rather than focusing the key field. Never consume credits merely to reach exhaustion.
+- With User → Read disabled on an otherwise valid Speech-to-Text key, the key remains verified and dictation works across relaunch. **Dictation spends API credit; ask first.** Cached credits are labelled as last known and subdued, only one usage-retry action appears, and a failed retry never marks the key invalid. Restoring User → Read and retrying returns the current credits display, with its percentage beside the bar.
 
 ## When permissions or global-shortcut lifecycle change
 
