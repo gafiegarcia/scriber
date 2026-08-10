@@ -1,4 +1,4 @@
-# Native macOS Product Specification
+# Product Specification
 
 ## Product goal
 
