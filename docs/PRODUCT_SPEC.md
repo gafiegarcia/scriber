@@ -15,7 +15,7 @@ Scriber is a native macOS menu-bar dictation app intended as a direct replacemen
 - Insert each completed transcript into the text cursor that is focused when transcription completes, not the one that was focused when recording began. The user may move focus while transcription runs, and delivery follows that final cursor.
 - If insertion cannot be confirmed, preserve the transcript in Dictation history, copy it when appropriate, and present recovery actions in the floating pill.
 
-Versioning follows the repository-wide [`VERSIONING.md`](../../../docs/VERSIONING.md).
+Versioning follows the repository-wide [`VERSIONING.md`](VERSIONING.md).
 
 ## Identity and workspace boundary
 

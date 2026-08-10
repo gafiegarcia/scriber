@@ -12,44 +12,44 @@ Run from any directory inside the repository. The repo-local module cache and `-
 
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-MODULE_CACHE="$REPO_ROOT/apps/macos/.build/module-cache"
+MODULE_CACHE="$REPO_ROOT/.build/module-cache"
 mkdir -p "$MODULE_CACHE"
 
 swiftc -frontend -parse \
-  "$REPO_ROOT"/apps/macos/Scriber/*.swift \
-  "$REPO_ROOT"/apps/macos/ScriberCore/*.swift \
-  "$REPO_ROOT"/apps/macos/ScriberCoreTests/*.swift
+  "$REPO_ROOT"/Scriber/*.swift \
+  "$REPO_ROOT"/ScriberCore/*.swift \
+  "$REPO_ROOT"/ScriberCoreTests/*.swift
 
 # Again with DEBUG defined. Without it, `#if DEBUG` regions are lexed but never
 # parsed, so the pass above says nothing about `AppLaunchConfiguration`'s flags
 # or `UITestingHistoryFixture`.
 swiftc -frontend -parse -D DEBUG \
-  "$REPO_ROOT"/apps/macos/Scriber/*.swift \
-  "$REPO_ROOT"/apps/macos/ScriberCore/*.swift
+  "$REPO_ROOT"/Scriber/*.swift \
+  "$REPO_ROOT"/ScriberCore/*.swift
 
 swiftc -module-cache-path "$MODULE_CACHE" -typecheck \
-  "$REPO_ROOT/apps/macos/ScriberCore/CoreModels.swift" \
-  "$REPO_ROOT/apps/macos/ScriberCore/ScribeClient.swift" \
-  "$REPO_ROOT/apps/macos/ScriberCore/CredentialStore.swift" \
-  "$REPO_ROOT/apps/macos/ScriberCore/RecoveryConditions.swift" \
-  "$REPO_ROOT/apps/macos/ScriberCore/Toasts.swift"
+  "$REPO_ROOT/ScriberCore/CoreModels.swift" \
+  "$REPO_ROOT/ScriberCore/ScribeClient.swift" \
+  "$REPO_ROOT/ScriberCore/CredentialStore.swift" \
+  "$REPO_ROOT/ScriberCore/RecoveryConditions.swift" \
+  "$REPO_ROOT/ScriberCore/Toasts.swift"
 
 CLANG_MODULE_CACHE_PATH="$MODULE_CACHE" \
 SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
-swift test --disable-sandbox --package-path "$REPO_ROOT/apps/macos"
+swift test --disable-sandbox --package-path "$REPO_ROOT"
 
-plutil -lint "$REPO_ROOT/apps/macos/Scriber/Info.plist"
+plutil -lint "$REPO_ROOT/Scriber/Info.plist"
 ```
 
 Neither parse invocation typechecks, so a Debug `xcodebuild` is the only real gate on `#if DEBUG` code.
 
 ## Release bundle inspection
 
-Build instructions are in the [native README](../README.md). After building Release, inspect the exact bundle that will be installed:
+Build instructions are in the [build guide](BUILDING.md). After building Release, inspect the exact bundle that will be installed:
 
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-APP_PATH="$REPO_ROOT/apps/macos/.build/xcode-release/Build/Products/Release/Scriber.app"
+APP_PATH="$REPO_ROOT/.build/xcode-release/Build/Products/Release/Scriber.app"
 
 codesign -d -r- "$APP_PATH"
 codesign --verify --strict --verbose=2 "$APP_PATH"
@@ -71,15 +71,15 @@ Run it exactly as written. `APP_PATH` must be absolute and the `before_pid` guar
 
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-xcodebuild -project "$REPO_ROOT/apps/macos/Scriber.xcodeproj" \
+xcodebuild -project "$REPO_ROOT/Scriber.xcodeproj" \
   -scheme Scriber -configuration Debug \
-  -derivedDataPath "$REPO_ROOT/apps/macos/.build/xcode-debug" build
+  -derivedDataPath "$REPO_ROOT/.build/xcode-debug" build
 ```
 
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 before_pid="$(pgrep -n -x Scriber || true)"
-APP_PATH="$REPO_ROOT/apps/macos/.build/xcode-debug/Build/Products/Debug/Scriber.app"
+APP_PATH="$REPO_ROOT/.build/xcode-debug/Build/Products/Debug/Scriber.app"
 
 if [ ! -d "$APP_PATH" ]; then
   echo "REFUSING: build the Debug app first" >&2
@@ -131,7 +131,7 @@ Also launch ordinary `--ui-testing`, open Settings, and choose **Redo Setup…**
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 before_pid="$(pgrep -n -x Scriber || true)"
-APP_PATH="$REPO_ROOT/apps/macos/.build/xcode-debug/Build/Products/Debug/Scriber.app"
+APP_PATH="$REPO_ROOT/.build/xcode-debug/Build/Products/Debug/Scriber.app"
 
 open -n -a "$APP_PATH" --args --ui-testing --ui-testing-seed-history
 sleep 6
@@ -150,7 +150,7 @@ While inspecting: the toolbar must read **22 dictations** — 23 means the in-fl
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 before_pid="$(pgrep -n -x Scriber || true)"
-APP_PATH="$REPO_ROOT/apps/macos/.build/xcode-debug/Build/Products/Debug/Scriber.app"
+APP_PATH="$REPO_ROOT/.build/xcode-debug/Build/Products/Debug/Scriber.app"
 
 open -n -a "$APP_PATH" --args --ui-testing --ui-testing-seed-history-large
 sleep 6

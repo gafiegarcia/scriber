@@ -1,6 +1,6 @@
-# Scriber for macOS
+# Building Scriber
 
-This is the active native Scriber app: a Swift, SwiftUI, and AppKit dictation client for ElevenLabs Scribe v2 that lives in the menu bar by default.
+Prerequisites, signing, building, installing, and first launch. The [README](../README.md) describes what the app is.
 
 ## Prerequisites
 
@@ -31,7 +31,7 @@ Release builds use the long-lived `Scriber Local Code Signing` identity from the
 
 ## Build from the command line
 
-Run from `apps/macos` (this directory):
+Run from the repository root:
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
@@ -48,7 +48,7 @@ The app is written to `.build/xcode-release/Build/Products/Release/Scriber.app`.
 
 ## Verify and install
 
-Run all relevant checks in [Automated checks](docs/AUTOMATED_CHECKS.md) before replacing the installed app. In particular, a Release build signed with Gaf's local identity must report this designated requirement — the hash is that certificate's, so a build signed with any other identity will and should differ:
+Run all relevant checks in [Automated checks](AUTOMATED_CHECKS.md) before replacing the installed app. In particular, a Release build signed with Gaf's local identity must report this designated requirement — the hash is that certificate's, so a build signed with any other identity will and should differ:
 
 ```text
 identifier "com.gafiegarcia.scriber" and certificate root = H"fb7719074d66edfec627e3108437cbe34e7b7bfd"
@@ -65,7 +65,7 @@ open -a Scriber
 
 The stable path matters because Accessibility, Microphone, Launch at Login, and Keychain authorization are associated with the installed application. Never rename the `.app` bundle; doing so invalidates its signature.
 
-On first use of a newly installed binary, macOS asks for the login Keychain password before releasing the saved ElevenLabs key. Choose **Always Allow**. The grant then persists for that binary; the limitation is tracked as an accepted constraint in the [roadmap](docs/ROADMAP.md).
+On first use of a newly installed binary, macOS asks for the login Keychain password before releasing the saved ElevenLabs key. Choose **Always Allow**. The grant then persists for that binary; the limitation is tracked as an accepted constraint in the [roadmap](ROADMAP.md).
 
 ## When Accessibility looks enabled but is not
 
@@ -80,7 +80,7 @@ Replacing the app in place — quit, `trash`, `ditto`, launch — does not usual
 `.build` gains a DerivedData root for every one-off `-derivedDataPath` and never loses one. Xcode cannot prune them; it has no record of a path given on the command line. After installing a Release candidate, sweep whatever the documented build, test, and smoke-check commands do not use:
 
 ```bash
-cd "$(git rev-parse --show-toplevel)/apps/macos/.build" || exit 1
+cd "$(git rev-parse --show-toplevel)/.build" || exit 1
 for build_entry in */; do
   case "${build_entry%/}" in
     xcode-release|xcode-debug|module-cache|out|debug|artifacts|checkouts|repositories) ;;
@@ -92,13 +92,3 @@ done
 ## First launch
 
 Onboarding requests the ElevenLabs key, Microphone access, Accessibility access, the option to launch at login, and the other-audio-muting preference. Default shortcuts are Hold `Fn` and Hands-free `Fn-Space`. If macOS still performs a Globe/Fn action during shortcut testing, set that action to **Do Nothing** in System Settings.
-
-## Documentation map
-
-- [Product specification](docs/PRODUCT_SPEC.md): required behavior and durable product decisions.
-- [Roadmap](docs/ROADMAP.md): unbuilt work, grouped by target version.
-- [Manual checks](docs/MANUAL_CHECKS.md): checks Gaf runs in the real environment; agents only select and propose the relevant ones.
-- [Automated checks](docs/AUTOMATED_CHECKS.md): machine checks and their safety boundaries.
-- [Paste engine](docs/PASTE_ENGINE.md): current cross-app delivery design and regression matrix.
-- [Root changelog](../../CHANGELOG.md): tagged release history.
-- [Versioning policy](../../docs/VERSIONING.md): versions, builds, tags, and distribution milestones.

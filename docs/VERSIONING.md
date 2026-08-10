@@ -12,7 +12,7 @@ Platform implementations do not have to ship every product version. The Electron
 - **Bundle build** is `CFBundleVersion`, stored as `CURRENT_PROJECT_VERSION` in the native Xcode project. It distinguishes installable binaries but says nothing about release maturity.
 - **Release label** is the maturity of an intentionally frozen Git snapshot, expressed by a tag such as `v0.7.0-alpha.8` or `v0.7.0`.
 
-The native [Xcode project file](../apps/macos/Scriber.xcodeproj/project.pbxproj) is the only repository source of truth for the current bundle build. Do not copy that volatile number into README, roadmap, specification, or policy prose. An installed app may legitimately differ from the checked-out source.
+The native [Xcode project file](../Scriber.xcodeproj/project.pbxproj) is the only repository source of truth for the current bundle build. Do not copy that volatile number into README, roadmap, specification, or policy prose. An installed app may legitimately differ from the checked-out source.
 
 An Xcode **Release** configuration is an optimized build configuration; it does not mean the product has been released.
 
@@ -22,7 +22,7 @@ An Xcode **Release** configuration is an optimized build configuration; it does 
 - Do not call an untagged candidate `vX.Y.Z-alpha.N`. Use “bundle build N candidate” until the annotated tag actually exists.
 - Record user-relevant changes under `Unreleased` in the root [`CHANGELOG.md`](../CHANGELOG.md), then move them under the exact version only when its tag is created.
 - Treat tags as immutable. Corrections receive a new patch tag.
-- Create a tag only when the documented personal-use behavior passes its release gates in [`ROADMAP.md`](../apps/macos/docs/ROADMAP.md).
+- Create a tag only when the documented personal-use behavior passes its release gates in [`ROADMAP.md`](ROADMAP.md).
 
 Annotated tag messages carry engineering metadata that does not belong in the changelog: bundle build, credential and signing state, verification performed, known limitations, and confirmation that no credentials, recordings, local history, or machine-specific output are included.
 

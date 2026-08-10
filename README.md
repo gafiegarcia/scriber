@@ -1,9 +1,11 @@
-<img src="apps/macos/Branding/ScriberIcon-BlackBackground.svg" width="65px" align="left">
+<img src="Branding/ScriberIcon-BlackBackground.svg" width="65px" align="left">
 
 # Scriber
 
 > **Source only** — no downloadable build; see [Build it yourself](#build-it-yourself).
 > Issues are open, but replies aren't promised.
+
+**Skip to the code:** [Build it yourself](#build-it-yourself) · [Repository layout](#repository) · [Documentation](docs) · [Product spec](docs/PRODUCT_SPEC.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
 If you're looking for a dictation app for macOS to daily-drive, you might want to check out [these alternatives I listed below](#better-alternatives) first (unless you're curious enough to build this yourself and try it out).
 
@@ -93,7 +95,14 @@ here are the ones I found. tried some, but not really tested. you can just check
 
 ## Repository
 
-- [`apps/macos`](apps/macos) contains the app. It is the only implementation.
+The app builds from the repository root: [`Scriber`](Scriber) is the app target, [`ScriberCore`](ScriberCore) the shared package with [`ScriberCoreTests`](ScriberCoreTests) beside it, and [`Branding`](Branding) the icon artwork. Everything written down lives in [`docs`](docs):
+
+- [Building](docs/BUILDING.md): prerequisites, signing, command-line builds, installing, and first launch.
+- [Product specification](docs/PRODUCT_SPEC.md): required behavior and durable product decisions.
+- [Roadmap](docs/ROADMAP.md): unbuilt work, grouped by target version.
+- [Paste engine](docs/PASTE_ENGINE.md): cross-app delivery design and its regression matrix.
+- [Manual checks](docs/MANUAL_CHECKS.md) and [automated checks](docs/AUTOMATED_CHECKS.md): the two verification passes.
+- [Versioning policy](docs/VERSIONING.md): how versions, builds, and tags differ.
 
 Scriber started as an Electron/Next.js app and was rewritten in Swift. That earlier implementation stopped at `0.6.0` and is no longer in the tree. It remains in Git history; `v0.8.6` is the last tag whose tree still contains it.
 
@@ -103,7 +112,7 @@ The native line continues the product version after Electron `0.6.0`. The Xcode 
 
 There is no download. The app needs Accessibility and Microphone access to do its job, and shipping a build without a paid Apple Developer ID means macOS greets everyone with a scary warning — so you build it.
 
-You need macOS 27 and Xcode 27 beta. A **free** Apple ID is enough; you do not need a paid developer account. Create `apps/macos/Signing.local.xcconfig` with your own team identifier, then build the **Debug** configuration:
+You need macOS 27 and Xcode 27 beta. A **free** Apple ID is enough; you do not need a paid developer account. Create `Signing.local.xcconfig` with your own team identifier, then build the **Debug** configuration:
 
 ```text
 DEVELOPMENT_TEAM = ABCDE12345
@@ -118,19 +127,19 @@ Two things to expect, neither of which means the build is broken:
 
 If you'd rather not involve an Apple ID at all, ad-hoc signing (`CODE_SIGN_IDENTITY="-"`) builds a working app — but its signature changes on every build, so macOS treats each one as a brand-new app and makes you re-grant Accessibility and Microphone every single time. For an app whose whole point is a global shortcut that types into other apps, that gets old fast.
 
-The [native README](apps/macos/README.md) has the full detail: prerequisites, command-line builds, verification, installation, and first launch.
+The [build guide](docs/BUILDING.md) has the full detail: prerequisites, command-line builds, verification, installation, and first launch.
 
 ## If you fork it
 
 The bundle identifier `com.gafiegarcia.scriber` is hardcoded in more places than `Info.plist`. Change it in all of them, or your fork will read and write the same login Keychain item my build does:
 
-- `apps/macos/Scriber/Info.plist`
-- `apps/macos/Scriber/KeychainStore.swift` — the Keychain service name
-- `apps/macos/Scriber/AudioRecorder.swift` — the capture queue label
-- `apps/macos/Scriber/PasteService.swift` and `ScriberApp.swift` — logging subsystems
+- `Scriber/Info.plist`
+- `Scriber/KeychainStore.swift` — the Keychain service name
+- `Scriber/AudioRecorder.swift` — the capture queue label
+- `Scriber/PasteService.swift` and `ScriberApp.swift` — logging subsystems
 - `PRODUCT_BUNDLE_IDENTIFIER` in both configurations of the Xcode target
 
-Required behavior, unbuilt ideas, and the verification checks live under [`apps/macos/docs`](apps/macos/docs). `PRODUCT_SPEC.md` is the one to read first if you plan to change anything.
+[`PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) is the one to read first if you plan to change anything.
 
 ## Issues and contributions
 
