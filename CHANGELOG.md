@@ -4,10 +4,15 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Added
+
+- Settings' ElevenLabs tab tells you what percentage of your credits is left, beside the bar that shows it.
+
 ### Changed
 
 - Cancelling a dictation no longer looks like something went wrong. The recovery pill drops the amber tint and the warning triangle and reads in the app's plain colours; **Undo** is still there if you want the recording back.
 - The cancellation pill and the "No words detected" pill now close after 5 seconds instead of 6.
+- The **Usage** section on Settings' ElevenLabs tab is now called **Credits**. The bar shows what is left and drains leftward as credits are spent, so a section called Usage read backwards against it.
 
 ## 0.8.7 — 2026-08-06
 
