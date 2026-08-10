@@ -775,6 +775,11 @@ private struct ElevenLabsSettingsPane: View {
                             // Reserves room for three digits so the bar keeps its
                             // width as the number shrinks.
                             .frame(minWidth: 34, alignment: .trailing)
+                            // The HStack centers the text's *box*, but the system
+                            // font's ascent exceeds its descent, so the glyphs sit
+                            // half a point below the bar. Optical correction only;
+                            // `offset` deliberately leaves the layout alone.
+                            .offset(y: -0.5)
                             .accessibilityLabel("\(percentage) percent of credits remaining")
                     }
                 }
