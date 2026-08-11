@@ -225,11 +225,13 @@ struct SettingsView: View {
             if tab != .general { activeShortcutRecorderID = nil }
             // The same call refreshes the audio device list, so a microphone
             // plugged in since the window opened is there on arrival.
-            if tab == .sound || tab == .permissions { runtime.coordinator.refreshPermissions() }
+            if tab == .sound || tab == .permissions {
+                runtime.coordinator.refreshPermissions(source: .settings)
+            }
         }
         .onAppear {
             apiKey = ""
-            runtime.coordinator.refreshPermissions()
+            runtime.coordinator.refreshPermissions(source: .settings)
             applyMainWindowRequest(runtime.coordinator.mainWindowRequest)
         }
         .onChange(of: runtime.coordinator.mainWindowRequest) { _, request in
@@ -1052,7 +1054,7 @@ struct OnboardingView: View {
                 return
             }
             apiKey = ""
-            runtime.coordinator.refreshPermissions()
+            runtime.coordinator.refreshPermissions(source: .onboarding)
             if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
         }
         .onDisappear { runtime.coordinator.stopMicrophoneTest() }

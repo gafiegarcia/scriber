@@ -3,6 +3,7 @@ import AppKit
 import Combine
 import Foundation
 import SwiftData
+import os
 #if SWIFT_PACKAGE
 import ScriberCore
 #endif
@@ -50,6 +51,28 @@ final class AppCoordinator: ObservableObject {
     /// Accessibility hint and the activation refresh cover the cases a user can
     /// actually notice.
     private static let permissionPollInterval: TimeInterval = 5
+
+    /// Records only permission booleans, state names, and which refresh path
+    /// observed them. No user content passes through here.
+    private static let permissionLog = Logger(
+        subsystem: "com.gafiegarcia.scriber",
+        category: "permissions"
+    )
+
+    /// Which caller drove a permission refresh. Every reading below is unchanged
+    /// on almost every tick, so a logged change names the path that caught it —
+    /// a grant the poll never observed and an ordinary grant look identical
+    /// otherwise.
+    enum PermissionRefreshSource: String {
+        case launch
+        case startServices
+        case activation
+        case trustNotification
+        case poll
+        case startRecording
+        case settings
+        case onboarding
+    }
 
     @Published private(set) var phase: AppPhase = .idle
     @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
@@ -133,7 +156,12 @@ final class AppCoordinator: ObservableObject {
             return phase.pillDismissalAction(isPresented: pill.isPresented) != .passThrough
         }
         shortcuts.onNonModifierKeyDown = { [weak self] in self?.cancelHeldRecordingForTypingIfNeeded() }
-        shortcuts.onAvailabilityChanged = { [weak self] value in self?.shortcutMonitorAvailable = value }
+        shortcuts.onAvailabilityChanged = { [weak self] value in
+            // What the monitor actually reports, as opposed to the start and stop
+            // requests logged in `refreshPermissions`.
+            Self.permissionLog.notice("shortcutMonitor: available=\(value, privacy: .public)")
+            self?.shortcutMonitorAvailable = value
+        }
         pill.model.onOpen = { [weak self] in self?.openMainWindow() }
         pill.model.onOpenAPIKeySettings = { [weak self] in self?.openAPIKeySettings() }
         pill.model.onOpenUsageSettings = { [weak self] in self?.openUsageSettings() }
@@ -193,7 +221,8 @@ final class AppCoordinator: ObservableObject {
                 Task { @MainActor in
                     self?.refreshPermissions(
                         presentRecoveryWhenMissing: false,
-                        refreshAudioInputs: true
+                        refreshAudioInputs: true,
+                        source: .activation
                     )
                 }
             }
@@ -216,7 +245,8 @@ final class AppCoordinator: ObservableObject {
                         try? await Task.sleep(for: .milliseconds(250))
                         self?.refreshPermissions(
                             presentRecoveryWhenMissing: false,
-                            refreshAudioInputs: false
+                            refreshAudioInputs: false,
+                            source: .trustNotification
                         )
                     }
                 }
@@ -228,7 +258,8 @@ final class AppCoordinator: ObservableObject {
                     Task { @MainActor in
                         self?.refreshPermissions(
                             presentRecoveryWhenMissing: false,
-                            refreshAudioInputs: false
+                            refreshAudioInputs: false,
+                            source: .poll
                         )
                     }
                 }
@@ -258,7 +289,7 @@ final class AppCoordinator: ObservableObject {
             )
         }
         lastObservedCredentialReadiness = credentialReadiness
-        refreshPermissions()
+        refreshPermissions(source: .launch)
     }
 
     var statusText: String {
@@ -301,7 +332,8 @@ final class AppCoordinator: ObservableObject {
         )
         refreshPermissions(
             presentRecoveryWhenMissing: presentInitialRecovery,
-            refreshAudioInputs: true
+            refreshAudioInputs: true,
+            source: .startServices
         )
         guard shortcutMonitoringAllowed else {
             shortcuts.stop()
@@ -317,16 +349,18 @@ final class AppCoordinator: ObservableObject {
         shortcuts.start()
     }
 
-    func refreshPermissions() {
+    func refreshPermissions(source: PermissionRefreshSource) {
         refreshPermissions(
             presentRecoveryWhenMissing: false,
-            refreshAudioInputs: true
+            refreshAudioInputs: true,
+            source: source
         )
     }
 
     private func refreshPermissions(
         presentRecoveryWhenMissing: Bool,
-        refreshAudioInputs: Bool
+        refreshAudioInputs: Bool,
+        source: PermissionRefreshSource
     ) {
         let previousReadiness = permissionReadiness
         if let permissionReadinessOverride {
@@ -341,19 +375,44 @@ final class AppCoordinator: ObservableObject {
             // the items AppKit contributes from the key window — Close ⌘W among
             // them. Every reading here is unchanged on almost every tick.
             let trusted = AXIsProcessTrusted()
-            if accessibilityGranted != trusted { accessibilityGranted = trusted }
+            if accessibilityGranted != trusted {
+                accessibilityGranted = trusted
+                Self.permissionLog.notice(
+                    "accessibility: granted=\(trusted, privacy: .public) source=\(source.rawValue, privacy: .public)"
+                )
+            }
             let authorized = AudioRecorder.microphoneAuthorized
-            if microphoneGranted != authorized { microphoneGranted = authorized }
+            if microphoneGranted != authorized {
+                microphoneGranted = authorized
+                Self.permissionLog.notice(
+                    "microphone: granted=\(authorized, privacy: .public) source=\(source.rawValue, privacy: .public)"
+                )
+            }
             let state = AudioRecorder.microphonePermissionState
-            if microphonePermissionState != state { microphonePermissionState = state }
+            if microphonePermissionState != state {
+                microphonePermissionState = state
+                Self.permissionLog.notice(
+                    "microphoneState: value=\(state.rawValue, privacy: .public) source=\(source.rawValue, privacy: .public)"
+                )
+            }
         }
         if refreshAudioInputs { refreshAudioInputDevices() }
 
         if shortcutMonitoringAllowed, accessibilityGranted, preferences.onboardingComplete {
-            if !shortcutMonitorAvailable { shortcuts.start() }
+            if !shortcutMonitorAvailable {
+                shortcuts.start()
+                Self.permissionLog.notice(
+                    "shortcutMonitor: action=start source=\(source.rawValue, privacy: .public)"
+                )
+            }
         } else {
             shortcuts.stop()
-            if shortcutMonitorAvailable { shortcutMonitorAvailable = false }
+            if shortcutMonitorAvailable {
+                shortcutMonitorAvailable = false
+                Self.permissionLog.notice(
+                    "shortcutMonitor: action=stop source=\(source.rawValue, privacy: .public)"
+                )
+            }
         }
 
         let currentReadiness = permissionReadiness
@@ -884,7 +943,8 @@ final class AppCoordinator: ObservableObject {
         guard canUseHistoryStorage() else { return }
         refreshPermissions(
             presentRecoveryWhenMissing: false,
-            refreshAudioInputs: false
+            refreshAudioInputs: false,
+            source: .startRecording
         )
         guard permissionReadiness.isReady else {
             permissionRecoveryPresentationPending = true

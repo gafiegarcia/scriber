@@ -25,7 +25,7 @@ enum AudioRecorderError: LocalizedError {
     }
 }
 
-enum MicrophonePermissionState: Equatable {
+enum MicrophonePermissionState: String, Equatable {
     case notDetermined
     case allowed
     case denied
