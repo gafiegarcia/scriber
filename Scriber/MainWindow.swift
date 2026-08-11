@@ -285,8 +285,14 @@ private struct RecoveryConditionsPopover: View {
                 if condition.id != conditions.last?.id { Divider() }
             }
         }
-        .padding(16)
-        .frame(width: 320)
+        // AppKit insets popover content horizontally on its own, so an equal
+        // padding on all four sides reads as wider at the sides than the top.
+        .padding(.vertical, 16)
+        .padding(.horizontal, 12)
+        // Fixed, not content-sized: a width that follows the message puts the
+        // popover in a different place under the toolbar button for every
+        // condition. One width for all of them stays put.
+        .frame(width: 300)
     }
 }
 
