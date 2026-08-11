@@ -214,6 +214,16 @@ final class AppRuntime: ObservableObject {
                 }
             }
         }
+        // Nested `ObservableObject`s do not propagate, so views reading
+        // `runtime.coordinator.x` need this fan-out to update at all.
+        //
+        // Known and unfixed: it also means any coordinator change invalidates
+        // this whole `App` body, so SwiftUI reinstalls the main menu. Starting a
+        // dictation while the Window menu is open therefore prunes it of the
+        // items AppKit contributes from the key window. Undoing the fan-out
+        // means every view observing the coordinator directly — a wide change
+        // whose failure mode is a view that silently stops updating, which is
+        // worse than the menu blink it would buy.
         preferences.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
