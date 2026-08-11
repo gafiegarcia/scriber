@@ -61,6 +61,7 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - With **Show in Dock** on, Scriber remains in the Dock and app switcher without an open window. Turning it off never closes a visible window. Restore the preferred setting afterward.
 - The menu-bar icon remains steady through dictation and switches to the warning symbol when the real key is unusable. Exercise the warning only with an already unusable or disposable key; never disable the sole working key to manufacture it. Inspect the actual menu bar; do not diagnose this from `defaults`.
 - Launch at login works in both directions across a macOS restart. Restore the preferred setting afterward.
+- The **Window** menu keeps its full item set for as long as it stays open. Open it and wait 15 seconds, from the main window and from Settings. **Close ⌘W**, **Fill**, **Center**, **Move & Resize**, and **Full Screen Tile** come from AppKit rather than from Scriber's own commands, so anything that publishes a change while the menu is tracking makes SwiftUI reinstall the menu without them. Repeat once with a dictation running, which moves the app's phase.
 
 ## When the paste engine changes
 
