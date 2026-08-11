@@ -157,10 +157,14 @@ final class AppCoordinator: ObservableObject {
         }
         shortcuts.onNonModifierKeyDown = { [weak self] in self?.cancelHeldRecordingForTypingIfNeeded() }
         shortcuts.onAvailabilityChanged = { [weak self] value in
+            guard let self else { return }
             // What the monitor actually reports, as opposed to the start and stop
-            // requests logged in `refreshPermissions`.
-            Self.permissionLog.notice("shortcutMonitor: available=\(value, privacy: .public)")
-            self?.shortcutMonitorAvailable = value
+            // requests logged in `refreshPermissions`. The service reports on every
+            // tap re-arm, not only when the answer changes, so compare before logging.
+            if shortcutMonitorAvailable != value {
+                Self.permissionLog.notice("shortcutMonitor: available=\(value, privacy: .public)")
+            }
+            shortcutMonitorAvailable = value
         }
         pill.model.onOpen = { [weak self] in self?.openMainWindow() }
         pill.model.onOpenAPIKeySettings = { [weak self] in self?.openAPIKeySettings() }
