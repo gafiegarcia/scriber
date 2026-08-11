@@ -4,6 +4,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Fixed
+
+- The **Window** menu no longer drops half its items a moment after you open it. **Close ⌘W**, **Fill**, **Center**, **Move & Resize**, and **Full Screen Tile** stay put for as long as the menu is open.
+
 ### Added
 
 - Settings' ElevenLabs tab tells you what percentage of your credits is left, beside the bar that shows it.

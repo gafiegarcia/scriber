@@ -334,9 +334,18 @@ final class AppCoordinator: ObservableObject {
             microphoneGranted = !permissionReadinessOverride.missingPermissions.contains(.microphone)
             microphonePermissionState = microphoneGranted ? .allowed : .denied
         } else {
-            accessibilityGranted = AXIsProcessTrusted()
-            microphoneGranted = AudioRecorder.microphoneAuthorized
-            microphonePermissionState = AudioRecorder.microphonePermissionState
+            // Assign only on change. `@Published` publishes on every assignment,
+            // and the poll above runs on `.common`, so it fires while a menu is
+            // tracking. A no-op write there re-evaluates the whole `App` body,
+            // SwiftUI reinstalls the main menu, and the open Window menu loses
+            // the items AppKit contributes from the key window — Close ⌘W among
+            // them. Every reading here is unchanged on almost every tick.
+            let trusted = AXIsProcessTrusted()
+            if accessibilityGranted != trusted { accessibilityGranted = trusted }
+            let authorized = AudioRecorder.microphoneAuthorized
+            if microphoneGranted != authorized { microphoneGranted = authorized }
+            let state = AudioRecorder.microphonePermissionState
+            if microphonePermissionState != state { microphonePermissionState = state }
         }
         if refreshAudioInputs { refreshAudioInputDevices() }
 
@@ -344,7 +353,7 @@ final class AppCoordinator: ObservableObject {
             if !shortcutMonitorAvailable { shortcuts.start() }
         } else {
             shortcuts.stop()
-            shortcutMonitorAvailable = false
+            if shortcutMonitorAvailable { shortcutMonitorAvailable = false }
         }
 
         let currentReadiness = permissionReadiness
@@ -437,7 +446,8 @@ final class AppCoordinator: ObservableObject {
 
     func refreshAudioInputDevices() {
         let shouldRestartTest = microphoneTestTask != nil
-        audioInputDevices = AudioRecorder.availableInputDevices()
+        let devices = AudioRecorder.availableInputDevices()
+        if audioInputDevices != devices { audioInputDevices = devices }
         if shouldRestartTest { startMicrophoneTest() }
     }
 
