@@ -18,7 +18,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Changed
 
-- A press too quick to have been a dictation now closes in silence. A slipped finger, or `fn` pressed as part of a shortcut aimed at something else, used to answer with an alert sound and a pill; now the pill just closes and nothing is said.
+- A press too quick to have been a dictation now closes in silence. A slipped finger, or `fn` pressed as part of a shortcut aimed at something else, used to answer with an alert sound and a pill; now the pill just closes and nothing is said. This also ends the occasional "Audio too short" failure from ElevenLabs: Scriber's own floor used to sit exactly on the 100 ms minimum the API accepts, so a recording rounding a hair under it was sent and refused.
 - Cancelling a dictation no longer looks like something went wrong. The recovery pill drops the amber tint and the warning triangle and reads in the app's plain colours; **Undo** is still there if you want the recording back.
 - The cancellation pill and the "No words detected" pill now close after 5 seconds instead of 6.
 - The toolbar warning's popover is a little narrower, and its message sits closer to the sides of the box instead of leaving a wide margin there.
