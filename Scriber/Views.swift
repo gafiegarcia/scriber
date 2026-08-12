@@ -99,26 +99,32 @@ private enum SettingsPaneLayout {
     /// Hangs a section header 2pt off the leading edge of its card, matching the
     /// main window's day label and a Finder sidebar heading.
     ///
-    /// A grouped form draws the header at the row content's inset, ~10pt inside
-    /// the card, which reads as the header being indented under the thing it
-    /// names. What should look indented is the content.
+    /// A grouped form draws the header 10pt inside the card, which reads as the
+    /// header being indented under the thing it names. What should look indented
+    /// is the content.
     ///
-    /// Known and unfixed: that ~10pt is AppKit's, not ours, so this is one number
-    /// short of derivable. If the header ever drifts against the day label in the
-    /// main window, this is the constant to move — the two are meant to hang the
-    /// same distance off their respective cards.
+    /// Known and unfixed: that 10pt is AppKit's, not ours, and no API reads it,
+    /// so this is one measured number short of derivable — as is
+    /// `rowHorizontalPadding`, which is added on top of the same 10. A macOS
+    /// update that moves it moves both, and these two constants are where to
+    /// answer that.
     static let sectionHeaderOutdent: CGFloat = -12
 
-    /// Added above and below every row in a section card, on top of the padding
-    /// a grouped form already draws.
+    /// Added to each side of every row in a section card, on top of the 10pt a
+    /// grouped form already draws there, putting a row's content 12pt in.
     ///
-    /// Vertical only. A grouped form draws the rule between two rows at its own
-    /// inset, which nothing here can move, so horizontal padding would step the
-    /// content in from the ends of the line above it.
+    /// Horizontal only. A row's height is the form's to decide, and it already
+    /// gives a row enough; what was short was the distance to the card's sides.
+    ///
+    /// The rule between two rows keeps the form's own 10pt and so runs a little
+    /// wider than the content it separates. It cannot be made to follow:
+    /// `listRowInsets` moves nothing at all on a macOS grouped form, and the
+    /// rule is the form's to draw. The day cards read the same way on purpose,
+    /// with their rules at the card's full width.
     ///
     /// Applied to a section's whole content, which SwiftUI distributes to each
     /// row — the rows are what this has to land on, not the card.
-    static let rowVerticalPadding: CGFloat = 4
+    static let rowHorizontalPadding: CGFloat = 2
 }
 
 /// A `Section` whose header sits outside its card, and which has no header at all
@@ -161,7 +167,7 @@ private struct SettingsSection<Content: View>: View {
     /// Every section card's rows go through here, which is the whole reason a
     /// plain `Section` is not used directly anywhere in Settings.
     private var paddedContent: some View {
-        content.padding(.vertical, SettingsPaneLayout.rowVerticalPadding)
+        content.padding(.horizontal, SettingsPaneLayout.rowHorizontalPadding)
     }
 }
 
