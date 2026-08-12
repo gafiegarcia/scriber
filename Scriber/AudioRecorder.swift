@@ -165,28 +165,25 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     private var dataOutput: AVCaptureAudioDataOutput?
     private var fileOutput: AVCaptureAudioFileOutput?
     /// How long to wait for AVFoundation to report a file output finishing before
-    /// giving up on it. A stop that is never reported would otherwise leave
-    /// `recordingID` set for the rest of the session, and every later start would
-    /// be refused. Generous, because a real finish only has to finalize a file.
+    /// giving up on it. A stop that is never reported would otherwise leave the
+    /// recording on the books for the rest of the session, and every later start
+    /// would be refused. Generous, because a real finish only finalizes a file.
     private static let finishReportTimeout: DispatchTimeInterval = .seconds(5)
 
-    private var recordingID: UUID?
+    /// The ordering rules, which carry their own tests. This class owns only what
+    /// needs AVFoundation to answer.
+    private var lifecycle = RecorderLifecycle()
     private var recordingURL: URL?
     private var startedAt: Date?
     private var currentLevel: Float = -160
     private var maximumPeakLevel: Float = -160
     private var stopContinuation: CheckedContinuation<CompletedRecording, Error>?
-    private var discardRecording = false
 
     func startRecording(id: UUID, directory: URL, selection: AudioInputSelection) throws {
         try queue.sync {
-            // A recording that has not reported back yet must not refuse this one.
-            // Cancelling below the recovery threshold returns the app to idle without
-            // waiting for AVFoundation to close the microphone, so a second press
-            // arriving in that gap used to be told the microphone could not start.
-            // Whatever is still in flight here was already cancelled or stopped by
-            // the user, so the new press supersedes it.
-            if recordingID != nil { abandonCurrentRecording() }
+            // Reads `recordingURL` and `stopContinuation` while they still describe
+            // the superseded recording, which the assignments below then replace.
+            if case .supersedeThenStart = lifecycle.start(id) { abandonSupersededRecording() }
             tearDownSession()
 
             let output = AVCaptureAudioFileOutput()
@@ -200,12 +197,10 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
             let capture = try makeSession(selection: selection, fileOutput: output)
             let url = directory.appendingPathComponent("\(id.uuidString).m4a")
 
-            recordingID = id
             recordingURL = url
             startedAt = .now
             currentLevel = -160
             maximumPeakLevel = -160
-            discardRecording = false
             session = capture.session
             dataOutput = capture.dataOutput
             fileOutput = output
@@ -217,7 +212,7 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
 
     func startMonitoring(selection: AudioInputSelection) throws {
         try queue.sync {
-            guard recordingID == nil else { return }
+            guard lifecycle.activeRecording == nil else { return }
             tearDownSession()
             let capture = try makeSession(selection: selection, fileOutput: nil)
             currentLevel = -160
@@ -230,7 +225,7 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
 
     func stopMonitoring() {
         queue.sync {
-            guard recordingID == nil else { return }
+            guard lifecycle.activeRecording == nil else { return }
             tearDownSession()
         }
     }
@@ -242,39 +237,49 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     func stopRecording() async throws -> CompletedRecording {
         try await withCheckedThrowingContinuation { continuation in
             queue.async {
-                guard let fileOutput = self.fileOutput,
-                      self.recordingID != nil,
-                      self.stopContinuation == nil else {
+                guard let fileOutput = self.fileOutput, self.stopContinuation == nil,
+                      case .stop(let id) = self.lifecycle.stop() else {
                     continuation.resume(throwing: AudioRecorderError.notRecording)
                     return
                 }
                 self.stopContinuation = continuation
                 fileOutput.stopRecording()
-                self.scheduleFinishWatchdog()
+                self.scheduleFinishWatchdog(for: id)
             }
         }
     }
 
     func cancelRecording() {
         queue.async {
-            guard let fileOutput = self.fileOutput, self.recordingID != nil else {
-                // Reached with a recording still on the books but no output to stop,
-                // which nothing else can clear.
-                self.abandonCurrentRecording()
-                self.tearDownSession()
-                return
+            switch self.lifecycle.cancel() {
+            case .stop(let id):
+                guard let fileOutput = self.fileOutput else {
+                    // On the books with no output left to stop, which nothing else
+                    // would clear.
+                    self.abandonSupersededRecording()
+                    self.lifecycle = RecorderLifecycle()
+                    self.tearDownSession()
+                    return
+                }
+                fileOutput.stopRecording()
+                self.scheduleFinishWatchdog(for: id)
+            case .nothingToStop:
+                // A stop already in flight resolves this recording, and its own
+                // watchdog covers it. With nothing recording, only a monitoring
+                // session can be left over.
+                if self.lifecycle.activeRecording == nil { self.tearDownSession() }
             }
-            self.discardRecording = true
-            fileOutput.stopRecording()
-            self.scheduleFinishWatchdog()
         }
     }
 
-    /// Drops the recording in flight, leaving the backend free to start another.
-    private func abandonCurrentRecording() {
+    /// Drops the recording the lifecycle has already moved past, so the capture
+    /// stack keeps no trace of it.
+    private func abandonSupersededRecording() {
         let url = recordingURL
         let continuation = stopContinuation
-        resetRecordingState()
+        recordingURL = nil
+        startedAt = nil
+        stopContinuation = nil
         if let url { try? FileManager.default.removeItem(at: url) }
         continuation?.resume(throwing: CancellationError())
     }
@@ -283,25 +288,18 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     /// calling the delegate, and a session that fails at runtime never gets there at
     /// all. Either way the stop is never reported, so nothing would clear the
     /// recording and every later start would be refused for the rest of the session.
-    private func scheduleFinishWatchdog() {
-        guard let id = recordingID else { return }
+    private func scheduleFinishWatchdog(for id: UUID) {
         queue.asyncAfter(deadline: .now() + Self.finishReportTimeout) { [weak self] in
-            guard let self, recordingID == id else { return }
+            guard let self, case .discard = lifecycle.timedOut(id) else { return }
             let continuation = stopContinuation
             // The file stays for the orphan sweep to judge; it is the only copy of
             // whatever was captured, and this path cannot tell whether it is usable.
-            resetRecordingState()
+            recordingURL = nil
+            startedAt = nil
+            stopContinuation = nil
             tearDownSession()
             continuation?.resume(throwing: AudioRecorderError.didNotFinish)
         }
-    }
-
-    private func resetRecordingState() {
-        recordingID = nil
-        recordingURL = nil
-        startedAt = nil
-        stopContinuation = nil
-        discardRecording = false
     }
 
     private func makeSession(
@@ -361,17 +359,23 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     }
 
     private func finishRecording(url: URL, error: Error?) {
-        let id = recordingID
+        // A superseded recording still reports itself finishing, and its file is the
+        // only thing that identifies it. Resolving on that report would clear the
+        // bookkeeping of whichever recording is running now, leaving the recorder
+        // sure it is idle with the microphone open.
+        guard recordingURL == url, let current = lifecycle.activeRecording else { return }
+        let outcome = lifecycle.finished(current)
         let startedAt = startedAt
         let duration = max(fileOutput?.recordedDuration.seconds ?? 0, startedAt.map { Date.now.timeIntervalSince($0) } ?? 0)
         let peak = maximumPeakLevel
         let continuation = stopContinuation
-        let shouldDiscard = discardRecording
 
-        resetRecordingState()
+        recordingURL = nil
+        self.startedAt = nil
+        stopContinuation = nil
         tearDownSession()
 
-        if shouldDiscard {
+        if case .discard = outcome {
             try? FileManager.default.removeItem(at: url)
             continuation?.resume(throwing: CancellationError())
             return
@@ -385,7 +389,7 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
             }
         }
 
-        guard let id, startedAt != nil else {
+        guard case .deliver(let id) = outcome, startedAt != nil else {
             continuation?.resume(throwing: AudioRecorderError.notRecording)
             return
         }

@@ -26,6 +26,7 @@
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
 		A10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */; };
 		A10000000000000000000033 /* ../ScriberCore/Toasts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000033 /* ../ScriberCore/Toasts.swift */; };
+		A10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift */; };
 		A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */; };
 		A10000000000000000000010 /* ../ScriberCore/CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */; };
 		A10000000000000000000011 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* AppIcon.icon */; };
@@ -63,6 +64,7 @@
 		B10000000000000000000011 /* Scriber.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scriber.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/RecoveryConditions.swift; sourceTree = "<group>"; };
 		B10000000000000000000033 /* ../ScriberCore/Toasts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/Toasts.swift; sourceTree = "<group>"; };
+		B10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/RecorderLifecycle.swift; sourceTree = "<group>"; };
 		B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CoreModels.swift; sourceTree = "<group>"; };
 		B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CredentialStore.swift; sourceTree = "<group>"; };
 		B10000000000000000000014 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
@@ -110,6 +112,7 @@
 				B10000000000000000000003 /* GlobalShortcutService.swift */,
 				B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */,
 				B10000000000000000000033 /* ../ScriberCore/Toasts.swift */,
+				B10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift */,
 				B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */,
 				B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */,
 				B10000000000000000000004 /* KeychainStore.swift */,
@@ -239,6 +242,7 @@
 				A1000000000000000000000D /* Views.swift in Sources */,
 				A10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift in Sources */,
 				A10000000000000000000033 /* ../ScriberCore/Toasts.swift in Sources */,
+				A10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift in Sources */,
 				A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */,
 				A10000000000000000000010 /* ../ScriberCore/CredentialStore.swift in Sources */,
 				A10000000000000000000014 /* UITestingHistoryFixture.swift in Sources */,
@@ -282,7 +286,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 120;
+				CURRENT_PROJECT_VERSION = 121;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Scriber/Info.plist;
@@ -308,7 +312,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 120;
+				CURRENT_PROJECT_VERSION = 121;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
