@@ -572,6 +572,8 @@ private struct DictationSettingsPane: View {
                                     .foregroundStyle(.secondary)
                             }
                             .buttonStyle(.plain)
+                            // A glyph alone announces as its symbol name.
+                            .accessibilityLabel("About keyterms")
                             .popover(isPresented: $showsKeytermHelp) {
                                 // Without `.fixedSize`, the popover sizes
                                 // itself to `Text`'s single-line ideal height
@@ -681,6 +683,10 @@ private struct KeytermsCard: View {
                         Image(systemName: "minus.circle")
                     }
                     .buttonStyle(.plain)
+                    // Named for its own row. Unlabelled, every term's button
+                    // announces identically, so nothing says which one this
+                    // deletes — the sighted cue is the row it sits in.
+                    .accessibilityLabel("Remove \(term)")
                 }
                 // Roomy on purpose. A cramped row makes the delete button hard
                 // to tie to its entry — the eye needs vertical room to anchor
