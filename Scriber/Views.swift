@@ -577,7 +577,10 @@ private struct SoundSettingsPane: View {
                 // should not open the microphone and light the recording indicator
                 // for someone who only came to change a device.
                 if runtime.coordinator.isMicrophoneTestRunning {
-                    AudioLevelWaveform(level: runtime.coordinator.microphoneTestLevel)
+                    // The pill's red, because this is the same thing the pill shows:
+                    // a live microphone. A meter that reads differently here than
+                    // it does mid-dictation teaches two things for one signal.
+                    AudioLevelWaveform(level: runtime.coordinator.microphoneTestLevel, color: .red)
                         .frame(width: 116, height: 24)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
