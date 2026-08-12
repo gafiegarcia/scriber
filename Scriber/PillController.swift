@@ -803,9 +803,19 @@ private func pillShape(for phase: AppPhase) -> AnyShape {
 
 struct AudioLevelWaveform: View {
     let level: Float
-    var color: Color = .accentColor
-    private let sampleCount = 18
-    @State private var samples = Array(repeating: 0.0, count: 18)
+    let color: Color
+    /// Bars drawn across the available width. A wider meter needs more of them to
+    /// keep each bar as narrow as the pill's, and a bar wide enough to read as a
+    /// block stops reading as a waveform.
+    let sampleCount: Int
+    @State private var samples: [Double]
+
+    init(level: Float, color: Color = .accentColor, sampleCount: Int = 18) {
+        self.level = level
+        self.color = color
+        self.sampleCount = sampleCount
+        _samples = State(initialValue: Array(repeating: 0, count: sampleCount))
+    }
 
     var body: some View {
         GeometryReader { proxy in

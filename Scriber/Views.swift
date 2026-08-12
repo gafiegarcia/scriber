@@ -580,8 +580,14 @@ private struct SoundSettingsPane: View {
                     // The pill's red, because this is the same thing the pill shows:
                     // a live microphone. A meter that reads differently here than
                     // it does mid-dictation teaches two things for one signal.
-                    AudioLevelWaveform(level: runtime.coordinator.microphoneTestLevel, color: .red)
-                        .frame(width: 116, height: 24)
+                    // 35 bars across 116pt reproduces the pill's ~1.3pt bar at twice
+                    // its width; 18 of them here would each be three times as wide.
+                    AudioLevelWaveform(
+                        level: runtime.coordinator.microphoneTestLevel,
+                        color: .red,
+                        sampleCount: 35
+                    )
+                    .frame(width: 116, height: 24)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
