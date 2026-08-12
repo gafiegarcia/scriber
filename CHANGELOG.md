@@ -6,18 +6,21 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Fixed
 
+- Scriber opens its main window when macOS starts it at login, rather than only when there happened to be a window left open to restore. Quitting with the window closed used to mean the next login brought up the menu bar icon and nothing else, with no setting to explain it.
 - The **Window** menu no longer drops half its items a moment after you open it. **Close ⌘W**, **Fill**, **Center**, **Move & Resize**, and **Full Screen Tile** stay put for as long as the menu is open.
 - Tapping the dictation shortcut quickly several times no longer leaves Scriber unable to record. It could refuse every dictation afterwards with "the microphone recording could not start" until the app was quit and reopened, and in some cases froze the app outright with the pill stuck on screen.
 - A quick tap no longer makes the built-in speaker pop. The start sound is no longer cut off partway through, which is what produced the click.
 
 ### Added
 
+- Settings' General tab has **Start in the background**, beneath **Launch at login** and on by default. When macOS starts Scriber at login it comes up as a menu bar icon alone — no window, and no taking the front from whatever you were doing. It covers logins only: opening Scriber yourself always shows the window. It greys out while Launch at login is off, since it has nothing to govern then.
 - Settings' ElevenLabs tab tells you what percentage of your credits is left, beside the bar that shows it.
 - Settings' Sound tab has a **Check Input Level** button that shows your microphone's level as you speak, and an **Open Sound Settings** button beside it. Input volume is a macOS setting rather than a Scriber one, so a level that stays flat now points you where it can actually be fixed.
 - Scriber now tells you when your microphone stopped sending audio partway through a dictation, instead of handing back a transcript quietly missing its second half. macOS can mute a microphone after recording has already begun — an input volume slid all the way down does it — and the recording sounds fine right up until it doesn't. The pill says so with **Check Input**, alongside the other microphone warnings — including when your dictation was copied to the clipboard rather than pasted, which used to report plain success.
 
 ### Changed
 
+- Settings keeps a setting and its own explanation together. A dividing line now falls only between one setting and the next, so the Sound tab's two switches read as two settings rather than four, the microphone level test reads as one thing rather than three, and the note about shortcuts sits under the group it describes instead of inside it.
 - A press too quick to have been a dictation now closes in silence. A slipped finger, or `fn` pressed as part of a shortcut aimed at something else, used to answer with an alert sound and a pill; now the pill just closes and nothing is said. This also ends the occasional "Audio too short" failure from ElevenLabs: Scriber's own floor used to sit exactly on the 100 ms minimum the API accepts, so a recording rounding a hair under it was sent and refused.
 - Cancelling a dictation no longer looks like something went wrong. The recovery pill drops the amber tint and the warning triangle and reads in the app's plain colours; **Undo** is still there if you want the recording back.
 - The cancellation pill and the "No words detected" pill now close after 5 seconds instead of 6.
