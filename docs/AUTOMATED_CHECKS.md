@@ -112,6 +112,14 @@ The subsystem holds three categories: `window-lifecycle`, `paste-target`, and `p
 
 `permissions` writes a line only when a reading actually changes — the permission or the shortcut monitor, its new value, and which refresh path saw it. Silence means nothing changed, not that nothing was observed, and a launch is silent because the published values start from the same readings the first refresh takes. A `--ui-testing` launch cannot produce a transition at all: it grants no permission and its missing-permission flag injects a fixed state. Read this category on the installed app.
 
+## A launch macOS made at login
+
+`--simulate-login-launch` makes the app treat its launch as one macOS made at login, which is otherwise reachable only by restarting the Mac. Add it to the smoke check's arguments and the app must come up with no window ordered front and `launch: loginItem=true startsInBackground=true` in the log. Without the flag the same launch must show the window, which is the pair worth running together — one of them passing on its own proves nothing.
+
+The flag skips the preferences the real path consults, so it holds whatever Launch at login and Start in the background are set to at the time. It is Debug-only and independent of `--ui-testing`, so the app can otherwise behave normally under it.
+
+Every launch also writes `launchEvent:` twice and one `launchContext:` line, recording what macOS said about who started the app. That is what tells a launch marker arriving late from one that never arrives, and it is the only evidence available after a real login, where nothing can be attached to watch.
+
 ## Inspecting a running Debug build
 
 ### Visual and interaction inspection

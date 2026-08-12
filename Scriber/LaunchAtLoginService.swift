@@ -1,22 +1,91 @@
 import AppKit
 import Foundation
+import os
 import ServiceManagement
 
 /// Whether macOS started Scriber as a login item, rather than the user opening it.
 ///
 /// `SMAppService` reports whether the login item is registered and nothing about
 /// the launch in progress, so the only signal is the Apple event AppKit is
-/// handling while the app starts. It is readable for that moment only, which is
-/// why this is captured in `applicationWillFinishLaunching` rather than asked
-/// for when the answer is wanted.
+/// handling while it starts. That event is readable only while AppKit is
+/// handling it, so this samples it at both startup moments and keeps the first
+/// answer that is not "nothing was there" — sampling once was how a launch that
+/// carries the marker later than expected would look identical to one that never
+/// carries it at all.
 @MainActor
 enum LoginItemLaunch {
-    private(set) static var isLoginItemLaunch = false
+    enum Reading: String {
+        /// No Apple event was being handled at that moment. Says nothing about
+        /// the launch, which is exactly why it must be told apart from `no`.
+        case noEvent
+        /// An event was there and named a launch macOS made at login.
+        case yes
+        /// An event was there and did not.
+        case no
+    }
 
-    static func capture() {
-        guard let event = NSAppleEventManager.shared().currentAppleEvent else { return }
-        isLoginItemLaunch = event.eventID == kAEOpenApplication
-            && event.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+    private(set) static var isLoginItemLaunch = false
+    private(set) static var reading: Reading = .noEvent
+
+    private static let log = Logger(subsystem: "com.gafiegarcia.scriber", category: "window-lifecycle")
+
+    /// Reads the launch event and records what it found. Safe to call more than
+    /// once: a later reading only replaces an earlier one that saw no event.
+    static func capture(phase: String) {
+        let event = NSAppleEventManager.shared().currentAppleEvent
+        let found: Reading
+        if let event {
+            let launchedAtLogin = event.eventID == kAEOpenApplication
+                && event.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+            found = launchedAtLogin ? .yes : .no
+        } else {
+            found = .noEvent
+        }
+        log.notice(
+            """
+            launchEvent: phase=\(phase, privacy: .public) reading=\(found.rawValue, privacy: .public) \
+            \(describe(event), privacy: .public)
+            """
+        )
+        guard found != .noEvent, reading == .noEvent else { return }
+        reading = found
+        isLoginItemLaunch = found == .yes
+    }
+
+#if DEBUG
+    /// Forces the answer, so the background-start path can be exercised without
+    /// restarting the Mac. Without it the only way to reach that path is a real
+    /// login, which is why a broken one went unnoticed for as long as it did.
+    static func simulateLoginLaunch() {
+        reading = .yes
+        isLoginItemLaunch = true
+    }
+#endif
+
+    /// Everything the event carries, so a single restart can settle which signal
+    /// is worth trusting instead of one guess per restart.
+    private static func describe(_ event: NSAppleEventDescriptor?) -> String {
+        guard let event else { return "event=none" }
+        var parts = [
+            "eventClass=\(fourCharacterCode(event.eventClass))",
+            "eventID=\(fourCharacterCode(event.eventID))"
+        ]
+        if let property = event.paramDescriptor(forKeyword: keyAEPropData) {
+            parts.append("propData=\(fourCharacterCode(property.enumCodeValue))")
+        } else {
+            parts.append("propData=absent")
+        }
+        parts.append("items=\(event.numberOfItems)")
+        return parts.joined(separator: " ")
+    }
+
+    private static func fourCharacterCode(_ code: OSType) -> String {
+        let scalars = [24, 16, 8, 0].compactMap { shift -> Character? in
+            let byte = UInt8((code >> UInt32(shift)) & 0xFF)
+            guard let scalar = Unicode.Scalar(UInt32(byte)), byte >= 32, byte < 127 else { return nil }
+            return Character(scalar)
+        }
+        return scalars.count == 4 ? String(scalars) : String(format: "0x%08X", code)
     }
 }
 

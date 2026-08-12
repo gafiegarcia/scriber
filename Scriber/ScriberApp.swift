@@ -58,6 +58,18 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-no-activate")
     }
 
+    /// Treats the launch as one macOS made at login, so the background start can
+    /// be checked without restarting the Mac. Deliberately not gated on
+    /// `isUITesting`: the smoke check has to be able to launch this path with the
+    /// app otherwise behaving normally. Debug builds only.
+    static var simulatesLoginLaunch: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--simulate-login-launch")
+#else
+        false
+#endif
+    }
+
     /// A login launch the user asked to stay out of the way: no window, no
     /// activation, menu bar and dictation services only. Deliberately false for
     /// a launch the user made themselves, so double-clicking Scriber always
@@ -65,11 +77,20 @@ enum AppLaunchConfiguration {
     /// reachable.
     @MainActor
     static var startsInBackground: Bool {
+        // Ahead of the preference reads, so the check does not depend on how Gaf
+        // has these set at the time.
+        if simulatesLoginLaunch { return true }
         guard !isUITesting, LoginItemLaunch.isLoginItemLaunch else { return false }
         return Preferences.optInFlag("launchAtLoginRequested")
             && Preferences.optInFlag("startInBackground")
             && UserDefaults.standard.bool(forKey: "onboardingComplete")
     }
+
+    /// Whether SwiftUI should build and show the main window at launch. Onboarding
+    /// is not a case for suppressing it: setup is opened from the main window's
+    /// appearance, so a suppressed main window would take incomplete setup with it.
+    @MainActor
+    static var presentsMainWindowAtLaunch: Bool { !startsInBackground }
 
     static var permissionReadinessOverride: PermissionReadiness? {
         simulatesMissingPermissions
@@ -276,6 +297,12 @@ struct ScriberApp: App {
                 .modelContainer(runtime.container)
                 .task { await promoteApplicationForVisibleWindow(isStartupWindow: true) }
         }
+        // Said outright rather than waited for. Left to itself SwiftUI creates this
+        // window at launch only when there is a saved one to restore, so a login
+        // that followed a session ending with the window closed produced nothing
+        // for the startup poll to find, and Scriber came up with no window at all
+        // however the settings were set.
+        .defaultLaunchBehavior(AppLaunchConfiguration.presentsMainWindowAtLaunch ? .presented : .suppressed)
         .defaultSize(width: 900, height: 640)
         // Hides the title text only. `window.title` and `.titled` both survive,
         // which every `AppWindowIdentity` check depends on, and SwiftUI sets
@@ -527,12 +554,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
-        // Before anything else: the Apple event this reads is gone by the time the
-        // startup window would be shown.
-        LoginItemLaunch.capture()
+        // Sampled here and again below. The Apple event that says who started the
+        // app is readable only while AppKit is handling it, and which of these two
+        // moments that covers is not something the documentation settles.
+#if DEBUG
+        if AppLaunchConfiguration.simulatesLoginLaunch { LoginItemLaunch.simulateLoginLaunch() }
+#endif
+        LoginItemLaunch.capture(phase: "willFinishLaunching")
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        LoginItemLaunch.capture(phase: "didFinishLaunching")
+        logLaunchContext(notification)
         showAppInDock = AppLaunchConfiguration.isUITesting
             ? false
             : UserDefaults.standard.bool(forKey: "showAppInDock")
@@ -610,6 +643,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     || UserDefaults.standard.bool(forKey: "onboardingComplete"))
             await self?.showInitialWindowWhenAvailable(onboardingComplete: onboardingComplete)
         }
+    }
+
+    /// Everything else macOS says about this launch, beside the Apple event.
+    ///
+    /// Written on every launch on purpose: a launch decides behaviour before
+    /// anyone can watch it, and the alternative to recording it is restarting the
+    /// Mac once per guess.
+    private func logLaunchContext(_ notification: Notification) {
+        let isDefaultLaunch = notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool
+        let userInfoKeys = (notification.userInfo?.keys.map { "\($0)" } ?? []).sorted().joined(separator: ",")
+        let xpcServiceName = ProcessInfo.processInfo.environment["XPC_SERVICE_NAME"] ?? "unset"
+        Self.windowLog.notice(
+            """
+            launchContext: isDefaultLaunch=\(isDefaultLaunch.map(String.init) ?? "absent", privacy: .public) \
+            userInfoKeys=[\(userInfoKeys, privacy: .public)] \
+            parentPID=\(getppid(), privacy: .public) \
+            xpcServiceName=\(xpcServiceName, privacy: .public) \
+            active=\(NSApp.isActive, privacy: .public)
+            """
+        )
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -690,7 +743,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if showWindow(titled: title) { return }
             try? await Task.sleep(for: .milliseconds(50))
         }
-        Self.windowLog.notice("initialWindowPoll: exhausted without finding \(title, privacy: .public)")
+        // Names what was there instead. "Exhausted" alone could not tell a window
+        // that arrived late from one that was never built, which is the difference
+        // between waiting longer and asking for it.
+        let present = NSApp.windows
+            .map { "\($0.title.isEmpty ? "untitled" : $0.title):\($0.isVisible ? "visible" : "hidden")" }
+            .joined(separator: ",")
+        Self.windowLog.notice(
+            """
+            initialWindowPoll: exhausted without finding \(title, privacy: .public) \
+            windows=[\(present, privacy: .public)]
+            """
+        )
     }
 
     @discardableResult
