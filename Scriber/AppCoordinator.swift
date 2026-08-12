@@ -78,6 +78,7 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
     @Published private(set) var microphoneGranted = AudioRecorder.microphoneAuthorized
     @Published private(set) var microphonePermissionState = AudioRecorder.microphonePermissionState
+    @Published private(set) var launchAtLoginState = LaunchAtLoginService.state
     @Published private(set) var audioInputDevices = AudioRecorder.availableInputDevices()
     @Published private(set) var microphoneTestLevel: Float = -160
     @Published private(set) var microphoneTestError: String?
@@ -116,6 +117,11 @@ final class AppCoordinator: ObservableObject {
     private var storedAPIKeyValidationTask: Task<Void, Never>?
     private var credentialRevision = CredentialRevision()
     private var suppressPillForCurrentTranscription = false
+    /// Whether setup is being walked a second time. `onboardingComplete` cannot
+    /// answer this — Redo Setup clears it, so a redo and a first run look
+    /// identical to it — and the two differ in what a step should offer:
+    /// a first run recommends, a redo shows what is already there.
+    private(set) var isRedoingSetup = false
     private var permissionRecoveryPresentationPending = false
     private var permissionRecoveryLaunchGate = PermissionRecoveryLaunchGate()
     private var credentialRecoveryPresentationPending = false
@@ -333,6 +339,9 @@ final class AppCoordinator: ObservableObject {
     }
 
     func startServices() {
+        // Setup is behind us either way by the time services start, so the redo
+        // marker has nothing left to distinguish.
+        isRedoingSetup = false
         let presentInitialRecovery = permissionRecoveryLaunchGate.consume(
             onboardingComplete: preferences.onboardingComplete
         )
@@ -401,6 +410,16 @@ final class AppCoordinator: ObservableObject {
                     "microphoneState: value=\(state.rawValue, privacy: .public) source=\(source.rawValue, privacy: .public)"
                 )
             }
+        }
+        // Outside the override branch: this is not a permission, so a test run
+        // that synthesizes missing permissions still reads the real login item.
+        // Same assign-only-on-change rule as above.
+        let launchState = LaunchAtLoginService.state
+        if launchAtLoginState != launchState {
+            launchAtLoginState = launchState
+            Self.permissionLog.notice(
+                "launchAtLogin: state=\(launchState.rawValue, privacy: .public) source=\(source.rawValue, privacy: .public)"
+            )
         }
         if refreshAudioInputs { refreshAudioInputDevices() }
 
@@ -474,6 +493,13 @@ final class AppCoordinator: ObservableObject {
 
     private func openAccessibilitySettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    /// The Login Items list, the only place a switched-off entry can be turned
+    /// back on.
+    func openLoginItemsSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -603,6 +629,7 @@ final class AppCoordinator: ObservableObject {
     /// satisfied rather than asking for it again, and nothing is destroyed by
     /// looking at it a second time.
     func restartOnboarding() {
+        isRedoingSetup = true
         preferences.onboardingComplete = false
         // `openWindow(id:)` creates the scene but does not reliably bring it in
         // front of the window the action was invoked from — the first attempt left
@@ -747,9 +774,13 @@ final class AppCoordinator: ObservableObject {
         setPhase(.credentialsUnusable(readiness))
     }
 
+    /// Reads the result back rather than assuming the request took: macOS keeps
+    /// a switched-off entry that registering again does not revive. The `defer`
+    /// covers the throwing path too, so a failure leaves the published state
+    /// matching what macOS actually has.
     func setLaunchAtLogin(_ enabled: Bool) throws {
+        defer { launchAtLoginState = LaunchAtLoginService.state }
         try login.setEnabled(enabled)
-        preferences.launchAtLoginRequested = enabled
     }
 
     func handle(_ action: ShortcutAction) {

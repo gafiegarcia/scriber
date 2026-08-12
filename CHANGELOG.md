@@ -6,6 +6,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Fixed
 
+- **Launch at login** now shows what macOS actually has. Turning Scriber off in System Settings' Login Items used to leave the switch on in Scriber forever, since nothing ever looked; it now follows within a few seconds, taking **Start in the background** with it. If macOS is keeping the entry but holding it switched off — a state Scriber cannot turn on for you — the switch says so and offers a button straight to Login Items, instead of quietly flicking back off.
 - Scriber opens its main window when macOS starts it at login, rather than only when there happened to be a window left open to restore. Quitting with the window closed used to mean the next login brought up the menu bar icon and nothing else, with no setting to explain it.
 - The **Window** menu no longer drops half its items a moment after you open it. **Close ⌘W**, **Fill**, **Center**, **Move & Resize**, and **Full Screen Tile** stay put for as long as the menu is open.
 - Tapping the dictation shortcut quickly several times no longer leaves Scriber unable to record. It could refuse every dictation afterwards with "the microphone recording could not start" until the app was quit and reopened, and in some cases froze the app outright with the pill stuck on screen.

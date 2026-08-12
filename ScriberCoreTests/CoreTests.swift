@@ -237,6 +237,23 @@ struct PermissionReadinessTests {
     }
 }
 
+@Suite("Launch at login state")
+struct LaunchAtLoginStateTests {
+    @Test("Reads as on only when macOS has the login item enabled")
+    func onState() {
+        #expect(LaunchAtLoginState.enabled.isOn)
+        #expect(!LaunchAtLoginState.disabled.isOn)
+        #expect(!LaunchAtLoginState.requiresApproval.isOn)
+    }
+
+    @Test("Explains only the state the user has to resolve in System Settings")
+    func advice() {
+        #expect(LaunchAtLoginState.enabled.recoveryAdvice == nil)
+        #expect(LaunchAtLoginState.disabled.recoveryAdvice == nil)
+        #expect(LaunchAtLoginState.requiresApproval.recoveryAdvice?.contains("Login Items") == true)
+    }
+}
+
 @Suite("Pill dismissal")
 struct PillDismissalTests {
     @Test("Escape passes through when no pill is presented")

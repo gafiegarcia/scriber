@@ -2,6 +2,9 @@ import AppKit
 import Foundation
 import os
 import ServiceManagement
+#if SWIFT_PACKAGE
+import ScriberCore
+#endif
 
 /// Whether macOS started Scriber as a login item, rather than the user opening it.
 ///
@@ -90,6 +93,17 @@ enum LoginItemLaunch {
 }
 
 struct LaunchAtLoginService: Sendable {
+    /// What macOS currently has registered. A plain synchronous read with no
+    /// change notification behind it, which is why the permission refresh polls
+    /// it rather than waiting to be told.
+    static var state: LaunchAtLoginState {
+        switch SMAppService.mainApp.status {
+        case .enabled: .enabled
+        case .requiresApproval: .requiresApproval
+        default: .disabled
+        }
+    }
+
     func setEnabled(_ enabled: Bool) throws {
         if enabled {
             if SMAppService.mainApp.status != .enabled { try SMAppService.mainApp.register() }

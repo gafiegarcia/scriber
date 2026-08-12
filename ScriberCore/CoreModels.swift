@@ -339,6 +339,27 @@ public enum CredentialReadiness: Equatable, Sendable {
     public var resolvesInUsageSettings: Bool { self == .creditsExhausted }
 }
 
+/// What macOS reports about Scriber's login item, reduced to the three answers
+/// the Settings toggle has to tell apart. "Not registered" and "not found" both
+/// mean Scriber does not launch at login, so they arrive here as `disabled`.
+public enum LaunchAtLoginState: String, Sendable {
+    case enabled
+    case disabled
+    /// The entry exists and macOS has it switched off. Registering again does
+    /// not flip it back on — only the user can, in System Settings.
+    case requiresApproval
+
+    public var isOn: Bool { self == .enabled }
+
+    /// Why the toggle refused to stay on, for the one state where asking again
+    /// cannot help.
+    public var recoveryAdvice: String? {
+        self == .requiresApproval
+            ? "macOS has Scriber switched off in Login Items. Turn it on there to launch Scriber at login."
+            : nil
+    }
+}
+
 public enum CredentialRecoveryPolicy {
     public static func shouldPresent(
         previous: CredentialReadiness,

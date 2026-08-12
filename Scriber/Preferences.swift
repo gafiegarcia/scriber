@@ -19,7 +19,6 @@ final class Preferences: ObservableObject {
         static let noVerbatim = "noVerbatim"
         static let keyterms = "keyterms"
         static let onboardingComplete = "onboardingComplete"
-        static let launchAtLoginRequested = "launchAtLoginRequested"
         static let startInBackground = "startInBackground"
         static let showInMenuBar = "showInMenuBar"
         static let showAppInDock = "showAppInDock"
@@ -45,7 +44,6 @@ final class Preferences: ObservableObject {
     @Published var noVerbatim: Bool { didSet { defaults.set(noVerbatim, forKey: Keys.noVerbatim) } }
     @Published var keyterms: [String] { didSet { save(keyterms, key: Keys.keyterms) } }
     @Published var onboardingComplete: Bool { didSet { defaults.set(onboardingComplete, forKey: Keys.onboardingComplete) } }
-    @Published var launchAtLoginRequested: Bool { didSet { defaults.set(launchAtLoginRequested, forKey: Keys.launchAtLoginRequested) } }
     @Published var startInBackground: Bool { didSet { defaults.set(startInBackground, forKey: Keys.startInBackground) } }
     @Published var showInMenuBar: Bool { didSet { defaults.set(showInMenuBar, forKey: Keys.showInMenuBar) } }
     @Published var showAppInDock: Bool {
@@ -85,7 +83,6 @@ final class Preferences: ObservableObject {
         noVerbatim = defaults.object(forKey: Keys.noVerbatim) == nil ? true : defaults.bool(forKey: Keys.noVerbatim)
         keyterms = Self.decode([String].self, key: Keys.keyterms, defaults: defaults) ?? []
         onboardingComplete = defaults.bool(forKey: Keys.onboardingComplete)
-        launchAtLoginRequested = Self.optInFlag(Keys.launchAtLoginRequested, in: defaults)
         startInBackground = Self.optInFlag(Keys.startInBackground, in: defaults)
         showInMenuBar = defaults.object(forKey: Keys.showInMenuBar) == nil ? true : defaults.bool(forKey: Keys.showInMenuBar)
         showAppInDock = defaults.bool(forKey: Keys.showAppInDock)

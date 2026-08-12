@@ -356,8 +356,11 @@ private struct GeneralSettingsPane: View {
                 // settings — the same divider the group boundary uses. The indent
                 // is what names the owner; the greying only confirms it.
                 VStack(alignment: .leading, spacing: 10) {
+                    // Reads what macOS has registered, not what Scriber last
+                    // asked for, so removing Scriber from Login Items in System
+                    // Settings turns this off within a poll.
                     Toggle("Launch at login", isOn: Binding(
-                        get: { runtime.preferences.launchAtLoginRequested },
+                        get: { runtime.coordinator.launchAtLoginState.isOn },
                         set: { enabled in
                             do {
                                 try runtime.coordinator.setLaunchAtLogin(enabled)
@@ -371,6 +374,17 @@ private struct GeneralSettingsPane: View {
                     if let launchAtLoginError {
                         Text(launchAtLoginError).font(.caption).foregroundStyle(.red)
                     }
+                    // The toggle snapping back is the only other signal here, and
+                    // on its own it reads as a bug rather than as something the
+                    // user has to go and switch on.
+                    if let advice = runtime.coordinator.launchAtLoginState.recoveryAdvice {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(advice).font(.caption).foregroundStyle(.secondary)
+                            Button("Open Login Items…") { runtime.coordinator.openLoginItemsSettings() }
+                                .controlSize(.small)
+                        }
+                        .accessibilityIdentifier("launch-at-login-advice")
+                    }
                     VStack(alignment: .leading, spacing: 4) {
                         Toggle("Start in the background", isOn: $runtime.preferences.startInBackground)
                             .accessibilityIdentifier("start-in-background-toggle")
@@ -379,7 +393,7 @@ private struct GeneralSettingsPane: View {
                     }
                     // Disabled together, so the caption dims with the control it
                     // explains rather than staying live beside a dead toggle.
-                    .disabled(!runtime.preferences.launchAtLoginRequested)
+                    .disabled(!runtime.coordinator.launchAtLoginState.isOn)
                     .padding(.leading, 18)
                 }
                 Toggle("Show in menu bar", isOn: $runtime.preferences.showInMenuBar)
@@ -990,6 +1004,10 @@ struct OnboardingView: View {
     @State private var keyFeedback: KeySaveFeedback?
     @State private var isCheckingAPIKey = false
     @State private var error: String?
+    /// Held here rather than in `Preferences`, because nothing is registered
+    /// until Finish Setup: the toggle is an intention until then, and afterwards
+    /// the only honest answer is what macOS reports.
+    @State private var launchAtLogin = true
 
     /// The setup steps are tall enough to reach the Dock, so they scroll rather
     /// than push the window off the bottom of the screen. `fitOnboardingWindow`
@@ -1133,7 +1151,7 @@ struct OnboardingView: View {
                 Text("Other apps continue playing silently while you dictate. macOS may ask for System Audio Recording access; Scriber never records or saves that audio.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Toggle("Launch Scriber when I log in", isOn: $runtime.preferences.launchAtLoginRequested)
+                Toggle("Launch Scriber when I log in", isOn: $launchAtLogin)
                 Text("Defaults: Hold \(runtime.preferences.holdShortcut.displayName) · Toggle \(runtime.preferences.toggleShortcut.displayName)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -1168,6 +1186,11 @@ struct OnboardingView: View {
                 return
             }
             apiKey = ""
+            // On for a first run, which is the recommendation. A Redo Setup
+            // starts from what macOS has, so the step cannot offer to turn on
+            // something that is already on — or quietly re-enable what the user
+            // has since turned off.
+            launchAtLogin = LaunchAtLoginService.state.isOn || !runtime.coordinator.isRedoingSetup
             runtime.coordinator.refreshPermissions(source: .onboarding)
             if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
         }
@@ -1198,8 +1221,10 @@ struct OnboardingView: View {
 
     private func finish() {
         runtime.coordinator.stopMicrophoneTest()
-        if runtime.preferences.launchAtLoginRequested {
-            do { try runtime.coordinator.setLaunchAtLogin(true) }
+        // Both directions, now that the step can start from a state the user is
+        // turning off rather than only from off.
+        if launchAtLogin != LaunchAtLoginService.state.isOn {
+            do { try runtime.coordinator.setLaunchAtLogin(launchAtLogin) }
             catch { self.error = "Setup finished, but Scriber could not be set to launch at login: \(error.localizedDescription)" }
         }
         runtime.preferences.onboardingComplete = true

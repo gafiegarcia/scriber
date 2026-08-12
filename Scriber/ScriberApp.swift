@@ -80,9 +80,11 @@ enum AppLaunchConfiguration {
         // Ahead of the preference reads, so the check does not depend on how Gaf
         // has these set at the time.
         if simulatesLoginLaunch { return true }
+        // Nothing here asks whether the login item is registered: macOS starting
+        // Scriber at login is the proof, and `isLoginItemLaunch` is how that
+        // arrives.
         guard !isUITesting, LoginItemLaunch.isLoginItemLaunch else { return false }
-        return Preferences.optInFlag("launchAtLoginRequested")
-            && Preferences.optInFlag("startInBackground")
+        return Preferences.optInFlag("startInBackground")
             && UserDefaults.standard.bool(forKey: "onboardingComplete")
     }
 
