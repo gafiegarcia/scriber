@@ -99,6 +99,34 @@ enum AppLaunchConfiguration {
     }
 }
 
+/// Where the rest of the app borrows SwiftUI's window-opening action.
+///
+/// Only a SwiftUI view holds it, and at a login launch there is no window whose
+/// view could offer it — which is the situation that needs it most. The menu bar
+/// icon is the one piece of Scriber that macOS does draw at login, so that is
+/// where it comes from.
+@MainActor
+final class SceneOpeners {
+    static let shared = SceneOpeners()
+
+    var openMainWindow: (() -> Void)?
+}
+
+/// Carries `openWindow` out of SwiftUI, beside drawing the icon. A plain `Image`
+/// cannot: the action lives in the view environment, which only a view type can
+/// read.
+private struct MenuBarLabel: View {
+    let image: NSImage
+    let accessibilityLabel: String
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Image(nsImage: image)
+            .accessibilityLabel(accessibilityLabel)
+            .task { SceneOpeners.shared.openMainWindow = { openWindow(id: "main") } }
+    }
+}
+
 @MainActor
 enum AppWindowIdentity {
     static let mainTitle = "Scriber"
@@ -384,15 +412,11 @@ struct ScriberApp: App {
     /// recording is a distraction rather than information. What the menu bar is
     /// good at is the state the user cannot otherwise see: Scriber is installed,
     /// running, and unable to work until something is fixed.
-    @ViewBuilder
     private var menuBarLabel: some View {
-        if needsAttention {
-            Image(nsImage: Self.warningImage)
-                .accessibilityLabel("Scriber needs attention")
-        } else {
-            Image(nsImage: Self.markImage)
-                .accessibilityLabel("Scriber")
-        }
+        MenuBarLabel(
+            image: needsAttention ? Self.warningImage : Self.markImage,
+            accessibilityLabel: needsAttention ? "Scriber needs attention" : "Scriber"
+        )
     }
 
     /// Height of the mark in the menu bar. The single knob worth turning.
@@ -734,11 +758,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// lifecycle is the constraint.
     private func showInitialWindowWhenAvailable(onboardingComplete: Bool) async {
         let title = onboardingComplete ? AppWindowIdentity.mainTitle : AppWindowIdentity.onboardingTitle
-        for _ in 0..<40 {
+        for attempt in 0..<40 {
             guard !Task.isCancelled else { return }
             guard !initialWindowDismissed else {
                 Self.windowLog.notice("initialWindowPoll: abandoned, user dismissed the window")
                 return
+            }
+            // Asked for, not waited for. macOS tells an app it started at login not
+            // to open windows, and SwiftUI obeys — `.defaultLaunchBehavior(.presented)`
+            // does not override it, so at login the window has to be requested.
+            // Retried once in case the menu bar icon had not yet handed the action
+            // over when the first attempt ran.
+            if title == AppWindowIdentity.mainTitle, attempt == 0 || attempt == 10 {
+                SceneOpeners.shared.openMainWindow?()
             }
             if showWindow(titled: title) { return }
             try? await Task.sleep(for: .milliseconds(50))
@@ -747,11 +779,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // that arrived late from one that was never built, which is the difference
         // between waiting longer and asking for it.
         let present = NSApp.windows
-            .map { "\($0.title.isEmpty ? "untitled" : $0.title):\($0.isVisible ? "visible" : "hidden")" }
-            .joined(separator: ",")
+            .map { window in
+                let name = window.title.isEmpty ? "untitled" : window.title
+                let identifier = window.identifier?.rawValue ?? "none"
+                return "\(name)/id=\(identifier)/\(type(of: window))/titled=\(window.styleMask.contains(.titled))/\(window.isVisible ? "visible" : "hidden")"
+            }
+            .joined(separator: " ")
         Self.windowLog.notice(
             """
             initialWindowPoll: exhausted without finding \(title, privacy: .public) \
+            opener=\(SceneOpeners.shared.openMainWindow != nil, privacy: .public) \
             windows=[\(present, privacy: .public)]
             """
         )
