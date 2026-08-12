@@ -158,6 +158,9 @@ final class AudioRecorder {
 
 private final class CaptureBackend: NSObject, @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.gafiegarcia.scriber.audio-capture")
+
+    /// Closes capture sessions away from `queue`, in the order they were retired.
+    private static let teardownQueue = DispatchQueue(label: "com.gafiegarcia.scriber.audio-teardown")
     private var session: AVCaptureSession?
     private var dataOutput: AVCaptureAudioDataOutput?
     private var fileOutput: AVCaptureAudioFileOutput?
@@ -343,11 +346,18 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
 
     private func tearDownSession() {
         dataOutput?.setSampleBufferDelegate(nil, queue: nil)
-        if session?.isRunning == true { session?.stopRunning() }
+        let closing = session
         session = nil
         dataOutput = nil
         fileOutput = nil
         currentLevel = -160
+        guard let closing, closing.isRunning else { return }
+        // `stopRunning` asks the main thread to acknowledge the capture graph
+        // stopping and waits for the answer. Called here it would hold this queue
+        // while the main thread is blocked waiting for this same queue — the app
+        // freezes with the pill mid-flight. Nothing below reads the session again,
+        // so it can close on its own time.
+        Self.teardownQueue.async { closing.stopRunning() }
     }
 
     private func finishRecording(url: URL, error: Error?) {
