@@ -22,6 +22,10 @@ A free Apple ID works here. The seven-day expiry people associate with free acco
 
 Release builds use the long-lived `Scriber Local Code Signing` identity from the login Keychain. **That identity exists only on Gaf's machine.** It is what keeps the app's designated requirement stable across rebuilds, so Accessibility, Microphone, and Launch at Login grants survive a reinstall — an automatic `Apple Development` signature changes identity every build and loses them. If you are not Gaf, build Debug with your own team and ignore this configuration. Keep the password-protected `.p12` backup private and outside the repository. Before producing a distinct installable candidate, increment `CURRENT_PROJECT_VERSION` in both configurations of the Scriber target. Do not override it on one `xcodebuild` invocation: that would make the installed binary and checked-in project disagree.
 
+## Adding a source file
+
+The Xcode target lists every file explicitly, including the `ScriberCore` sources it compiles in, so a new file is invisible to `xcodebuild` until `project.pbxproj` names it in four places: `PBXBuildFile`, `PBXFileReference`, the group's `children`, and the target's `Sources` phase. Both identifiers must be unused. Reusing a pair silently evicts the file that already owned it, and the build fails pointing at whatever that file defined rather than at anything you touched — `grep` the identifier before choosing it. `swift build` and the parse checks all pass meanwhile, because the package builds `ScriberCore` from the directory and never reads the project file.
+
 ## Build with Xcode
 
 1. Open `Scriber.xcodeproj` and select the `Scriber` scheme.
