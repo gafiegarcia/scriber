@@ -399,6 +399,15 @@ private struct GeneralSettingsPane: View {
                     }
                     // Disabled together, so the caption dims with the control it
                     // explains rather than staying live beside a dead toggle.
+                    // `.disabled` alone only lowers the alpha a little and keeps
+                    // the accent colour, so a switch left on still reads as
+                    // live; draining the tint is what makes it read as governed
+                    // by the setting above.
+                    .tint(
+                        runtime.coordinator.launchAtLoginState.isOn
+                            ? Color.accentColor
+                            : Color(nsColor: .tertiaryLabelColor)
+                    )
                     .disabled(!runtime.coordinator.launchAtLoginState.isOn)
                     .padding(.leading, 18)
                 }
