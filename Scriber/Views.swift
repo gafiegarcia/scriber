@@ -587,7 +587,7 @@ private struct SoundSettingsPane: View {
                     // Tied to the meter rather than to how the user arrived. The
                     // meter running is the only moment this advice is useful, and
                     // it means there is no separate state deciding when to drop it.
-                    Text("Speak and watch the level. If it stays flat, the input volume is set in macOS, not in Scriber.")
+                    Text("Speak and watch the level. If it stays flat, check your input volume in macOS Sound Settings.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
