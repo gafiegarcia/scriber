@@ -273,7 +273,10 @@ struct SettingsView: View {
             }
         }
         .accessibilityIdentifier("settings-view")
-        .frame(minWidth: 560, minHeight: 420)
+        // The floor, not a preferred size. Every tab has to show all of itself
+        // without scrolling, and the tallest of them is what sets this — so it
+        // is raised when a tab grows, rather than letting that tab scroll.
+        .frame(minWidth: 660, minHeight: 600)
         // Every one of these is on the window and not on a pane: a tab that is
         // not selected may not be mounted, and each of them has to run for state
         // the window owns.
