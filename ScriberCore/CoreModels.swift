@@ -345,17 +345,20 @@ public enum CredentialReadiness: Equatable, Sendable {
 public enum LaunchAtLoginState: String, Sendable {
     case enabled
     case disabled
-    /// The entry exists and macOS has it switched off. Registering again does
-    /// not flip it back on — only the user can, in System Settings.
+    /// The entry exists and macOS has it switched off, which it offers under
+    /// Background App Activity rather than in the Open at Login list.
+    /// Registering again does not flip it back on — only the user can.
     case requiresApproval
 
     public var isOn: Bool { self == .enabled }
 
     /// Why the toggle refused to stay on, for the one state where asking again
-    /// cannot help.
+    /// cannot help. Names the list holding the switch: the Open at Login list
+    /// above it has no per-item switch, so "in Login Items" alone sends people
+    /// looking for a control that is not there.
     public var recoveryAdvice: String? {
         self == .requiresApproval
-            ? "macOS has Scriber switched off in Login Items. Turn it on there to launch Scriber at login."
+            ? "macOS has Scriber switched off under Background App Activity. Turn it back on there to launch Scriber at login."
             : nil
     }
 }

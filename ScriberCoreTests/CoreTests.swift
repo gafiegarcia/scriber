@@ -250,7 +250,7 @@ struct LaunchAtLoginStateTests {
     func advice() {
         #expect(LaunchAtLoginState.enabled.recoveryAdvice == nil)
         #expect(LaunchAtLoginState.disabled.recoveryAdvice == nil)
-        #expect(LaunchAtLoginState.requiresApproval.recoveryAdvice?.contains("Login Items") == true)
+        #expect(LaunchAtLoginState.requiresApproval.recoveryAdvice?.contains("Background App Activity") == true)
     }
 }
 
