@@ -126,7 +126,7 @@ Every launch also writes `launchEvent:` twice and one `launchContext:` line, rec
 
 Use a computer-use tool with the capture restricted to **Scriber**, so no other application appears.
 
-Run these from a Claude desktop app session. From Claude Code CLI, `request_access` answers `not_installed` for **Scriber**, for the bundle identifier, for a process id, and for the full bundle path alike — with the app running or quit, and with a window open or not — so nothing below this heading can be driven from there. The desktop app's list of available applications is built from what is currently running; the CLI's does not appear to be, and the mechanism behind that is unknown, so treat the difference as observed rather than explained. Do not spend attempts working around it: use a desktop session, or hand the check to Gaf.
+If `CLAUDE_CODE_ENTRYPOINT=cli`, stop and ask Gaf to run these from the desktop app: `request_access` cannot see Scriber from the CLI, under any identifier.
 
 It moves the real pointer and can press keys, so do not start one while the user is typing. Check whether the window on screen belongs to the installed app or a test build before drawing any conclusion from it.
 
