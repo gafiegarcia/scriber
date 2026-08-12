@@ -19,6 +19,8 @@ This file records intentionally identified Scriber releases and prerelease snaps
 - Settings' Sound tab has a **Check Input Level** button that shows your microphone's level as you speak, and an **Open Sound Settings** button beside it. Input volume is a macOS setting rather than a Scriber one, so a level that stays flat now points you where it can actually be fixed.
 - Scriber now tells you when your microphone stopped sending audio partway through a dictation, instead of handing back a transcript quietly missing its second half. macOS can mute a microphone after recording has already begun — an input volume slid all the way down does it — and the recording sounds fine right up until it doesn't. The pill says so with **Check Input**, alongside the other microphone warnings — including when your dictation was copied to the clipboard rather than pasted, which used to report plain success.
 
+- VoiceOver now names the two buttons in Settings' Keyterms list. The help button announced as its icon, and each term's remove button announced identically to every other, so nothing said which term it would delete; it now names its own term.
+
 ### Changed
 
 - Dictation history has more room in it. A card's entries sit further off its sides and stand taller, and the time down the left has even space either side of it instead of being pushed up against the card's edge with a gulf between it and the transcript.
