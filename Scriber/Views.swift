@@ -322,6 +322,11 @@ private struct GeneralSettingsPane: View {
     let refusalResetToken: Int
     @State private var confirmRestartSetup = false
     @State private var launchAtLoginError: String?
+    /// Set only by a request that macOS refused. Switching Scriber off under
+    /// Background App Activity is a decision the user is allowed to make, so
+    /// the state alone must stay silent — the explanation belongs to the moment
+    /// they ask for the opposite and nothing happens.
+    @State private var launchAtLoginRefused = false
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-general-pane") {
@@ -368,6 +373,7 @@ private struct GeneralSettingsPane: View {
                             } catch {
                                 launchAtLoginError = error.localizedDescription
                             }
+                            launchAtLoginRefused = enabled && !runtime.coordinator.launchAtLoginState.isOn
                         }
                     ))
                     .accessibilityIdentifier("launch-at-login-toggle")
@@ -377,7 +383,7 @@ private struct GeneralSettingsPane: View {
                     // The toggle snapping back is the only other signal here, and
                     // on its own it reads as a bug rather than as something the
                     // user has to go and switch on.
-                    if let advice = runtime.coordinator.launchAtLoginState.recoveryAdvice {
+                    if launchAtLoginRefused, let advice = runtime.coordinator.launchAtLoginState.recoveryAdvice {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(advice).font(.caption).foregroundStyle(.secondary)
                             Button("Open Login Items…") { runtime.coordinator.openLoginItemsSettings() }
@@ -395,6 +401,13 @@ private struct GeneralSettingsPane: View {
                     // explains rather than staying live beside a dead toggle.
                     .disabled(!runtime.coordinator.launchAtLoginState.isOn)
                     .padding(.leading, 18)
+                }
+                // The refusal is answered the moment macOS reports the switch
+                // back on, which the refresh notices without the window being
+                // touched — so the message goes on its own rather than waiting
+                // to be dismissed by another attempt.
+                .onChange(of: runtime.coordinator.launchAtLoginState) { _, state in
+                    if state.isOn { launchAtLoginRefused = false }
                 }
                 Toggle("Show in menu bar", isOn: $runtime.preferences.showInMenuBar)
                 Toggle("Show in Dock", isOn: $runtime.preferences.showAppInDock)
