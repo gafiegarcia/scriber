@@ -188,6 +188,15 @@ public enum MicrophoneDropoutPolicy {
     public static let silenceFloor: Float = -100
 
     /// Long enough that stopping the capture stack cannot account for it.
+    ///
+    /// The tail is measured on a wall clock, from the last audible buffer to the
+    /// moment the recording resolves, so the stop's own latency is counted inside
+    /// it. That margin is what this number buys, not the detection itself: audio
+    /// captured from a live microphone carries no digital silence at all, so the
+    /// two states are separated by everything rather than by a threshold. Counting
+    /// the durations of trailing silent buffers instead would drop the latency and
+    /// let this fall to a few tenths, which only matters for a recording stopped
+    /// within a second of the microphone dying — where nothing was lost anyway.
     public static let minimumSilentTail: TimeInterval = 1.5
 
     public static func isSilent(decibels: Float) -> Bool {
