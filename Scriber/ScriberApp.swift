@@ -58,6 +58,19 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-no-activate")
     }
 
+    /// A login launch the user asked to stay out of the way: no window, no
+    /// activation, menu bar and dictation services only. Deliberately false for
+    /// a launch the user made themselves, so double-clicking Scriber always
+    /// opens something. Incomplete setup always wins — onboarding has to be
+    /// reachable.
+    @MainActor
+    static var startsInBackground: Bool {
+        guard !isUITesting, LoginItemLaunch.isLoginItemLaunch else { return false }
+        return Preferences.optInFlag("launchAtLoginRequested")
+            && Preferences.optInFlag("startInBackground")
+            && UserDefaults.standard.bool(forKey: "onboardingComplete")
+    }
+
     static var permissionReadinessOverride: PermissionReadiness? {
         simulatesMissingPermissions
             ? PermissionReadiness(missingPermissions: [.microphone, .accessibility])
@@ -261,7 +274,7 @@ struct ScriberApp: App {
             MainWindowView()
                 .environmentObject(runtime)
                 .modelContainer(runtime.container)
-                .task { await promoteApplicationForVisibleWindow() }
+                .task { await promoteApplicationForVisibleWindow(isStartupWindow: true) }
         }
         .defaultSize(width: 900, height: 640)
         // Hides the title text only. `window.title` and `.titled` both survive,
@@ -419,8 +432,14 @@ struct ScriberApp: App {
     }
 
     @MainActor
-    private func promoteApplicationForVisibleWindow() async {
+    private func promoteApplicationForVisibleWindow(isStartupWindow: Bool = false) async {
         guard !AppLaunchConfiguration.launchesWithoutActivating else { return }
+        // The main window's first appearance is the one SwiftUI makes at launch,
+        // and promoting there is what would put Scriber in front of whatever the
+        // user is doing. Every later route into this window — the menu bar item,
+        // the pill's Open button, Command-comma — asks for activation itself, so
+        // nothing else loses its Dock icon by this.
+        guard !(isStartupWindow && AppLaunchConfiguration.startsInBackground) else { return }
         NSApp.setActivationPolicy(.regular)
         await Task.yield()
         guard !Task.isCancelled else { return }
@@ -507,6 +526,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Before anything else: the Apple event this reads is gone by the time the
+        // startup window would be shown.
+        LoginItemLaunch.capture()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         showAppInDock = AppLaunchConfiguration.isUITesting
             ? false
@@ -566,6 +591,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.reconcileActivationPolicy()
             }
         })
+        let startsInBackground = AppLaunchConfiguration.startsInBackground
+        Self.windowLog.notice(
+            """
+            launch: loginItem=\(LoginItemLaunch.isLoginItemLaunch, privacy: .public) \
+            startsInBackground=\(startsInBackground, privacy: .public)
+            """
+        )
+        guard !startsInBackground else {
+            // Nothing else will reconcile the policy this launch, and "Show in Dock"
+            // is a standing request for a Dock icon whether or not a window is up.
+            reconcileActivationPolicy()
+            return
+        }
         Task { @MainActor [weak self] in
             let onboardingComplete = !AppLaunchConfiguration.showsOnboarding
                 && (AppLaunchConfiguration.isUITesting

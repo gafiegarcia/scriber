@@ -20,6 +20,7 @@ final class Preferences: ObservableObject {
         static let keyterms = "keyterms"
         static let onboardingComplete = "onboardingComplete"
         static let launchAtLoginRequested = "launchAtLoginRequested"
+        static let startInBackground = "startInBackground"
         static let showInMenuBar = "showInMenuBar"
         static let showAppInDock = "showAppInDock"
         static let audioInputSelection = "audioInputSelection"
@@ -45,6 +46,7 @@ final class Preferences: ObservableObject {
     @Published var keyterms: [String] { didSet { save(keyterms, key: Keys.keyterms) } }
     @Published var onboardingComplete: Bool { didSet { defaults.set(onboardingComplete, forKey: Keys.onboardingComplete) } }
     @Published var launchAtLoginRequested: Bool { didSet { defaults.set(launchAtLoginRequested, forKey: Keys.launchAtLoginRequested) } }
+    @Published var startInBackground: Bool { didSet { defaults.set(startInBackground, forKey: Keys.startInBackground) } }
     @Published var showInMenuBar: Bool { didSet { defaults.set(showInMenuBar, forKey: Keys.showInMenuBar) } }
     @Published var showAppInDock: Bool {
         didSet {
@@ -83,7 +85,8 @@ final class Preferences: ObservableObject {
         noVerbatim = defaults.object(forKey: Keys.noVerbatim) == nil ? true : defaults.bool(forKey: Keys.noVerbatim)
         keyterms = Self.decode([String].self, key: Keys.keyterms, defaults: defaults) ?? []
         onboardingComplete = defaults.bool(forKey: Keys.onboardingComplete)
-        launchAtLoginRequested = defaults.object(forKey: Keys.launchAtLoginRequested) == nil ? true : defaults.bool(forKey: Keys.launchAtLoginRequested)
+        launchAtLoginRequested = Self.optInFlag(Keys.launchAtLoginRequested, in: defaults)
+        startInBackground = Self.optInFlag(Keys.startInBackground, in: defaults)
         showInMenuBar = defaults.object(forKey: Keys.showInMenuBar) == nil ? true : defaults.bool(forKey: Keys.showInMenuBar)
         showAppInDock = defaults.bool(forKey: Keys.showAppInDock)
         audioInputSelection = Self.decode(AudioInputSelection.self, key: Keys.audioInputSelection, defaults: defaults) ?? defaultAudioInputSelection
@@ -107,11 +110,23 @@ final class Preferences: ObservableObject {
         if defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil {
             defaults.set(true, forKey: Keys.deletesExpiredRetainedAudio)
         }
+        if defaults.object(forKey: Keys.startInBackground) == nil {
+            defaults.set(true, forKey: Keys.startInBackground)
+        }
         // A chord replaced above was read before `didSet` was live, so it has to
         // be written back here or the stored value survives to be replaced again
         // on the next launch.
         if resolvedShortcuts.hold != storedHold { save(resolvedShortcuts.hold, key: Keys.holdShortcut) }
         if resolvedShortcuts.toggle != storedToggle { save(resolvedShortcuts.toggle, key: Keys.toggleShortcut) }
+    }
+
+    /// Reads a flag that is on until the user turns it off. `bool(forKey:)` alone
+    /// returns false for a key nobody has written, which is the wrong answer for
+    /// these. `AppLaunchConfiguration` reads the same keys straight from
+    /// `UserDefaults` before `Preferences` exists, so the rule lives here rather
+    /// than being spelled out at each site.
+    static func optInFlag(_ key: String, in defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: key) == nil ? true : defaults.bool(forKey: key)
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

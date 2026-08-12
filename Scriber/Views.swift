@@ -317,9 +317,15 @@ private struct GeneralSettingsPane: View {
                         }
                     }
                 ))
+                .accessibilityIdentifier("launch-at-login-toggle")
                 if let launchAtLoginError {
                     Text(launchAtLoginError).font(.caption).foregroundStyle(.red)
                 }
+                Toggle("Start in the background", isOn: $runtime.preferences.startInBackground)
+                    .disabled(!runtime.preferences.launchAtLoginRequested)
+                    .accessibilityIdentifier("start-in-background-toggle")
+                Text("Only applies when macOS starts Scriber at login. Opening Scriber yourself always shows the window.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Show in menu bar", isOn: $runtime.preferences.showInMenuBar)
                 Toggle("Show in Dock", isOn: $runtime.preferences.showAppInDock)
                     .accessibilityIdentifier("show-app-in-dock-toggle")
