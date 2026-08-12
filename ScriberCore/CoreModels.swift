@@ -504,6 +504,17 @@ public enum PillDefaultAction: Equatable, Sendable {
 public enum RecordingCancellationPolicy {
     public static let recoveryThreshold: TimeInterval = 1
 
+    /// Below this a press was never a dictation attempt: a finger slipped, or the
+    /// key was the modifier half of some other shortcut. Nothing is worth saying
+    /// about it — no sound, no message, no history row, just the pill closing —
+    /// because every one of those is a correction aimed at someone who did not ask
+    /// for anything.
+    public static let misclickThreshold: TimeInterval = 0.25
+
+    public static func isMisclick(elapsed: TimeInterval) -> Bool {
+        elapsed < misclickThreshold
+    }
+
     public static func retainsAudio(elapsed: TimeInterval, detectedSignal: Bool) -> Bool {
         elapsed >= recoveryThreshold && detectedSignal
     }

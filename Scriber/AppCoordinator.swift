@@ -997,6 +997,8 @@ final class AppCoordinator: ObservableObject {
         meterTask = nil
         endOtherAudioMuting()
         shortcuts.setMode(.busy)
+        var elapsed: TimeInterval = 0
+        if case .recording(_, let value, _) = phase { elapsed = value }
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -1004,6 +1006,14 @@ final class AppCoordinator: ObservableObject {
                 finishRecording(completed)
             } catch {
                 shortcuts.setMode(.idle)
+                // A recording too short to have captured anything can fail inside
+                // AVFoundation rather than coming back empty, and it reaches here.
+                // The press was still a misclick, so it still says nothing.
+                guard !RecordingCancellationPolicy.isMisclick(elapsed: elapsed) else {
+                    feedbackSounds.fadeOut()
+                    returnToIdle()
+                    return
+                }
                 showFailure(error.localizedDescription)
             }
         }
@@ -1011,6 +1021,17 @@ final class AppCoordinator: ObservableObject {
 
     private func finishRecording(_ completed: CompletedRecording) {
         do {
+            // A press this brief was never a dictation attempt, so it gets no
+            // correction: the signal and duration guards below both speak up, and
+            // to someone whose finger slipped they are noise about something they
+            // never asked for. The start cue fades rather than stopping dead,
+            // which is what made a slipped finger crack the speaker.
+            guard !RecordingCancellationPolicy.isMisclick(elapsed: completed.duration) else {
+                AudioRecorder.delete(relativePath: completed.relativePath)
+                feedbackSounds.fadeOut()
+                returnToIdle()
+                return
+            }
             // Discarded, as before — nothing crossed the signal threshold, so there
             // is nothing to transcribe and no reason to spend credit on it. What
             // changed is that it no longer happens in silence.
@@ -1169,6 +1190,13 @@ final class AppCoordinator: ObservableObject {
         endOtherAudioMuting()
         if elapsed < RecordingCancellationPolicy.recoveryThreshold {
             recorder.cancel()
+            // `fn` doubles as the modifier half of other shortcuts, so this fires on
+            // presses aimed at something else entirely. Those close in silence.
+            guard !RecordingCancellationPolicy.isMisclick(elapsed: elapsed) else {
+                feedbackSounds.fadeOut()
+                returnToIdle()
+                return
+            }
             paste.clearTarget()
             shortcuts.setMode(.idle)
             playFeedback(.cancellationOrCopyFallback)

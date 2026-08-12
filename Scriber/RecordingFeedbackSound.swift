@@ -9,6 +9,7 @@ enum RecordingFeedbackCue: Equatable, Sendable {
 @MainActor
 protocol RecordingFeedbackSoundPlaying: AnyObject {
     func play(_ cue: RecordingFeedbackCue)
+    func fadeOut()
     func stop()
 }
 
@@ -16,8 +17,11 @@ protocol RecordingFeedbackSoundPlaying: AnyObject {
 final class RecordingFeedbackSoundPlayer: RecordingFeedbackSoundPlaying {
     private let startSound: NSSound?
     private let cancellationOrCopyFallbackSound: NSSound?
+    private let volume: Float
+    private var fade: Task<Void, Never>?
 
     init(volume: Float = 0.55) {
+        self.volume = volume
         startSound = NSSound(named: NSSound.Name("Blow"))
         cancellationOrCopyFallbackSound = NSSound(named: NSSound.Name("Tink"))
         startSound?.volume = volume
@@ -46,8 +50,30 @@ final class RecordingFeedbackSoundPlayer: RecordingFeedbackSoundPlaying {
         }
     }
 
+    /// Retires a cue that is still playing without the click of cutting it dead.
+    /// A press too short to be a dictation ends while the start cue is still in its
+    /// attack, and stopping there is the loudest thing Scriber can do.
+    func fadeOut() {
+        guard let startSound, startSound.isPlaying else { return }
+        fade?.cancel()
+        fade = Task { @MainActor [weak self] in
+            let steps = 8
+            for step in stride(from: steps - 1, through: 0, by: -1) {
+                guard !Task.isCancelled, let self else { return }
+                startSound.volume = volume * Float(step) / Float(steps)
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+            guard !Task.isCancelled, let self else { return }
+            startSound.stop()
+            startSound.volume = volume
+        }
+    }
+
     func stop() {
+        fade?.cancel()
+        fade = nil
         startSound?.stop()
+        startSound?.volume = volume
         cancellationOrCopyFallbackSound?.stop()
     }
 }

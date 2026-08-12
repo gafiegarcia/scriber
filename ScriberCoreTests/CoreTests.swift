@@ -284,6 +284,27 @@ struct RecordingCancellationTests {
         #expect(!RecordingCancellationPolicy.cancelsForNonModifierKey(mode: .held, elapsed: 1))
         #expect(!RecordingCancellationPolicy.cancelsForNonModifierKey(mode: .locked, elapsed: 0.5))
     }
+
+    /// A slipped finger and `fn` used as somebody else's modifier both land here,
+    /// and neither asked Scriber for anything.
+    @Test("A press too brief to be a dictation is a misclick")
+    func misclickBoundary() {
+        #expect(RecordingCancellationPolicy.isMisclick(elapsed: 0.03))
+        #expect(RecordingCancellationPolicy.isMisclick(elapsed: 0.249))
+        #expect(!RecordingCancellationPolicy.isMisclick(elapsed: 0.25))
+        #expect(!RecordingCancellationPolicy.isMisclick(elapsed: 1))
+    }
+
+    /// The misclick window sits inside the window that discards audio, so nothing
+    /// silently dropped here could have been kept for a retry.
+    @Test("A misclick is always inside the discarding window")
+    func misclickIsNeverRecoverable() {
+        #expect(RecordingCancellationPolicy.misclickThreshold < RecordingCancellationPolicy.recoveryThreshold)
+        #expect(!RecordingCancellationPolicy.retainsAudio(
+            elapsed: RecordingCancellationPolicy.misclickThreshold,
+            detectedSignal: true
+        ))
+    }
 }
 
 @Suite("Pill shape")
