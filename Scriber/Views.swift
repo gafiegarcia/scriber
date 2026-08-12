@@ -125,6 +125,16 @@ private enum SettingsPaneLayout {
     /// Applied to a section's whole content, which SwiftUI distributes to each
     /// row — the rows are what this has to land on, not the card.
     static let rowHorizontalPadding: CGFloat = 2
+
+    /// Between a setting and the sentence explaining it, added on top of the gap
+    /// AppKit's two-`Text` toggle label draws — which is tight enough that the
+    /// caption reads as a wrapped second line of the title.
+    static let captionGap: CGFloat = 4
+
+    /// Between a setting and the setting nested under it. Wider than the gap
+    /// inside either of them, so the indent is not the only thing saying one
+    /// governs the other.
+    static let nestedSettingGap: CGFloat = 14
 }
 
 /// A `Section` whose header sits outside its card, and which has no header at all
@@ -193,7 +203,12 @@ private struct SettingsToggle: View {
         if let caption {
             Toggle(isOn: $isOn) {
                 Text(title)
-                Text(caption)
+                // Inside AppKit's label rather than replacing it with a stack of
+                // our own. AppKit sets the caption's font and colour and would
+                // have to be guessed at to reproduce; all this adds is the gap,
+                // which it draws far too tight to read as an explanation of the
+                // line above rather than a second line of it.
+                Text(caption).padding(.top, SettingsPaneLayout.captionGap)
             }
         } else {
             Toggle(title, isOn: $isOn)
@@ -386,7 +401,7 @@ private struct GeneralSettingsPane: View {
                 // and the setting that depends on it reads as two unrelated
                 // settings — the same divider the group boundary uses. The indent
                 // is what names the owner; the greying only confirms it.
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: SettingsPaneLayout.nestedSettingGap) {
                     // Reads what macOS has registered, not what Scriber last
                     // asked for, so removing Scriber from Login Items in System
                     // Settings turns this off within a poll.
@@ -417,12 +432,12 @@ private struct GeneralSettingsPane: View {
                         }
                         .accessibilityIdentifier("launch-at-login-advice")
                     }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Toggle("Start in the background", isOn: $runtime.preferences.startInBackground)
-                            .accessibilityIdentifier("start-in-background-toggle")
-                        Text("Only applies when macOS starts Scriber at login. Opening Scriber yourself always shows the window.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+                    SettingsToggle(
+                        "Start in the background",
+                        caption: "Only applies when macOS starts Scriber at login. Opening Scriber yourself always shows the window.",
+                        isOn: $runtime.preferences.startInBackground
+                    )
+                    .accessibilityIdentifier("start-in-background-toggle")
                     // Disabled together, so the caption dims with the control it
                     // explains rather than staying live beside a dead toggle.
                     // `.disabled` alone only lowers the alpha a little and keeps
