@@ -226,7 +226,7 @@ final class PillController {
             5
         case .cancelledTranscript, .noSpeechDetected:
             5
-        case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
+        case .credentialsUnusable, .transcriptionFailed, .noAudioSignal, .microphoneDroppedOut:
             6
         default:
             nil
@@ -247,7 +247,7 @@ final class PillController {
             NSSize(width: 430, height: 60)
         case .transcriptionFailed:
             NSSize(width: 390, height: 60)
-        case .noSpeechDetected, .noAudioSignal:
+        case .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut:
             NSSize(width: 460, height: 60)
         default:
             NSSize(width: 280, height: 52)
@@ -684,7 +684,7 @@ private struct PillView: View {
             ProgressView().controlSize(.small)
         case .dictationCopied, .transcriptCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(toneAccent)
-        case .noSpeechDetected, .noAudioSignal:
+        case .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut:
             Image(systemName: "mic.slash.fill").foregroundStyle(toneAccent)
         case .permissionsRequired, .credentialsUnusable, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(toneAccent)
@@ -715,6 +715,7 @@ private struct PillView: View {
         case .transcriptionFailed: "Transcription failed"
         case .noSpeechDetected: "No words detected"
         case .noAudioSignal: "No sound from the microphone"
+        case .microphoneDroppedOut: "Microphone cut out"
         case .message(let value): value
         }
     }
@@ -739,6 +740,8 @@ private struct PillView: View {
         // actively wrong in the case where audio did arrive.
         case .noSpeechDetected: "No recognisable words in the recording"
         case .noAudioSignal: "Check the selected input and its volume"
+        case .microphoneDroppedOut(let deliveredPartialText):
+            deliveredPartialText ? "Part of this dictation is missing" : "Nothing could be transcribed"
         default: nil
         }
     }
@@ -765,7 +768,7 @@ private struct PillView: View {
             Button("Retry") { model.onRetry?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("See History") { model.onOpen?() }.controlSize(.small)
             dismissButton
-        case .noSpeechDetected, .noAudioSignal:
+        case .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut:
             Button("Check Input") { model.onOpenInputSettings?() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)

@@ -400,6 +400,15 @@ public enum AppPhase: Equatable, Sendable {
     /// — and it used to be discarded in complete silence, which made a broken
     /// microphone indistinguishable from not having spoken.
     case noAudioSignal
+    /// The microphone sent audio and then stopped partway through, so what reached
+    /// transcription is genuinely incomplete.
+    ///
+    /// Its own phase rather than a `.message` for the same reason `.noAudioSignal`
+    /// is one: the cause is the input device or its configuration, so the outcome
+    /// has to carry the warning tone and the route to Settings that every other
+    /// input failure carries. `deliveredPartialText` distinguishes a dictation that
+    /// landed something at the cursor from one that had nothing left to transcribe.
+    case microphoneDroppedOut(deliveredPartialText: Bool)
     /// A transcript reached the clipboard instead of the cursor, from a History
     /// retry rather than from a failed paste.
     ///
@@ -612,7 +621,7 @@ public extension AppPhase {
         case .recording: .cancelRecording
         case .transcribing: .hideTranscription
         case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
+             .transcriptionFailed, .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut,
              .transcriptCopied, .message: .dismiss
         }
     }
@@ -630,7 +639,7 @@ public extension AppPhase {
         switch self {
         case .dictationCopied, .transcriptCopied: .success
         case .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed, .noSpeechDetected, .noAudioSignal: .warning
+             .transcriptionFailed, .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut: .warning
         case .idle, .recording, .transcribing, .cancelledTranscript, .message: .neutral
         }
     }
@@ -649,7 +658,7 @@ public extension AppPhase {
         case .transcriptCopied, .transcriptionFailed: .openMainWindow
         case .permissionsRequired: .openPermissionSettings
         case .credentialsUnusable: .openCredentialSettings
-        case .noSpeechDetected, .noAudioSignal: .openInputSettings
+        case .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut: .openInputSettings
         case .message: .dismiss
         }
     }

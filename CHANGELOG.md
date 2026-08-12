@@ -13,7 +13,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 ### Added
 
 - Settings' ElevenLabs tab tells you what percentage of your credits is left, beside the bar that shows it.
-- Scriber now tells you when your microphone stopped sending audio partway through a dictation, instead of handing back a transcript quietly missing its second half. macOS can mute a microphone after recording has already begun — an input volume slid all the way down does it — and the recording sounds fine right up until it doesn't.
+- Scriber now tells you when your microphone stopped sending audio partway through a dictation, instead of handing back a transcript quietly missing its second half. macOS can mute a microphone after recording has already begun — an input volume slid all the way down does it — and the recording sounds fine right up until it doesn't. The pill says so with **Check Input**, alongside the other microphone warnings.
 
 ### Changed
 

@@ -311,6 +311,7 @@ final class AppCoordinator: ObservableObject {
         case .transcriptionFailed: "Transcription failed"
         case .noSpeechDetected: "No words detected"
         case .noAudioSignal: "No microphone signal"
+        case .microphoneDroppedOut: "Microphone cut out"
         case .message(let value): value
         }
     }
@@ -1116,7 +1117,7 @@ final class AppCoordinator: ObservableObject {
                     // the ones after the microphone went quiet are simply gone. The
                     // pill closing without a word is what made that invisible.
                     if recording.microphoneDroppedOut {
-                        showMessage("Microphone cut out — part of this dictation is missing")
+                        setPhase(.microphoneDroppedOut(deliveredPartialText: true))
                     } else {
                         returnToIdle()
                     }
@@ -1180,7 +1181,7 @@ final class AppCoordinator: ObservableObject {
         // sending partway through, the words may well have been said into a stream
         // that was no longer listening, and only the dropout explains it.
         if recording.microphoneDroppedOut {
-            showMessage("Microphone cut out — nothing could be transcribed")
+            setPhase(.microphoneDroppedOut(deliveredPartialText: false))
         } else {
             setPhase(.noSpeechDetected)
         }

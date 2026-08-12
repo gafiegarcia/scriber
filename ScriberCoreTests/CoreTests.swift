@@ -390,9 +390,26 @@ struct PillToneTests {
             .credentialsUnusable(.missingAPIKey),
             .transcriptionFailed("Offline"),
             .noSpeechDetected,
-            .noAudioSignal
+            .noAudioSignal,
+            .microphoneDroppedOut(deliveredPartialText: true),
+            .microphoneDroppedOut(deliveredPartialText: false)
         ]
         for phase in warning { #expect(phase.pillTone == .warning) }
+    }
+
+    /// Both microphone outcomes are resolved in the same place, so both have to
+    /// offer the route there rather than leaving the user to find it.
+    @Test("Every microphone outcome routes to the input settings")
+    func microphoneOutcomesRouteToInput() {
+        let inputFailures: [AppPhase] = [
+            .noAudioSignal,
+            .noSpeechDetected,
+            .microphoneDroppedOut(deliveredPartialText: true),
+            .microphoneDroppedOut(deliveredPartialText: false)
+        ]
+        for phase in inputFailures {
+            #expect(phase.pillDefaultAction(isPresented: true) == .openInputSettings)
+        }
     }
 
     @Test("A dictation in flight, and a cancellation, carry no tint")
