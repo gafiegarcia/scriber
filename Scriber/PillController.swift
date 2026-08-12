@@ -237,7 +237,7 @@ final class PillController {
         switch phase {
         case .recording(let mode, _, _):
             NSSize(width: mode == .locked ? 360 : (model.isHovering ? 320 : 280), height: 52)
-        case .dictationCopied(let text, _):
+        case .dictationCopied(let text, _, _):
             copiedResultSize(for: text)
         case .cancelledTranscript:
             NSSize(width: 430, height: 104)
@@ -529,7 +529,7 @@ private struct PillView: View {
 
     @ViewBuilder private var content: some View {
         switch model.phase {
-        case .dictationCopied(let text, let message):
+        case .dictationCopied(let text, let message, _):
             copiedResult(text: text, message: message)
         case .cancelledTranscript:
             cancellationRecovery
@@ -728,7 +728,7 @@ private struct PillView: View {
         case .cancelledTranscript: "We noticed you cancelled your transcription"
         case .permissionsRequired(let missing):
             PermissionReadiness(missingPermissions: missing).recoveryMessage
-        case .dictationCopied(_, let message), .transcriptionFailed(let message): message
+        case .dictationCopied(_, let message, _), .transcriptionFailed(let message): message
         // Kept short deliberately: the compact pill gives its subtitle one line
         // and truncates, and these phases also carry a countdown, an action, and
         // a dismiss control on the same row. The cause goes here; the fix is the
@@ -767,6 +767,11 @@ private struct PillView: View {
         case .transcriptionFailed:
             Button("Retry") { model.onRetry?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("See History") { model.onOpen?() }.controlSize(.small)
+            dismissButton
+        case .dictationCopied(_, _, let droppedOut) where droppedOut:
+            Button("Check Input") { model.onOpenInputSettings?() }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
             dismissButton
         case .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut:
             Button("Check Input") { model.onOpenInputSettings?() }

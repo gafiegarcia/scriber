@@ -384,7 +384,7 @@ public enum AppPhase: Equatable, Sendable {
     case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)
     case transcribing(attempt: Int, retryDelay: TimeInterval?)
     case cancelledTranscript
-    case dictationCopied(text: String, message: String)
+    case dictationCopied(text: String, message: String, microphoneDroppedOut: Bool)
     case permissionsRequired([ScriberPermission])
     case credentialsUnusable(CredentialReadiness)
     case transcriptionFailed(String)
@@ -637,7 +637,8 @@ public extension AppPhase {
     /// choice; the Undo button carries the recovery on its own.
     var pillTone: ToastTone {
         switch self {
-        case .dictationCopied, .transcriptCopied: .success
+        case .dictationCopied(_, _, let droppedOut): droppedOut ? .warning : .success
+        case .transcriptCopied: .success
         case .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut: .warning
         case .idle, .recording, .transcribing, .cancelledTranscript, .message: .neutral
@@ -654,7 +655,11 @@ public extension AppPhase {
         return switch self {
         // The transcript in the copied result is selectable; a body tap would
         // fight the selection it sits on.
-        case .idle, .recording, .transcribing, .dictationCopied, .cancelledTranscript: .none
+        case .idle, .recording, .transcribing, .cancelledTranscript: .none
+        // The transcript is selectable, so a body tap fights the selection it sits
+        // on — except when the microphone failed, where the route to Settings is
+        // the point of the pill.
+        case .dictationCopied(_, _, let droppedOut): droppedOut ? .openInputSettings : .none
         case .transcriptCopied, .transcriptionFailed: .openMainWindow
         case .permissionsRequired: .openPermissionSettings
         case .credentialsUnusable: .openCredentialSettings

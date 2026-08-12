@@ -81,6 +81,7 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var audioInputDevices = AudioRecorder.availableInputDevices()
     @Published private(set) var microphoneTestLevel: Float = -160
     @Published private(set) var microphoneTestError: String?
+    @Published private(set) var isMicrophoneTestRunning = false
     @Published private(set) var shortcutMonitorAvailable = false
     @Published private(set) var retryingRecordID: UUID?
     @Published private(set) var subscriptionUsageUnavailable = false
@@ -476,6 +477,14 @@ final class AppCoordinator: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
+    /// The macOS Sound settings, where the input volume lives. Scriber's own
+    /// input picker cannot show or change that volume, so a level meter reading
+    /// flat has to point somewhere the user can act.
+    func openSystemSoundSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     func openSystemAudioPrivacySettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension") else { return }
         NSWorkspace.shared.open(url)
@@ -488,6 +497,7 @@ final class AppCoordinator: ObservableObject {
             try recorder.startMonitoring(selection: preferences.audioInputSelection)
             microphoneTestError = nil
             microphoneTestLevel = -160
+            isMicrophoneTestRunning = true
             microphoneTestTask = Task { [weak self] in
                 while !Task.isCancelled {
                     guard let self else { return }
@@ -506,6 +516,7 @@ final class AppCoordinator: ObservableObject {
         microphoneTestTask = nil
         recorder.stopMonitoring()
         microphoneTestLevel = -160
+        isMicrophoneTestRunning = false
     }
 
     func refreshAudioInputDevices() {
@@ -1121,18 +1132,20 @@ final class AppCoordinator: ObservableObject {
                     } else {
                         returnToIdle()
                     }
-                case .noEditableTarget(let message):
+                case .noEditableTarget(let message), .failed(let message):
                     copy(record)
                     record.errorMessage = message
                     try modelContext.save()
                     playFeedback(.cancellationOrCopyFallback)
-                    setPhase(.dictationCopied(text: transcript, message: message))
-                case .failed(let message):
-                    copy(record)
-                    record.errorMessage = message
-                    try modelContext.save()
-                    playFeedback(.cancellationOrCopyFallback)
-                    setPhase(.dictationCopied(text: transcript, message: message))
+                    // A microphone that died outranks why the paste missed: the
+                    // clipboard already answers where the text went, and nothing
+                    // else explains the half of it that never arrived.
+                    let droppedOut = recording.microphoneDroppedOut
+                    setPhase(.dictationCopied(
+                        text: transcript,
+                        message: droppedOut ? "Microphone cut out — part of this dictation is missing" : message,
+                        microphoneDroppedOut: droppedOut
+                    ))
                 }
             } else {
                 copy(record)

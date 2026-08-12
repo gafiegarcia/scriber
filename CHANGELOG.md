@@ -13,7 +13,8 @@ This file records intentionally identified Scriber releases and prerelease snaps
 ### Added
 
 - Settings' ElevenLabs tab tells you what percentage of your credits is left, beside the bar that shows it.
-- Scriber now tells you when your microphone stopped sending audio partway through a dictation, instead of handing back a transcript quietly missing its second half. macOS can mute a microphone after recording has already begun — an input volume slid all the way down does it — and the recording sounds fine right up until it doesn't. The pill says so with **Check Input**, alongside the other microphone warnings.
+- Settings' Sound tab has a **Check Input Level** button that shows your microphone's level as you speak, and an **Open Sound Settings** button beside it. Input volume is a macOS setting rather than a Scriber one, so a level that stays flat now points you where it can actually be fixed.
+- Scriber now tells you when your microphone stopped sending audio partway through a dictation, instead of handing back a transcript quietly missing its second half. macOS can mute a microphone after recording has already begun — an input volume slid all the way down does it — and the recording sounds fine right up until it doesn't. The pill says so with **Check Input**, alongside the other microphone warnings — including when your dictation was copied to the clipboard rather than pasted, which used to report plain success.
 
 ### Changed
 

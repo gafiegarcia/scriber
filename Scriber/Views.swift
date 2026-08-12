@@ -223,6 +223,9 @@ struct SettingsView: View {
             // suspended, until the window was closed. Clearing the ID is what
             // `ShortcutRecorderView` watches to tear the monitor down.
             if tab != .general { activeShortcutRecorderID = nil }
+            // The level meter opens the microphone, so leaving its tab closes it.
+            // Nothing else would: the pane keeps its state while the window lives.
+            if tab != .sound { runtime.coordinator.stopMicrophoneTest() }
             // The same call refreshes the audio device list, so a microphone
             // plugged in since the window opened is there on arrival.
             if tab == .sound || tab == .permissions {
@@ -239,12 +242,14 @@ struct SettingsView: View {
         }
         .onDisappear {
             activeShortcutRecorderID = nil
+            runtime.coordinator.stopMicrophoneTest()
             onShortcutConfigurationCaptureChanged(false)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
             guard let window = note.object as? NSWindow,
                   AppWindowIdentity.isSettingsWindow(window) else { return }
             activeShortcutRecorderID = nil
+            runtime.coordinator.stopMicrophoneTest()
             onShortcutConfigurationCaptureChanged(false)
             refusalResetToken += 1
         }
@@ -567,6 +572,41 @@ private struct SoundSettingsPane: View {
             SettingsSection("Microphone") {
                 MicrophonePicker()
                     .accessibilityIdentifier("microphone-input-picker")
+
+                // Behind a button rather than always live: arriving on this tab
+                // should not open the microphone and light the recording indicator
+                // for someone who only came to change a device.
+                if runtime.coordinator.isMicrophoneTestRunning {
+                    AudioLevelWaveform(level: runtime.coordinator.microphoneTestLevel)
+                        .frame(width: 116, height: 24)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .accessibilityIdentifier("microphone-level-meter")
+
+                    // Tied to the meter rather than to how the user arrived. The
+                    // meter running is the only moment this advice is useful, and
+                    // it means there is no separate state deciding when to drop it.
+                    Text("Speak and watch the level. If it stays flat, the input volume is set in macOS, not in Scriber.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    HStack {
+                        Button("Stop") { runtime.coordinator.stopMicrophoneTest() }
+                        Button("Open Sound Settings") { runtime.coordinator.openSystemSoundSettings() }
+                    }
+                    .font(.caption)
+                } else {
+                    Button("Check Input Level") { runtime.coordinator.startMicrophoneTest() }
+                        .accessibilityIdentifier("microphone-level-test-button")
+                        .disabled(!runtime.coordinator.microphoneGranted)
+                }
+
+                if let microphoneTestError = runtime.coordinator.microphoneTestError {
+                    Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             }
             SettingsSection("While Dictating") {
                 Toggle(
