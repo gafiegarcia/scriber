@@ -112,17 +112,31 @@ private enum SettingsPaneLayout {
 
 /// A `Section` whose header sits outside its card, and which has no header at all
 /// when it is not given one — an empty header view still takes vertical space.
+///
+/// `footer` is for a note about the whole group, which belongs below the card
+/// rather than inside it. A note about one control goes in that control's row
+/// instead; see `SettingsToggle`.
 private struct SettingsSection<Content: View>: View {
     let title: String?
+    let footer: String?
     @ViewBuilder let content: Content
 
-    init(_ title: String? = nil, @ViewBuilder content: () -> Content) {
+    init(_ title: String? = nil, footer: String? = nil, @ViewBuilder content: () -> Content) {
         self.title = title
+        self.footer = footer
         self.content = content()
     }
 
     var body: some View {
-        if let title {
+        if let title, let footer {
+            Section {
+                content
+            } header: {
+                Text(title).padding(.leading, SettingsPaneLayout.sectionHeaderOutdent)
+            } footer: {
+                Text(footer).padding(.leading, SettingsPaneLayout.sectionHeaderOutdent)
+            }
+        } else if let title {
             Section {
                 content
             } header: {
@@ -130,6 +144,36 @@ private struct SettingsSection<Content: View>: View {
             }
         } else {
             Section { content }
+        }
+    }
+}
+
+/// A toggle and the sentence explaining it, in one row.
+///
+/// A grouped form draws a divider between rows, so a caption written as its own
+/// row is separated from the setting it explains exactly as much as the next
+/// setting is — which is what made a group of two settings read as four. The
+/// two-`Text` label is AppKit's own answer: the caption renders under the title,
+/// inside the same row, with no divider available to fall between them.
+private struct SettingsToggle: View {
+    let title: String
+    let caption: String?
+    @Binding var isOn: Bool
+
+    init(_ title: String, caption: String? = nil, isOn: Binding<Bool>) {
+        self.title = title
+        self.caption = caption
+        self._isOn = isOn
+    }
+
+    var body: some View {
+        if let caption {
+            Toggle(isOn: $isOn) {
+                Text(title)
+                Text(caption)
+            }
+        } else {
+            Toggle(title, isOn: $isOn)
         }
     }
 }
@@ -281,7 +325,10 @@ private struct GeneralSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-general-pane") {
-            SettingsSection("Shortcuts") {
+            SettingsSection(
+                "Shortcuts",
+                footer: "A shortcut can be modifier keys on their own, like fn or ⌃⌥. Press Escape while recording one to cancel."
+            ) {
                 ShortcutRecorderView(
                     title: "Hold to Dictate",
                     identifier: "hold",
@@ -302,30 +349,39 @@ private struct GeneralSettingsPane: View {
                     isCaptureAllowed: !runtime.coordinator.phase.isBusy,
                     refusalResetToken: refusalResetToken
                 )
-                Text("A shortcut can be modifier keys on their own, like fn or ⌃⌥. Press Escape while recording one to cancel.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
             SettingsSection("Startup and Presence") {
-                Toggle("Launch at login", isOn: Binding(
-                    get: { runtime.preferences.launchAtLoginRequested },
-                    set: { enabled in
-                        do {
-                            try runtime.coordinator.setLaunchAtLogin(enabled)
-                            launchAtLoginError = nil
-                        } catch {
-                            launchAtLoginError = error.localizedDescription
+                // Both toggles share one row, because a divider between a setting
+                // and the setting that depends on it reads as two unrelated
+                // settings — the same divider the group boundary uses. The indent
+                // is what names the owner; the greying only confirms it.
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Launch at login", isOn: Binding(
+                        get: { runtime.preferences.launchAtLoginRequested },
+                        set: { enabled in
+                            do {
+                                try runtime.coordinator.setLaunchAtLogin(enabled)
+                                launchAtLoginError = nil
+                            } catch {
+                                launchAtLoginError = error.localizedDescription
+                            }
                         }
+                    ))
+                    .accessibilityIdentifier("launch-at-login-toggle")
+                    if let launchAtLoginError {
+                        Text(launchAtLoginError).font(.caption).foregroundStyle(.red)
                     }
-                ))
-                .accessibilityIdentifier("launch-at-login-toggle")
-                if let launchAtLoginError {
-                    Text(launchAtLoginError).font(.caption).foregroundStyle(.red)
-                }
-                Toggle("Start in the background", isOn: $runtime.preferences.startInBackground)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Toggle("Start in the background", isOn: $runtime.preferences.startInBackground)
+                            .accessibilityIdentifier("start-in-background-toggle")
+                        Text("Only applies when macOS starts Scriber at login. Opening Scriber yourself always shows the window.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    // Disabled together, so the caption dims with the control it
+                    // explains rather than staying live beside a dead toggle.
                     .disabled(!runtime.preferences.launchAtLoginRequested)
-                    .accessibilityIdentifier("start-in-background-toggle")
-                Text("Only applies when macOS starts Scriber at login. Opening Scriber yourself always shows the window.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .padding(.leading, 18)
+                }
                 Toggle("Show in menu bar", isOn: $runtime.preferences.showInMenuBar)
                 Toggle("Show in Dock", isOn: $runtime.preferences.showAppInDock)
                     .accessibilityIdentifier("show-app-in-dock-toggle")
@@ -464,14 +520,12 @@ private struct DictationSettingsPane: View {
                 }
             }
             SettingsSection("History") {
-                Toggle(
+                SettingsToggle(
                     "Delete unused recordings after 30 days",
+                    caption: "Failed and cancelled dictations keep their audio so you can retry them. Transcripts and history entries are always kept; only the unused recording is removed.",
                     isOn: $runtime.preferences.deletesExpiredRetainedAudio
                 )
                 .accessibilityIdentifier("delete-expired-audio-toggle")
-                Text("Failed and cancelled dictations keep their audio so you can retry them. Transcripts and history entries are always kept; only the unused recording is removed.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
 
                 HStack {
                     Button("Clear Dictation History…", role: .destructive) {
@@ -579,71 +633,76 @@ private struct SoundSettingsPane: View {
                 MicrophonePicker()
                     .accessibilityIdentifier("microphone-input-picker")
 
+                // One row for the whole input test — meter, advice, controls, and
+                // whatever went wrong. Split across rows, the grouped form divided
+                // them from each other as if each were its own setting.
+                //
                 // Behind a button rather than always live: arriving on this tab
                 // should not open the microphone and light the recording indicator
                 // for someone who only came to change a device.
-                if runtime.coordinator.isMicrophoneTestRunning {
-                    // The pill's red, because this is the same thing the pill shows:
-                    // a live microphone. A meter that reads differently here than
-                    // it does mid-dictation teaches two things for one signal.
-                    // 35 bars across 116pt reproduces the pill's ~1.3pt bar at twice
-                    // its width; 18 of them here would each be three times as wide.
-                    AudioLevelWaveform(
-                        level: runtime.coordinator.microphoneTestLevel,
-                        color: .red,
-                        sampleCount: 35
-                    )
-                    .frame(width: 116, height: 24)
+                VStack(alignment: .leading, spacing: 10) {
+                    if runtime.coordinator.isMicrophoneTestRunning {
+                        // The pill's red, because this is the same thing the pill
+                        // shows: a live microphone. A meter that reads differently
+                        // here than it does mid-dictation teaches two things for one
+                        // signal. 35 bars across 116pt reproduces the pill's ~1.3pt
+                        // bar at twice its width; 18 of them here would each be three
+                        // times as wide.
+                        AudioLevelWaveform(
+                            level: runtime.coordinator.microphoneTestLevel,
+                            color: .red,
+                            sampleCount: 35
+                        )
+                        .frame(width: 116, height: 24)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .accessibilityIdentifier("microphone-level-meter")
 
-                    // Tied to the meter rather than to how the user arrived. The
-                    // meter running is the only moment this advice is useful, and
-                    // it means there is no separate state deciding when to drop it.
-                    Text("Speak and watch the level. If it stays flat, check your input volume in macOS Sound Settings.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        // Tied to the meter rather than to how the user arrived. The
+                        // meter running is the only moment this advice is useful, and
+                        // it means there is no separate state deciding when to drop it.
+                        Text("Speak and watch the level. If it stays flat, check your input volume in macOS Sound Settings.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
-                    HStack {
-                        Button("Stop") { runtime.coordinator.stopMicrophoneTest() }
-                        Button("Open Sound Settings") { runtime.coordinator.openSystemSoundSettings() }
+                        HStack {
+                            Button("Stop") { runtime.coordinator.stopMicrophoneTest() }
+                            Button("Open Sound Settings") { runtime.coordinator.openSystemSoundSettings() }
+                        }
+                        .font(.caption)
+                    } else {
+                        Button("Check Input Level") { runtime.coordinator.startMicrophoneTest() }
+                            .accessibilityIdentifier("microphone-level-test-button")
+                            .disabled(!runtime.coordinator.microphoneGranted)
                     }
-                    .font(.caption)
-                } else {
-                    Button("Check Input Level") { runtime.coordinator.startMicrophoneTest() }
-                        .accessibilityIdentifier("microphone-level-test-button")
-                        .disabled(!runtime.coordinator.microphoneGranted)
-                }
 
-                if let microphoneTestError = runtime.coordinator.microphoneTestError {
-                    Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                    if let microphoneTestError = runtime.coordinator.microphoneTestError {
+                        Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
             SettingsSection("While Dictating") {
-                Toggle(
+                SettingsToggle(
                     "Play sounds while dictating",
+                    caption: "You hear one sound when recording starts, and another when a dictation fails or is cancelled.",
                     isOn: $runtime.preferences.playRecordingFeedbackSounds
                 )
                 .accessibilityIdentifier("recording-feedback-sounds-toggle")
-                Text("You hear one sound when recording starts, and another when a dictation fails or is cancelled.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
 
-                Toggle(
-                    "Mute other audio while recording",
-                    isOn: $runtime.preferences.muteOtherAudioWhileRecording
-                )
-                .accessibilityIdentifier("mute-other-audio-toggle")
-                Text("Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Scriber never records or saves system audio.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if let status = runtime.coordinator.otherAudioMuteStatus {
-                    VStack(alignment: .leading, spacing: 6) {
+                // The warning shares the row with the toggle it is about: it
+                // reports why muting is not working, which is no use sitting a
+                // divider away from the setting that asked for it.
+                VStack(alignment: .leading, spacing: 8) {
+                    SettingsToggle(
+                        "Mute other audio while recording",
+                        caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Scriber never records or saves system audio.",
+                        isOn: $runtime.preferences.muteOtherAudioWhileRecording
+                    )
+                    .accessibilityIdentifier("mute-other-audio-toggle")
+                    if let status = runtime.coordinator.otherAudioMuteStatus {
                         Label(status.message, systemImage: "exclamationmark.triangle.fill")
                             .font(.caption)
                             .foregroundStyle(.orange)
