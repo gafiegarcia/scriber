@@ -163,12 +163,20 @@ enum DictationHistoryLayout {
 
     /// Padding inside the card, between its edge and a row's content. The rule
     /// between neighbouring rows does not share it; that one runs full width.
+    static let contentInset: CGFloat = 16
+
+    /// Top and bottom padding on a row. A shade under `contentInset`, because a
+    /// row is as tall as its transcript and only the short ones are bounded by
+    /// this number at all.
+    static let rowVerticalInset: CGFloat = 14
+
+    /// Between the entry time and the transcript beside it.
     ///
-    /// Small on purpose. The card already stands well off the window edge, and
-    /// stacking a generous inset inside that put the entry time and the trailing
-    /// controls in the middle of an empty margin — the eye read the gap before it
-    /// read the row.
-    static let contentInset: CGFloat = 12
+    /// Kept close to `contentInset` so the time has near-equal clearance on
+    /// both sides. Open this gap much wider than the card's own padding and the
+    /// time reads as pushed up against the border rather than as a column of
+    /// its own.
+    static let timeColumnGap: CGFloat = 20
 
     static let cardCornerRadius: CGFloat = 16
 
@@ -287,7 +295,7 @@ private struct DictationHistoryRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 28) {
+        HStack(alignment: .center, spacing: DictationHistoryLayout.timeColumnGap) {
             Text(record.createdAt.formatted(Self.timeFormat))
                 .font(.system(size: Self.timePointSize))
                 .monospacedDigit()
@@ -320,11 +328,11 @@ private struct DictationHistoryRow: View {
 
             // One group, tight, and Retry first.
             //
-            // These used to be three separate children of the row's own HStack,
-            // which spaces its columns 28 apart — a gap meant to separate the
-            // time from the transcript, not to separate a button from the button
-            // beside it. Grouping them lets the controls sit together at 8 while
-            // the row keeps its wide columns.
+            // A group rather than three more children of the row's own HStack,
+            // which spaces its columns by `timeColumnGap` — a distance meant to
+            // separate the time from the transcript, not one button from the
+            // button beside it. Grouping lets these sit together at 8 while the
+            // row keeps its columns.
             //
             // Retry leads so that copy and the overflow menu land on the same
             // two x positions in every row. Trailing a variable-width button
@@ -401,7 +409,7 @@ private struct DictationHistoryRow: View {
             }
         }
         .padding(.horizontal, DictationHistoryLayout.contentInset)
-        .padding(.vertical, 12)
+        .padding(.vertical, DictationHistoryLayout.rowVerticalInset)
         // No row hover state and no click-to-copy. Both were built and removed
         // the same day, and the reason is worth keeping so they are not rebuilt
         // the same way: a whole-row copy target and selectable text inside it

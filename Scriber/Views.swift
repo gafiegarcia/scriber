@@ -108,6 +108,17 @@ private enum SettingsPaneLayout {
     /// main window, this is the constant to move — the two are meant to hang the
     /// same distance off their respective cards.
     static let sectionHeaderOutdent: CGFloat = -12
+
+    /// Added above and below every row in a section card, on top of the padding
+    /// a grouped form already draws.
+    ///
+    /// Vertical only. A grouped form draws the rule between two rows at its own
+    /// inset, which nothing here can move, so horizontal padding would step the
+    /// content in from the ends of the line above it.
+    ///
+    /// Applied to a section's whole content, which SwiftUI distributes to each
+    /// row — the rows are what this has to land on, not the card.
+    static let rowVerticalPadding: CGFloat = 4
 }
 
 /// A `Section` whose header sits outside its card, and which has no header at all
@@ -130,7 +141,7 @@ private struct SettingsSection<Content: View>: View {
     var body: some View {
         if let title, let footer {
             Section {
-                content
+                paddedContent
             } header: {
                 Text(title).padding(.leading, SettingsPaneLayout.sectionHeaderOutdent)
             } footer: {
@@ -138,13 +149,19 @@ private struct SettingsSection<Content: View>: View {
             }
         } else if let title {
             Section {
-                content
+                paddedContent
             } header: {
                 Text(title).padding(.leading, SettingsPaneLayout.sectionHeaderOutdent)
             }
         } else {
-            Section { content }
+            Section { paddedContent }
         }
+    }
+
+    /// Every section card's rows go through here, which is the whole reason a
+    /// plain `Section` is not used directly anywhere in Settings.
+    private var paddedContent: some View {
+        content.padding(.vertical, SettingsPaneLayout.rowVerticalPadding)
     }
 }
 
@@ -422,7 +439,7 @@ private struct GeneralSettingsPane: View {
                 Toggle("Show in Dock", isOn: $runtime.preferences.showAppInDock)
                     .accessibilityIdentifier("show-app-in-dock-toggle")
             }
-            Section {
+            SettingsSection {
                 // Nothing is destroyed by walking setup again — it reads current
                 // state, so a step already satisfied is presented as satisfied —
                 // but it does replace the window in front of you, so it asks.
@@ -641,12 +658,13 @@ private struct KeytermsCard: View {
                     }
                     .buttonStyle(.plain)
                 }
-                // Roomier than the row it replaced: cramped rows were exactly
-                // what made the delete button hard to tie to its entry — the
-                // eye had too little vertical room to anchor "this row" before
-                // scanning across it.
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                // Roomy on purpose. A cramped row makes the delete button hard
+                // to tie to its entry — the eye needs vertical room to anchor
+                // "this row" before scanning across it. Under the day card's
+                // numbers, because this card is nested inside a settings row
+                // rather than standing on the page.
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
                 if term != terms.last {
                     Divider()
                         .padding(.horizontal, borderWidth)
@@ -999,7 +1017,7 @@ private struct PermissionsSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-permissions-pane") {
-            Section {
+            SettingsSection {
                 PermissionStatusRow(
                     title: "Accessibility",
                     systemImage: "keyboard",
