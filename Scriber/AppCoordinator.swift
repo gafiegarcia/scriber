@@ -1050,13 +1050,6 @@ final class AppCoordinator: ObservableObject {
                 setPhase(.noAudioSignal)
                 return
             }
-            guard completed.duration >= 0.1 else {
-                AudioRecorder.delete(relativePath: completed.relativePath)
-                paste.clearTarget()
-                shortcuts.setMode(.idle)
-                showMessage("Hold a little longer")
-                return
-            }
             let record = DictationRecord(
                 id: completed.id,
                 durationSeconds: completed.duration,
