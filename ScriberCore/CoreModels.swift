@@ -173,6 +173,32 @@ public enum AudioInputSelection: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+/// A microphone that stops sending audio partway through a recording.
+///
+/// macOS can mute a capture stream after it has already started — the input volume
+/// set to its minimum is one way to see it, where the first seconds record normally
+/// and the rest arrive as nothing. The audio reaching transcription is genuinely
+/// incomplete, and the loudest-moment signal check cannot see it, so the dictation
+/// comes back quietly missing its second half.
+public enum MicrophoneDropoutPolicy {
+    /// Digital silence, not quiet. A live microphone in a silent room still sends
+    /// its own noise floor, tens of decibels above this; only a stream that has
+    /// stopped sending anything at all reads this low. That gap is what keeps a
+    /// pause before releasing the key from looking like a failure.
+    public static let silenceFloor: Float = -100
+
+    /// Long enough that stopping the capture stack cannot account for it.
+    public static let minimumSilentTail: TimeInterval = 1.5
+
+    public static func isSilent(decibels: Float) -> Bool {
+        !decibels.isFinite || decibels <= silenceFloor
+    }
+
+    public static func droppedOut(silentTail: TimeInterval) -> Bool {
+        silentTail >= minimumSilentTail
+    }
+}
+
 public enum AudioSignal {
     public static let detectionThreshold: Float = -60
     public static let visibleCeiling: Float = -6

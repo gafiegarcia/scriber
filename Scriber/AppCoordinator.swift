@@ -1112,7 +1112,14 @@ final class AppCoordinator: ObservableObject {
                 case .inserted:
                     record.deliveryState = .pasted
                     try modelContext.save()
-                    returnToIdle()
+                    // The words that arrived are real and belong at the cursor, but
+                    // the ones after the microphone went quiet are simply gone. The
+                    // pill closing without a word is what made that invisible.
+                    if recording.microphoneDroppedOut {
+                        showMessage("Microphone cut out — part of this dictation is missing")
+                    } else {
+                        returnToIdle()
+                    }
                 case .noEditableTarget(let message):
                     copy(record)
                     record.errorMessage = message
@@ -1169,7 +1176,14 @@ final class AppCoordinator: ObservableObject {
         shortcuts.setMode(.idle)
         playFeedback(.terminalFailure)
         suppressPillForCurrentTranscription = false
-        setPhase(.noSpeechDetected)
+        // "No words detected" blames the speaker. When the microphone stopped
+        // sending partway through, the words may well have been said into a stream
+        // that was no longer listening, and only the dropout explains it.
+        if recording.microphoneDroppedOut {
+            showMessage("Microphone cut out — nothing could be transcribed")
+        } else {
+            setPhase(.noSpeechDetected)
+        }
     }
 
     func openMicrophoneInputSettings() {

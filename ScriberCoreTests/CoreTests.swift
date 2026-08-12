@@ -295,6 +295,27 @@ struct RecordingCancellationTests {
         #expect(!RecordingCancellationPolicy.isMisclick(elapsed: 1))
     }
 
+    /// A live microphone in a silent room still sends its own noise floor, tens of
+    /// decibels above the silence floor. Only a stream that has stopped sending
+    /// anything reads that low, which is what keeps a pause before releasing the
+    /// key from being reported as a failure.
+    @Test("Only a stream sending nothing counts as silent")
+    func silenceIsNotQuiet() {
+        #expect(MicrophoneDropoutPolicy.isSilent(decibels: -160))
+        #expect(MicrophoneDropoutPolicy.isSilent(decibels: -.infinity))
+        #expect(!MicrophoneDropoutPolicy.isSilent(decibels: -63))
+        #expect(!MicrophoneDropoutPolicy.isSilent(decibels: -80))
+    }
+
+    @Test("A dropout needs a silent tail longer than stopping can explain")
+    func dropoutBoundary() {
+        #expect(!MicrophoneDropoutPolicy.droppedOut(silentTail: 0))
+        #expect(!MicrophoneDropoutPolicy.droppedOut(silentTail: 1.49))
+        #expect(MicrophoneDropoutPolicy.droppedOut(silentTail: 1.5))
+        // The measured case: audio for 4.71 s, then nothing for 5.89 s.
+        #expect(MicrophoneDropoutPolicy.droppedOut(silentTail: 5.89))
+    }
+
     /// The misclick window sits inside the window that discards audio, so nothing
     /// silently dropped here could have been kept for a retry.
     @Test("A misclick is always inside the discarding window")
