@@ -3,7 +3,6 @@
 ## v0.8.8
 
 - [ ] **Name the stale-entry case in the Accessibility recovery copy.** When macOS keeps a Privacy list entry whose recorded identity no longer validates, the checkbox reads as enabled while `AXIsProcessTrusted()` stays false. Unchecking and rechecking does not rebuild the entry; removing Scriber from the list and adding the app again does. The current message (`CoreModels.swift:248`) says "Enable Accessibility so Scriber can detect global shortcuts and insert text", which tells someone in that state to do what they have already done, and there is no way for Scriber to detect the case and adapt — it cannot read the Privacy database. So the copy has to carry the escape hatch unconditionally: say that an entry already showing as enabled may need to be removed and re-added. Reproduce by deleting the installed app, reinstalling it, and granting from the leftover entry.
-- [ ] **Give the entry time equal clearance on both sides.** A card's time label sits 12 points from the card's leading edge (`DictationLayout.contentInset`) and 28 from the transcript beside it (`DictationHistory.swift:290`), so it reads as crowded against the border. Close the difference without widening the card's own padding — the gap between the three-dot button and the trailing edge is already right. ([Notion task](https://app.notion.com/p/3b771937040280e8bfecd483e8bf901a))
 
 ## v0.9.0
 

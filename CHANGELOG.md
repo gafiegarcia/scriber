@@ -21,6 +21,8 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Changed
 
+- Dictation history has more room in it. A card's entries sit further off its sides and stand taller, and the time down the left has even space either side of it instead of being pushed up against the card's edge with a gulf between it and the transcript.
+- Every row in Settings sits a little further off the sides of its card, and a keyterm in the added-terms list has more room around it.
 - Settings keeps a setting and its own explanation together. A dividing line now falls only between one setting and the next, so the Sound tab's two switches read as two settings rather than four, the microphone level test reads as one thing rather than three, and the note about shortcuts sits under the group it describes instead of inside it.
 - A press too quick to have been a dictation now closes in silence. A slipped finger, or `fn` pressed as part of a shortcut aimed at something else, used to answer with an alert sound and a pill; now the pill just closes and nothing is said. This also ends the occasional "Audio too short" failure from ElevenLabs: Scriber's own floor used to sit exactly on the 100 ms minimum the API accepts, so a recording rounding a hair under it was sent and refused.
 - Cancelling a dictation no longer looks like something went wrong. The recovery pill drops the amber tint and the warning triangle and reads in the app's plain colours; **Undo** is still there if you want the recording back.
