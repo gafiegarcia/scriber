@@ -35,7 +35,7 @@ The Xcode target lists every file explicitly, including the `ScriberCore` source
 
 ## Build from the command line
 
-Run from the repository root:
+Run from the repository root. This builds Release, so it completes only with the local identity described above; build `-configuration Debug` with your own team instead if you are not Gaf.
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
@@ -73,11 +73,11 @@ On first use of a newly installed binary, macOS asks for the login Keychain pass
 
 ## When Accessibility looks enabled but is not
 
-After the app is deleted and installed again, macOS can keep a Privacy list entry whose recorded identity no longer validates against the new bundle. Scriber then reports Accessibility as missing and global shortcuts stay dead while System Settings shows the checkbox ticked.
+macOS records the signing identity of the app it granted Accessibility to, and revalidates it on every launch. Sign with an identity that changes between builds and the entry stops matching: Scriber reports Accessibility as missing and global shortcuts stay dead while System Settings still shows the checkbox ticked.
 
-Unchecking and rechecking that entry does not fix it. Remove Scriber from **Privacy & Security → Accessibility** entirely, then add it back by dragging `Scriber.app` from `/Applications` into the list.
+Unchecking and rechecking does not fix it. Remove Scriber from **Privacy & Security → Accessibility** entirely, then add it back by dragging `Scriber.app` from `/Applications` into the list.
 
-Replacing the app in place — quit, `trash`, `ditto`, launch — does not usually trigger this. Leaving the path empty for a while, as a real uninstall does, is what strands the entry.
+Both configurations above sign with a stable identity, so this only arises after overriding one with ad-hoc signing (`CODE_SIGN_IDENTITY="-"`), which has no certificate to anchor to and identifies the app by a hash of the binary itself.
 
 ## Build directory housekeeping
 

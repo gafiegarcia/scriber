@@ -1,9 +1,5 @@
 # Roadmap
 
-## v0.8.8
-
-- [ ] **Name the stale-entry case in the Accessibility recovery copy.** When macOS keeps a Privacy list entry whose recorded identity no longer validates, the checkbox reads as enabled while `AXIsProcessTrusted()` stays false. Unchecking and rechecking does not rebuild the entry; removing Scriber from the list and adding the app again does. The current message (`CoreModels.swift:248`) says "Enable Accessibility so Scriber can detect global shortcuts and insert text", which tells someone in that state to do what they have already done, and there is no way for Scriber to detect the case and adapt — it cannot read the Privacy database. So the copy has to carry the escape hatch unconditionally: say that an entry already showing as enabled may need to be removed and re-added. Reproduce by deleting the installed app, reinstalling it, and granting from the leftover entry.
-
 ## v0.9.0
 
 - [ ] **Follow macOS 27 on what the Accessibility permission is called.** In macOS 27 beta 5 the System Settings pane Scriber sends people to is **Device Control and Data Access**, not **Accessibility**, so every place Scriber says "Accessibility" now names something the user cannot find — the recovery pill, onboarding, the Permissions tab, and the README. Wait for the stable release before changing any of it; a beta name can still move. When it lands, pick copy that serves both macOS 27 and earlier versions rather than naming one of them, since Scriber supports both and the permission is the same grant either way. `AXIsProcessTrusted` and the trust-change notification are unaffected: the toggle is picked up within a second in beta 5, most often through the notification rather than the poll.
