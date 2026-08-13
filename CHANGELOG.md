@@ -4,6 +4,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+## 0.8.8 — 2026-08-14
+
+Native bundle build 143, installed from an entitlement-free, locally signed Release build.
+
 ### Fixed
 
 - **Launch at login** now shows what macOS actually has. Turning Scriber off in System Settings' Login Items used to leave the switch on in Scriber forever, since nothing ever looked; it now follows within a few seconds, taking **Start in the background** with it. If macOS is holding Scriber switched off under **Background App Activity** — a state Scriber cannot undo for you — turning the switch on says so and offers a button straight to Login Items, instead of quietly flicking back off. Leave it off and Scriber says nothing: it is your setting to make.
