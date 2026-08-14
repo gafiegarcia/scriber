@@ -4,8 +4,16 @@
 <dict>
     <key>CFBundleDisplayName</key>
     <string>Scriber</string>
+    <key>CFBundleExecutable</key>
+    <string>Scriber</string>
     <key>CFBundleIdentifier</key>
     <string>com.gafiegarcia.scriber</string>
+    <!-- Written into Contents/PkgInfo at build time. Absent, the file says
+         "????????" and `spctl --type exec` declines to assess the bundle as an
+         application; nothing generates these because GENERATE_INFOPLIST_FILE is
+         off. -->
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
     <key>CFBundleName</key>
     <string>Scriber</string>
     <key>CFBundleShortVersionString</key>
