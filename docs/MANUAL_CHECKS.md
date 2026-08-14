@@ -54,7 +54,7 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 
 ## When audio capture or transcription outcomes change
 
-- Set input volume to zero and dictate for at least three seconds. The **“Microphone cut out”** pill appears with the failure sound, not “No sound from the microphone”: the input still passes audible audio for the first seconds of capture whatever the volume is set to, so the recording has a loud opening moment and then digital silence, which is a dropout rather than a dead stream. Hold for less than the 1.5-second silent tail and neither pill is due. This costs no credit and remains distinct from the no-words pill. Restore the input volume afterward.
+- Set input volume to zero and dictate for at least three seconds. The **“Microphone cut out”** pill appears with the failure sound, not “No sound from the microphone”: capture opens with enough signal to clear the detection threshold before the stream flattens, so the recording resolves as a dropout rather than as a dead stream. Hold for less than the 1.5-second silent tail and neither pill is due. Why a zero-volume input passes anything at all is not established — assert the pill, not the explanation. This costs no credit and remains distinct from the no-words pill. Restore the input volume afterward.
 - Submit audio with no recognisable words. **This spends API credit; ask first.** Scriber reports no words and leaves no history row behind.
 
 ## When installed-app lifecycle or menu-bar behavior changes
