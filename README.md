@@ -2,10 +2,10 @@
 
 # Scriber
 
-> **Source only** — no downloadable build; see [Build it yourself](#build-it-yourself).
+> **[Download the latest release](https://github.com/gafiegarcia/scriber/releases/latest)** — signed and notarized, macOS 26 or later, Apple silicon.
 > Issues are open, but replies aren't promised.
 
-**Skip to the code:** [Build it yourself](#build-it-yourself) · [Repository layout](#repository) · [Documentation](docs) · [Product spec](docs/PRODUCT_SPEC.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
+**Skip to the code:** [Download](#download) · [Build it yourself](#build-it-yourself) · [Repository layout](#repository) · [Documentation](docs) · [Product spec](docs/PRODUCT_SPEC.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
 If you're looking for a dictation app for macOS to daily-drive, you might want to check out [these alternatives I listed below](#better-alternatives) first (unless you're curious enough to build this yourself and try it out).
 
@@ -94,6 +94,22 @@ here are the ones I found. tried some, but not really tested. you can just check
 
 =========== BELOW IS AI SLOP ===========
 
+## Download
+
+You need a Mac with Apple silicon running macOS 26 or later, and a free [ElevenLabs](https://elevenlabs.io/app/sign-up) account for the API key Scriber asks for during setup.
+
+[**Download the latest DMG**](https://github.com/gafiegarcia/scriber/releases/latest), open it, and drag Scriber to Applications. Or:
+
+```bash
+brew install --cask gafiegarcia/tap/scriber
+```
+
+macOS will say Scriber was downloaded from the internet the first time you open it. That prompt is normal for anything not installed from the App Store. Scriber is signed with a Developer ID certificate and notarized by Apple, so you should never see a warning that it cannot be opened or that the developer cannot be verified — if you do, something is wrong and it is worth opening an issue.
+
+Setup then asks for your ElevenLabs key, Microphone access, and Accessibility access. Scriber needs Accessibility because its whole job is typing into whatever app you are already in.
+
+Scriber checks GitHub once a day for a newer version and tells you in the menu bar. It never installs anything on its own, and you can switch the check off in Settings → General.
+
 ## Repository
 
 The app builds from the repository root: [`Scriber`](Scriber) is the app target, [`ScriberCore`](ScriberCore) the shared package with [`ScriberCoreTests`](ScriberCoreTests) beside it, and [`Branding`](Branding) the icon artwork. Everything written down lives in [`docs`](docs):
@@ -111,9 +127,7 @@ The native line continues the product version after Electron `0.6.0`. The Xcode 
 
 ## Build it yourself
 
-There is no download. The app needs Accessibility and Microphone access to do its job, and shipping a build without a paid Apple Developer ID means macOS greets everyone with a scary warning — so you build it.
-
-You need macOS 27 and Xcode 27 beta. A **free** Apple ID is enough; you do not need a paid developer account. Create `Signing.local.xcconfig` with your own team identifier, then build the **Debug** configuration:
+You don't have to — [the download](#download) is the easy path. But if you want to change something, you need Xcode 27 beta and a **free** Apple ID; a paid developer account is not required to build. Create `Signing.local.xcconfig` with your own team identifier, then build the **Debug** configuration:
 
 ```text
 DEVELOPMENT_TEAM = ABCDE12345
@@ -121,14 +135,11 @@ DEVELOPMENT_TEAM = ABCDE12345
 
 Xcode shows that identifier under Settings → Accounts → Manage Certificates. The file is gitignored, so it stays yours.
 
-Two things to expect, neither of which means the build is broken:
+Expect one thing that isn't a broken build: **macOS asks for your login Keychain password** the first time each freshly built binary reads the stored API key. An `Apple Development` signature changes identity on every build, so each new binary is a stranger to the stored key. Released builds don't have this problem — their Developer ID signature is stable.
 
-- **macOS asks for your login Keychain password** the first time each freshly built binary reads the stored API key. Choose **Always Allow**. This is what a paid Developer ID would fix, and it's why the roadmap still lists one.
-- **The Release configuration won't work for you.** It signs with a local certificate that exists only on my machine, so Release is my install path, not yours. Build Debug.
+**The Release configuration won't work for you.** It signs with my Developer ID certificate. Build Debug.
 
-If you'd rather not involve an Apple ID at all, ad-hoc signing (`CODE_SIGN_IDENTITY="-"`) builds a working app — but its signature changes on every build, so macOS treats each one as a brand-new app and makes you re-grant Accessibility and Microphone every single time. For an app whose whole point is a global shortcut that types into other apps, that gets old fast.
-
-The [build guide](docs/BUILDING.md) has the full detail: prerequisites, command-line builds, verification, installation, and first launch.
+The [build guide](docs/BUILDING.md) has the full detail: prerequisites, command-line builds, verification, installation, and first launch. [Releasing](docs/RELEASING.md) covers signing, notarization, and publishing.
 
 ## If you fork it
 

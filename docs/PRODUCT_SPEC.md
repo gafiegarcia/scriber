@@ -97,8 +97,8 @@ The current delivery transaction and its regression baseline are defined in [`PA
 - Confirm before deleting history, whether one entry or all of it. A transcript has no undo and no trash, and every deletion route — the entry's overflow menu, its context menu, and Clear Dictation History — must ask first.
 - Retained audio from failed or cancelled dictations expires after 30 days. This is user-configurable and enabled by default. Expiry removes only the recording: the history entry, its transcript, and why it failed are always preserved, and the entry reports that it can no longer be retried. Audio that no dictation references is removed on the same schedule.
 - Keep Scriber's SwiftData history in its dedicated `Scriber/History.store`; never use the generic Application Support `default.store` shared by unsandboxed apps.
-- Store the API key in the default encrypted macOS login Keychain using modern `SecItem` APIs. This is an interim personal-use workaround for free-team provisioning expiry; never store the key in a plaintext file or `UserDefaults`.
-- Keep the storage policy capable of returning to the Data Protection Keychain. A future provisioned build must prefer and migrate the current login-Keychain value before considering an older protected item.
+- Store the API key in the default encrypted macOS login Keychain using modern `SecItem` APIs, accessible only while unlocked and only on this device. Never store the key in a plaintext file or `UserDefaults`.
+- Keep the storage policy capable of returning to the Data Protection Keychain. Moving there would fence the item into the app's own access group, so no other app could prompt the user for it; it costs an entitlement and an embedded provisioning profile, which is why it is not the default. Any such build must prefer and migrate the current login-Keychain value before considering an older protected item.
 - Never log, export, or persist the key elsewhere.
 - Diagnostic logging carries only what Scriber observed about itself: permission values and the path that saw them, paste-target identities and roles, and window state. Never a transcript, never audio, never the key. Each category writes a line only when something changes, so a quiet log means nothing moved rather than nothing was watched.
 - Validate credentials without uploading audio or consuming transcription credit before saving them.
@@ -126,6 +126,6 @@ The current delivery transaction and its regression baseline are defined in [`PA
 
 - Native Swift 6.4 app using SwiftUI, AppKit, SwiftData, AVFoundation, Accessibility, and Keychain APIs.
 - Toolchain baseline: Xcode 27 beta with Swift 6.4 until a later explicit toolchain decision.
-- Supported target: Apple silicon and macOS 27.
-- Personal Release builds use the long-lived `Scriber Local Code Signing` identity from the login Keychain, with no provisioning profile or restricted entitlements. Its private-key backup remains outside the repository; Developer ID signing and notarization remain separate future distribution work.
+- Supported target: Apple silicon and macOS 26 or later.
+- Release builds sign with a Developer ID Application certificate under the hardened runtime, carrying the audio-input entitlement and no provisioning profile. The certificate's private-key backup remains outside the repository. Every released build is notarized and stapled.
 - A real ElevenLabs smoke test is always explicit and opt-in.

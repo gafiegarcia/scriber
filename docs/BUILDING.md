@@ -4,7 +4,7 @@ Prerequisites, signing, building, installing, and first launch. The [README](../
 
 ## Prerequisites
 
-- macOS 27
+- macOS 26 or later to run the app; macOS 27 to build it, since the toolchain below requires it
 - Xcode 27 beta with Swift 6.4; Command Line Tools alone do not contain the SwiftUI and SwiftData macro plugins
 - An ElevenLabs API key with Speech to Text access
 
@@ -20,7 +20,13 @@ The local file is ignored by Git. Without it, the project leaves the team empty 
 
 A free Apple ID works here. The seven-day expiry people associate with free accounts is an iOS provisioning-profile rule; this app ships no entitlements and no embedded profile, so nothing expires out from under a macOS build.
 
-Release builds use the long-lived `Scriber Local Code Signing` identity from the login Keychain. **That identity exists only on Gaf's machine.** It is what keeps the app's designated requirement stable across rebuilds, so Accessibility, Microphone, and Launch at Login grants survive a reinstall — an automatic `Apple Development` signature changes identity every build and loses them. If you are not Gaf, build Debug with your own team and ignore this configuration. Keep the password-protected `.p12` backup private and outside the repository. Before producing a distinct installable candidate, increment `CURRENT_PROJECT_VERSION` in both configurations of the Scriber target. Do not override it on one `xcodebuild` invocation: that would make the installed binary and checked-in project disagree.
+Release builds sign with a **Developer ID Application** certificate for team `24U8BM54A3` under the hardened runtime, using `Scriber/Scriber.entitlements`. That certificate exists only on Gaf's machine; if you are not Gaf, build Debug with your own team and ignore this configuration. Keep the password-protected `.p12` backup private and outside the repository — Apple caps how many Developer ID certificates an account may hold, so losing it is expensive.
+
+The identity is what keeps the app's designated requirement stable across rebuilds, so Accessibility, Microphone, Launch at Login, and Keychain grants survive a reinstall. An automatic `Apple Development` signature changes identity every build and loses them.
+
+The hardened runtime withholds the microphone from a process without `com.apple.security.device.audio-input`, which covers both `AVCaptureDevice` capture and the Core Audio process tap that mutes other apps. Nothing in the app uses Apple Events, so it carries no automation entitlement.
+
+Before producing a distinct installable candidate, increment `CURRENT_PROJECT_VERSION` in both configurations of the Scriber target. Do not override it on one `xcodebuild` invocation: that would make the installed binary and checked-in project disagree.
 
 ## Adding a source file
 
@@ -52,11 +58,13 @@ The app is written to `.build/xcode-release/Build/Products/Release/Scriber.app`.
 
 ## Verify and install
 
-Run all relevant checks in [Automated checks](AUTOMATED_CHECKS.md) before replacing the installed app. In particular, a Release build signed with Gaf's local identity must report this designated requirement — the hash is that certificate's, so a build signed with any other identity will and should differ:
+Run all relevant checks in [Automated checks](AUTOMATED_CHECKS.md) before replacing the installed app. Read the signature the build actually carries:
 
-```text
-identifier "com.gafiegarcia.scriber" and certificate root = H"fb7719074d66edfec627e3108437cbe34e7b7bfd"
+```bash
+codesign -d --requirements - --verbose=4 .build/xcode-release/Build/Products/Release/Scriber.app
 ```
+
+It must name the bundle identifier and anchor to Apple's Developer ID chain for team `24U8BM54A3`, and the flags must include `runtime`. A build that anchors anywhere else is not the app macOS granted Accessibility to, and the grants will not carry over.
 
 Then replace the copy in `/Applications` rather than launching it from a build directory:
 
@@ -69,7 +77,7 @@ open -a Scriber
 
 The stable path matters because Accessibility, Microphone, Launch at Login, and Keychain authorization are associated with the installed application. Never rename the `.app` bundle; doing so invalidates its signature.
 
-On first use of a newly installed binary, macOS asks for the login Keychain password before releasing the saved ElevenLabs key. Choose **Always Allow**. The grant then persists for that binary; the limitation is tracked as an accepted constraint in the [roadmap](ROADMAP.md).
+A Developer ID signature does not change between builds, so the login-Keychain authorization for the stored ElevenLabs key is granted once and then holds. Debug builds still prompt on each freshly built binary, because `Apple Development` re-identifies the app every time.
 
 ## When Accessibility looks enabled but is not
 

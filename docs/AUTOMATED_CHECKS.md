@@ -54,6 +54,7 @@ APP_PATH="$REPO_ROOT/.build/xcode-release/Build/Products/Release/Scriber.app"
 codesign -d -r- "$APP_PATH"
 codesign --verify --strict --verbose=2 "$APP_PATH"
 codesign -d --entitlements :- "$APP_PATH"
+codesign -d --verbose=4 "$APP_PATH" 2>&1 | grep -E "^(Authority|TeamIdentifier|CodeDirectory)"
 
 if [ -e "$APP_PATH/Contents/embedded.provisionprofile" ]; then
   echo "REFUSING: Release contains a provisioning profile" >&2
@@ -61,7 +62,12 @@ if [ -e "$APP_PATH/Contents/embedded.provisionprofile" ]; then
 fi
 ```
 
-It must reproduce the designated requirement recorded in the README, carry no provisioning profile, and hold no restricted Keychain entitlement.
+Four things must hold, and each has caught a real mistake:
+
+- The requirement anchors to Apple's Developer ID chain for team `24U8BM54A3`. Anything else is a different app to macOS, and its permission grants will not carry over.
+- `CodeDirectory` flags include `runtime`. Without the hardened runtime, notarization refuses the build.
+- The entitlements are exactly `com.apple.security.device.audio-input`. An entitlement Scriber does not use is a notarization rejection waiting to happen; a missing one takes the microphone away at runtime rather than at build time.
+- No provisioning profile is embedded. Scriber uses no entitlement that requires one, so a profile appearing means something turned on automatic signing.
 
 ## Launch smoke check
 

@@ -39,6 +39,10 @@ After `v0.7.0`, one question decides the next version:
 
 Prerelease labels are retired. `alpha.N` was answering an unanswerable question: nothing distinguishes an alpha from a beta here, so the label was a guess that had to be defended every time. "Fix or new capability?" always has an answer. `v1.0.0` is a separate decision about the product being finished, not a milestone this scheme walks up to on its own.
 
-## Distribution is a separate milestone
+## Every tag on `main` ships a build
 
-A source tag, code signing, and notarized binary distribution are independent of each other. Developer ID signing, notarization, Gatekeeper validation, and a supported downloadable binary belong to a later distribution-ready milestone, and no version number on the `0.x` line implies any of them.
+From `v0.9.0`, a tag and a release are the same event. Notarization is free and unmetered, so there is no reason to freeze a snapshot and then withhold it — and a rule with no exceptions removes the per-tag judgement call about whether this one is worth publishing.
+
+Creating a tag therefore commits you to the whole of [`RELEASING.md`](RELEASING.md): a notarized, stapled DMG attached to a GitHub release, and a Homebrew cask pointing at it. Do not tag until you are ready to do that.
+
+This does not lower the bar for tagging. It raises it, because the release gates now protect strangers rather than one machine.
