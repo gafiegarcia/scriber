@@ -112,7 +112,7 @@ Native bundle build 47, installed from an entitlement-free, locally signed Relea
 
 ### Fixed
 
-- Speech-to-Text-only ElevenLabs keys remain verified and usable without account- usage access. When current credits cannot be read, Settings now identifies and subdues the cached values as last-known information and offers one retry action instead of presenting stale usage as current beside two refresh buttons.
+- Speech-to-Text-only ElevenLabs keys remain verified and usable without account-usage access. When current credits cannot be read, Settings now identifies and subdues the cached values as last-known information and offers one retry action instead of presenting stale usage as current beside two refresh buttons.
 - Turning Scriber's Accessibility access off while it was running could lock up the whole Mac for about a minute — the pointer still moved, but clicks, the Dock, and the keyboard all stopped responding. Scriber kept switching its shortcut monitor back on after macOS switched it off, and because every event on the machine passes through that monitor, the two fighting held up everything else. Scriber now shuts the monitor down instead.
 
 ### Changed

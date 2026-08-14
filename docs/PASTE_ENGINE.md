@@ -71,7 +71,7 @@ Do not remove the character-count rule without a fresh reproduction and the deli
 
 - Do not put Accessibility traversal back on record start.
 - Do not select the target from the frontmost application alone.
-- Do not accept a dispatched Paste command or an ordinary clipboard-manager- visible string request as insertion proof.
+- Do not accept a dispatched Paste command or an ordinary clipboard-manager-visible string request as insertion proof.
 - Do not require Accessibility mutation for every successful paste.
 - Do not observe a positively non-text focus or add unproven per-app exceptions.
 - Do not select, copy, replace, or undo destination text to verify insertion; it risks corrupting user state.
