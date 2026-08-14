@@ -107,7 +107,12 @@ final class PillController {
         // `tintColor` is unused: it never composited anything visible against a
         // SwiftUI-hosted `contentView` on this OS build, at any alpha up to 0.9.
         // `PillView` paints its own tint layer into that hosted content instead.
-        glassView.effectIsInteractive = true
+        // macOS 26 renders the same glass without the interactive response; the
+        // AppKit property arrived in 27 and SwiftUI's `.interactive()` is not a
+        // substitute here, for the sampling reason above.
+        if #available(macOS 27.0, *) {
+            glassView.effectIsInteractive = true
+        }
         glassView.contentView = hostingView
         rootView.addSubview(glassView)
         panel.contentView = rootView

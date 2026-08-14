@@ -6,7 +6,7 @@ let package = Package(
     name: "Scriber",
     // Matches the app target's deployment target so ScriberCore cannot compile
     // against an older SDK than the app that embeds its sources.
-    platforms: [.macOS("27.0")],
+    platforms: [.macOS("26.0")],
     products: [
         .library(name: "ScriberCore", targets: ["ScriberCore"])
     ],
