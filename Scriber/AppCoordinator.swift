@@ -88,6 +88,8 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var subscriptionUsageUnavailable = false
     @Published private(set) var isRefreshingSubscriptionUsage = false
     @Published private(set) var subscriptionUsageError: String?
+    @Published private(set) var isCheckingForUpdates = false
+    @Published private(set) var updateCheckError: String?
     @Published private(set) var mainWindowRequest: MainWindowRequest?
     private var settingsWindowOpener: (@MainActor () -> Void)?
     @Published private(set) var otherAudioMuteStatus: OtherAudioMuteStatus?
@@ -101,6 +103,7 @@ final class AppCoordinator: ObservableObject {
     private let keychain = KeychainStore()
     private let recorder = AudioRecorder()
     private let scribe = ScribeClient()
+    private let updateChecker = UpdateChecker()
     private let paste = PasteService()
     private let login = LaunchAtLoginService()
     private let pill = PillController()
@@ -115,6 +118,7 @@ final class AppCoordinator: ObservableObject {
     private var checkedStoredAPIKeyThisLaunch = false
     private var isCheckingStoredAPIKey = false
     private var storedAPIKeyValidationTask: Task<Void, Never>?
+    private var updateCheckTask: Task<Void, Never>?
     private var credentialRevision = CredentialRevision()
     private var suppressPillForCurrentTranscription = false
     /// Whether setup is being walked a second time. `onboardingComplete` cannot
@@ -350,6 +354,9 @@ final class AppCoordinator: ObservableObject {
             refreshAudioInputs: true,
             source: .startServices
         )
+        // Above the guards below, because a user whose Accessibility grant is
+        // missing is exactly the one an update might be fixing.
+        checkForUpdates()
         guard shortcutMonitoringAllowed else {
             shortcuts.stop()
             shortcutMonitorAvailable = false
@@ -685,6 +692,44 @@ final class AppCoordinator: ObservableObject {
                 preferences.apiKeyValidity = .invalid
             } catch {
                 // Keep the last definitive result when validation cannot reach the service.
+            }
+        }
+    }
+
+    /// The running app's marketing version, which is what a release tag is
+    /// compared against.
+    static var runningVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+    }
+
+    /// `force` is the Check Now button: it ignores the once-a-day interval but
+    /// not the services gate, so a `--ui-testing` launch still reaches no
+    /// network from either path.
+    func checkForUpdates(force: Bool = false) {
+        guard servicesAllowed else { return }
+        guard force || preferences.automaticUpdateChecks else { return }
+        guard force || UpdateChecker.isDue(lastCheck: preferences.lastUpdateCheck) else { return }
+        guard !isCheckingForUpdates else { return }
+
+        isCheckingForUpdates = true
+        updateCheckTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                isCheckingForUpdates = false
+                updateCheckTask = nil
+            }
+            do {
+                let availability = try await updateChecker.check(currentVersion: Self.runningVersion)
+                guard !Task.isCancelled else { return }
+                // Recorded on success only. A failed check that stamped the date
+                // would put the next attempt a day away for a reason the user
+                // never saw.
+                preferences.lastUpdateCheck = Date()
+                preferences.availableUpdate = availability.update
+                updateCheckError = nil
+            } catch {
+                guard !Task.isCancelled else { return }
+                updateCheckError = "Could not reach GitHub to check for updates."
             }
         }
     }

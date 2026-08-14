@@ -465,6 +465,37 @@ private struct GeneralSettingsPane: View {
                 Toggle("Show in Dock", isOn: $runtime.preferences.showAppInDock)
                     .accessibilityIdentifier("show-app-in-dock-toggle")
             }
+            SettingsSection("Updates") {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 10) {
+                        Button(action: { runtime.coordinator.checkForUpdates(force: true) }) {
+                            if runtime.coordinator.isCheckingForUpdates {
+                                HStack(spacing: 6) {
+                                    ProgressView().controlSize(.small)
+                                    Text("Checking…")
+                                }
+                            } else {
+                                Text("Check Now")
+                            }
+                        }
+                        .disabled(runtime.coordinator.isCheckingForUpdates)
+                        .accessibilityIdentifier("check-for-updates")
+                        if let update = runtime.preferences.availableUpdate {
+                            Link("Get \(update.version)…", destination: update.url)
+                                .buttonStyle(.borderedProminent)
+                                .accessibilityIdentifier("download-update")
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    updateStatus
+                }
+                SettingsToggle(
+                    "Check for updates automatically",
+                    caption: "Asks GitHub once a day whether a newer version has been released. Scriber never installs anything on its own.",
+                    isOn: $runtime.preferences.automaticUpdateChecks
+                )
+                .accessibilityIdentifier("automatic-update-checks-toggle")
+            }
             SettingsSection {
                 // Nothing is destroyed by walking setup again — it reads current
                 // state, so a step already satisfied is presented as satisfied —
@@ -485,6 +516,34 @@ private struct GeneralSettingsPane: View {
             }
         } message: {
             Text("Your key, permissions, and history are kept. Setup shows each step's current state.")
+        }
+    }
+
+    /// Never claims to be current on the strength of a check that has not
+    /// happened: an install that has never reached GitHub says so.
+    @ViewBuilder
+    private var updateStatus: some View {
+        let running = AppCoordinator.runningVersion
+        if let error = runtime.coordinator.updateCheckError {
+            Text(error)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("update-status")
+        } else if let update = runtime.preferences.availableUpdate {
+            Text("Scriber \(update.version) is available. You have \(running).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("update-status")
+        } else if runtime.preferences.lastUpdateCheck == nil {
+            Text("You have Scriber \(running). No check has run yet.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("update-status")
+        } else {
+            Text("Scriber \(running) is the latest version.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("update-status")
         }
     }
 }

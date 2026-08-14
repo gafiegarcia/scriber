@@ -26,6 +26,9 @@ final class Preferences: ObservableObject {
         static let playRecordingFeedbackSounds = "playRecordingFeedbackSounds"
         static let muteOtherAudioWhileRecording = "muteOtherAudioWhileRecording"
         static let deletesExpiredRetainedAudio = "deletesExpiredRetainedAudio"
+        static let automaticUpdateChecks = "automaticUpdateChecks"
+        static let lastUpdateCheck = "lastUpdateCheck"
+        static let availableUpdate = "availableUpdate"
     }
 
     private let defaults: UserDefaults
@@ -62,6 +65,11 @@ final class Preferences: ObservableObject {
     @Published var deletesExpiredRetainedAudio: Bool {
         didSet { defaults.set(deletesExpiredRetainedAudio, forKey: Keys.deletesExpiredRetainedAudio) }
     }
+    @Published var automaticUpdateChecks: Bool {
+        didSet { defaults.set(automaticUpdateChecks, forKey: Keys.automaticUpdateChecks) }
+    }
+    @Published var lastUpdateCheck: Date? { didSet { defaults.set(lastUpdateCheck, forKey: Keys.lastUpdateCheck) } }
+    @Published var availableUpdate: AvailableUpdate? { didSet { save(availableUpdate, key: Keys.availableUpdate) } }
 
     init(
         defaults: UserDefaults = .standard,
@@ -96,6 +104,9 @@ final class Preferences: ObservableObject {
         deletesExpiredRetainedAudio = defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil
             ? true
             : defaults.bool(forKey: Keys.deletesExpiredRetainedAudio)
+        automaticUpdateChecks = Self.optInFlag(Keys.automaticUpdateChecks, in: defaults)
+        lastUpdateCheck = defaults.object(forKey: Keys.lastUpdateCheck) as? Date
+        availableUpdate = Self.decode(AvailableUpdate.self, key: Keys.availableUpdate, defaults: defaults)
 
         // Materialize opt-in defaults so upgrades and subsequent launches share one explicit value.
         if defaults.object(forKey: Keys.playRecordingFeedbackSounds) == nil {
@@ -109,6 +120,9 @@ final class Preferences: ObservableObject {
         }
         if defaults.object(forKey: Keys.startInBackground) == nil {
             defaults.set(true, forKey: Keys.startInBackground)
+        }
+        if defaults.object(forKey: Keys.automaticUpdateChecks) == nil {
+            defaults.set(true, forKey: Keys.automaticUpdateChecks)
         }
         // A chord replaced above was read before `didSet` was live, so it has to
         // be written back here or the stored value survives to be replaced again
