@@ -4,6 +4,17 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Added
+
+- **Scriber is now a download.** It is signed with an Apple Developer ID certificate and notarized by Apple, so you can install it from a disk image or with `brew install --cask gafiegarcia/tap/scriber` and open it without macOS refusing to run it. Building from source is no longer the only way in.
+- Scriber tells you when a newer version has been released. It asks GitHub once a day and, when there is one, adds an item to the menu bar that opens the release page. It never downloads or installs anything by itself, and the check can be switched off in Settings → General.
+- Setup and Settings now say where an ElevenLabs API key comes from, with links to create an account and to make a key, and name the Speech to Text access it needs. The key field used to be blank with nowhere to go.
+
+### Changed
+
+- Scriber now runs on **macOS 26 or later**, rather than requiring macOS 27. On macOS 26 the dictation pill keeps its glass appearance but does not respond to interaction, which is the only visible difference.
+- macOS asks for your login Keychain password once, rather than after every reinstall. The signature no longer changes between builds, so the permission you grant sticks.
+
 ## 0.8.8 — 2026-08-14
 
 Native bundle build 143, installed from an entitlement-free, locally signed Release build.
