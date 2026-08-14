@@ -1,7 +1,7 @@
 // Signing team for the Debug and UI-test configurations.
 //
-// The Release configuration signs with the local `Scriber Local Code Signing`
-// identity and deliberately carries no team, so it overrides this file.
+// The Release configuration signs with a Developer ID Application certificate
+// and pins its own team, so it ignores this file entirely.
 //
 // To build Debug or run the UI tests, create `Signing.local.xcconfig` beside
 // this file containing your own Apple Developer Team ID:

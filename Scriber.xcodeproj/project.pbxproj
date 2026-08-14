@@ -61,6 +61,7 @@
 		B1000000000000000000000D /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
 		B1000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000000000000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000000000000000000010 /* Scriber.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Scriber.entitlements; sourceTree = "<group>"; };
 		B10000000000000000000011 /* Scriber.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scriber.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/RecoveryConditions.swift; sourceTree = "<group>"; };
 		B10000000000000000000033 /* ../ScriberCore/Toasts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/Toasts.swift; sourceTree = "<group>"; };
@@ -132,6 +133,7 @@
 				B10000000000000000000014 /* AppIcon.icon */,
 				B1000000000000000000000E /* Assets.xcassets */,
 				B1000000000000000000000F /* Info.plist */,
+				B10000000000000000000010 /* Scriber.entitlements */,
 			);
 			path = Scriber;
 			sourceTree = "<group>";
@@ -308,13 +310,15 @@
 			buildSettings = {
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Scriber Local Code Signing";
+				CODE_SIGN_ENTITLEMENTS = Scriber/Scriber.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 143;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 24U8BM54A3;
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Scriber/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -323,6 +327,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.8.8;
+				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				PRODUCT_BUNDLE_IDENTIFIER = com.gafiegarcia.scriber;
 				PRODUCT_NAME = Scriber;
 				SWIFT_STRICT_CONCURRENCY = complete;
