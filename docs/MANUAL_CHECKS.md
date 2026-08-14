@@ -45,6 +45,13 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - Only when an already exhausted account or a disposable zero-quota key is available: confirm recovery opens the Credits section rather than focusing the key field. Never consume credits merely to reach exhaustion.
 - With User → Read disabled on an otherwise valid Speech-to-Text key, the key remains verified and dictation works across relaunch. **Dictation spends API credit; ask first.** Cached credits are labelled as last known and subdued, only one usage-retry action appears, and a failed retry never marks the key invalid. Restoring User → Read and retrying returns the current credits display, with its percentage beside the bar.
 
+## When signing, the disk image, or distribution change
+
+- Dictate with music playing and confirm other audio is silenced. The hardened runtime withholds microphone and Core Audio access from a process whose entitlements do not cover it, and the process tap that mutes other apps is the path most likely to fail silently rather than at build time.
+- Install the downloaded disk image in a macOS account that has never run Scriber. Setup requests Microphone and Accessibility from scratch, the ElevenLabs key saves, and no warning claims the app cannot be opened or its developer cannot be verified. **Saving a key and dictating spends API credit; ask first.**
+- Open that download on a Mac running the oldest supported macOS, which has never had Xcode installed. This is the only check that exercises the deployment floor.
+- After the first launch of a build signed with a new certificate, confirm Microphone and Accessibility survive a restart. A changed signing identity is a different app to macOS, and a stale entry has to be removed and re-added rather than toggled.
+
 ## When permissions or global-shortcut lifecycle change
 
 - Revoke Microphone and Accessibility, separately and together. The toolbar's warning control appears, its popover lists every unresolved condition at once — including a missing key alongside missing permissions — and the pill and Settings route both work. Restore both grants before finishing; every warning should then leave. **macOS forces Quit & Reopen whenever Microphone access changes**, so no-relaunch recovery is observable only for Accessibility.
