@@ -145,10 +145,12 @@ private enum SettingsPaneLayout {
 /// instead; see `SettingsToggle`.
 private struct SettingsSection<Content: View>: View {
     let title: String?
-    let footer: String?
+    /// A key rather than a `String` so a footer can carry a Markdown link;
+    /// `Text` only parses Markdown from literals.
+    let footer: LocalizedStringKey?
     @ViewBuilder let content: Content
 
-    init(_ title: String? = nil, footer: String? = nil, @ViewBuilder content: () -> Content) {
+    init(_ title: String? = nil, footer: LocalizedStringKey? = nil, @ViewBuilder content: () -> Content) {
         self.title = title
         self.footer = footer
         self.content = content()
@@ -814,7 +816,10 @@ private struct ElevenLabsSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-elevenlabs-pane") {
-            SettingsSection("API Key") {
+            SettingsSection(
+                "API Key",
+                footer: "Scriber needs a key with Speech to Text access. [Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys). Enable User → Read on that key as well to show your credits here."
+            ) {
                 VStack(alignment: .leading, spacing: 10) {
                     SecureField(
                         text: $apiKey,
@@ -1100,6 +1105,10 @@ struct OnboardingView: View {
             }
             GroupBox("1. ElevenLabs API key") {
                 VStack(alignment: .leading, spacing: 12) {
+                    Text("No key yet? [Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys) with Speech to Text access.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     SecureField(
                         runtime.preferences.apiKeyConfigured
                             ? "Enter a new API key to replace the stored key"
