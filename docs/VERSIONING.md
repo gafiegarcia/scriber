@@ -21,7 +21,7 @@ An Xcode **Release** configuration is an optimized build configuration; it does 
 - Do not tag ordinary development commits or local builds.
 - Do not call an untagged candidate `vX.Y.Z-alpha.N`. Use “bundle build N candidate” until the annotated tag actually exists.
 - Record user-relevant changes under `Unreleased` in the root [`CHANGELOG.md`](../CHANGELOG.md), then move them under the exact version only when its tag is created.
-- Treat a pushed tag as immutable; a correction after that point receives a new patch tag. A tag that has never left this machine may be moved with `git tag -f`, since nothing else can be holding the old reference — re-apply the original message rather than retyping it, and confirm the tag still lands on `main` afterwards.
+- Treat pushed tags as immutable; a correction receives a new patch tag.
 - Create a tag only when the documented personal-use behavior passes its release gates in [`ROADMAP.md`](ROADMAP.md).
 
 Annotated tag messages carry engineering metadata that does not belong in the changelog: bundle build, credential and signing state, verification performed, known limitations, and confirmation that no credentials, recordings, local history, or machine-specific output are included.
