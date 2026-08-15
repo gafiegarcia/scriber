@@ -843,7 +843,7 @@ private struct SoundSettingsPane: View {
                 VStack(alignment: .leading, spacing: 8) {
                     SettingsToggle(
                         "Mute other audio while recording",
-                        caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Scriber never records or saves system audio.",
+                        caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Needs System Audio Recording access, which macOS asks for the first time you dictate; Scriber never records or saves that audio.",
                         isOn: $runtime.preferences.muteOtherAudioWhileRecording
                     )
                     .accessibilityIdentifier("mute-other-audio-toggle")

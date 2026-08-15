@@ -26,8 +26,12 @@
     <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>Scriber uses your microphone while testing input during setup and while a dictation shortcut is active.</string>
+    <!-- macOS prefixes this with its own fixed sentence about recording system
+         audio, so denying the verb reads as a contradiction. Explain the
+         mechanism instead: the tap's callback discards every sample it is
+         handed. -->
     <key>NSAudioCaptureUsageDescription</key>
-    <string>Scriber temporarily accesses system audio only to silence other apps while you dictate. It does not record or save system audio.</string>
+    <string>Silences other apps while you dictate, so they don't bleed into your microphone. macOS grants this as system audio access; Scriber ignores every sample it receives and saves nothing.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>
