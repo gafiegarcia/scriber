@@ -2,7 +2,9 @@
 
 This file records intentionally identified Scriber releases and prerelease snapshots. Ordinary development builds belong in Git history, not here.
 
-## Unreleased
+## 0.9.0 — 2026-08-15
+
+Native bundle build 150, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
 
 ### Added
 
