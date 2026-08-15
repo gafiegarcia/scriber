@@ -905,10 +905,18 @@ private struct SoundSettingsPane: View {
                             .font(.caption)
                             .foregroundStyle(.orange)
                             .accessibilityIdentifier("other-audio-mute-status")
+                    }
+                    // Reachable whenever muting is on, not only once it has
+                    // failed. Withdrawing the grant is something people do to a
+                    // feature that works, and they arrive with no failure to
+                    // route them anywhere.
+                    if runtime.preferences.muteOtherAudioWhileRecording
+                        || runtime.coordinator.otherAudioMuteStatus != nil {
                         Button("Open Privacy & Security") {
                             runtime.coordinator.openSystemAudioPrivacySettings()
                         }
                         .font(.caption)
+                        .accessibilityIdentifier("open-system-audio-privacy")
                     }
                 }
             }
