@@ -89,9 +89,15 @@ Both must pass: `accepted` with `source=Notarized Developer ID`, and a valid tic
 
 Merge to `main` fast-forward only and tag there, never on the branch. Then:
 
+Open the release notes with the requirements, then the changelog section. Someone who follows a link straight to the release page never sees the README, and the disk image gives them no warning until macOS refuses to open the app:
+
+```text
+Apple silicon, macOS 26 Tahoe or newer.
+```
+
 ```bash
 shasum -a 256 ".build/Scriber-$VERSION.dmg"
-gh release create "v$VERSION" ".build/Scriber-$VERSION.dmg" --title "v$VERSION" --notes-file <(…changelog section…)
+gh release create "v$VERSION" ".build/Scriber-$VERSION.dmg" --title "v$VERSION" --notes-file <(…requirements, then changelog section…)
 ```
 
 Finally update `Casks/scriber.rb` in the [tap repository](https://github.com/gafiegarcia/homebrew-tap) with the new `version` and that `sha256`. The cask points at the release asset by version, so it breaks until this lands — do it in the same sitting.
