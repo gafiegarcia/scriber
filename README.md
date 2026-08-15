@@ -96,7 +96,7 @@ here are the ones I found. tried some, but not really tested. you can just check
 
 ## Download
 
-### System requirements
+### Requirements
 
 - **macOS 26 Tahoe or newer.** Scriber will not open on Sequoia or anything older, and this is not going to change: the dictation pill and its notices are built on the glass rendering macOS 26 introduced, and the mute-other-audio feature uses audio APIs from the same release. Supporting older macOS would mean a second design for everything you see while dictating.
 - **Apple silicon.** No Intel build exists.
