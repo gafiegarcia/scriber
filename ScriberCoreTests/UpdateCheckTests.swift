@@ -56,27 +56,27 @@ struct UpdateAvailabilityTests {
 
     @Test("A newer tag is offered")
     func offersNewer() throws {
-        let outcome = try UpdateChecker.availability(currentVersion: "0.9.0", release: release("v0.9.1"))
-        #expect(outcome == .available(version: "0.9.1", url: releaseURL))
+        let outcome = try UpdateChecker.newerRelease(currentVersion: "0.9.0", release: release("v0.9.1"))
+        #expect(outcome == AvailableUpdate(version: "0.9.1", url: releaseURL))
     }
 
     @Test("The same version is up to date")
     func sameIsUpToDate() throws {
-        let outcome = try UpdateChecker.availability(currentVersion: "0.9.0", release: release("v0.9.0"))
-        #expect(outcome == .upToDate)
+        let outcome = try UpdateChecker.newerRelease(currentVersion: "0.9.0", release: release("v0.9.0"))
+        #expect(outcome == nil)
     }
 
     /// A local build ahead of the last release must not be told to downgrade.
     @Test("A running version ahead of the latest release is up to date")
     func aheadIsUpToDate() throws {
-        let outcome = try UpdateChecker.availability(currentVersion: "0.10.0", release: release("v0.9.0"))
-        #expect(outcome == .upToDate)
+        let outcome = try UpdateChecker.newerRelease(currentVersion: "0.10.0", release: release("v0.9.0"))
+        #expect(outcome == nil)
     }
 
     @Test("A tag this code cannot rank is an error, not silence")
     func unrankableTagThrows() {
         #expect(throws: UpdateCheckError.unparsableVersion("nightly")) {
-            try UpdateChecker.availability(currentVersion: "0.9.0", release: release("nightly"))
+            try UpdateChecker.newerRelease(currentVersion: "0.9.0", release: release("nightly"))
         }
     }
 }

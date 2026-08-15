@@ -320,9 +320,6 @@ struct MenuBarContent: View {
                         Label("\(credentials.title)…", systemImage: "exclamationmark.triangle.fill")
                     }
                 }
-                // An update is good news, so it does not borrow the warning
-                // triangle the two items above use. It opens the release page;
-                // Scriber installs nothing itself.
                 if let update = runtime.preferences.availableUpdate {
                     Divider()
                     Button {

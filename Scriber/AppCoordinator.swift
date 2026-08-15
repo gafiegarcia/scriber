@@ -118,7 +118,11 @@ final class AppCoordinator: ObservableObject {
     private var checkedStoredAPIKeyThisLaunch = false
     private var isCheckingStoredAPIKey = false
     private var storedAPIKeyValidationTask: Task<Void, Never>?
-    private var updateCheckTask: Task<Void, Never>?
+    /// Separate from `preferences.lastUpdateCheck`, which records only a check
+    /// that got an answer. `startServices` runs again every time the menu bar
+    /// opens, so without an in-session stamp a failed check starts a new
+    /// twenty-second request each time.
+    private var lastUpdateAttempt: Date?
     private var credentialRevision = CredentialRevision()
     private var suppressPillForCurrentTranscription = false
     /// Whether setup is being walked a second time. `onboardingComplete` cannot
@@ -518,10 +522,9 @@ final class AppCoordinator: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
-    /// The anchor lands on Screen & System Audio Recording rather than the top
-    /// of Privacy & Security, which is several screens of scrolling away from
-    /// the row this is sent from. A macOS that does not recognise the anchor
-    /// opens the pane's root, so the worst case is the old behaviour.
+    /// The `Privacy_ScreenCapture` anchor is what lands on Screen & System Audio
+    /// Recording; without it the pane opens at the top of Privacy & Security,
+    /// several screens of scrolling from the row this is sent from.
     func openSystemAudioPrivacySettings() {
         guard let url = URL(
             string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_ScreenCapture"
@@ -702,39 +705,33 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    /// The running app's marketing version, which is what a release tag is
-    /// compared against.
-    static var runningVersion: String {
+    static let runningVersion =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
-    }
 
     /// `force` is the Check Now button: it ignores the once-a-day interval but
-    /// not the services gate, so a `--ui-testing` launch still reaches no
+    /// not the `servicesAllowed` gate, so a `--ui-testing` launch reaches no
     /// network from either path.
     func checkForUpdates(force: Bool = false) {
         guard servicesAllowed else { return }
         guard force || preferences.automaticUpdateChecks else { return }
-        guard force || UpdateChecker.isDue(lastCheck: preferences.lastUpdateCheck) else { return }
+        guard force || (UpdateChecker.isDue(lastCheck: preferences.lastUpdateCheck)
+            && UpdateChecker.isDue(lastCheck: lastUpdateAttempt)) else { return }
         guard !isCheckingForUpdates else { return }
 
         isCheckingForUpdates = true
-        updateCheckTask = Task { [weak self] in
+        lastUpdateAttempt = Date()
+        Task { [weak self] in
             guard let self else { return }
-            defer {
-                isCheckingForUpdates = false
-                updateCheckTask = nil
-            }
+            defer { isCheckingForUpdates = false }
             do {
-                let availability = try await updateChecker.check(currentVersion: Self.runningVersion)
-                guard !Task.isCancelled else { return }
-                // Recorded on success only. A failed check that stamped the date
-                // would put the next attempt a day away for a reason the user
-                // never saw.
+                let update = try await updateChecker.check(currentVersion: Self.runningVersion)
+                // Only a check that got an answer is persisted, so a run that
+                // has never reached GitHub can still say so rather than
+                // claiming to be current.
                 preferences.lastUpdateCheck = Date()
-                preferences.availableUpdate = availability.update
-                updateCheckError = nil
+                if preferences.availableUpdate != update { preferences.availableUpdate = update }
+                if updateCheckError != nil { updateCheckError = nil }
             } catch {
-                guard !Task.isCancelled else { return }
                 updateCheckError = "Could not reach GitHub to check for updates."
             }
         }

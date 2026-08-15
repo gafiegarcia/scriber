@@ -98,9 +98,9 @@ final class Preferences: ObservableObject {
         playRecordingFeedbackSounds = defaults.object(forKey: Keys.playRecordingFeedbackSounds) == nil
             ? true
             : defaults.bool(forKey: Keys.playRecordingFeedbackSounds)
-        // Off until asked for. Turning it on is what makes macOS demand System
-        // Audio Recording, and a default-on setting spends that prompt during a
-        // first dictation, for a feature the user never asked for.
+        // Off by default, unlike its neighbours above: turning it on is what
+        // makes macOS demand System Audio Recording, and an opt-out default
+        // would spend that prompt during a first dictation.
         muteOtherAudioWhileRecording = defaults.bool(forKey: Keys.muteOtherAudioWhileRecording)
         deletesExpiredRetainedAudio = defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil
             ? true
@@ -138,7 +138,14 @@ final class Preferences: ObservableObject {
         defaults.object(forKey: key) == nil ? true : defaults.bool(forKey: key)
     }
 
-    private func save<T: Encodable>(_ value: T, key: String) {
+    /// Takes an optional because several of these are one: `JSONEncoder` refuses
+    /// a top-level `nil`, so encoding it would leave the previous value in
+    /// `UserDefaults` and a cleared preference would come back on relaunch.
+    private func save<T: Encodable>(_ value: T?, key: String) {
+        guard let value else {
+            defaults.removeObject(forKey: key)
+            return
+        }
         if let data = try? encoder.encode(value) { defaults.set(data, forKey: key) }
     }
 

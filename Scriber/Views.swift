@@ -183,52 +183,53 @@ private struct SettingsSection<Content: View>: View {
     }
 }
 
-/// Turning muting on is what makes macOS demand System Audio Recording, a name
-/// that promises far more than Scriber does with it. Explaining the grant before
-/// the system asks — rather than leaving the user to interpret Apple's wording
-/// mid-dictation — is the whole reason the toggle defers.
+/// Wraps whatever renders the mute-other-audio setting, handing it a binding
+/// that asks before it turns on and carrying the dialog that does the asking.
 ///
-/// Shared because the toggle appears in both Settings and onboarding, and a
-/// permission explained two different ways is worse than one explained once.
-private enum MuteOtherAudioConsent {
-    static let title = "Mute other apps while you dictate?"
+/// One view rather than a binding helper plus a separate modifier: the two have
+/// to be applied together, and a call site that used only the binding would get
+/// a toggle that silently never turns on. The setting appears in both Settings
+/// and onboarding, and both go through here.
+private struct MuteOtherAudioConsent<Content: View>: View {
+    @Binding var isOn: Bool
+    @ViewBuilder let content: (Binding<Bool>) -> Content
 
-    static let message = """
+    @State private var isAsking = false
+
+    var body: some View {
+        content(guarded)
+            .confirmationDialog("Mute other apps while you dictate?", isPresented: $isAsking) {
+                Button("Turn On") { isOn = true }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(Self.message)
+            }
+    }
+
+    /// Turning it off passes straight through. Turning it on raises the dialog
+    /// instead, and the toggle stays where it was until that is answered.
+    private var guarded: Binding<Bool> {
+        Binding(
+            get: { isOn },
+            set: { turningOn in
+                guard turningOn else {
+                    isOn = false
+                    return
+                }
+                guard !isOn else { return }
+                isAsking = true
+            }
+        )
+    }
+
+    private static var message: String {
+        """
         macOS calls this permission “System Audio Recording”, which sounds broader than what it is for here. Quieting other apps is the only thing Scriber does with it: music, calls, and notification sounds stop while you speak, and every sample is handed straight back untouched — never inspected, recorded, or saved.
 
         macOS asks for it the first time you dictate after turning this on. Choose Allow.
 
         You can take it back later in System Settings → Privacy & Security → Screen & System Audio Recording. Scriber keeps working without it; only the muting stops.
         """
-
-    /// Turning it off passes straight through. Turning it on raises the dialog
-    /// instead, and the toggle stays where it was until that is answered.
-    static func binding(_ preference: Binding<Bool>, asking: Binding<Bool>) -> Binding<Bool> {
-        Binding(
-            get: { preference.wrappedValue },
-            set: { turningOn in
-                guard turningOn else {
-                    preference.wrappedValue = false
-                    return
-                }
-                guard !preference.wrappedValue else { return }
-                asking.wrappedValue = true
-            }
-        )
-    }
-}
-
-private struct MuteOtherAudioConsentDialog: ViewModifier {
-    @Binding var isPresented: Bool
-    @Binding var isOn: Bool
-
-    func body(content: Content) -> some View {
-        content.confirmationDialog(MuteOtherAudioConsent.title, isPresented: $isPresented) {
-            Button("Turn On") { isOn = true }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(MuteOtherAudioConsent.message)
-        }
     }
 }
 
@@ -568,32 +569,27 @@ private struct GeneralSettingsPane: View {
         }
     }
 
+    private var updateStatus: some View {
+        Text(updateStatusText)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("update-status")
+    }
+
     /// Never claims to be current on the strength of a check that has not
     /// happened: an install that has never reached GitHub says so.
-    @ViewBuilder
-    private var updateStatus: some View {
+    private var updateStatusText: String {
         let running = AppCoordinator.runningVersion
         if let error = runtime.coordinator.updateCheckError {
-            Text(error)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("update-status")
-        } else if let update = runtime.preferences.availableUpdate {
-            Text("Scriber \(update.version) is available. You have \(running).")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("update-status")
-        } else if runtime.preferences.lastUpdateCheck == nil {
-            Text("You have Scriber \(running). No check has run yet.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("update-status")
-        } else {
-            Text("Scriber \(running) is the latest version.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("update-status")
+            return error
         }
+        if let update = runtime.preferences.availableUpdate {
+            return "Scriber \(update.version) is available. You have \(running)."
+        }
+        if runtime.preferences.lastUpdateCheck == nil {
+            return "You have Scriber \(running). No check has run yet."
+        }
+        return "Scriber \(running) is the latest version."
     }
 }
 
@@ -818,7 +814,6 @@ private struct KeytermsCard: View {
 
 private struct SoundSettingsPane: View {
     @EnvironmentObject private var runtime: AppRuntime
-    @State private var askingToMuteOtherAudio = false
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-sound-pane") {
@@ -887,48 +882,40 @@ private struct SoundSettingsPane: View {
                 )
                 .accessibilityIdentifier("recording-feedback-sounds-toggle")
 
-                // The warning shares the row with the toggle it is about: it
-                // reports why muting is not working, which is no use sitting a
-                // divider away from the setting that asked for it.
-                VStack(alignment: .leading, spacing: 8) {
-                    SettingsToggle(
-                        "Mute other audio while recording",
-                        caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Needs System Audio Recording access, which macOS asks for the first time you dictate; Scriber never records or saves that audio.",
-                        isOn: MuteOtherAudioConsent.binding(
-                            $runtime.preferences.muteOtherAudioWhileRecording,
-                            asking: $askingToMuteOtherAudio
+                // The warning and the settings link share the row with the
+                // toggle they are about, rather than sitting a divider away
+                // from the setting that asked for them.
+                MuteOtherAudioConsent(isOn: $runtime.preferences.muteOtherAudioWhileRecording) { isOn in
+                    VStack(alignment: .leading, spacing: 8) {
+                        SettingsToggle(
+                            "Mute other audio while recording",
+                            caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Needs System Audio Recording access, which macOS asks for the first time you dictate; Scriber never records or saves that audio.",
+                            isOn: isOn
                         )
-                    )
-                    .accessibilityIdentifier("mute-other-audio-toggle")
-                    if let status = runtime.coordinator.otherAudioMuteStatus {
-                        Label(status.message, systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                            .accessibilityIdentifier("other-audio-mute-status")
-                    }
-                    // Reachable whenever muting is on, not only once it has
-                    // failed. Withdrawing the grant is something people do to a
-                    // feature that works, and they arrive with no failure to
-                    // route them anywhere.
-                    if runtime.preferences.muteOtherAudioWhileRecording
-                        || runtime.coordinator.otherAudioMuteStatus != nil {
-                        // A second caption rather than a button: this navigates
-                        // to a setting, it does not act on anything here, and a
-                        // bordered control reads as the latter.
-                        Button("Open Screen & System Audio Recording settings") {
-                            runtime.coordinator.openSystemAudioPrivacySettings()
+                        .accessibilityIdentifier("mute-other-audio-toggle")
+                        if let status = runtime.coordinator.otherAudioMuteStatus {
+                            Label(status.message, systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .accessibilityIdentifier("other-audio-mute-status")
                         }
-                        .buttonStyle(.link)
-                        .font(.caption)
-                        .accessibilityIdentifier("open-system-audio-privacy")
+                        // Reachable whenever muting is on, not only once it has
+                        // failed: withdrawing the grant is something people do
+                        // to a feature that works, and they arrive with no
+                        // failure to route them anywhere.
+                        if runtime.preferences.muteOtherAudioWhileRecording
+                            || runtime.coordinator.otherAudioMuteStatus != nil {
+                            Button("Open Screen & System Audio Recording settings") {
+                                runtime.coordinator.openSystemAudioPrivacySettings()
+                            }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                            .accessibilityIdentifier("open-system-audio-privacy")
+                        }
                     }
                 }
             }
         }
-        .modifier(MuteOtherAudioConsentDialog(
-            isPresented: $askingToMuteOtherAudio,
-            isOn: $runtime.preferences.muteOtherAudioWhileRecording
-        ))
     }
 }
 
@@ -1207,7 +1194,6 @@ struct OnboardingView: View {
     @State private var keyFeedback: KeySaveFeedback?
     @State private var isCheckingAPIKey = false
     @State private var error: String?
-    @State private var askingToMuteOtherAudio = false
     /// Held here rather than in `Preferences`, because nothing is registered
     /// until Finish Setup: the toggle is an intention until then, and afterwards
     /// the only honest answer is what macOS reports.
@@ -1223,10 +1209,6 @@ struct OnboardingView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(minWidth: 640, maxWidth: .infinity, maxHeight: .infinity)
-        .modifier(MuteOtherAudioConsentDialog(
-            isPresented: $askingToMuteOtherAudio,
-            isOn: $runtime.preferences.muteOtherAudioWhileRecording
-        ))
     }
 
     private var setupSteps: some View {
@@ -1356,13 +1338,9 @@ struct OnboardingView: View {
                 .padding(.vertical, 12)
             }
             VStack(alignment: .leading, spacing: 12) {
-                Toggle(
-                    "Mute other audio while recording",
-                    isOn: MuteOtherAudioConsent.binding(
-                        $runtime.preferences.muteOtherAudioWhileRecording,
-                        asking: $askingToMuteOtherAudio
-                    )
-                )
+                MuteOtherAudioConsent(isOn: $runtime.preferences.muteOtherAudioWhileRecording) { isOn in
+                    Toggle("Mute other audio while recording", isOn: isOn)
+                }
                 Text("Other apps continue playing silently while you dictate. macOS may ask for System Audio Recording access; Scriber never records or saves that audio.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

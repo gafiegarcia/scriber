@@ -62,9 +62,8 @@ public struct GitHubRelease: Decodable, Sendable {
     }
 }
 
-/// The offer, in the form it is stored in. A check runs at most once a day, so
-/// without persisting the answer a relaunch would drop the offer until the next
-/// one came due.
+/// The offer. Codable because a check runs at most once a day, and a relaunch
+/// would otherwise drop the offer until the next one came due.
 public struct AvailableUpdate: Codable, Equatable, Sendable {
     public let version: String
     public let url: URL
@@ -72,16 +71,6 @@ public struct AvailableUpdate: Codable, Equatable, Sendable {
     public init(version: String, url: URL) {
         self.version = version
         self.url = url
-    }
-}
-
-public enum UpdateAvailability: Equatable, Sendable {
-    case upToDate
-    case available(version: String, url: URL)
-
-    public var update: AvailableUpdate? {
-        guard case let .available(version, url) = self else { return nil }
-        return AvailableUpdate(version: version, url: url)
     }
 }
 
@@ -96,8 +85,6 @@ public struct UpdateChecker: Sendable {
         string: "https://api.github.com/repos/gafiegarcia/scriber/releases/latest"
     )!
 
-    /// A day. A dictation app that phoned home more often would be spending the
-    /// user's network on news that changes a handful of times a year.
     public static let checkInterval: TimeInterval = 60 * 60 * 24
 
     private let endpoint: URL
@@ -108,32 +95,27 @@ public struct UpdateChecker: Sendable {
         self.session = session
     }
 
-    /// True when no check has happened, or the last one has aged out.
     public static func isDue(lastCheck: Date?, now: Date = Date()) -> Bool {
         guard let lastCheck else { return true }
         return now.timeIntervalSince(lastCheck) >= checkInterval
     }
 
-    /// The whole decision, separated from the network so it can be tested.
-    ///
-    /// An unparsable *tag* is an error because it means the repository grew a
-    /// release this code cannot rank. An unparsable running version cannot be
-    /// recovered from either, and both resolve to leaving the user alone.
-    public static func availability(
+    /// `nil` when the running version is already the newest released one.
+    public static func newerRelease(
         currentVersion: String,
         release: GitHubRelease
-    ) throws -> UpdateAvailability {
+    ) throws -> AvailableUpdate? {
         guard let current = ReleaseVersion(currentVersion) else {
             throw UpdateCheckError.unparsableVersion(currentVersion)
         }
         guard let latest = ReleaseVersion(release.tagName) else {
             throw UpdateCheckError.unparsableVersion(release.tagName)
         }
-        guard current < latest else { return .upToDate }
-        return .available(version: latest.description, url: release.htmlURL)
+        guard current < latest else { return nil }
+        return AvailableUpdate(version: latest.description, url: release.htmlURL)
     }
 
-    public func check(currentVersion: String) async throws -> UpdateAvailability {
+    public func check(currentVersion: String) async throws -> AvailableUpdate? {
         var request = URLRequest(url: endpoint, timeoutInterval: 20)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         // GitHub refuses an anonymous request that does not name itself.
@@ -147,6 +129,6 @@ public struct UpdateChecker: Sendable {
             throw UpdateCheckError.server(status: http.statusCode)
         }
         let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
-        return try Self.availability(currentVersion: currentVersion, release: release)
+        return try Self.newerRelease(currentVersion: currentVersion, release: release)
     }
 }
