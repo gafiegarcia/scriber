@@ -115,6 +115,7 @@ Scriber checks GitHub once a day for a newer version and tells you in the menu b
 The app builds from the repository root: [`Scriber`](Scriber) is the app target, [`ScriberCore`](ScriberCore) the shared package with [`ScriberCoreTests`](ScriberCoreTests) beside it, and [`Branding`](Branding) the icon artwork. Everything written down lives in [`docs`](docs):
 
 - [Building](docs/BUILDING.md): prerequisites, signing, command-line builds, installing, and first launch.
+- [Releasing](docs/RELEASING.md): notarization, the disk image, and publishing a download.
 - [Product specification](docs/PRODUCT_SPEC.md): required behavior and durable product decisions.
 - [Roadmap](docs/ROADMAP.md): unbuilt work, grouped by target version.
 - [Paste engine](docs/PASTE_ENGINE.md): cross-app delivery design and its regression matrix.

@@ -129,4 +129,5 @@ The current delivery transaction and its regression baseline are defined in [`PA
 - Toolchain baseline: Xcode 27 beta with Swift 6.4 until a later explicit toolchain decision.
 - Supported target: Apple silicon and macOS 26 or later.
 - Release builds sign with a Developer ID Application certificate under the hardened runtime, carrying the audio-input entitlement and no provisioning profile. The certificate's private-key backup remains outside the repository. Every released build is notarized and stapled.
+- Scriber reports that a newer release exists and never installs one. Check at most once a day, on launch and on demand, and let the user switch the check off. Persist the answer: a check that runs daily would otherwise drop an offer every time the app restarts. Order versions numerically rather than as text, which ranks `0.10.0` below `0.9.0` and would silently stop offering updates. Surface an offer in the menu bar menu and in Settings, never in the menu bar icon, which reports configuration problems alone.
 - A real ElevenLabs smoke test is always explicit and opt-in.

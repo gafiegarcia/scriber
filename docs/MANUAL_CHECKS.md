@@ -51,6 +51,8 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - Install the downloaded disk image in a macOS account that has never run Scriber. Setup requests Microphone and Accessibility from scratch, the ElevenLabs key saves, and no warning claims the app cannot be opened or its developer cannot be verified. **Saving a key and dictating spends API credit; ask first.**
 - Open that download on a Mac running the oldest supported macOS, which has never had Xcode installed. This is the only check that exercises the deployment floor.
 - After the first launch of a build signed with a new certificate, confirm Microphone and Accessibility survive a restart. A changed signing identity is a different app to macOS, and a stale entry has to be removed and re-added rather than toggled.
+- Turn **Mute other audio while recording** on and confirm the explanation appears before the toggle moves, that cancelling leaves it off, and that the caption's link lands on Screen & System Audio Recording rather than the top of Privacy & Security. Then dictate with music playing.
+- With the release published, open Settings → General → Updates and choose **Check Now**. It reports the running version as current. This reaches GitHub but spends no API credit.
 
 ## When permissions or global-shortcut lifecycle change
 
