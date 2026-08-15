@@ -12,6 +12,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Changed
 
+- **Mute other audio while recording** is now off until you switch it on, and switching it on explains what macOS is about to ask for. The permission is called "System Audio Recording", which sounds far broader than what Scriber does with it — quieting other apps while you speak, handing every sample straight back untouched. It used to be on by default, so macOS asked for that permission in the middle of a first dictation with nothing to explain it. Your existing setting is unchanged.
 - Scriber now runs on **macOS 26 or later**, rather than requiring macOS 27. On macOS 26 the dictation pill keeps its glass appearance but does not respond to interaction, which is the only visible difference.
 - macOS asks for your login Keychain password once, rather than after every reinstall. The signature no longer changes between builds, so the permission you grant sticks.
 

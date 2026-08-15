@@ -98,9 +98,10 @@ final class Preferences: ObservableObject {
         playRecordingFeedbackSounds = defaults.object(forKey: Keys.playRecordingFeedbackSounds) == nil
             ? true
             : defaults.bool(forKey: Keys.playRecordingFeedbackSounds)
-        muteOtherAudioWhileRecording = defaults.object(forKey: Keys.muteOtherAudioWhileRecording) == nil
-            ? true
-            : defaults.bool(forKey: Keys.muteOtherAudioWhileRecording)
+        // Off until asked for. Turning it on is what makes macOS demand System
+        // Audio Recording, and a default-on setting spends that prompt during a
+        // first dictation, for a feature the user never asked for.
+        muteOtherAudioWhileRecording = defaults.bool(forKey: Keys.muteOtherAudioWhileRecording)
         deletesExpiredRetainedAudio = defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil
             ? true
             : defaults.bool(forKey: Keys.deletesExpiredRetainedAudio)
@@ -111,9 +112,6 @@ final class Preferences: ObservableObject {
         // Materialize opt-in defaults so upgrades and subsequent launches share one explicit value.
         if defaults.object(forKey: Keys.playRecordingFeedbackSounds) == nil {
             defaults.set(true, forKey: Keys.playRecordingFeedbackSounds)
-        }
-        if defaults.object(forKey: Keys.muteOtherAudioWhileRecording) == nil {
-            defaults.set(true, forKey: Keys.muteOtherAudioWhileRecording)
         }
         if defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil {
             defaults.set(true, forKey: Keys.deletesExpiredRetainedAudio)

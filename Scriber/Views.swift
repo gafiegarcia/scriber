@@ -183,6 +183,55 @@ private struct SettingsSection<Content: View>: View {
     }
 }
 
+/// Turning muting on is what makes macOS demand System Audio Recording, a name
+/// that promises far more than Scriber does with it. Explaining the grant before
+/// the system asks — rather than leaving the user to interpret Apple's wording
+/// mid-dictation — is the whole reason the toggle defers.
+///
+/// Shared because the toggle appears in both Settings and onboarding, and a
+/// permission explained two different ways is worse than one explained once.
+private enum MuteOtherAudioConsent {
+    static let title = "Mute other apps while you dictate?"
+
+    static let message = """
+        macOS calls this permission “System Audio Recording”, which sounds broader than what it is for here. Quieting other apps is the only thing Scriber does with it: music, calls, and notification sounds stop while you speak, and every sample is handed straight back untouched — never inspected, recorded, or saved.
+
+        macOS asks for it the first time you dictate after turning this on. Choose Allow.
+
+        You can take it back later in System Settings → Privacy & Security → Screen & System Audio Recording. Scriber keeps working without it; only the muting stops.
+        """
+
+    /// Turning it off passes straight through. Turning it on raises the dialog
+    /// instead, and the toggle stays where it was until that is answered.
+    static func binding(_ preference: Binding<Bool>, asking: Binding<Bool>) -> Binding<Bool> {
+        Binding(
+            get: { preference.wrappedValue },
+            set: { turningOn in
+                guard turningOn else {
+                    preference.wrappedValue = false
+                    return
+                }
+                guard !preference.wrappedValue else { return }
+                asking.wrappedValue = true
+            }
+        )
+    }
+}
+
+private struct MuteOtherAudioConsentDialog: ViewModifier {
+    @Binding var isPresented: Bool
+    @Binding var isOn: Bool
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(MuteOtherAudioConsent.title, isPresented: $isPresented) {
+            Button("Turn On") { isOn = true }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(MuteOtherAudioConsent.message)
+        }
+    }
+}
+
 /// A toggle and the sentence explaining it, in one row.
 ///
 /// A grouped form draws a divider between rows, so a caption written as its own
@@ -769,6 +818,7 @@ private struct KeytermsCard: View {
 
 private struct SoundSettingsPane: View {
     @EnvironmentObject private var runtime: AppRuntime
+    @State private var askingToMuteOtherAudio = false
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-sound-pane") {
@@ -844,7 +894,10 @@ private struct SoundSettingsPane: View {
                     SettingsToggle(
                         "Mute other audio while recording",
                         caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Needs System Audio Recording access, which macOS asks for the first time you dictate; Scriber never records or saves that audio.",
-                        isOn: $runtime.preferences.muteOtherAudioWhileRecording
+                        isOn: MuteOtherAudioConsent.binding(
+                            $runtime.preferences.muteOtherAudioWhileRecording,
+                            asking: $askingToMuteOtherAudio
+                        )
                     )
                     .accessibilityIdentifier("mute-other-audio-toggle")
                     if let status = runtime.coordinator.otherAudioMuteStatus {
@@ -860,6 +913,10 @@ private struct SoundSettingsPane: View {
                 }
             }
         }
+        .modifier(MuteOtherAudioConsentDialog(
+            isPresented: $askingToMuteOtherAudio,
+            isOn: $runtime.preferences.muteOtherAudioWhileRecording
+        ))
     }
 }
 
@@ -1138,6 +1195,7 @@ struct OnboardingView: View {
     @State private var keyFeedback: KeySaveFeedback?
     @State private var isCheckingAPIKey = false
     @State private var error: String?
+    @State private var askingToMuteOtherAudio = false
     /// Held here rather than in `Preferences`, because nothing is registered
     /// until Finish Setup: the toggle is an intention until then, and afterwards
     /// the only honest answer is what macOS reports.
@@ -1153,6 +1211,10 @@ struct OnboardingView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(minWidth: 640, maxWidth: .infinity, maxHeight: .infinity)
+        .modifier(MuteOtherAudioConsentDialog(
+            isPresented: $askingToMuteOtherAudio,
+            isOn: $runtime.preferences.muteOtherAudioWhileRecording
+        ))
     }
 
     private var setupSteps: some View {
@@ -1284,7 +1346,10 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle(
                     "Mute other audio while recording",
-                    isOn: $runtime.preferences.muteOtherAudioWhileRecording
+                    isOn: MuteOtherAudioConsent.binding(
+                        $runtime.preferences.muteOtherAudioWhileRecording,
+                        asking: $askingToMuteOtherAudio
+                    )
                 )
                 Text("Other apps continue playing silently while you dictate. macOS may ask for System Audio Recording access; Scriber never records or saves that audio.")
                     .font(.caption)
