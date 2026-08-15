@@ -7,6 +7,9 @@ Every tag on `main` ships a build, so do not tag until you intend to finish this
 ## Prerequisites
 
 - The **Developer ID Application** certificate for team `24U8BM54A3` in the login Keychain, with its private key. Nothing here works without it, and Apple cannot reissue the key.
+
+  It expires **1 Feb 2027**, capped by the legacy Apple intermediate that issued it; a certificate created through the developer portal on the G2 Sub-CA instead runs to 2031. Deliberately not taken: Gaf wants the renewal as a live exercise. Releases already notarized keep validating after expiry because they are timestamped, so what expiry actually stops is signing anything new. When it lapses, create a replacement, then pin `CODE_SIGN_IDENTITY` to its SHA-1 fingerprint in `Signing.xcconfig` — two certificates sharing one common name make selection by name ambiguous. Users keep their permissions across the change: the designated requirement matches on the team identifier, which does not change.
+
 - A notary credential profile in the Keychain. Create it once:
 
 ```bash
