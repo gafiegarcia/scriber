@@ -97,11 +97,7 @@ Only the three things step 7 produces can still be wrong after tagging, and none
 
 Merge to `main` fast-forward only and tag there, never on the branch. Then:
 
-Open the release notes with the requirements, then the changelog section. Someone who follows a link straight to the release page never sees the README, and the disk image gives them no warning until macOS refuses to open the app:
-
-```text
-Apple silicon, macOS 26 Tahoe or newer.
-```
+Take the release notes from the version's [changelog](../CHANGELOG.md) section, whose opening line names the build and the requirements. Keep that line: someone who follows a link straight to the release page never sees the README, and the disk image gives them no warning until macOS refuses to open the app.
 
 ```bash
 shasum -a 256 ".build/Scriber-$VERSION.dmg"
