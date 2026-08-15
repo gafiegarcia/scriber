@@ -85,7 +85,15 @@ hdiutil detach "$MNT" && rm -f /tmp/Scriber-quarantined.dmg
 
 Both must pass: `accepted` with `source=Notarized Developer ID`, and a valid ticket. `spctl --type exec` is the wrong assessment for an application bundle and reports that the code is valid but does not seem to be an app; do not use it here.
 
-## 6. Publish
+## 6. Verify the candidate on real hardware, before tagging
+
+Run the distribution checks in [Manual checks](MANUAL_CHECKS.md) against the disk image built above, while it is still only a file in `.build/`. Send it to a second macOS account and to a Mac on the oldest supported macOS by any route that marks it as downloaded; that flag, not a release URL, is what makes Gatekeeper assess it.
+
+Doing this after tagging instead is what turns one release into several. A tag on `main` ships, so a fault found afterwards costs a new version for a build nobody could install — while the same fault found here costs a rebuild and nothing else.
+
+Only the three things step 7 produces can still be wrong after tagging, and none of them needs a new version: a bad asset is replaced with `gh release upload --clobber`, wrong notes with `gh release edit`, and a wrong cask checksum in the tap repository alone.
+
+## 7. Publish
 
 Merge to `main` fast-forward only and tag there, never on the branch. Then:
 
@@ -101,7 +109,3 @@ gh release create "v$VERSION" ".build/Scriber-$VERSION.dmg" --title "v$VERSION" 
 ```
 
 Finally update `Casks/scriber.rb` in the [tap repository](https://github.com/gafiegarcia/homebrew-tap) with the new `version` and that `sha256`. The cask points at the release asset by version, so it breaks until this lands — do it in the same sitting.
-
-## Release gates
-
-Beyond the automated pass, a release is not finished until a human has confirmed on a machine that never had Xcode on it, and in a macOS account that has never run Scriber, that the download installs, requests its permissions, and dictates. See [Manual checks](MANUAL_CHECKS.md).
