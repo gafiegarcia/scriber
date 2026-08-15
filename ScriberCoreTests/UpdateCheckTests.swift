@@ -46,6 +46,42 @@ struct ReleaseVersionTests {
     }
 }
 
+/// Everything else here builds a `GitHubRelease` by hand, which cannot catch a
+/// wrong `CodingKeys` name. This is the shape the API actually returns, trimmed
+/// to the two fields Scriber reads plus enough of the rest to prove the others
+/// are ignored rather than fatal.
+@Suite("GitHub release payload")
+struct GitHubReleasePayloadTests {
+    private let payload = Data("""
+        {
+          "url": "https://api.github.com/repos/gafiegarcia/scriber/releases/1",
+          "html_url": "https://github.com/gafiegarcia/scriber/releases/tag/v0.9.0",
+          "id": 1,
+          "tag_name": "v0.9.0",
+          "name": "v0.9.0",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2026-08-15T00:00:00Z",
+          "assets": [{ "name": "Scriber-0.9.0.dmg", "size": 4194304 }],
+          "body": "Apple silicon, macOS 26 Tahoe or newer."
+        }
+        """.utf8)
+
+    @Test("The two fields Scriber reads survive a real payload")
+    func decodesRealPayload() throws {
+        let release = try JSONDecoder().decode(GitHubRelease.self, from: payload)
+        #expect(release.tagName == "v0.9.0")
+        #expect(release.htmlURL.absoluteString == "https://github.com/gafiegarcia/scriber/releases/tag/v0.9.0")
+    }
+
+    @Test("A decoded payload reaches the same answer as a hand-built one")
+    func decodedPayloadRanks() throws {
+        let release = try JSONDecoder().decode(GitHubRelease.self, from: payload)
+        #expect(try UpdateChecker.newerRelease(currentVersion: "0.8.8", release: release)?.version == "0.9.0")
+        #expect(try UpdateChecker.newerRelease(currentVersion: "0.9.0", release: release) == nil)
+    }
+}
+
 @Suite("Update availability")
 struct UpdateAvailabilityTests {
     private let releaseURL = URL(string: "https://github.com/gafiegarcia/scriber/releases/tag/v0.9.1")!
