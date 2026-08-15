@@ -518,8 +518,14 @@ final class AppCoordinator: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
+    /// The anchor lands on Screen & System Audio Recording rather than the top
+    /// of Privacy & Security, which is several screens of scrolling away from
+    /// the row this is sent from. A macOS that does not recognise the anchor
+    /// opens the pane's root, so the worst case is the old behaviour.
     func openSystemAudioPrivacySettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension") else { return }
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_ScreenCapture"
+        ) else { return }
         NSWorkspace.shared.open(url)
     }
 

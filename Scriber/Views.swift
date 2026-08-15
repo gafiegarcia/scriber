@@ -912,9 +912,13 @@ private struct SoundSettingsPane: View {
                     // route them anywhere.
                     if runtime.preferences.muteOtherAudioWhileRecording
                         || runtime.coordinator.otherAudioMuteStatus != nil {
-                        Button("Open Privacy & Security") {
+                        // A second caption rather than a button: this navigates
+                        // to a setting, it does not act on anything here, and a
+                        // bordered control reads as the latter.
+                        Button("Open Screen & System Audio Recording settings") {
                             runtime.coordinator.openSystemAudioPrivacySettings()
                         }
+                        .buttonStyle(.link)
                         .font(.caption)
                         .accessibilityIdentifier("open-system-audio-privacy")
                     }
