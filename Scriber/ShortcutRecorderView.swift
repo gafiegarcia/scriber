@@ -7,6 +7,11 @@ import ScriberCore
 struct ShortcutRecorderView: View {
     let title: String
     let identifier: String
+    /// Whether the row offers switching the shortcut off. Settings does, because
+    /// a user can want neither mode bound. Setup does not: its whole job is
+    /// making one shortcut work, and offering to disable it there is an answer
+    /// to a question nobody is being asked.
+    var showsEnableToggle = true
     @Binding var isEnabled: Bool
     @Binding var chord: ShortcutChord
     @Binding var activeRecorderID: String?
@@ -27,8 +32,12 @@ struct ShortcutRecorderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Toggle(title, isOn: $isEnabled)
-                    .disabled(!isEnabled && conflictingChord == chord)
+                if showsEnableToggle {
+                    Toggle(title, isOn: $isEnabled)
+                        .disabled(!isEnabled && conflictingChord == chord)
+                } else {
+                    Text(title)
+                }
                 Spacer()
                 Button(isRecording ? (liveChord?.displayName ?? "Press shortcut…") : chord.displayName) {
                     isRecording ? stopRecording() : startRecording()

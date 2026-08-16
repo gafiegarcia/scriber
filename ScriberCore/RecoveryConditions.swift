@@ -4,6 +4,7 @@ import Foundation
 /// own Settings destinations; this stays free of any window vocabulary so the
 /// policy below can be tested without one.
 public enum RecoveryConditionKind: Hashable, Sendable {
+    case setupUnfinished
     case permissions
     case apiKey
     case usage
@@ -49,14 +50,29 @@ public enum RecoveryConditions {
     ///
     /// Missing permissions outrank an unusable credential, matching the pill:
     /// without Microphone or Accessibility there is nothing for a working key to
-    /// do. Before onboarding finishes there are no conditions at all — setup is
-    /// where those states are being resolved.
+    /// do.
+    ///
+    /// Unfinished setup outranks both and replaces them, because setup is where
+    /// all of them get resolved and listing its parts separately would offer
+    /// three routes to one place. It reports at all because the setup window can
+    /// be closed with ⌘W: whoever does that has nothing granted and, without
+    /// this, nothing on screen saying why dictation does nothing.
     public static func current(
         onboardingComplete: Bool,
         permission: PermissionReadiness,
         credential: CredentialReadiness
     ) -> [RecoveryCondition] {
-        guard onboardingComplete else { return [] }
+        guard onboardingComplete else {
+            return [
+                RecoveryCondition(
+                    kind: .setupUnfinished,
+                    title: "Setup is not finished",
+                    message: "Scriber cannot dictate until setup is done. It takes a minute.",
+                    actionTitle: "Finish Setup",
+                    accessibilityIdentifier: "setup-unfinished-banner"
+                )
+            ]
+        }
         var conditions: [RecoveryCondition] = []
 
         if !permission.isReady {

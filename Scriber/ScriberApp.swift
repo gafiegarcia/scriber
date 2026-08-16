@@ -753,6 +753,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSSize(width: 640, height: max(420, visible.height - chrome - 24))
         )
         window.center()
+        // The main window is created alongside this one on a first run and, being
+        // created second, ends up in front of the one the user is supposed to be
+        // reading. Ordering happens here rather than at the open call because the
+        // window does not exist yet when setup asks for it.
+        window.makeKeyAndOrderFront(nil)
     }
 
     /// Known and unfixed: this polls for the startup window by title. Remove it

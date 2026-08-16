@@ -198,9 +198,10 @@ struct MainWindowView: View {
         .popover(isPresented: $showingRecovery, arrowEdge: .bottom) {
             RecoveryConditionsPopover(conditions: recoveryConditions) { condition in
                 showingRecovery = false
-                runtime.coordinator.openSettingsWindow(
-                    destination: condition.kind.settingsDestination
-                )
+                guard let destination = condition.kind.settingsDestination else {
+                    return openOnboardingIfNeeded()
+                }
+                runtime.coordinator.openSettingsWindow(destination: destination)
             }
         }
     }
@@ -248,8 +249,11 @@ struct MainWindowView: View {
 }
 
 extension RecoveryConditionKind {
-    var settingsDestination: MainWindowDestination {
+    /// `nil` for the one condition Settings cannot resolve: unfinished setup is
+    /// answered by setup, not by a pane.
+    var settingsDestination: MainWindowDestination? {
         switch self {
+        case .setupUnfinished: nil
         case .permissions: .permissions
         case .apiKey: .apiKey
         case .usage: .usage

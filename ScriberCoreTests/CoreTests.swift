@@ -1371,38 +1371,25 @@ struct ShortcutTapMachineTests {
     }
 }
 
-@Suite("Setup shortcut presets")
-struct ShortcutPresetTests {
-    /// Setup offers these without a recorder in front of them, so a refused one
-    /// would be a dead entry the user cannot diagnose.
-    @Test("Every offered preset is actually bindable")
-    func presetsAreBindable() {
-        for preset in ShortcutPreset.all {
-            #expect(ReservedShortcuts.refusal(for: preset.hold) == nil, "\(preset.name) hold: \(preset.hold.displayName)")
-            #expect(ReservedShortcuts.refusal(for: preset.toggle) == nil, "\(preset.name) toggle: \(preset.toggle.displayName)")
-            #expect(preset.hold != preset.toggle, "\(preset.name) binds one chord to both modes")
-        }
+@Suite("Setup shortcut suggestion")
+struct SuggestedShortcutTests {
+    /// Setup prints this as a suggestion, so a refused one would send the user
+    /// to record a chord the recorder then rejects.
+    @Test("The no-fn suggestion is bindable")
+    func suggestionIsBindable() {
+        #expect(ReservedShortcuts.refusal(for: SuggestedShortcuts.withoutFunctionKey) == nil)
     }
 
-    /// The whole reason the list exists: a keyboard with no fn key must have
-    /// something on it that can be pressed.
-    @Test("At least one preset needs no fn key")
-    func aPresetSurvivesWithoutFn() {
-        let withoutFunction = ShortcutPreset.all.filter { !$0.hold.usesFunctionKey && !$0.toggle.usesFunctionKey }
-        #expect(!withoutFunction.isEmpty)
+    /// The entire reason it is suggested.
+    @Test("The no-fn suggestion needs no fn key")
+    func suggestionAvoidsTheFunctionKey() {
+        #expect(!SuggestedShortcuts.withoutFunctionKey.usesFunctionKey)
     }
 
-    @Test("The first preset is what a fresh install already has")
-    func firstPresetMatchesTheDefault() throws {
-        let first = try #require(ShortcutPreset.all.first)
-        #expect(first.hold == .defaultHold)
-        #expect(first.toggle == .defaultToggle)
-    }
-
-    @Test("Presets are distinguishable by their hold chord")
-    func presetsAreDistinct() {
-        let holds = Set(ShortcutPreset.all.map(\.hold))
-        #expect(holds.count == ShortcutPreset.all.count)
+    @Test("It does not collide with the default it stands in for")
+    func suggestionDiffersFromTheDefault() {
+        #expect(SuggestedShortcuts.withoutFunctionKey != .defaultHold)
+        #expect(SuggestedShortcuts.withoutFunctionKey != .defaultToggle)
     }
 }
 

@@ -5,14 +5,32 @@ import Testing
 struct RecoveryConditionTests {
     private let blockedPermissions = PermissionReadiness(missingPermissions: [.microphone, .accessibility])
 
-    @Test("Nothing is wrong before onboarding finishes")
-    func silentDuringOnboarding() {
+    /// The setup window closes with ⌘W, so this state is reachable and has to
+    /// say something. It used to report nothing at all, which left an abandoned
+    /// setup looking like an app that simply did not work.
+    @Test("Unfinished setup is itself the one thing reported")
+    func unfinishedSetupIsReported() throws {
         let conditions = RecoveryConditions.current(
             onboardingComplete: false,
             permission: blockedPermissions,
             credential: .missingAPIKey
         )
-        #expect(conditions.isEmpty)
+        let only = try #require(conditions.first)
+        #expect(conditions.count == 1)
+        #expect(only.kind == .setupUnfinished)
+    }
+
+    /// Setup resolves permissions and the key on its way through, so listing
+    /// them beside it would offer three routes to the same window.
+    @Test("Unfinished setup hides the conditions it is going to fix")
+    func unfinishedSetupSubsumesTheRest() {
+        let conditions = RecoveryConditions.current(
+            onboardingComplete: false,
+            permission: blockedPermissions,
+            credential: .missingAPIKey
+        )
+        #expect(!conditions.contains { $0.kind == .permissions })
+        #expect(!conditions.contains { $0.kind == .apiKey })
     }
 
     @Test("A ready app reports no conditions")

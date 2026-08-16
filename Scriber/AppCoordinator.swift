@@ -497,21 +497,34 @@ final class AppCoordinator: ObservableObject {
         openAccessibilitySettings()
     }
 
+    /// Opens System Settings and brings it to the front.
+    ///
+    /// `NSWorkspace.open(_:)` alone leaves it behind whatever Scriber window
+    /// sent the user there, which for setup means the pane opens invisibly
+    /// underneath and the Allow button reads as broken. `activates` on the
+    /// configuration is what orders it front; hiding Scriber is not enough,
+    /// because a pane that was already open never redraws itself forward.
+    private static func openInSystemSettings(_ url: URL) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.open(url, configuration: configuration)
+    }
+
     private func openMicrophoneSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") else { return }
-        NSWorkspace.shared.open(url)
+        Self.openInSystemSettings(url)
     }
 
     private func openAccessibilitySettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
-        NSWorkspace.shared.open(url)
+        Self.openInSystemSettings(url)
     }
 
     /// The Login Items list, the only place a switched-off entry can be turned
     /// back on.
     func openLoginItemsSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") else { return }
-        NSWorkspace.shared.open(url)
+        Self.openInSystemSettings(url)
     }
 
     /// The macOS Sound settings, where the input volume lives. Scriber's own
@@ -519,7 +532,7 @@ final class AppCoordinator: ObservableObject {
     /// flat has to point somewhere the user can act.
     func openSystemSoundSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") else { return }
-        NSWorkspace.shared.open(url)
+        Self.openInSystemSettings(url)
     }
 
     /// The `Privacy_ScreenCapture` anchor is what lands on Screen & System Audio
@@ -529,7 +542,7 @@ final class AppCoordinator: ObservableObject {
         guard let url = URL(
             string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_ScreenCapture"
         ) else { return }
-        NSWorkspace.shared.open(url)
+        Self.openInSystemSettings(url)
     }
 
     func startMicrophoneTest() {

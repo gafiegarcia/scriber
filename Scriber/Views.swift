@@ -1195,10 +1195,9 @@ struct OnboardingView: View {
     @State private var isCheckingAPIKey = false
     @State private var error: String?
     @State private var activeShortcutRecorderID: String?
-    /// Which entry the picker shows. Derived from the stored chord on appear, so
-    /// a redo of setup opens on what the user actually has rather than resetting
-    /// them to `fn`.
-    @State private var shortcutPresetID = ShortcutPreset.all[0].id
+    /// Derived from the stored chord on appear, so a redo of setup opens on what
+    /// the user actually has rather than resetting them to `fn`.
+    @State private var usesCustomShortcut = false
     /// Whether the chosen shortcut has been pressed and seen. Setup cannot
     /// finish without it: on a keyboard with no fn key the default is
     /// unpressable, and nothing else in setup would ever say so.
@@ -1219,23 +1218,17 @@ struct OnboardingView: View {
         .scrollBounceBehavior(.basedOnSize)
         .frame(minWidth: 640, maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            shortcutPresetID = ShortcutPreset.matching(hold: runtime.preferences.holdShortcut)?.id
-                ?? Self.customPresetID
+            usesCustomShortcut = runtime.preferences.holdShortcut != .defaultHold
         }
-        .onChange(of: shortcutPresetID) { _, id in
-            guard let preset = ShortcutPreset.all.first(where: { $0.id == id }) else { return }
-            // Only when the hold chord actually moves. The same change fires when
-            // `onAppear` points the picker at what the user already has, and
-            // writing then would replace a Toggle they had chosen themselves with
-            // the one this preset happens to carry.
-            guard preset.hold != runtime.preferences.holdShortcut else { return }
-            runtime.preferences.holdShortcut = preset.hold
-            runtime.preferences.toggleShortcut = preset.toggle
+        .onChange(of: usesCustomShortcut) { _, isCustom in
+            // Choosing fn restores it; choosing Record leaves whatever is bound
+            // for the recorder to replace. Guarded because the same change fires
+            // when `onAppear` points the picker at what the user already has, and
+            // writing then would overwrite a chord they recorded earlier.
+            guard !isCustom, runtime.preferences.holdShortcut != .defaultHold else { return }
+            runtime.preferences.holdShortcut = .defaultHold
         }
     }
-
-    /// Not a preset, so it cannot collide with one's identifier.
-    static let customPresetID = "custom"
 
     private var setupSteps: some View {
         VStack(alignment: .leading, spacing: 22) {
@@ -1365,23 +1358,22 @@ struct OnboardingView: View {
             }
             GroupBox("4. Your Shortcut") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Hold it to dictate, and let go when you finish. Tap **\(runtime.preferences.toggleShortcut.displayName)** instead to keep recording hands-free.")
+                    Text("Hold it to dictate, and let go when you finish.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Picker("", selection: $shortcutPresetID) {
-                        ForEach(ShortcutPreset.all) { preset in
-                            Text(preset.name).tag(preset.id)
-                        }
-                        Text("Record my own…").tag(Self.customPresetID)
+                    Picker("", selection: $usesCustomShortcut) {
+                        Text("fn").tag(false)
+                        Text("Record my own…").tag(true)
                     }
                     .pickerStyle(.radioGroup)
                     .labelsHidden()
-                    .accessibilityIdentifier("setup-shortcut-preset")
+                    .accessibilityIdentifier("setup-shortcut-choice")
 
-                    if shortcutPresetID == Self.customPresetID {
+                    if usesCustomShortcut {
                         ShortcutRecorderView(
                             title: "Hold to Dictate",
                             identifier: "onboarding-hold",
+                            showsEnableToggle: false,
                             isEnabled: $runtime.preferences.holdShortcutEnabled,
                             chord: $runtime.preferences.holdShortcut,
                             activeRecorderID: $activeShortcutRecorderID,
@@ -1389,8 +1381,11 @@ struct OnboardingView: View {
                             isCaptureAllowed: true,
                             refusalResetToken: 0
                         )
-                    } else if let preset = ShortcutPreset.all.first(where: { $0.id == shortcutPresetID }) {
-                        Text(preset.reason)
+                        Text("No fn key on your keyboard? Most keyboards Apple did not make have none macOS can see. **\(SuggestedShortcuts.withoutFunctionKey.displayName)** held together works on any of them.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("macOS gives fn no other job, so it never clashes with the app you are typing in.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
