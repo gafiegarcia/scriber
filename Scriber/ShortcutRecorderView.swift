@@ -124,6 +124,69 @@ struct ShortcutRecorderView: View {
     }
 }
 
+/// Proves a chosen shortcut can actually be pressed on the keyboard in front of
+/// the user, which is the only way to know without identifying the hardware.
+///
+/// Listens only while armed. An always-listening local monitor swallows every
+/// key, and setup has a text field on the same page — the recorder above learned
+/// this the hard way.
+struct ShortcutTestField: View {
+    let target: ShortcutChord
+    @Binding var isConfirmed: Bool
+
+    @State private var monitor: Any?
+
+    private var isListening: Bool { monitor != nil }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if isConfirmed {
+                Label("\(target.displayName) works", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                    .accessibilityIdentifier("shortcut-test-confirmed")
+            } else {
+                Button(isListening ? "Press \(target.displayName) now…" : "Test \(target.displayName)") {
+                    isListening ? stop() : start()
+                }
+                .accessibilityIdentifier("shortcut-test-button")
+                Text(isListening
+                    ? "Waiting. Escape stops listening."
+                    : "Check it reaches Scriber before you finish setup.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onDisappear(perform: stop)
+        .onChange(of: target) { _, _ in
+            stop()
+            isConfirmed = false
+        }
+    }
+
+    private func start() {
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { event in
+            if event.type == .keyDown, event.keyCode == 53 {
+                stop()
+                return nil
+            }
+            let modifiers = KeyModifiers(event.modifierFlags)
+            let matched = target.keyCode == nil
+                ? event.type == .flagsChanged && modifiers == target.modifiers
+                : event.type == .keyDown && modifiers == target.modifiers && event.keyCode == target.keyCode
+            guard matched else { return nil }
+            isConfirmed = true
+            stop()
+            return nil
+        }
+    }
+
+    private func stop() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+    }
+}
+
 extension KeyModifiers {
     init(_ flags: NSEvent.ModifierFlags) {
         self = []

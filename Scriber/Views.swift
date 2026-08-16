@@ -1194,6 +1194,15 @@ struct OnboardingView: View {
     @State private var keyFeedback: KeySaveFeedback?
     @State private var isCheckingAPIKey = false
     @State private var error: String?
+    @State private var activeShortcutRecorderID: String?
+    /// Which entry the picker shows. Derived from the stored chord on appear, so
+    /// a redo of setup opens on what the user actually has rather than resetting
+    /// them to `fn`.
+    @State private var shortcutPresetID = ShortcutPreset.all[0].id
+    /// Whether the chosen shortcut has been pressed and seen. Setup cannot
+    /// finish without it: on a keyboard with no fn key the default is
+    /// unpressable, and nothing else in setup would ever say so.
+    @State private var shortcutConfirmed = false
     /// Held here rather than in `Preferences`, because nothing is registered
     /// until Finish Setup: the toggle is an intention until then, and afterwards
     /// the only honest answer is what macOS reports.
@@ -1209,7 +1218,19 @@ struct OnboardingView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(minWidth: 640, maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            shortcutPresetID = ShortcutPreset.matching(hold: runtime.preferences.holdShortcut)?.id
+                ?? Self.customPresetID
+        }
+        .onChange(of: shortcutPresetID) { _, id in
+            guard let preset = ShortcutPreset.all.first(where: { $0.id == id }) else { return }
+            runtime.preferences.holdShortcut = preset.hold
+            runtime.preferences.toggleShortcut = preset.toggle
+        }
     }
+
+    /// Not a preset, so it cannot collide with one's identifier.
+    static let customPresetID = "custom"
 
     private var setupSteps: some View {
         VStack(alignment: .leading, spacing: 22) {
@@ -1337,6 +1358,46 @@ struct OnboardingView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 12)
             }
+            GroupBox("4. Your Shortcut") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Hold it to dictate, and let go when you finish. Tap **\(runtime.preferences.toggleShortcut.displayName)** instead to keep recording hands-free.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Picker("", selection: $shortcutPresetID) {
+                        ForEach(ShortcutPreset.all) { preset in
+                            Text(preset.name).tag(preset.id)
+                        }
+                        Text("Record my own…").tag(Self.customPresetID)
+                    }
+                    .pickerStyle(.radioGroup)
+                    .labelsHidden()
+                    .accessibilityIdentifier("setup-shortcut-preset")
+
+                    if shortcutPresetID == Self.customPresetID {
+                        ShortcutRecorderView(
+                            title: "Hold to Dictate",
+                            identifier: "onboarding-hold",
+                            isEnabled: $runtime.preferences.holdShortcutEnabled,
+                            chord: $runtime.preferences.holdShortcut,
+                            activeRecorderID: $activeShortcutRecorderID,
+                            conflictingChord: runtime.preferences.toggleShortcut,
+                            isCaptureAllowed: true,
+                            refusalResetToken: 0
+                        )
+                    } else if let preset = ShortcutPreset.all.first(where: { $0.id == shortcutPresetID }) {
+                        Text(preset.reason)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    ShortcutTestField(
+                        target: runtime.preferences.holdShortcut,
+                        isConfirmed: $shortcutConfirmed
+                    )
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
+            }
             VStack(alignment: .leading, spacing: 12) {
                 MuteOtherAudioConsent(isOn: $runtime.preferences.muteOtherAudioWhileRecording) { isOn in
                     Toggle("Mute other audio while recording", isOn: isOn)
@@ -1345,9 +1406,6 @@ struct OnboardingView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Launch Scriber when I log in", isOn: $launchAtLogin)
-                Text("Defaults: Hold \(runtime.preferences.holdShortcut.displayName) · Toggle \(runtime.preferences.toggleShortcut.displayName)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 4)
             if let error {
@@ -1365,6 +1423,7 @@ struct OnboardingView: View {
                             || runtime.preferences.apiKeyValidity != .valid
                             || !runtime.coordinator.microphoneGranted
                             || !runtime.coordinator.accessibilityGranted
+                            || !shortcutConfirmed
                     )
             }
             .padding(.horizontal, 4)

@@ -1371,6 +1371,41 @@ struct ShortcutTapMachineTests {
     }
 }
 
+@Suite("Setup shortcut presets")
+struct ShortcutPresetTests {
+    /// Setup offers these without a recorder in front of them, so a refused one
+    /// would be a dead entry the user cannot diagnose.
+    @Test("Every offered preset is actually bindable")
+    func presetsAreBindable() {
+        for preset in ShortcutPreset.all {
+            #expect(ReservedShortcuts.refusal(for: preset.hold) == nil, "\(preset.name) hold: \(preset.hold.displayName)")
+            #expect(ReservedShortcuts.refusal(for: preset.toggle) == nil, "\(preset.name) toggle: \(preset.toggle.displayName)")
+            #expect(preset.hold != preset.toggle, "\(preset.name) binds one chord to both modes")
+        }
+    }
+
+    /// The whole reason the list exists: a keyboard with no fn key must have
+    /// something on it that can be pressed.
+    @Test("At least one preset needs no fn key")
+    func aPresetSurvivesWithoutFn() {
+        let withoutFunction = ShortcutPreset.all.filter { !$0.hold.usesFunctionKey && !$0.toggle.usesFunctionKey }
+        #expect(!withoutFunction.isEmpty)
+    }
+
+    @Test("The first preset is what a fresh install already has")
+    func firstPresetMatchesTheDefault() throws {
+        let first = try #require(ShortcutPreset.all.first)
+        #expect(first.hold == .defaultHold)
+        #expect(first.toggle == .defaultToggle)
+    }
+
+    @Test("Presets are distinguishable by their hold chord")
+    func presetsAreDistinct() {
+        let holds = Set(ShortcutPreset.all.map(\.hold))
+        #expect(holds.count == ShortcutPreset.all.count)
+    }
+}
+
 @Suite("Reserved shortcuts")
 struct ReservedShortcutsTests {
     private func chord(_ modifiers: KeyModifiers, _ key: String) -> ShortcutChord {

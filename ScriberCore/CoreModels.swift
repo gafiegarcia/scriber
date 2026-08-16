@@ -40,11 +40,70 @@ public struct ShortcutChord: Codable, Hashable, Sendable {
 
     public var isValid: Bool { !modifiers.isEmpty }
 
+    public var usesFunctionKey: Bool { modifiers.contains(.function) }
+
     public var displayName: String {
         let modifierText = modifiers.displayParts.joined(separator: modifiers == [.function] ? "" : "+")
         guard let keyCode else { return modifierText }
         let key = KeyCodeNames.name(for: keyCode)
         return modifierText.isEmpty ? key : "\(modifierText)+\(key)"
+    }
+}
+
+/// A named pair offered during setup, so choosing a shortcut is picking from a
+/// short list rather than inventing a chord.
+///
+/// Each carries the reason someone would want it. A list of bare chords tells a
+/// first-time user nothing about which to take, which is the failure worth
+/// avoiding here — the point is to show that free triggers exist, not to
+/// enumerate them.
+public struct ShortcutPreset: Identifiable, Equatable, Sendable {
+    public let id: String
+    public let name: String
+    public let reason: String
+    public let hold: ShortcutChord
+    public let toggle: ShortcutChord
+
+    public init(id: String, name: String, reason: String, hold: ShortcutChord, toggle: ShortcutChord) {
+        self.id = id
+        self.name = name
+        self.reason = reason
+        self.hold = hold
+        self.toggle = toggle
+    }
+
+    /// `fn` leads because it is the one key macOS gives no other job, so it
+    /// collides with nothing. The third exists because it has to: on most
+    /// non-Apple keyboards the Fn key is handled inside the keyboard's own
+    /// firmware and never reaches macOS at all, which leaves the first two
+    /// impossible to press rather than merely inconvenient.
+    public static let all: [ShortcutPreset] = [
+        ShortcutPreset(
+            id: "fn",
+            name: "fn",
+            reason: "Recommended. macOS gives fn no other job, so it never clashes with an app.",
+            hold: ShortcutChord(modifiers: [.function], keyCode: nil),
+            toggle: ShortcutChord(modifiers: [.function], keyCode: 49)
+        ),
+        ShortcutPreset(
+            id: "fn-control-option",
+            name: "fn+⌃+⌥",
+            reason: "If you already use fn for something else.",
+            hold: ShortcutChord(modifiers: [.function, .control, .option], keyCode: nil),
+            toggle: ShortcutChord(modifiers: [.function, .control, .option], keyCode: 49)
+        ),
+        ShortcutPreset(
+            id: "control-option",
+            name: "⌃+⌥",
+            reason: "For keyboards with no fn key, which is most keyboards Apple did not make.",
+            hold: ShortcutChord(modifiers: [.control, .option], keyCode: nil),
+            // Not ⌃⌥Space: macOS reserves it for switching input sources.
+            toggle: ShortcutChord(modifiers: [.control, .option], keyCode: 2)
+        ),
+    ]
+
+    public static func matching(hold: ShortcutChord) -> ShortcutPreset? {
+        all.first { $0.hold == hold }
     }
 }
 
