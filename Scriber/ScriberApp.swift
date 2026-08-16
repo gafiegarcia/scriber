@@ -88,11 +88,25 @@ enum AppLaunchConfiguration {
             && UserDefaults.standard.bool(forKey: "onboardingComplete")
     }
 
-    /// Whether SwiftUI should build and show the main window at launch. Onboarding
-    /// is not a case for suppressing it: setup is opened from the main window's
-    /// appearance, so a suppressed main window would take incomplete setup with it.
+    /// Whether this launch begins in setup.
+    ///
+    /// A `--ui-testing` launch never does: its throwaway defaults suite has no
+    /// `onboardingComplete`, which would otherwise start every automated run in
+    /// setup. `--show-onboarding` forces it either way.
     @MainActor
-    static var presentsMainWindowAtLaunch: Bool { !startsInBackground }
+    static var launchesIntoOnboarding: Bool {
+        if showsOnboarding { return true }
+        if isUITesting { return false }
+        return !UserDefaults.standard.bool(forKey: "onboardingComplete")
+    }
+
+    /// Whether SwiftUI should build and show the main window at launch.
+    ///
+    /// Suppressed during setup so the two do not stack, which left the main
+    /// window visible around the edges of a window the user cannot act on yet.
+    /// `finish()` opens it once setup is done.
+    @MainActor
+    static var presentsMainWindowAtLaunch: Bool { !startsInBackground && !launchesIntoOnboarding }
 
     static var permissionReadinessOverride: PermissionReadiness? {
         simulatesMissingPermissions
@@ -112,6 +126,10 @@ final class SceneOpeners {
     static let shared = SceneOpeners()
 
     var openMainWindow: (() -> Void)?
+    /// Setup is no longer opened by the main window appearing, because the main
+    /// window no longer appears during setup. This is how the launch poller asks
+    /// for it without one.
+    var openOnboardingWindow: (() -> Void)?
 }
 
 /// Carries `openWindow` out of SwiftUI, beside drawing the icon. A plain `Image`
@@ -125,7 +143,10 @@ private struct MenuBarLabel: View {
     var body: some View {
         Image(nsImage: image)
             .accessibilityLabel(accessibilityLabel)
-            .task { SceneOpeners.shared.openMainWindow = { openWindow(id: "main") } }
+            .task {
+                SceneOpeners.shared.openMainWindow = { openWindow(id: "main") }
+                SceneOpeners.shared.openOnboardingWindow = { openWindow(id: "onboarding") }
+            }
     }
 }
 
@@ -664,10 +685,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         Task { @MainActor [weak self] in
-            let onboardingComplete = !AppLaunchConfiguration.showsOnboarding
-                && (AppLaunchConfiguration.isUITesting
-                    || UserDefaults.standard.bool(forKey: "onboardingComplete"))
-            await self?.showInitialWindowWhenAvailable(onboardingComplete: onboardingComplete)
+            await self?.showInitialWindowWhenAvailable(
+                onboardingComplete: !AppLaunchConfiguration.launchesIntoOnboarding
+            )
         }
     }
 
@@ -776,8 +796,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // does not override it, so at login the window has to be requested.
             // Retried once in case the menu bar icon had not yet handed the action
             // over when the first attempt ran.
-            if title == AppWindowIdentity.mainTitle, attempt == 0 || attempt == 10 {
-                SceneOpeners.shared.openMainWindow?()
+            if attempt == 0 || attempt == 10 {
+                if title == AppWindowIdentity.mainTitle {
+                    SceneOpeners.shared.openMainWindow?()
+                } else {
+                    SceneOpeners.shared.openOnboardingWindow?()
+                }
             }
             if showWindow(titled: title) { return }
             try? await Task.sleep(for: .milliseconds(50))

@@ -62,6 +62,9 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - Record a custom shortcut, confirm it, and finish. The recorder still refuses a reserved chord and one already bound to hands-free, and the chord that reaches Settings afterwards is the one that was tested.
 - Start the test, then click into the API key field above it and type. Keys reach the field. A test that listens when it was not asked to swallows every key on the page.
 - Redo Setup with a hands-free shortcut you recorded yourself. The picker opens on the shortcut you already hold, and finishing leaves the hands-free binding as you set it.
+- Setup is the only window on a first run — no main window behind it or showing past its edges — and finishing opens the main window for the first time. Redo Setup is the opposite case and correct: the main window is already open there, and setup sits in front of it.
+- Close setup part-way with ⌘W. The menu bar carries **Finish Setup…** and reopens setup, which is the only route back with no main window to hold a warning. Quitting and reopening returns to setup rather than the main window.
+- Press **Allow** for Microphone and again for Accessibility. System Settings comes to the front each time, on the right pane, rather than opening behind setup.
 
 ## When permissions or global-shortcut lifecycle change
 

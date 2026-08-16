@@ -308,6 +308,15 @@ struct MenuBarContent: View {
         Group {
             Button("Open Scriber") { openMain(destination: .dictation) }
             Button("Settings") { openMain(destination: .settings) }
+            // The only surface left when setup is closed part-way: the main
+            // window is suppressed for the whole of setup, so the toolbar's
+            // warning control does not exist to carry this.
+            if !runtime.preferences.onboardingComplete {
+                Divider()
+                Button { openOnboarding() } label: {
+                    Label("Finish Setup…", systemImage: "exclamationmark.triangle.fill")
+                }
+            }
             if runtime.preferences.onboardingComplete {
                 if !runtime.coordinator.permissionReadiness.isReady {
                     Divider()
