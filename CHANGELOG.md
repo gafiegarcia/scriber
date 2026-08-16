@@ -10,6 +10,7 @@ Native bundle build 150, signed with a Developer ID Application certificate unde
 
 - **Scriber is now a download.** It is signed with an Apple Developer ID certificate and notarized by Apple, so you can install it from a disk image or with `brew install --cask gafiegarcia/tap/scriber` and open it without macOS refusing to run it. Building from source is no longer the only way in.
 - Scriber tells you when a newer version has been released. It asks GitHub once a day and, when there is one, adds an item to the menu bar that opens the release page. It never downloads or installs anything by itself, and the check can be switched off in Settings → General.
+- **Setup asks which shortcut you want, and makes you press it once before finishing.** It offers `fn`, `fn+⌃+⌥`, and `⌃+⌥` with a line on when each is the right pick, plus recording your own. Most keyboards Apple did not make have no `fn` key that macOS can see — the key is handled inside the keyboard itself and never reaches the Mac — so the old setup left those users pressing a shortcut that could never work, with nothing on screen to say so.
 - Setup and Settings now say where an ElevenLabs API key comes from, with links to create an account and to make a key, and name the Speech to Text access it needs. The key field used to be blank with nowhere to go.
 
 ### Changed
