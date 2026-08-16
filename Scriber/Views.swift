@@ -1381,7 +1381,7 @@ struct OnboardingView: View {
                             isCaptureAllowed: true,
                             refusalResetToken: 0
                         )
-                        Text("No fn key on your keyboard? Most keyboards Apple did not make have none macOS can see. **\(SuggestedShortcuts.withoutFunctionKey.displayName)** held together works on any of them.")
+                        Text("No fn key on your keyboard? **\(SuggestedShortcuts.withoutFunctionKey.displayName)** held together works on any keyboard.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
