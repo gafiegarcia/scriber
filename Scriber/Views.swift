@@ -1384,10 +1384,6 @@ struct OnboardingView: View {
                         Text("No fn key on your keyboard? **\(SuggestedShortcuts.withoutFunctionKey.displayName)** held together works on any keyboard.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                    } else {
-                        Text("macOS gives fn no other job, so it never clashes with the app you are typing in.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
 
                     ShortcutTestField(
