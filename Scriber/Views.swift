@@ -1224,6 +1224,11 @@ struct OnboardingView: View {
         }
         .onChange(of: shortcutPresetID) { _, id in
             guard let preset = ShortcutPreset.all.first(where: { $0.id == id }) else { return }
+            // Only when the hold chord actually moves. The same change fires when
+            // `onAppear` points the picker at what the user already has, and
+            // writing then would replace a Toggle they had chosen themselves with
+            // the one this preset happens to carry.
+            guard preset.hold != runtime.preferences.holdShortcut else { return }
             runtime.preferences.holdShortcut = preset.hold
             runtime.preferences.toggleShortcut = preset.toggle
         }
