@@ -55,6 +55,14 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - Turn **Mute other audio while recording** on and confirm the explanation appears before the toggle moves, that cancelling leaves it off, and that the caption's link lands on Screen & System Audio Recording rather than the top of Privacy & Security. Then dictate with music playing.
 - With the release published, open Settings → General → Updates and choose **Check Now**. It reports the running version as current. This reaches GitHub but spends no API credit.
 
+## When setup's shortcut step changes
+
+- Run setup on a keyboard with no `fn` key that macOS can see, which is most keyboards Apple did not make. Each of the first two choices refuses to confirm however hard the key is pressed, `⌃+⌥` confirms, and Finish Setup stays unavailable until one of them does. This is the case the step exists for and the only one that cannot be staged on Gaf's own machine.
+- Choose each option in turn and press the shortcut it names. Confirmation follows the choice rather than surviving it, so switching away from a confirmed shortcut disarms Finish Setup again.
+- Record a custom shortcut, confirm it, and finish. The recorder still refuses a reserved chord and one already bound to hands-free, and the chord that reaches Settings afterwards is the one that was tested.
+- Start the test, then click into the API key field above it and type. Keys reach the field. A test that listens when it was not asked to swallows every key on the page.
+- Redo Setup with a hands-free shortcut you recorded yourself. The picker opens on the shortcut you already hold, and finishing leaves the hands-free binding as you set it.
+
 ## When permissions or global-shortcut lifecycle change
 
 - Revoke Microphone and Accessibility, separately and together. The toolbar's warning control appears, its popover lists every unresolved condition at once — including a missing key alongside missing permissions — and the pill and Settings route both work. Restore both grants before finishing; every warning should then leave. **macOS forces Quit & Reopen whenever Microphone access changes**, so no-relaunch recovery is observable only for Accessibility.
