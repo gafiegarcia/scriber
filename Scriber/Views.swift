@@ -1395,6 +1395,10 @@ struct OnboardingView: View {
                         isConfirmed: $shortcutConfirmed
                     )
                 }
+                // Nothing in this step pushes outward the way the permission rows
+                // above it do, so without this it shrinks to its text and reads as
+                // a lesser card than the ones it sits with.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 12)
             }
