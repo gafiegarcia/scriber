@@ -83,26 +83,61 @@ final class OtherAudioMuteService: OtherAudioMuting {
         if let tapID { AudioHardwareDestroyProcessTap(tapID) }
     }
 
-    /// Raises the System Audio Recording prompt, by attempting the one thing
-    /// that needs it.
+    /// Raises the System Audio Recording prompt, by doing the one thing that
+    /// asks for it.
     ///
-    /// Core Audio ships no preflight for process taps — creating one is what
-    /// asks — so this creates a tap and destroys it again without ever driving
-    /// it, which mutes nothing. Deliberately outside the actor and touching no
-    /// stored state: macOS blocks the caller while its prompt is on screen, and
-    /// on the main thread that is a beachball.
+    /// Creating a tap is not the moment macOS checks — driving one is, which is
+    /// why the prompt used to land in the middle of a first dictation. So this
+    /// builds the same aggregate device and IOProc the real mute does and starts
+    /// it, then takes it all down. Its tap is `.unmuted`, so nothing anyone is
+    /// listening to goes quiet while the question is on screen.
+    ///
+    /// Deliberately outside the actor and touching no stored state: macOS blocks
+    /// its caller for as long as the prompt is up, and on the main thread that is
+    /// a beachball.
     nonisolated static func requestAccess() -> OSStatus {
         let description = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
         description.name = "Scriber audio access check"
         description.isPrivate = true
         description.muteBehavior = CATapMuteBehavior.unmuted
 
-        var probeTapID = AudioObjectID(kAudioObjectUnknown)
-        let status = AudioHardwareCreateProcessTap(description, &probeTapID)
-        if probeTapID != kAudioObjectUnknown {
-            AudioHardwareDestroyProcessTap(probeTapID)
+        var tapID = AudioObjectID(kAudioObjectUnknown)
+        let tapStatus = AudioHardwareCreateProcessTap(description, &tapID)
+        guard tapStatus == noErr, tapID != kAudioObjectUnknown else {
+            return tapStatus == noErr ? kAudioHardwareUnspecifiedError : tapStatus
         }
-        return status
+        defer { AudioHardwareDestroyProcessTap(tapID) }
+
+        let aggregateDescription: [String: Any] = [
+            kAudioAggregateDeviceNameKey: "Scriber audio access check",
+            kAudioAggregateDeviceUIDKey: "com.gafiegarcia.scriber.access.\(UUID().uuidString)",
+            kAudioAggregateDeviceIsPrivateKey: true,
+            kAudioAggregateDeviceTapAutoStartKey: true,
+            kAudioAggregateDeviceTapListKey: [[
+                kAudioSubTapUIDKey: description.uuid.uuidString,
+                kAudioSubTapDriftCompensationKey: false
+            ]]
+        ]
+        var aggregateID = AudioObjectID(kAudioObjectUnknown)
+        let aggregateStatus = AudioHardwareCreateAggregateDevice(
+            aggregateDescription as CFDictionary, &aggregateID
+        )
+        guard aggregateStatus == noErr, aggregateID != kAudioObjectUnknown else {
+            return aggregateStatus == noErr ? kAudioHardwareUnspecifiedError : aggregateStatus
+        }
+        defer { AudioHardwareDestroyAggregateDevice(aggregateID) }
+
+        var ioProcID: AudioDeviceIOProcID?
+        let ioProcStatus = AudioDeviceCreateIOProcID(aggregateID, discardAudioIOProc, nil, &ioProcID)
+        guard ioProcStatus == noErr, let ioProcID else {
+            return ioProcStatus == noErr ? kAudioHardwareUnspecifiedError : ioProcStatus
+        }
+        defer { AudioDeviceDestroyIOProcID(aggregateID, ioProcID) }
+
+        // The prompt happens here, and this does not return until it is answered.
+        let startStatus = AudioDeviceStart(aggregateID, ioProcID)
+        if startStatus == noErr { AudioDeviceStop(aggregateID, ioProcID) }
+        return startStatus
     }
 
     @discardableResult
