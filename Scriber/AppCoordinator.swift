@@ -1457,10 +1457,15 @@ final class AppCoordinator: ObservableObject {
         // has, rather than tearing one down and building another.
         pendingUnmute?.cancel()
         pendingUnmute = nil
-        switch otherAudioMuting.beginMuting() {
+        let outcome = otherAudioMuting.beginMuting()
+        // The Core Audio status, so a mute that quietly does nothing can be told
+        // from one that works. Nothing here reads or reports any audio.
+        switch outcome {
         case .muted, .alreadyMuted:
+            Self.permissionLog.info("mute: started outcome=\(String(describing: outcome), privacy: .public)")
             otherAudioMuteStatus = nil
-        case .unavailable:
+        case .unavailable(let status):
+            Self.permissionLog.error("mute: refused status=\(status, privacy: .public)")
             otherAudioMuteStatus = .unavailableToStart
         }
     }
