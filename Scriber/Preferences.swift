@@ -12,6 +12,7 @@ final class Preferences: ObservableObject {
         static let subscriptionUsage = "subscriptionUsage"
         static let apiCreditsExhausted = "apiCreditsExhausted"
         static let dictationShortcut = "dictationShortcut"
+        static let customShortcut = "customShortcut"
         /// Read once, to carry an install stored under an older key onto the
         /// dictation shortcut. Never written.
         static let legacyHoldShortcut = "holdShortcut"
@@ -40,6 +41,9 @@ final class Preferences: ObservableObject {
     @Published var subscriptionUsage: ElevenLabsSubscriptionUsage? { didSet { save(subscriptionUsage, key: Keys.subscriptionUsage) } }
     @Published var apiCreditsExhausted: Bool { didSet { defaults.set(apiCreditsExhausted, forKey: Keys.apiCreditsExhausted) } }
     @Published var dictationShortcut: ShortcutChord { didSet { save(dictationShortcut, key: Keys.dictationShortcut) } }
+    /// The last shortcut the user recorded, kept so switching to a preset and
+    /// back does not lose it.
+    @Published var customShortcut: ShortcutChord? { didSet { save(customShortcut, key: Keys.customShortcut) } }
     @Published var languageCode: String { didSet { defaults.set(languageCode, forKey: Keys.languageCode) } }
     @Published var noVerbatim: Bool { didSet { defaults.set(noVerbatim, forKey: Keys.noVerbatim) } }
     @Published var keyterms: [String] { didSet { save(keyterms, key: Keys.keyterms) } }
@@ -80,7 +84,12 @@ final class Preferences: ObservableObject {
         let storedDictation = Self.decode(ShortcutChord.self, key: Keys.dictationShortcut, defaults: defaults)
             ?? Self.decode(ShortcutChord.self, key: Keys.legacyHoldShortcut, defaults: defaults)
             ?? .defaultDictation
-        dictationShortcut = ShortcutPreferences.resolve(dictation: storedDictation)
+        let resolvedDictation = ShortcutPreferences.resolve(dictation: storedDictation)
+        dictationShortcut = resolvedDictation
+        // Anything already bound that is not one of the presets was recorded by
+        // hand, whether or not this key existed when it was.
+        customShortcut = Self.decode(ShortcutChord.self, key: Keys.customShortcut, defaults: defaults)
+            ?? (SuggestedShortcuts.offers.contains(resolvedDictation) ? nil : resolvedDictation)
         languageCode = defaults.string(forKey: Keys.languageCode) ?? "auto"
         noVerbatim = defaults.object(forKey: Keys.noVerbatim) == nil ? true : defaults.bool(forKey: Keys.noVerbatim)
         keyterms = Self.decode([String].self, key: Keys.keyterms, defaults: defaults) ?? []

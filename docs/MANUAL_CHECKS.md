@@ -59,6 +59,8 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - Turn **Mute other audio while recording** on and confirm the explanation appears before the toggle moves, that cancelling leaves it off, and that the caption's link lands on Screen & System Audio Recording rather than the top of Privacy & Security. Then dictate with music playing.
 - With the release published, open Settings → General → Updates and choose **Check Now**. It reports the running version as current. This reaches GitHub but spends no API credit.
 
+- Pick each preset in turn: the chosen one is tinted and the others are not, and the shortcut takes effect without any confirm step. Record a custom chord, switch to a preset, and switch back — the recorded chord is still offered as its own button.
+
 ## When setup's shortcut step changes
 
 - Run setup on a keyboard with no `fn` key that macOS can see, which is most keyboards Apple did not make. The `fn` choice refuses to confirm however hard the key is pressed, a recorded `⌃+⌥` confirms, and Finish Setup stays unavailable until one of them does. This is the case the step exists for and the only one that cannot be staged on Gaf's own machine.

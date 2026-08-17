@@ -425,12 +425,11 @@ private struct GeneralSettingsPane: View {
         SettingsPane(accessibilityIdentifier: "settings-general-pane") {
             SettingsSection(
                 "Shortcut",
-                footer: "Hold it to dictate while it is down. Tap it to dictate until you tap again. A shortcut can be modifier keys on their own, like fn or ⌃⌥. Press Escape while recording one to cancel."
+                footer: "Tap to dictate and tap again to stop. Hold and release for quick dictation. Cancel recording with Escape."
             ) {
-                ShortcutRecorderView(
-                    title: "Dictate",
-                    identifier: "dictation",
+                ShortcutPicker(
                     chord: $runtime.preferences.dictationShortcut,
+                    customChord: $runtime.preferences.customShortcut,
                     activeRecorderID: $activeShortcutRecorderID,
                     isCaptureAllowed: !runtime.coordinator.phase.isBusy,
                     refusalResetToken: refusalResetToken
@@ -1185,7 +1184,6 @@ struct OnboardingView: View {
     @State private var activeShortcutRecorderID: String?
     /// Derived from the stored chord on appear, so a redo of setup opens on what
     /// the user actually has rather than resetting them to `fn`.
-    @State private var usesCustomShortcut = false
     /// Whether the chosen shortcut has been pressed and seen. Setup cannot
     /// finish without it: on a keyboard with no fn key the default is
     /// unpressable, and nothing else in setup would ever say so.
@@ -1205,17 +1203,6 @@ struct OnboardingView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(minWidth: 640, maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            usesCustomShortcut = runtime.preferences.dictationShortcut != .defaultDictation
-        }
-        .onChange(of: usesCustomShortcut) { _, isCustom in
-            // Choosing fn restores it; choosing Record leaves whatever is bound
-            // for the recorder to replace. Guarded because the same change fires
-            // when `onAppear` points the picker at what the user already has, and
-            // writing then would overwrite a chord they recorded earlier.
-            guard !isCustom, runtime.preferences.dictationShortcut != .defaultDictation else { return }
-            runtime.preferences.dictationShortcut = .defaultDictation
-        }
     }
 
     private var setupSteps: some View {
@@ -1349,27 +1336,13 @@ struct OnboardingView: View {
                     Text("Hold it to dictate and let go when you finish, or tap it and tap again when you finish.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Picker("", selection: $usesCustomShortcut) {
-                        Text("fn").tag(false)
-                        Text("Record my own…").tag(true)
-                    }
-                    .pickerStyle(.radioGroup)
-                    .labelsHidden()
-                    .accessibilityIdentifier("setup-shortcut-choice")
-
-                    if usesCustomShortcut {
-                        ShortcutRecorderView(
-                            title: "Dictate",
-                            identifier: "onboarding-dictation",
-                            chord: $runtime.preferences.dictationShortcut,
-                            activeRecorderID: $activeShortcutRecorderID,
-                            isCaptureAllowed: true,
-                            refusalResetToken: 0
-                        )
-                        Text("No fn key on your keyboard? **\(SuggestedShortcuts.withoutFunctionKey.displayName)** held together works on any keyboard.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    ShortcutPicker(
+                        chord: $runtime.preferences.dictationShortcut,
+                        customChord: $runtime.preferences.customShortcut,
+                        activeRecorderID: $activeShortcutRecorderID,
+                        isCaptureAllowed: true,
+                        refusalResetToken: 0
+                    )
 
                     ShortcutTestField(
                         target: runtime.preferences.dictationShortcut,

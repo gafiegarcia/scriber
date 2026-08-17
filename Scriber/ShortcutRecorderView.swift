@@ -4,8 +4,71 @@ import SwiftUI
 import ScriberCore
 #endif
 
-struct ShortcutRecorderView: View {
-    let title: String
+/// The dictation shortcut, as presets and one recorded alternative.
+///
+/// Presets and the recorded chord are one choice, not two, so they share a row
+/// group with no divider between them: a divider here would read as two
+/// unrelated settings rather than one shortcut with several ways to name it.
+struct ShortcutPicker: View {
+    @Binding var chord: ShortcutChord
+    @Binding var customChord: ShortcutChord?
+    @Binding var activeRecorderID: String?
+    let isCaptureAllowed: Bool
+    let refusalResetToken: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            row("Preset") {
+                ForEach(SuggestedShortcuts.offers, id: \.self) { preset in
+                    choice(preset)
+                }
+            }
+            row("Custom") {
+                if let customChord { choice(customChord) }
+                ShortcutRecorderButton(
+                    identifier: "dictation",
+                    chord: Binding(
+                        get: { customChord ?? chord },
+                        set: { recorded in
+                            customChord = recorded
+                            chord = recorded
+                        }
+                    ),
+                    activeRecorderID: $activeRecorderID,
+                    isCaptureAllowed: isCaptureAllowed,
+                    refusalResetToken: refusalResetToken
+                )
+            }
+        }
+    }
+
+    private func row(
+        _ label: String,
+        @ViewBuilder controls: () -> some View
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 54, alignment: .leading)
+            controls()
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Selecting is the whole interaction: there is no confirm step, because the
+    /// shortcut itself is the confirmation.
+    private func choice(_ candidate: ShortcutChord) -> some View {
+        Button(candidate.displayName) { chord = candidate }
+            .buttonStyle(.bordered)
+            .tint(candidate == chord ? .accentColor : nil)
+            .accessibilityIdentifier("shortcut-choice-\(candidate.displayName)")
+            .accessibilityAddTraits(candidate == chord ? [.isSelected] : [])
+    }
+}
+
+/// Records a new chord. Shows what is being held while it listens, and the
+/// reason a chord was refused until the next attempt.
+struct ShortcutRecorderButton: View {
     let identifier: String
     @Binding var chord: ShortcutChord
     @Binding var activeRecorderID: String?
@@ -25,16 +88,17 @@ struct ShortcutRecorderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Text(title)
-                Spacer()
-                Button(isRecording ? (liveChord?.displayName ?? "Press shortcut…") : chord.displayName) {
-                    isRecording ? stopRecording() : startRecording()
-                }
-                .frame(minWidth: 130)
-                .disabled(!isCaptureAllowed || (activeRecorderID != nil && !isRecording))
+            Button(isRecording ? (liveChord?.displayName ?? "Press shortcut…") : "Record…") {
+                isRecording ? stopRecording() : startRecording()
             }
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
+            .disabled(!isCaptureAllowed || (activeRecorderID != nil && !isRecording))
+            .accessibilityIdentifier("shortcut-record-\(identifier)")
+            if let error {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .onDisappear { stopRecording() }
         .onChange(of: activeRecorderID) { _, activeRecorderID in
@@ -114,16 +178,11 @@ struct ShortcutRecorderView: View {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
         modifierCapture.reset()
+        heldKeys.reset()
         liveChord = nil
     }
 }
 
-/// Proves a chosen shortcut can actually be pressed on the keyboard in front of
-/// the user, which is the only way to know without identifying the hardware.
-///
-/// Listens only while armed. An always-listening local monitor swallows every
-/// key, and setup has a text field on the same page — the recorder above learned
-/// this the hard way.
 struct ShortcutTestField: View {
     let target: ShortcutChord
     @Binding var isConfirmed: Bool
