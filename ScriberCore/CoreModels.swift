@@ -26,13 +26,44 @@ public struct KeyModifiers: OptionSet, Codable, Hashable, Sendable {
     }
 }
 
+public enum ModifierSide: String, Codable, Hashable, Sendable {
+    case left
+    case right
+}
+
+/// Which physical key carries a modifier. `NSEvent.modifierFlags` and
+/// `CGEventFlags` both report that Option is down and neither reports which
+/// Option, so the side is only readable from the key code on the event that
+/// changed the flags.
+public enum ModifierKeyCodes {
+    public static let sides: [UInt16: (modifier: KeyModifiers, side: ModifierSide)] = [
+        55: (.command, .left), 54: (.command, .right),
+        58: (.option, .left), 61: (.option, .right),
+        59: (.control, .left), 62: (.control, .right),
+        56: (.shift, .left), 60: (.shift, .right),
+    ]
+
+    public static func code(for modifier: KeyModifiers, side: ModifierSide) -> UInt16? {
+        sides.first { $0.value.modifier == modifier && $0.value.side == side }?.key
+    }
+}
+
 public struct ShortcutChord: Codable, Hashable, Sendable {
     public var modifiers: KeyModifiers
     public var keyCode: UInt16?
+    /// Which of a modifier's two keys this is bound to, or nil for either.
+    ///
+    /// Only meaningful for a single modifier held alone: with a second modifier
+    /// or a key in the chord there is nothing to disambiguate, since the user
+    /// may reach for either side of each.
+    public var modifierSide: ModifierSide?
 
-    public init(modifiers: KeyModifiers, keyCode: UInt16?) {
+    public init(modifiers: KeyModifiers, keyCode: UInt16?, modifierSide: ModifierSide? = nil) {
         self.modifiers = modifiers
         self.keyCode = keyCode
+        self.modifierSide = keyCode == nil && modifiers.rawValue.nonzeroBitCount == 1
+            ? modifierSide
+            : nil
     }
 
     public static let defaultDictation = ShortcutChord(modifiers: [.function], keyCode: nil)
@@ -41,8 +72,18 @@ public struct ShortcutChord: Codable, Hashable, Sendable {
 
     public var usesFunctionKey: Bool { modifiers.contains(.function) }
 
+    /// The one physical key that may satisfy this chord, or nil when either side
+    /// will do.
+    public var requiredPhysicalKeyCode: UInt16? {
+        guard let modifierSide else { return nil }
+        return ModifierKeyCodes.code(for: modifiers, side: modifierSide)
+    }
+
     public var displayName: String {
         let modifierText = modifiers.displayParts.joined(separator: modifiers == [.function] ? "" : "+")
+        if let modifierSide, keyCode == nil {
+            return "\(modifierSide == .right ? "Right" : "Left") \(modifierText)"
+        }
         guard let keyCode else { return modifierText }
         let key = KeyCodeNames.name(for: keyCode)
         return modifierText.isEmpty ? key : "\(modifierText)+\(key)"
@@ -55,6 +96,10 @@ public struct ShortcutChord: Codable, Hashable, Sendable {
 /// is the hint shown once recording is the path taken. Two modifiers because
 /// `ReservedShortcuts` refuses a lone one.
 public enum SuggestedShortcuts {
+    /// What setup offers, in order. Every one of them is a key held on its own,
+    /// which is the whole point: nothing to learn and nothing to clash with.
+    public static let offers = ReservedShortcuts.bindableAlone
+
     public static let withoutFunctionKey = ShortcutChord(modifiers: [.control, .option], keyCode: nil)
 }
 
@@ -62,16 +107,29 @@ public enum SuggestedShortcuts {
 /// its modifiers are released one at a time.
 public struct ModifierChordCaptureState: Equatable, Sendable {
     public private(set) var peakModifiers: KeyModifiers = []
+    /// The key that set the peak, which is the only place a modifier's side is
+    /// readable. Meaningless unless the peak is one modifier.
+    private var peakKeyCode: UInt16?
 
     public init() {}
+
+    /// What would be committed if a key were released now.
+    public var peakChord: ShortcutChord {
+        ShortcutChord(
+            modifiers: peakModifiers,
+            keyCode: nil,
+            modifierSide: peakKeyCode.flatMap { ModifierKeyCodes.sides[$0]?.side }
+        )
+    }
 
     /// Records a simultaneous modifier snapshot. Equal-sized snapshots retain
     /// the first observed chord rather than combining keys that were never
     /// held together.
-    public mutating func observe(_ modifiers: KeyModifiers) {
+    public mutating func observe(_ modifiers: KeyModifiers, physicalKeyCode: UInt16? = nil) {
         guard !modifiers.isEmpty else { return }
         guard modifiers.rawValue.nonzeroBitCount > peakModifiers.rawValue.nonzeroBitCount else { return }
         peakModifiers = modifiers
+        peakKeyCode = physicalKeyCode
     }
 
     /// Returns the peak modifier-only chord as soon as the **first** modifier is
@@ -98,11 +156,12 @@ public struct ModifierChordCaptureState: Equatable, Sendable {
         // superset is still building up.
         guard currentModifiers.isStrictSubset(of: peakModifiers) else { return nil }
         defer { reset() }
-        return ShortcutChord(modifiers: peakModifiers, keyCode: nil)
+        return peakChord
     }
 
     public mutating func reset() {
         peakModifiers = []
+        peakKeyCode = nil
     }
 }
 
@@ -775,8 +834,16 @@ public struct ShortcutMatcher: Sendable {
         self.dictation = dictation
     }
 
-    public func matches(modifiers: KeyModifiers, keyCode: UInt16?) -> Bool {
-        dictation.modifiers == modifiers && dictation.keyCode == keyCode
+    /// `physicalKeyCode` is the key that changed the flags, which is the only
+    /// place a modifier's side appears. Ignored unless the chord asks for a side.
+    public func matches(
+        modifiers: KeyModifiers,
+        keyCode: UInt16?,
+        physicalKeyCode: UInt16? = nil
+    ) -> Bool {
+        guard dictation.modifiers == modifiers, dictation.keyCode == keyCode else { return false }
+        guard let required = dictation.requiredPhysicalKeyCode else { return true }
+        return physicalKeyCode == required
     }
 }
 
@@ -852,6 +919,9 @@ public struct ShortcutTapMachine: Sendable {
     private var isConfigurationCaptureActive = false
     /// When the latched press happened, so the release can tell a tap from a hold.
     private var pressedAt: TimeInterval?
+    /// The physical modifier key that latched a sided chord. Its twin keeps the
+    /// flag set while it is held, so only this key coming back up is the release.
+    private var latchedPhysicalKeyCode: UInt16?
     private var suppressedKeyCodes = Set<UInt16>()
     /// Whether the Escape press that began a run of repeats was consumed, so the
     /// repeats agree with it without asking again or cancelling a second time.
@@ -894,6 +964,7 @@ public struct ShortcutTapMachine: Sendable {
     private mutating func resetLatches() {
         holdLatched = false
         pressedAt = nil
+        latchedPhysicalKeyCode = nil
     }
 
     /// Which release the press earned, given how long it stayed down.
@@ -964,9 +1035,10 @@ public struct ShortcutTapMachine: Sendable {
 
     private mutating func handleFlagsChanged(_ input: ShortcutTapInput) -> ShortcutTapOutcome {
         if !holdLatched, matcher.dictation.keyCode == nil,
-           matcher.matches(modifiers: input.modifiers, keyCode: nil) {
+           matcher.matches(modifiers: input.modifiers, keyCode: nil, physicalKeyCode: input.keyCode) {
             holdLatched = true
             pressedAt = input.timestamp
+            latchedPhysicalKeyCode = matcher.dictation.requiredPhysicalKeyCode
             return ShortcutTapOutcome(suppressesEvent: false, effects: [.action(.pressed)])
         }
 
@@ -975,7 +1047,12 @@ public struct ShortcutTapMachine: Sendable {
         // that window used to be dropped on the `.idle` branch — leaving a
         // recording running that nothing was going to stop. A keyed chord releases
         // here too, when one of its modifiers goes up before its key does.
-        if holdLatched, !matcher.dictation.modifiers.isSubset(of: input.modifiers) {
+        // A sided chord is released by its own key coming back up, not by the
+        // flag clearing: the twin held down keeps that flag set, which would
+        // otherwise leave a recording nothing stops.
+        let released = latchedPhysicalKeyCode.map { $0 == input.keyCode }
+            ?? !matcher.dictation.modifiers.isSubset(of: input.modifiers)
+        if holdLatched, released {
             let action = release(at: input.timestamp)
             resetLatches()
             return ShortcutTapOutcome(suppressesEvent: false, effects: [.action(action)])
@@ -994,20 +1071,36 @@ public struct ShortcutTapMachine: Sendable {
 /// what it matches, system-wide. A shortcut bound to ⌘C does not merely conflict
 /// with copy, it replaces copy in every application on the Mac.
 public enum ReservedShortcuts {
+    /// Every key that may be bound held on its own, best first.
+    ///
+    /// Shift alone is how every capital is typed, and Control, Option, and
+    /// Command are each held as the first half of most shortcuts on the system —
+    /// but with the left hand. Nothing starts a shortcut with the right-hand
+    /// twin, which is what makes those two safe and what makes them the closest
+    /// thing to `fn` on a keyboard that has no `fn` macOS can see. `fn` itself
+    /// leads: macOS gives it no role beyond the function keys.
+    public static let bindableAlone: [ShortcutChord] = [
+        .defaultDictation,
+        ShortcutChord(modifiers: [.command], keyCode: nil, modifierSide: .right),
+        ShortcutChord(modifiers: [.option], keyCode: nil, modifierSide: .right),
+    ]
+
     /// Why this chord cannot be bound, or nil when it can.
     public static func refusal(for chord: ShortcutChord) -> String? {
         // One modifier held alone, before the Command rule below, so a bare ⌘ is
-        // refused for the reason that actually applies to it. Shift on its own is
-        // how every capital letter is typed, and Control, Option, and Command are
-        // each held as the first half of most other shortcuts on the system.
-        // `fn` is the exception and Scriber's own default: macOS gives it no role
-        // beyond the function keys, so holding it alone means nothing else.
+        // refused for the reason that actually applies to it.
         if chord.keyCode == nil,
            chord.modifiers.rawValue.nonzeroBitCount == 1,
-           chord.modifiers != [.function] {
+           !bindableAlone.contains(chord) {
+            let rightTwin = ShortcutChord(modifiers: chord.modifiers, keyCode: nil, modifierSide: .right)
+            if bindableAlone.contains(rightTwin) {
+                return "\(chord.displayName) on its own starts most shortcuts on the Mac. Press the one on the right instead, or add a key."
+            }
             return "\(chord.displayName) on its own is held as part of other shortcuts. Add a key, or another modifier."
         }
-        if chord.modifiers == [.command] {
+        // Only with a key: ⌘ held on its own is answered above, where the side
+        // decides, and this rule is about what ⌘ plus a letter already means.
+        if chord.keyCode != nil, chord.modifiers == [.command] {
             return "⌘ with a single key belongs to whatever app you are typing in. Add another modifier."
         }
         if systemChords.contains(normalized(chord)) {

@@ -1385,6 +1385,130 @@ struct ShortcutTapMachineTests {
     }
 }
 
+@Suite("Sided modifiers")
+struct SidedModifierTests {
+    private let rightOption = ShortcutChord(modifiers: [.option], keyCode: nil, modifierSide: .right)
+
+    /// The flags say Option is down and never which Option, so the side has to
+    /// come from the key that changed them.
+    @Test("A sided chord answers only to its own key")
+    func onlyItsOwnKey() {
+        let matcher = ShortcutMatcher(dictation: rightOption)
+        #expect(matcher.matches(modifiers: [.option], keyCode: nil, physicalKeyCode: 61))
+        #expect(!matcher.matches(modifiers: [.option], keyCode: nil, physicalKeyCode: 58))
+    }
+
+    @Test("A chord with no side still answers to either key")
+    func sidelessTakesBoth() {
+        let matcher = ShortcutMatcher(dictation: ShortcutChord(modifiers: [.control, .option], keyCode: nil))
+        #expect(matcher.matches(modifiers: [.control, .option], keyCode: nil, physicalKeyCode: 58))
+        #expect(matcher.matches(modifiers: [.control, .option], keyCode: nil, physicalKeyCode: 61))
+    }
+
+    /// A side means nothing once there is a second modifier or a key: the user
+    /// may reach for either side of each.
+    @Test("A side is only kept on a single modifier held alone")
+    func sideIsDroppedWhereItCannotMean() {
+        #expect(ShortcutChord(modifiers: [.option], keyCode: nil, modifierSide: .right).modifierSide == .right)
+        #expect(ShortcutChord(modifiers: [.control, .option], keyCode: nil, modifierSide: .right).modifierSide == nil)
+        #expect(ShortcutChord(modifiers: [.option], keyCode: 2, modifierSide: .right).modifierSide == nil)
+    }
+
+    @Test("Right Command and Right Option are bindable alone; their left twins are not")
+    func onlyTheRightTwinsAreFree() {
+        for modifier in [KeyModifiers.command, .option] {
+            let right = ShortcutChord(modifiers: modifier, keyCode: nil, modifierSide: .right)
+            let left = ShortcutChord(modifiers: modifier, keyCode: nil, modifierSide: .left)
+            #expect(ReservedShortcuts.refusal(for: right) == nil)
+            #expect(ReservedShortcuts.reserves(left))
+        }
+        // Shift is how every capital is typed and Control still opens shortcuts,
+        // so neither is free on either side.
+        for modifier in [KeyModifiers.shift, .control] {
+            let right = ShortcutChord(modifiers: modifier, keyCode: nil, modifierSide: .right)
+            #expect(ReservedShortcuts.reserves(right))
+        }
+    }
+
+    /// Refusing a lone left modifier is the one moment someone learns the right
+    /// one is available, so the reason has to say so.
+    @Test("Refusing a left twin points at the right one")
+    func refusalNamesTheAlternative() {
+        let left = ShortcutChord(modifiers: [.command], keyCode: nil, modifierSide: .left)
+        #expect(ReservedShortcuts.refusal(for: left)?.contains("right") == true)
+    }
+
+    @Test("Every offer setup makes is bindable")
+    func offersAreBindable() {
+        for chord in SuggestedShortcuts.offers {
+            #expect(ReservedShortcuts.refusal(for: chord) == nil, "\(chord.displayName) is refused")
+        }
+        #expect(SuggestedShortcuts.offers.first == .defaultDictation)
+    }
+
+    @Test("A sided chord names its side")
+    func displayNamesTheSide() {
+        #expect(rightOption.displayName == "Right ⌥")
+        #expect(ShortcutChord(modifiers: [.command], keyCode: nil, modifierSide: .left).displayName == "Left ⌘")
+        #expect(ShortcutChord(modifiers: [.option], keyCode: nil).displayName == "⌥")
+    }
+
+    /// Stored chords predate the side, and one decoding as sided would answer to
+    /// a key the user never chose.
+    @Test("A chord stored before sides existed decodes with none")
+    func legacyChordDecodesSideless() throws {
+        let stored = Data(#"{"modifiers":2}"#.utf8)
+        let chord = try JSONDecoder().decode(ShortcutChord.self, from: stored)
+        #expect(chord.modifiers == [.option])
+        #expect(chord.modifierSide == nil)
+    }
+
+    /// The twin holds the flag down, so a release read from the flags alone
+    /// never arrives and the recording has nothing to stop it.
+    @Test("Holding the left twin cannot strand a recording on the right one")
+    func twinDoesNotStrandTheRecording() {
+        var machine = ShortcutTapMachine(dictation: rightOption)
+        let press = ShortcutTapInput(
+            kind: .flagsChanged, keyCode: 61, modifiers: [.option], timestamp: 0
+        )
+        #expect(machine.handle(press, pillConsumesEscape: false).effects == [.action(.pressed)])
+        machine.setMode(.held)
+
+        // The left Option goes down: the flag stays set either way.
+        let twin = ShortcutTapInput(
+            kind: .flagsChanged, keyCode: 58, modifiers: [.option], timestamp: 0.5
+        )
+        #expect(machine.handle(twin, pillConsumesEscape: false).effects.isEmpty)
+
+        // The right Option comes back up while the left still holds the flag.
+        let release = ShortcutTapInput(
+            kind: .flagsChanged, keyCode: 61, modifiers: [.option], timestamp: 1
+        )
+        #expect(machine.handle(release, pillConsumesEscape: false).effects == [.action(.releasedAfterHold)])
+    }
+
+    @Test("The left twin never starts a recording bound to the right one")
+    func leftTwinStartsNothing() {
+        var machine = ShortcutTapMachine(dictation: rightOption)
+        let left = ShortcutTapInput(
+            kind: .flagsChanged, keyCode: 58, modifiers: [.option], timestamp: 0
+        )
+        #expect(machine.handle(left, pillConsumesEscape: false).effects.isEmpty)
+    }
+
+    @Test("Capture reads the side from the key that set the peak")
+    func captureReadsTheSide() {
+        var capture = ModifierChordCaptureState()
+        capture.observe([.option], physicalKeyCode: 61)
+        #expect(capture.peakChord.modifierSide == .right)
+
+        // A second modifier makes the side meaningless, and it is dropped.
+        capture.observe([.control, .option], physicalKeyCode: 59)
+        #expect(capture.peakChord.modifierSide == nil)
+        #expect(capture.peakChord.modifiers == [.control, .option])
+    }
+}
+
 @Suite("Setup shortcut suggestion")
 struct SuggestedShortcutTests {
     /// Setup prints this as a suggestion, so a refused one would send the user

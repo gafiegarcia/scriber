@@ -62,9 +62,9 @@ struct ShortcutRecorderView: View {
             }
             let modifiers = KeyModifiers(event.modifierFlags)
             if event.type == .flagsChanged {
-                modifierCapture.observe(modifiers)
+                modifierCapture.observe(modifiers, physicalKeyCode: event.keyCode)
                 if !modifierCapture.peakModifiers.isEmpty {
-                    liveChord = ShortcutChord(modifiers: modifierCapture.peakModifiers, keyCode: nil)
+                    liveChord = modifierCapture.peakChord
                 }
                 if let chord = modifierCapture.commitOnFirstModifierRelease(currentModifiers: modifiers) {
                     commit(chord)
