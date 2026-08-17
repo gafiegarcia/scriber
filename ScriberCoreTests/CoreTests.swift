@@ -1387,31 +1387,94 @@ struct ShortcutTapMachineTests {
 
 @Suite("Sided modifiers")
 struct SidedModifierTests {
-    private let rightOption = ShortcutChord(modifiers: [.option], keyCode: nil, modifierSide: .right)
+    private let rightOption = ShortcutChord(modifiers: [.option], keyCode: nil, modifierKeyCodes: [61])
 
     /// The flags say Option is down and never which Option, so the side has to
     /// come from the key that changed them.
     @Test("A sided chord answers only to its own key")
     func onlyItsOwnKey() {
         let matcher = ShortcutMatcher(dictation: rightOption)
-        #expect(matcher.matches(modifiers: [.option], keyCode: nil, physicalKeyCode: 61))
-        #expect(!matcher.matches(modifiers: [.option], keyCode: nil, physicalKeyCode: 58))
+        #expect(matcher.matches(modifiers: [.option], keyCode: nil, heldKeys: [61]))
+        #expect(!matcher.matches(modifiers: [.option], keyCode: nil, heldKeys: [58]))
     }
 
     @Test("A chord with no side still answers to either key")
     func sidelessTakesBoth() {
         let matcher = ShortcutMatcher(dictation: ShortcutChord(modifiers: [.control, .option], keyCode: nil))
-        #expect(matcher.matches(modifiers: [.control, .option], keyCode: nil, physicalKeyCode: 58))
-        #expect(matcher.matches(modifiers: [.control, .option], keyCode: nil, physicalKeyCode: 61))
+        #expect(matcher.matches(modifiers: [.control, .option], keyCode: nil, heldKeys: [59, 58]))
+        #expect(matcher.matches(modifiers: [.control, .option], keyCode: nil, heldKeys: [62, 61]))
     }
 
-    /// A side means nothing once there is a second modifier or a key: the user
-    /// may reach for either side of each.
-    @Test("A side is only kept on a single modifier held alone")
-    func sideIsDroppedWhereItCannotMean() {
-        #expect(ShortcutChord(modifiers: [.option], keyCode: nil, modifierSide: .right).modifierSide == .right)
-        #expect(ShortcutChord(modifiers: [.control, .option], keyCode: nil, modifierSide: .right).modifierSide == nil)
-        #expect(ShortcutChord(modifiers: [.option], keyCode: 2, modifierSide: .right).modifierSide == nil)
+    /// Sides mean nothing once an ordinary key is in the chord: which ⇧ a hand
+    /// reaches for while typing ⌃⇧D is not a choice anyone makes.
+    @Test("Sides are dropped once the chord contains a key")
+    func sidesDroppedOnKeyedChords() {
+        #expect(ShortcutChord(modifiers: [.option], keyCode: nil, modifierKeyCodes: [61]).isSided)
+        #expect(!ShortcutChord(modifiers: [.option], keyCode: 2, modifierKeyCodes: [61]).isSided)
+    }
+
+    /// The reason this exists: a chord of two right-hand modifiers is the best
+    /// free trigger on a keyboard with no `fn`, and it has to refuse the pair of
+    /// left twins that report identical flags.
+    @Test("Right ⌘+Right ⌥ refuses Left ⌘+Left ⌥")
+    func twoSidedChordRefusesTheLeftPair() {
+        let bothRight = ShortcutChord(modifiers: [.command, .option], keyCode: nil, modifierKeyCodes: [54, 61])
+        let matcher = ShortcutMatcher(dictation: bothRight)
+        let flags: KeyModifiers = [.command, .option]
+
+        #expect(matcher.matches(modifiers: flags, keyCode: nil, heldKeys: [54, 61]))
+        #expect(!matcher.matches(modifiers: flags, keyCode: nil, heldKeys: [55, 58]))
+        // One of each is not the chord either.
+        #expect(!matcher.matches(modifiers: flags, keyCode: nil, heldKeys: [55, 61]))
+        #expect(bothRight.displayName == "Right ⌘+Right ⌥")
+    }
+
+    /// Every key of a two-sided chord has to be watched: letting go of one is
+    /// the end of the hold even while the other keeps its flag set.
+    @Test("A two-sided chord ends when either of its keys comes up")
+    func twoSidedChordReleasesOnEitherKey() {
+        var machine = ShortcutTapMachine(
+            dictation: ShortcutChord(modifiers: [.command, .option], keyCode: nil, modifierKeyCodes: [54, 61])
+        )
+        func flags(_ keyCode: UInt16, _ modifiers: KeyModifiers, at t: TimeInterval) -> ShortcutTapInput {
+            ShortcutTapInput(kind: .flagsChanged, keyCode: keyCode, modifiers: modifiers, timestamp: t)
+        }
+        _ = machine.handle(flags(54, [.command], at: 0), pillConsumesEscape: false)
+        #expect(machine.handle(flags(61, [.command, .option], at: 0.1), pillConsumesEscape: false)
+            .effects == [.action(.pressed)])
+        machine.setMode(.held)
+
+        // Left Option goes down as well: both flags stay set, and so does the hold.
+        #expect(machine.handle(flags(58, [.command, .option], at: 0.5), pillConsumesEscape: false)
+            .effects.isEmpty)
+        // Right Option comes up while the left one still reports Option down.
+        #expect(machine.handle(flags(61, [.command, .option], at: 1), pillConsumesEscape: false)
+            .effects == [.action(.releasedAfterHold)])
+    }
+
+    @Test("Held keys track presses and releases through a twin")
+    func heldKeysFollowTheTwin() {
+        var held = HeldModifierKeys()
+        held.observe(keyCode: 61, modifiers: [.option])
+        #expect(held.keys == [61])
+        held.observe(keyCode: 58, modifiers: [.option])
+        #expect(held.keys == [61, 58])
+        // The right one comes up; the left keeps the flag set.
+        held.observe(keyCode: 61, modifiers: [.option])
+        #expect(held.keys == [58])
+        // The flag clears, so nothing can still be down.
+        held.observe(keyCode: 58, modifiers: [])
+        #expect(held.keys.isEmpty)
+    }
+
+    /// Keys pressed before the tap was armed are never seen going down, so a
+    /// flag that has since cleared is the only proof they came up.
+    @Test("A key never seen pressed is dropped once its flag clears")
+    func heldKeysSelfHeal() {
+        var held = HeldModifierKeys()
+        held.observe(keyCode: 61, modifiers: [.option])
+        held.observe(keyCode: 55, modifiers: [.command])
+        #expect(held.keys == [55])
     }
 
     @Test("Right Command and Right Option are bindable alone; their left twins are not")
@@ -1453,6 +1516,25 @@ struct SidedModifierTests {
         #expect(ShortcutChord(modifiers: [.option], keyCode: nil).displayName == "⌥")
     }
 
+    /// The build before this one stored one side for the whole chord. A binding
+    /// made there has to keep answering to the key it was bound to.
+    @Test("A chord stored with the older single side still names its key")
+    func singleSideFormDecodes() throws {
+        let stored = Data(#"{"modifiers":1,"modifierSide":"right"}"#.utf8)
+        let chord = try JSONDecoder().decode(ShortcutChord.self, from: stored)
+        #expect(chord.modifierKeyCodes == [54])
+        #expect(chord.displayName == "Right ⌘")
+    }
+
+    @Test("A sided chord survives a round trip")
+    func sidedChordRoundTrips() throws {
+        let chord = ShortcutChord(modifiers: [.command, .option], keyCode: nil, modifierKeyCodes: [54, 61])
+        let decoded = try JSONDecoder().decode(
+            ShortcutChord.self, from: JSONEncoder().encode(chord)
+        )
+        #expect(decoded == chord)
+    }
+
     /// Stored chords predate the side, and one decoding as sided would answer to
     /// a key the user never chose.
     @Test("A chord stored before sides existed decodes with none")
@@ -1460,7 +1542,7 @@ struct SidedModifierTests {
         let stored = Data(#"{"modifiers":2}"#.utf8)
         let chord = try JSONDecoder().decode(ShortcutChord.self, from: stored)
         #expect(chord.modifiers == [.option])
-        #expect(chord.modifierSide == nil)
+        #expect(!chord.isSided)
     }
 
     /// The twin holds the flag down, so a release read from the flags alone
@@ -1496,16 +1578,25 @@ struct SidedModifierTests {
         #expect(machine.handle(left, pillConsumesEscape: false).effects.isEmpty)
     }
 
-    @Test("Capture reads the side from the key that set the peak")
-    func captureReadsTheSide() {
+    @Test("Capture keeps every side it saw")
+    func captureKeepsEverySide() {
         var capture = ModifierChordCaptureState()
-        capture.observe([.option], physicalKeyCode: 61)
-        #expect(capture.peakChord.modifierSide == .right)
+        capture.observe([.command], heldKeys: [54])
+        #expect(capture.peakChord.modifierKeyCodes == [54])
 
-        // A second modifier makes the side meaningless, and it is dropped.
-        capture.observe([.control, .option], physicalKeyCode: 59)
-        #expect(capture.peakChord.modifierSide == nil)
-        #expect(capture.peakChord.modifiers == [.control, .option])
+        capture.observe([.command, .option], heldKeys: [54, 61])
+        #expect(capture.peakChord.modifierKeyCodes == [54, 61])
+        #expect(capture.peakChord.displayName == "Right ⌘+Right ⌥")
+    }
+
+    /// `fn` has no side at all, so a chord containing it can never name one for
+    /// every modifier — and half a chord's sides is not a thing to match on.
+    @Test("A chord that cannot name every side is stored unsided")
+    func partialSidesAreDropped() {
+        var capture = ModifierChordCaptureState()
+        capture.observe([.function, .option], heldKeys: [61])
+        #expect(!capture.peakChord.isSided)
+        #expect(capture.peakChord.modifiers == [.function, .option])
     }
 }
 

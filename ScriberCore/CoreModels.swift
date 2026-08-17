@@ -46,24 +46,65 @@ public enum ModifierKeyCodes {
     public static func code(for modifier: KeyModifiers, side: ModifierSide) -> UInt16? {
         sides.first { $0.value.modifier == modifier && $0.value.side == side }?.key
     }
+
+    public static func name(for keyCode: UInt16) -> String? {
+        guard let entry = sides[keyCode] else { return nil }
+        let side = entry.side == .right ? "Right" : "Left"
+        return "\(side) \(entry.modifier.displayParts.joined())"
+    }
+}
+
+/// Which physical modifier keys are down right now.
+///
+/// The flags say Option is down and never which Option, so this is the only way
+/// to tell `Right ⌥` from its twin — and the only way to know a bound key came
+/// back up while the other one keeps the flag set.
+public struct HeldModifierKeys: Equatable, Sendable {
+    public private(set) var keys: Set<UInt16> = []
+
+    public init() {}
+
+    /// Folds in one `flagsChanged`. A modifier key alternates down and up, so
+    /// the key already held is coming up even while its twin keeps the flag.
+    public mutating func observe(keyCode: UInt16, modifiers: KeyModifiers) {
+        if let entry = ModifierKeyCodes.sides[keyCode] {
+            if !modifiers.contains(entry.modifier) || keys.contains(keyCode) {
+                keys.remove(keyCode)
+            } else {
+                keys.insert(keyCode)
+            }
+        }
+        // A key whose modifier is no longer reported at all can only be up. This
+        // is what recovers from presses that happened before the tap was armed.
+        keys = keys.filter { held in
+            ModifierKeyCodes.sides[held].map { modifiers.contains($0.modifier) } ?? false
+        }
+    }
+
+    public mutating func reset() { keys.removeAll() }
 }
 
 public struct ShortcutChord: Codable, Hashable, Sendable {
     public var modifiers: KeyModifiers
     public var keyCode: UInt16?
-    /// Which of a modifier's two keys this is bound to, or nil for either.
+    /// The exact physical modifier keys this chord requires. Empty means either
+    /// side of each modifier will do, which is what every chord meant before
+    /// sides could be told apart.
     ///
-    /// Only meaningful for a single modifier held alone: with a second modifier
-    /// or a key in the chord there is nothing to disambiguate, since the user
-    /// may reach for either side of each.
-    public var modifierSide: ModifierSide?
+    /// Only kept for a chord of modifiers alone. Add an ordinary key and the
+    /// chord is something being typed, where which ⇧ a hand reaches for is not
+    /// a choice anyone makes on purpose.
+    public var modifierKeyCodes: Set<UInt16>
 
-    public init(modifiers: KeyModifiers, keyCode: UInt16?, modifierSide: ModifierSide? = nil) {
+    public init(modifiers: KeyModifiers, keyCode: UInt16?, modifierKeyCodes: Set<UInt16> = []) {
         self.modifiers = modifiers
         self.keyCode = keyCode
-        self.modifierSide = keyCode == nil && modifiers.rawValue.nonzeroBitCount == 1
-            ? modifierSide
-            : nil
+        self.modifierKeyCodes = keyCode == nil ? modifierKeyCodes : []
+    }
+
+    public init(modifiers: KeyModifiers, keyCode: UInt16?, modifierSide: ModifierSide) {
+        let sided = ModifierKeyCodes.code(for: modifiers, side: modifierSide).map { Set([$0]) } ?? []
+        self.init(modifiers: modifiers, keyCode: keyCode, modifierKeyCodes: sided)
     }
 
     public static let defaultDictation = ShortcutChord(modifiers: [.function], keyCode: nil)
@@ -72,21 +113,54 @@ public struct ShortcutChord: Codable, Hashable, Sendable {
 
     public var usesFunctionKey: Bool { modifiers.contains(.function) }
 
-    /// The one physical key that may satisfy this chord, or nil when either side
-    /// will do.
-    public var requiredPhysicalKeyCode: UInt16? {
-        guard let modifierSide else { return nil }
-        return ModifierKeyCodes.code(for: modifiers, side: modifierSide)
+    public var isSided: Bool { !modifierKeyCodes.isEmpty }
+
+    /// True when every modifier in the chord is bound to one named key. A chord
+    /// naming some of its sides and not others cannot be produced by the
+    /// recorder and is not a state worth matching against.
+    public var namesEverySide: Bool {
+        modifierKeyCodes.count == modifiers.rawValue.nonzeroBitCount
     }
 
     public var displayName: String {
-        let modifierText = modifiers.displayParts.joined(separator: modifiers == [.function] ? "" : "+")
-        if let modifierSide, keyCode == nil {
-            return "\(modifierSide == .right ? "Right" : "Left") \(modifierText)"
+        if isSided, keyCode == nil {
+            return modifierKeyCodes
+                .compactMap(ModifierKeyCodes.name(for:))
+                .sorted()
+                .joined(separator: "+")
         }
+        let modifierText = modifiers.displayParts.joined(separator: modifiers == [.function] ? "" : "+")
         guard let keyCode else { return modifierText }
         let key = KeyCodeNames.name(for: keyCode)
         return modifierText.isEmpty ? key : "\(modifierText)+\(key)"
+    }
+}
+
+extension ShortcutChord {
+    private enum CodingKeys: String, CodingKey {
+        case modifiers, keyCode, modifierKeyCodes, modifierSide
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(modifiers, forKey: .modifiers)
+        try container.encodeIfPresent(keyCode, forKey: .keyCode)
+        // Omitted when empty so an unsided chord stores what it always stored.
+        if isSided { try container.encode(modifierKeyCodes, forKey: .modifierKeyCodes) }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let modifiers = try container.decode(KeyModifiers.self, forKey: .modifiers)
+        let keyCode = try container.decodeIfPresent(UInt16.self, forKey: .keyCode)
+        if let codes = try container.decodeIfPresent(Set<UInt16>.self, forKey: .modifierKeyCodes) {
+            self.init(modifiers: modifiers, keyCode: keyCode, modifierKeyCodes: codes)
+        } else if let side = try container.decodeIfPresent(ModifierSide.self, forKey: .modifierSide) {
+            // Stored by the build that carried one side for the whole chord.
+            self.init(modifiers: modifiers, keyCode: keyCode, modifierSide: side)
+        } else {
+            self.init(modifiers: modifiers, keyCode: keyCode)
+        }
     }
 }
 
@@ -107,29 +181,28 @@ public enum SuggestedShortcuts {
 /// its modifiers are released one at a time.
 public struct ModifierChordCaptureState: Equatable, Sendable {
     public private(set) var peakModifiers: KeyModifiers = []
-    /// The key that set the peak, which is the only place a modifier's side is
-    /// readable. Meaningless unless the peak is one modifier.
-    private var peakKeyCode: UInt16?
+    /// The physical keys that were down at the peak, which is the only place a
+    /// modifier's side is readable.
+    private var peakKeyCodes: Set<UInt16> = []
 
     public init() {}
 
     /// What would be committed if a key were released now.
     public var peakChord: ShortcutChord {
-        ShortcutChord(
-            modifiers: peakModifiers,
-            keyCode: nil,
-            modifierSide: peakKeyCode.flatMap { ModifierKeyCodes.sides[$0]?.side }
-        )
+        ShortcutChord(modifiers: peakModifiers, keyCode: nil, modifierKeyCodes: peakKeyCodes)
     }
 
     /// Records a simultaneous modifier snapshot. Equal-sized snapshots retain
     /// the first observed chord rather than combining keys that were never
     /// held together.
-    public mutating func observe(_ modifiers: KeyModifiers, physicalKeyCode: UInt16? = nil) {
+    /// `heldKeys` is what `HeldModifierKeys` reports at this moment. A peak
+    /// naming fewer keys than modifiers is stored unsided rather than half-sided:
+    /// `fn` has no side at all, so any chord including it can only be unsided.
+    public mutating func observe(_ modifiers: KeyModifiers, heldKeys: Set<UInt16> = []) {
         guard !modifiers.isEmpty else { return }
         guard modifiers.rawValue.nonzeroBitCount > peakModifiers.rawValue.nonzeroBitCount else { return }
         peakModifiers = modifiers
-        peakKeyCode = physicalKeyCode
+        peakKeyCodes = heldKeys.count == modifiers.rawValue.nonzeroBitCount ? heldKeys : []
     }
 
     /// Returns the peak modifier-only chord as soon as the **first** modifier is
@@ -161,7 +234,7 @@ public struct ModifierChordCaptureState: Equatable, Sendable {
 
     public mutating func reset() {
         peakModifiers = []
-        peakKeyCode = nil
+        peakKeyCodes = []
     }
 }
 
@@ -839,11 +912,18 @@ public struct ShortcutMatcher: Sendable {
     public func matches(
         modifiers: KeyModifiers,
         keyCode: UInt16?,
-        physicalKeyCode: UInt16? = nil
+        heldKeys: Set<UInt16> = []
     ) -> Bool {
         guard dictation.modifiers == modifiers, dictation.keyCode == keyCode else { return false }
-        guard let required = dictation.requiredPhysicalKeyCode else { return true }
-        return physicalKeyCode == required
+        guard dictation.isSided else { return true }
+        return heldKeys == dictation.modifierKeyCodes
+    }
+
+    /// Whether a chord that was matched is still held. Extra keys do not end it;
+    /// one of its own coming up does.
+    public func stillHeld(modifiers: KeyModifiers, heldKeys: Set<UInt16>) -> Bool {
+        guard dictation.isSided else { return dictation.modifiers.isSubset(of: modifiers) }
+        return dictation.modifierKeyCodes.isSubset(of: heldKeys)
     }
 }
 
@@ -919,9 +999,7 @@ public struct ShortcutTapMachine: Sendable {
     private var isConfigurationCaptureActive = false
     /// When the latched press happened, so the release can tell a tap from a hold.
     private var pressedAt: TimeInterval?
-    /// The physical modifier key that latched a sided chord. Its twin keeps the
-    /// flag set while it is held, so only this key coming back up is the release.
-    private var latchedPhysicalKeyCode: UInt16?
+    private var heldKeys = HeldModifierKeys()
     private var suppressedKeyCodes = Set<UInt16>()
     /// Whether the Escape press that began a run of repeats was consumed, so the
     /// repeats agree with it without asking again or cancelling a second time.
@@ -954,6 +1032,7 @@ public struct ShortcutTapMachine: Sendable {
     public mutating func reset() {
         resetLatches()
         suppressedKeyCodes.removeAll()
+        heldKeys.reset()
         escapeConsumed = false
     }
 
@@ -964,7 +1043,6 @@ public struct ShortcutTapMachine: Sendable {
     private mutating func resetLatches() {
         holdLatched = false
         pressedAt = nil
-        latchedPhysicalKeyCode = nil
     }
 
     /// Which release the press earned, given how long it stayed down.
@@ -1034,11 +1112,12 @@ public struct ShortcutTapMachine: Sendable {
     }
 
     private mutating func handleFlagsChanged(_ input: ShortcutTapInput) -> ShortcutTapOutcome {
+        heldKeys.observe(keyCode: input.keyCode, modifiers: input.modifiers)
+
         if !holdLatched, matcher.dictation.keyCode == nil,
-           matcher.matches(modifiers: input.modifiers, keyCode: nil, physicalKeyCode: input.keyCode) {
+           matcher.matches(modifiers: input.modifiers, keyCode: nil, heldKeys: heldKeys.keys) {
             holdLatched = true
             pressedAt = input.timestamp
-            latchedPhysicalKeyCode = matcher.dictation.requiredPhysicalKeyCode
             return ShortcutTapOutcome(suppressesEvent: false, effects: [.action(.pressed)])
         }
 
@@ -1046,12 +1125,10 @@ public struct ShortcutTapMachine: Sendable {
         // a run-loop turn before the mode comes back, and a release landing in
         // that window used to be dropped on the `.idle` branch — leaving a
         // recording running that nothing was going to stop. A keyed chord releases
-        // here too, when one of its modifiers goes up before its key does.
-        // A sided chord is released by its own key coming back up, not by the
-        // flag clearing: the twin held down keeps that flag set, which would
-        // otherwise leave a recording nothing stops.
-        let released = latchedPhysicalKeyCode.map { $0 == input.keyCode }
-            ?? !matcher.dictation.modifiers.isSubset(of: input.modifiers)
+        // here too, when one of its modifiers goes up before its key does, and a
+        // sided one when one of its own keys does — a twin held down keeps that
+        // flag set, so watching the flag alone would never see the release.
+        let released = !matcher.stillHeld(modifiers: input.modifiers, heldKeys: heldKeys.keys)
         if holdLatched, released {
             let action = release(at: input.timestamp)
             resetLatches()
@@ -1085,15 +1162,21 @@ public enum ReservedShortcuts {
         ShortcutChord(modifiers: [.option], keyCode: nil, modifierSide: .right),
     ]
 
+    /// A chord of several modifiers is a deliberate combination rather than a
+    /// key someone leans on, so it needs no place on the list above.
+    private static func isBindableAlone(_ chord: ShortcutChord) -> Bool {
+        bindableAlone.contains(chord)
+    }
+
     /// Why this chord cannot be bound, or nil when it can.
     public static func refusal(for chord: ShortcutChord) -> String? {
         // One modifier held alone, before the Command rule below, so a bare ⌘ is
         // refused for the reason that actually applies to it.
         if chord.keyCode == nil,
            chord.modifiers.rawValue.nonzeroBitCount == 1,
-           !bindableAlone.contains(chord) {
+           !isBindableAlone(chord) {
             let rightTwin = ShortcutChord(modifiers: chord.modifiers, keyCode: nil, modifierSide: .right)
-            if bindableAlone.contains(rightTwin) {
+            if isBindableAlone(rightTwin) {
                 return "\(chord.displayName) on its own starts most shortcuts on the Mac. Press the one on the right instead, or add a key."
             }
             return "\(chord.displayName) on its own is held as part of other shortcuts. Add a key, or another modifier."

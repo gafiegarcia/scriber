@@ -17,6 +17,7 @@ struct ShortcutRecorderView: View {
 
     @State private var monitor: Any?
     @State private var modifierCapture = ModifierChordCaptureState()
+    @State private var heldKeys = HeldModifierKeys()
     @State private var liveChord: ShortcutChord?
     @State private var error: String?
 
@@ -53,6 +54,7 @@ struct ShortcutRecorderView: View {
         guard activeRecorderID == nil || activeRecorderID == identifier else { return }
         error = nil
         modifierCapture.reset()
+        heldKeys.reset()
         liveChord = nil
         activeRecorderID = identifier
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { event in
@@ -62,7 +64,8 @@ struct ShortcutRecorderView: View {
             }
             let modifiers = KeyModifiers(event.modifierFlags)
             if event.type == .flagsChanged {
-                modifierCapture.observe(modifiers, physicalKeyCode: event.keyCode)
+                heldKeys.observe(keyCode: event.keyCode, modifiers: modifiers)
+                modifierCapture.observe(modifiers, heldKeys: heldKeys.keys)
                 if !modifierCapture.peakModifiers.isEmpty {
                     liveChord = modifierCapture.peakChord
                 }
@@ -126,6 +129,10 @@ struct ShortcutTestField: View {
     @Binding var isConfirmed: Bool
 
     @State private var monitor: Any?
+    /// The same tracker the global tap uses, so a shortcut bound to one side of
+    /// a modifier is confirmed by that key here too. Comparing the flags alone
+    /// let the left twin pass a test for the right key.
+    @State private var heldKeys = HeldModifierKeys()
 
     private var isListening: Bool { monitor != nil }
 
@@ -162,9 +169,15 @@ struct ShortcutTestField: View {
                 return nil
             }
             let modifiers = KeyModifiers(event.modifierFlags)
+            if event.type == .flagsChanged {
+                heldKeys.observe(keyCode: event.keyCode, modifiers: modifiers)
+            }
+            let matcher = ShortcutMatcher(dictation: target)
             let matched = target.keyCode == nil
-                ? event.type == .flagsChanged && modifiers == target.modifiers
-                : event.type == .keyDown && modifiers == target.modifiers && event.keyCode == target.keyCode
+                ? event.type == .flagsChanged
+                    && matcher.matches(modifiers: modifiers, keyCode: nil, heldKeys: heldKeys.keys)
+                : event.type == .keyDown
+                    && matcher.matches(modifiers: modifiers, keyCode: event.keyCode)
             guard matched else { return nil }
             isConfirmed = true
             stop()
@@ -175,6 +188,7 @@ struct ShortcutTestField: View {
     private func stop() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+        heldKeys.reset()
     }
 }
 
