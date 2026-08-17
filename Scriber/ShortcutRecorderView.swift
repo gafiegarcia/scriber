@@ -17,12 +17,13 @@ struct ShortcutPicker: View {
     let refusalResetToken: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             row("Preset") {
                 ForEach(SuggestedShortcuts.offers, id: \.self) { preset in
                     choice(preset)
                 }
             }
+            Divider()
             row("Custom") {
                 if let customChord { choice(customChord) }
                 ShortcutRecorderButton(
@@ -57,12 +58,21 @@ struct ShortcutPicker: View {
 
     /// Selecting is the whole interaction: there is no confirm step, because the
     /// shortcut itself is the confirmation.
+    ///
+    /// Filled rather than tinted. A tint on a bordered button is a wash of accent
+    /// over an almost transparent background, which does not read as chosen next
+    /// to the plain buttons beside it.
+    @ViewBuilder
     private func choice(_ candidate: ShortcutChord) -> some View {
-        Button(candidate.displayName) { chord = candidate }
-            .buttonStyle(.bordered)
-            .tint(candidate == chord ? .accentColor : nil)
+        let button = Button(candidate.displayName) { chord = candidate }
             .accessibilityIdentifier("shortcut-choice-\(candidate.displayName)")
-            .accessibilityAddTraits(candidate == chord ? [.isSelected] : [])
+        if candidate == chord {
+            button
+                .buttonStyle(.borderedProminent)
+                .accessibilityAddTraits(.isSelected)
+        } else {
+            button.buttonStyle(.bordered)
+        }
     }
 }
 
