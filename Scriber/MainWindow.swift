@@ -343,10 +343,11 @@ struct MenuBarContent: View {
                 }
             }
             Divider()
-            // Both modes, named where someone who never reads Settings will meet
-            // them. Setup teaches this once; the menu is where it stays teachable.
+            // Both gestures, named where someone who never reads Settings will
+            // meet them. Each line says how that one ends, which is the half
+            // people do not discover on their own.
             shortcutHint("Hold \(runtime.preferences.dictationShortcut.displayName) to dictate")
-            shortcutHint("Tap it for hands-free")
+            shortcutHint("Tap it to dictate until you tap again")
             Divider()
             Button("Quit Scriber") { NSApp.terminate(nil) }
         }

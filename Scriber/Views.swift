@@ -425,7 +425,7 @@ private struct GeneralSettingsPane: View {
         SettingsPane(accessibilityIdentifier: "settings-general-pane") {
             SettingsSection(
                 "Shortcut",
-                footer: "Hold it to dictate while it is down. Tap it to dictate hands-free, and tap again to stop. A shortcut can be modifier keys on their own, like fn or ⌃⌥. Press Escape while recording one to cancel."
+                footer: "Hold it to dictate while it is down. Tap it to dictate until you tap again. A shortcut can be modifier keys on their own, like fn or ⌃⌥. Press Escape while recording one to cancel."
             ) {
                 ShortcutRecorderView(
                     title: "Dictate",
@@ -1222,7 +1222,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Welcome to Scriber").font(.largeTitle.bold())
-                Text("Hold fn to dictate, or tap it to go hands-free. Your audio goes only to ElevenLabs, and your history stays on this Mac.")
+                Text("Hold fn to dictate, or tap to start and tap again to stop. Your audio goes only to ElevenLabs, and your history stays on this Mac.")
                     .foregroundStyle(.secondary)
             }
             GroupBox("1. ElevenLabs API key") {
@@ -1346,7 +1346,7 @@ struct OnboardingView: View {
             }
             GroupBox("4. Your Shortcut") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Hold it to dictate, and let go when you finish. Or tap it once and keep your hands free — tap again to stop.")
+                    Text("Hold it to dictate and let go when you finish, or tap it and tap again when you finish.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Picker("", selection: $usesCustomShortcut) {
