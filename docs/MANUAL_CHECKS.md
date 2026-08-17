@@ -79,6 +79,8 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - Revoking Accessibility while Scriber runs never stalls the machine. The shortcut monitor sits in front of every system event, so a monitor that will not stand down takes the pointer, clicks, and keyboard with it.
 - Hold still starts a recording after the lid has been closed and reopened and after a long idle. macOS disables event taps across sleep, so this is where a shortcut monitor that fails to recover becomes visible.
 
+- Turn **Mute other audio while recording** on with System Audio Recording not yet granted, and answer the macOS prompt that follows the **Turn On** button. It arrives immediately, not during the next dictation, and Scriber stays responsive while it is on screen. This needs an account that has never granted it — a grant already given raises no prompt at all, so the check is void on Gaf's own machine.
+
 ## When audio capture or transcription outcomes change
 
 - Set input volume to zero and dictate for as little as clears the too-brief-to-be-a-dictation guard. The **“No sound from the microphone”** pill appears with the failure sound, and the waveform is flat from the first moment. No duration is needed beyond that guard: a zero input volume sends nothing from the first buffer, so anything longer only hides a regression that shortened it. This costs no credit. Restore the input volume afterward.

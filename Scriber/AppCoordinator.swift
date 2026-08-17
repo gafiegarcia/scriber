@@ -1435,6 +1435,18 @@ final class AppCoordinator: ObservableObject {
         feedbackSounds.play(cue)
     }
 
+    /// Asks for System Audio Recording at the moment the user opts in, rather
+    /// than during their next dictation — where the prompt arrives with the
+    /// shortcut still held down and the answer is owed before anything moves.
+    func requestOtherAudioAccess() {
+        Task.detached {
+            let status = OtherAudioMuteService.requestAccess()
+            await MainActor.run { [weak self] in
+                self?.otherAudioMuteStatus = status == noErr ? nil : .unavailableToStart
+            }
+        }
+    }
+
     private func beginOtherAudioMuting() {
         switch otherAudioMuting.beginMuting() {
         case .muted, .alreadyMuted:

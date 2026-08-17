@@ -83,6 +83,28 @@ final class OtherAudioMuteService: OtherAudioMuting {
         if let tapID { AudioHardwareDestroyProcessTap(tapID) }
     }
 
+    /// Raises the System Audio Recording prompt, by attempting the one thing
+    /// that needs it.
+    ///
+    /// Core Audio ships no preflight for process taps — creating one is what
+    /// asks — so this creates a tap and destroys it again without ever driving
+    /// it, which mutes nothing. Deliberately outside the actor and touching no
+    /// stored state: macOS blocks the caller while its prompt is on screen, and
+    /// on the main thread that is a beachball.
+    nonisolated static func requestAccess() -> OSStatus {
+        let description = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
+        description.name = "Scriber audio access check"
+        description.isPrivate = true
+        description.muteBehavior = CATapMuteBehavior.unmuted
+
+        var probeTapID = AudioObjectID(kAudioObjectUnknown)
+        let status = AudioHardwareCreateProcessTap(description, &probeTapID)
+        if probeTapID != kAudioObjectUnknown {
+            AudioHardwareDestroyProcessTap(probeTapID)
+        }
+        return status
+    }
+
     @discardableResult
     func beginMuting() -> OtherAudioMutingOutcome {
         if tapID != nil, aggregateDeviceID != nil, ioProcID != nil {

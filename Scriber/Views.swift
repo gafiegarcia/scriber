@@ -192,6 +192,9 @@ private struct SettingsSection<Content: View>: View {
 /// and onboarding, and both go through here.
 private struct MuteOtherAudioConsent<Content: View>: View {
     @Binding var isOn: Bool
+    /// Raises the macOS prompt now. Left to the first dictation it arrives with
+    /// the shortcut still held down, which is the worst moment to owe an answer.
+    let requestAccess: () -> Void
     @ViewBuilder let content: (Binding<Bool>) -> Content
 
     @State private var isAsking = false
@@ -199,7 +202,10 @@ private struct MuteOtherAudioConsent<Content: View>: View {
     var body: some View {
         content(guarded)
             .confirmationDialog("Mute other apps while you dictate?", isPresented: $isAsking) {
-                Button("Turn On") { isOn = true }
+                Button("Turn On") {
+                    isOn = true
+                    requestAccess()
+                }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text(Self.message)
@@ -224,11 +230,9 @@ private struct MuteOtherAudioConsent<Content: View>: View {
 
     private static var message: String {
         """
-        macOS calls this permission “System Audio Recording”, which sounds broader than what it is for here. Quieting other apps is the only thing Scriber does with it: music, calls, and notification sounds stop while you speak, and every sample is handed straight back untouched — never inspected, recorded, or saved.
+        macOS calls this “System Audio Recording”. Scriber uses it only to quiet other apps while you speak, and hands every sample straight back — never inspected, recorded, or saved.
 
-        macOS asks for it the first time you dictate after turning this on. Choose Allow.
-
-        You can take it back later in System Settings → Privacy & Security → Screen & System Audio Recording. Scriber keeps working without it; only the muting stops.
+        Take it back any time in System Settings → Privacy & Security → Screen & System Audio Recording.
         """
     }
 }
@@ -872,11 +876,14 @@ private struct SoundSettingsPane: View {
                 // The warning and the settings link share the row with the
                 // toggle they are about, rather than sitting a divider away
                 // from the setting that asked for them.
-                MuteOtherAudioConsent(isOn: $runtime.preferences.muteOtherAudioWhileRecording) { isOn in
+                MuteOtherAudioConsent(
+                    isOn: $runtime.preferences.muteOtherAudioWhileRecording,
+                    requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
+                ) { isOn in
                     VStack(alignment: .leading, spacing: 8) {
                         SettingsToggle(
                             "Mute other audio while recording",
-                            caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Needs System Audio Recording access, which macOS asks for the first time you dictate; Scriber never records or saves that audio.",
+                            caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Needs System Audio Recording access; Scriber never records or saves that audio.",
                             isOn: isOn
                         )
                         .accessibilityIdentifier("mute-other-audio-toggle")
@@ -1357,10 +1364,13 @@ struct OnboardingView: View {
                 .padding(.vertical, 12)
             }
             VStack(alignment: .leading, spacing: 12) {
-                MuteOtherAudioConsent(isOn: $runtime.preferences.muteOtherAudioWhileRecording) { isOn in
+                MuteOtherAudioConsent(
+                    isOn: $runtime.preferences.muteOtherAudioWhileRecording,
+                    requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
+                ) { isOn in
                     Toggle("Mute other audio while recording", isOn: isOn)
                 }
-                Text("Other apps continue playing silently while you dictate. macOS may ask for System Audio Recording access; Scriber never records or saves that audio.")
+                Text("Other apps continue playing silently while you dictate. Needs System Audio Recording access; Scriber never records or saves that audio.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Launch Scriber when I log in", isOn: $launchAtLogin)
