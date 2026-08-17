@@ -326,7 +326,6 @@ final class AppCoordinator: ObservableObject {
         case .transcriptionFailed: "Transcription failed"
         case .noSpeechDetected: "No words detected"
         case .noAudioSignal: "No microphone signal"
-        case .microphoneDroppedOut: "Microphone cut out"
         case .message(let value): value
         }
     }
@@ -1216,28 +1215,13 @@ final class AppCoordinator: ObservableObject {
                 case .inserted:
                     record.deliveryState = .pasted
                     try modelContext.save()
-                    // The words that arrived are real and belong at the cursor, but
-                    // the ones after the microphone went quiet are simply gone. The
-                    // pill closing without a word is what made that invisible.
-                    if recording.microphoneDroppedOut {
-                        setPhase(.microphoneDroppedOut(deliveredPartialText: true))
-                    } else {
-                        returnToIdle()
-                    }
+                    returnToIdle()
                 case .noEditableTarget(let message), .failed(let message):
                     copy(record)
                     record.errorMessage = message
                     try modelContext.save()
                     playFeedback(.cancellationOrCopyFallback)
-                    // A microphone that died outranks why the paste missed: the
-                    // clipboard already answers where the text went, and nothing
-                    // else explains the half of it that never arrived.
-                    let droppedOut = recording.microphoneDroppedOut
-                    setPhase(.dictationCopied(
-                        text: transcript,
-                        message: droppedOut ? "Microphone cut out — part of this dictation is missing" : message,
-                        microphoneDroppedOut: droppedOut
-                    ))
+                    setPhase(.dictationCopied(text: transcript, message: message))
                 }
             } else {
                 copy(record)
@@ -1282,14 +1266,7 @@ final class AppCoordinator: ObservableObject {
         shortcuts.setMode(.idle)
         playFeedback(.terminalFailure)
         suppressPillForCurrentTranscription = false
-        // "No words detected" blames the speaker. When the microphone stopped
-        // sending partway through, the words may well have been said into a stream
-        // that was no longer listening, and only the dropout explains it.
-        if recording.microphoneDroppedOut {
-            setPhase(.microphoneDroppedOut(deliveredPartialText: false))
-        } else {
-            setPhase(.noSpeechDetected)
-        }
+        setPhase(.noSpeechDetected)
     }
 
     func openMicrophoneInputSettings() {

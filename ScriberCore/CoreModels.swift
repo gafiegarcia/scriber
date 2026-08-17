@@ -185,42 +185,6 @@ public enum AudioInputSelection: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-/// A microphone that stops sending audio partway through a recording. Called
-/// "Microphone cut out" everywhere the user can read it; use those words in copy.
-///
-/// The audio reaching transcription is genuinely incomplete, and the loudest-moment
-/// signal check cannot see it — one loud moment early vouches for the whole take —
-/// so the dictation comes back quietly missing its second half. Do not reach for a
-/// zero input volume to reproduce it: that flat-lines from the first buffer and is
-/// caught by the no-signal check instead.
-public enum MicrophoneDropoutPolicy {
-    /// Digital silence, not quiet. A live microphone in a silent room still sends
-    /// its own noise floor, tens of decibels above this; only a stream that has
-    /// stopped sending anything at all reads this low. That gap is what keeps a
-    /// pause before releasing the key from looking like a failure.
-    public static let silenceFloor: Float = -100
-
-    /// Long enough that stopping the capture stack cannot account for it.
-    ///
-    /// The tail is measured on a wall clock, from the last audible buffer to the
-    /// moment the recording resolves, so the stop's own latency is counted inside
-    /// it. That margin is what this number buys, not the detection itself: audio
-    /// captured from a live microphone carries no digital silence at all, so the
-    /// two states are separated by everything rather than by a threshold. Counting
-    /// the durations of trailing silent buffers instead would drop the latency and
-    /// let this fall to a few tenths, which only matters for a recording stopped
-    /// within a second of the microphone dying — where nothing was lost anyway.
-    public static let minimumSilentTail: TimeInterval = 1.5
-
-    public static func isSilent(decibels: Float) -> Bool {
-        !decibels.isFinite || decibels <= silenceFloor
-    }
-
-    public static func droppedOut(silentTail: TimeInterval) -> Bool {
-        silentTail >= minimumSilentTail
-    }
-}
-
 public enum AudioSignal {
     public static let detectionThreshold: Float = -60
     public static let visibleCeiling: Float = -6
@@ -430,7 +394,7 @@ public enum AppPhase: Equatable, Sendable {
     case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)
     case transcribing(attempt: Int, retryDelay: TimeInterval?)
     case cancelledTranscript
-    case dictationCopied(text: String, message: String, microphoneDroppedOut: Bool)
+    case dictationCopied(text: String, message: String)
     case permissionsRequired([ScriberPermission])
     case credentialsUnusable(CredentialReadiness)
     case transcriptionFailed(String)
@@ -446,15 +410,6 @@ public enum AppPhase: Equatable, Sendable {
     /// — and it used to be discarded in complete silence, which made a broken
     /// microphone indistinguishable from not having spoken.
     case noAudioSignal
-    /// The microphone sent audio and then stopped partway through, so what reached
-    /// transcription is genuinely incomplete.
-    ///
-    /// Its own phase rather than a `.message` for the same reason `.noAudioSignal`
-    /// is one: the cause is the input device or its configuration, so the outcome
-    /// has to carry the warning tone and the route to Settings that every other
-    /// input failure carries. `deliveredPartialText` distinguishes a dictation that
-    /// landed something at the cursor from one that had nothing left to transcribe.
-    case microphoneDroppedOut(deliveredPartialText: Bool)
     /// A transcript reached the clipboard instead of the cursor, from a History
     /// retry rather than from a failed paste.
     ///
@@ -667,7 +622,7 @@ public extension AppPhase {
         case .recording: .cancelRecording
         case .transcribing: .hideTranscription
         case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed, .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut,
+             .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
              .transcriptCopied, .message: .dismiss
         }
     }
@@ -683,10 +638,10 @@ public extension AppPhase {
     /// choice; the Undo button carries the recovery on its own.
     var pillTone: ToastTone {
         switch self {
-        case .dictationCopied(_, _, let droppedOut): droppedOut ? .warning : .success
+        case .dictationCopied: .success
         case .transcriptCopied: .success
         case .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed, .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut: .warning
+             .transcriptionFailed, .noSpeechDetected, .noAudioSignal: .warning
         case .idle, .recording, .transcribing, .cancelledTranscript, .message: .neutral
         }
     }
@@ -702,14 +657,12 @@ public extension AppPhase {
         // The transcript in the copied result is selectable; a body tap would
         // fight the selection it sits on.
         case .idle, .recording, .transcribing, .cancelledTranscript: .none
-        // The transcript is selectable, so a body tap fights the selection it sits
-        // on — except when the microphone failed, where the route to Settings is
-        // the point of the pill.
-        case .dictationCopied(_, _, let droppedOut): droppedOut ? .openInputSettings : .none
+        // The transcript is selectable, so a body tap fights the selection it sits on.
+        case .dictationCopied: .none
         case .transcriptCopied, .transcriptionFailed: .openMainWindow
         case .permissionsRequired: .openPermissionSettings
         case .credentialsUnusable: .openCredentialSettings
-        case .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut: .openInputSettings
+        case .noSpeechDetected, .noAudioSignal: .openInputSettings
         case .message: .dismiss
         }
     }

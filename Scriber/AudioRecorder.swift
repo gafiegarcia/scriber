@@ -40,18 +40,9 @@ struct CompletedRecording: Sendable {
     let relativePath: String
     let duration: TimeInterval
     let maximumPeakLevel: Float
-    /// How long the microphone sent nothing at all before the recording ended.
-    var silentTailDuration: TimeInterval = 0
 
     var detectedSignal: Bool {
         AudioSignal.isDetected(decibels: maximumPeakLevel)
-    }
-
-    /// `detectedSignal` asks only whether the loudest moment anywhere cleared the
-    /// threshold, so a microphone that dies halfway still vouches for the whole
-    /// recording. Only the tail says whether it was still there at the end.
-    var microphoneDroppedOut: Bool {
-        detectedSignal && MicrophoneDropoutPolicy.droppedOut(silentTail: silentTailDuration)
     }
 }
 
@@ -188,7 +179,6 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     private var maximumPeakLevel: Float = -160
     /// When the microphone last sent anything at all, so a stream that goes silent
     /// mid-recording can be told from a recording that simply ends quietly.
-    private var lastAudibleAt: Date?
     private var stopContinuation: CheckedContinuation<CompletedRecording, Error>?
 
     func startRecording(id: UUID, directory: URL, selection: AudioInputSelection) throws {
@@ -213,7 +203,6 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
             startedAt = .now
             currentLevel = -160
             maximumPeakLevel = -160
-            lastAudibleAt = nil
             session = capture.session
             dataOutput = capture.dataOutput
             fileOutput = output
@@ -230,7 +219,6 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
             let capture = try makeSession(selection: selection, fileOutput: nil)
             currentLevel = -160
             maximumPeakLevel = -160
-            lastAudibleAt = nil
             session = capture.session
             dataOutput = capture.dataOutput
             capture.session.startRunning()
@@ -407,17 +395,12 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
             continuation?.resume(throwing: AudioRecorderError.notRecording)
             return
         }
-        // Measured from the last audible buffer rather than from the file, so the
-        // stop's own latency is the only thing inflating it — well inside the
-        // threshold that decides a dropout.
-        let silentTail = lastAudibleAt.map { max(0, Date.now.timeIntervalSince($0)) } ?? 0
         continuation?.resume(returning: CompletedRecording(
             id: id,
             url: url,
             relativePath: url.lastPathComponent,
             duration: duration,
-            maximumPeakLevel: peak,
-            silentTailDuration: silentTail
+            maximumPeakLevel: peak
         ))
     }
 }
@@ -433,7 +416,6 @@ extension CaptureBackend: AVCaptureAudioDataOutputSampleBufferDelegate {
         currentLevel = channels.map(\.averagePowerLevel).max() ?? -160
         let peak = channels.map(\.peakHoldLevel).max() ?? -160
         maximumPeakLevel = max(maximumPeakLevel, peak)
-        if !MicrophoneDropoutPolicy.isSilent(decibels: peak) { lastAudibleAt = Date.now }
     }
 }
 

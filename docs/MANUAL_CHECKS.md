@@ -75,7 +75,7 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 
 ## When audio capture or transcription outcomes change
 
-- Set input volume to zero and dictate for at least three seconds. The **“No sound from the microphone”** pill appears with the failure sound, and the waveform is flat from the first moment. This costs no credit. Restore the input volume afterward. The **“Microphone cut out”** pill is a different outcome and has no known way to raise it on demand, so do not expect it here or treat its absence as a regression.
+- Set input volume to zero and dictate for at least three seconds. The **“No sound from the microphone”** pill appears with the failure sound, and the waveform is flat from the first moment. This costs no credit. Restore the input volume afterward.
 - Submit audio with no recognisable words. **This spends API credit; ask first.** Scriber reports no words and leaves no history row behind.
 
 ## When installed-app lifecycle or menu-bar behavior changes

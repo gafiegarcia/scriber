@@ -62,7 +62,7 @@ struct ShortcutMatcherTests {
         #expect(AppPhase.recording(mode: .held, elapsed: 0, level: -80).isBusy)
         #expect(AppPhase.transcribing(attempt: 1, retryDelay: nil).isBusy)
         #expect(!AppPhase.message("Still transcribing").isBusy)
-        #expect(!AppPhase.dictationCopied(text: "hi", message: "No target", microphoneDroppedOut: false).isBusy)
+        #expect(!AppPhase.dictationCopied(text: "hi", message: "No target").isBusy)
     }
 
     @Test("Every notice phase still accepts the next dictation")
@@ -79,7 +79,7 @@ struct ShortcutMatcherTests {
         #expect(AppPhase.idle.acceptsRecordingStart)
         #expect(AppPhase.message("Copied").acceptsRecordingStart)
         #expect(AppPhase.cancelledTranscript.acceptsRecordingStart)
-        #expect(AppPhase.dictationCopied(text: "hi", message: "No target", microphoneDroppedOut: false).acceptsRecordingStart)
+        #expect(AppPhase.dictationCopied(text: "hi", message: "No target").acceptsRecordingStart)
         #expect(AppPhase.permissionsRequired([.microphone]).acceptsRecordingStart)
         #expect(AppPhase.credentialsUnusable(.missingAPIKey).acceptsRecordingStart)
         #expect(AppPhase.transcriptCopied.acceptsRecordingStart)
@@ -277,7 +277,7 @@ struct PillDismissalTests {
 
     @Test("Visible terminal pills are dismissed")
     func terminalPills() {
-        #expect(AppPhase.dictationCopied(text: "Done", message: "Copied", microphoneDroppedOut: false)
+        #expect(AppPhase.dictationCopied(text: "Done", message: "Copied")
             .pillDismissalAction(isPresented: true) == .dismiss)
         #expect(AppPhase.transcriptionFailed("Offline")
             .pillDismissalAction(isPresented: true) == .dismiss)
@@ -312,27 +312,6 @@ struct RecordingCancellationTests {
         #expect(!RecordingCancellationPolicy.isMisclick(elapsed: 1))
     }
 
-    /// A live microphone in a silent room still sends its own noise floor, tens of
-    /// decibels above the silence floor. Only a stream that has stopped sending
-    /// anything reads that low, which is what keeps a pause before releasing the
-    /// key from being reported as a failure.
-    @Test("Only a stream sending nothing counts as silent")
-    func silenceIsNotQuiet() {
-        #expect(MicrophoneDropoutPolicy.isSilent(decibels: -160))
-        #expect(MicrophoneDropoutPolicy.isSilent(decibels: -.infinity))
-        #expect(!MicrophoneDropoutPolicy.isSilent(decibels: -63))
-        #expect(!MicrophoneDropoutPolicy.isSilent(decibels: -80))
-    }
-
-    @Test("A dropout needs a silent tail longer than stopping can explain")
-    func dropoutBoundary() {
-        #expect(!MicrophoneDropoutPolicy.droppedOut(silentTail: 0))
-        #expect(!MicrophoneDropoutPolicy.droppedOut(silentTail: 1.49))
-        #expect(MicrophoneDropoutPolicy.droppedOut(silentTail: 1.5))
-        // The measured case: audio for 4.71 s, then nothing for 5.89 s.
-        #expect(MicrophoneDropoutPolicy.droppedOut(silentTail: 5.89))
-    }
-
     /// The misclick window sits inside the window that discards audio, so nothing
     /// silently dropped here could have been kept for a retry.
     @Test("A misclick is always inside the discarding window")
@@ -349,7 +328,7 @@ struct RecordingCancellationTests {
 struct PillShapeTests {
     @Test("Expanded result and cancellation recovery use the fixed corner radius")
     func copiedResultShape() {
-        let copied = AppPhase.dictationCopied(text: String(repeating: "Long text ", count: 20), message: "Copied", microphoneDroppedOut: false)
+        let copied = AppPhase.dictationCopied(text: String(repeating: "Long text ", count: 20), message: "Copied")
 
         #expect(copied.pillShapeStyle == .roundedRectangle)
         #expect(copied.pillCornerRadius(height: 230) == 24)
@@ -382,7 +361,7 @@ private let everyPhase: [AppPhase] = [
     .recording(mode: .held, elapsed: 1, level: -20),
     .transcribing(attempt: 1, retryDelay: nil),
     .cancelledTranscript,
-    .dictationCopied(text: "hi", message: "No target", microphoneDroppedOut: false),
+    .dictationCopied(text: "hi", message: "No target"),
     .permissionsRequired([.microphone, .accessibility]),
     .credentialsUnusable(.missingAPIKey),
     .transcriptionFailed("Offline"),
@@ -396,7 +375,7 @@ private let everyPhase: [AppPhase] = [
 struct PillToneTests {
     @Test("Only the two copied phases report success")
     func success() {
-        #expect(AppPhase.dictationCopied(text: "hi", message: "No target", microphoneDroppedOut: false).pillTone == .success)
+        #expect(AppPhase.dictationCopied(text: "hi", message: "No target").pillTone == .success)
         #expect(AppPhase.transcriptCopied.pillTone == .success)
     }
 
@@ -407,12 +386,7 @@ struct PillToneTests {
             .credentialsUnusable(.missingAPIKey),
             .transcriptionFailed("Offline"),
             .noSpeechDetected,
-            .noAudioSignal,
-            .microphoneDroppedOut(deliveredPartialText: true),
-            .microphoneDroppedOut(deliveredPartialText: false),
-            // A copied transcript is still a success, but not when the microphone
-            // is why half of it is missing.
-            .dictationCopied(text: "hi", message: "Microphone cut out", microphoneDroppedOut: true)
+            .noAudioSignal
         ]
         for phase in warning { #expect(phase.pillTone == .warning) }
     }
@@ -423,12 +397,7 @@ struct PillToneTests {
     func microphoneOutcomesRouteToInput() {
         let inputFailures: [AppPhase] = [
             .noAudioSignal,
-            .noSpeechDetected,
-            .microphoneDroppedOut(deliveredPartialText: true),
-            .microphoneDroppedOut(deliveredPartialText: false),
-            // The copy fallback is the one route where the outcome reads as a
-            // success, so it is the one most able to hide a broken microphone.
-            .dictationCopied(text: "hi", message: "Microphone cut out", microphoneDroppedOut: true)
+            .noSpeechDetected
         ]
         for phase in inputFailures {
             #expect(phase.pillDefaultAction(isPresented: true) == .openInputSettings)
@@ -480,7 +449,7 @@ struct PillDefaultActionTests {
             .transcribing(attempt: 1, retryDelay: nil),
             // Its transcript is selectable, so a body tap would fight the
             // selection it sits on.
-            .dictationCopied(text: "hi", message: "No target", microphoneDroppedOut: false),
+            .dictationCopied(text: "hi", message: "No target"),
             .cancelledTranscript
         ]
         for phase in inert { #expect(phase.pillDefaultAction(isPresented: true) == .none) }

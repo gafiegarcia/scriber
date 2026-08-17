@@ -230,7 +230,7 @@ final class PillController {
             5
         case .cancelledTranscript, .noSpeechDetected:
             5
-        case .credentialsUnusable, .transcriptionFailed, .noAudioSignal, .microphoneDroppedOut:
+        case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
             6
         default:
             nil
@@ -241,7 +241,7 @@ final class PillController {
         switch phase {
         case .recording(let mode, _, _):
             NSSize(width: mode == .locked ? 360 : (model.isHovering ? 320 : 280), height: 52)
-        case .dictationCopied(let text, _, _):
+        case .dictationCopied(let text, _):
             copiedResultSize(for: text)
         case .cancelledTranscript:
             NSSize(width: 430, height: 104)
@@ -251,7 +251,7 @@ final class PillController {
             NSSize(width: 430, height: 60)
         case .transcriptionFailed:
             NSSize(width: 390, height: 60)
-        case .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut:
+        case .noSpeechDetected, .noAudioSignal:
             NSSize(width: 460, height: 60)
         default:
             NSSize(width: 280, height: 52)
@@ -533,7 +533,7 @@ private struct PillView: View {
 
     @ViewBuilder private var content: some View {
         switch model.phase {
-        case .dictationCopied(let text, let message, _):
+        case .dictationCopied(let text, let message):
             copiedResult(text: text, message: message)
         case .cancelledTranscript:
             cancellationRecovery
@@ -688,7 +688,7 @@ private struct PillView: View {
             ProgressView().controlSize(.small)
         case .dictationCopied, .transcriptCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(toneAccent)
-        case .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut:
+        case .noSpeechDetected, .noAudioSignal:
             Image(systemName: "mic.slash.fill").foregroundStyle(toneAccent)
         case .permissionsRequired, .credentialsUnusable, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(toneAccent)
@@ -719,7 +719,6 @@ private struct PillView: View {
         case .transcriptionFailed: "Transcription failed"
         case .noSpeechDetected: "No words detected"
         case .noAudioSignal: "No sound from the microphone"
-        case .microphoneDroppedOut: "Microphone cut out"
         case .message(let value): value
         }
     }
@@ -732,7 +731,7 @@ private struct PillView: View {
         case .cancelledTranscript: "We noticed you cancelled your transcription"
         case .permissionsRequired(let missing):
             PermissionReadiness(missingPermissions: missing).recoveryMessage
-        case .dictationCopied(_, let message, _), .transcriptionFailed(let message): message
+        case .dictationCopied(_, let message), .transcriptionFailed(let message): message
         // Kept short deliberately: the compact pill gives its subtitle one line
         // and truncates, and these phases also carry a countdown, an action, and
         // a dismiss control on the same row. The cause goes here; the fix is the
@@ -744,8 +743,6 @@ private struct PillView: View {
         // actively wrong in the case where audio did arrive.
         case .noSpeechDetected: "No recognisable words in the recording"
         case .noAudioSignal: "Check the selected input and its volume"
-        case .microphoneDroppedOut(let deliveredPartialText):
-            deliveredPartialText ? "Part of this dictation is missing" : "Nothing could be transcribed"
         default: nil
         }
     }
@@ -772,12 +769,7 @@ private struct PillView: View {
             Button("Retry") { model.onRetry?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("See History") { model.onOpen?() }.controlSize(.small)
             dismissButton
-        case .dictationCopied(_, _, let droppedOut) where droppedOut:
-            Button("Check Input") { model.onOpenInputSettings?() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            dismissButton
-        case .noSpeechDetected, .noAudioSignal, .microphoneDroppedOut:
+        case .noSpeechDetected, .noAudioSignal:
             Button("Check Input") { model.onOpenInputSettings?() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
