@@ -53,8 +53,7 @@ public struct ShortcutChord: Codable, Hashable, Sendable {
 ///
 /// Not a preset in the picker: setup offers `fn` or recording your own, and this
 /// is the hint shown once recording is the path taken. Two modifiers because
-/// `ReservedShortcuts` refuses a lone one, and not `⌃⌥Space` for hands-free
-/// because macOS reserves that for switching input sources.
+/// `ReservedShortcuts` refuses a lone one.
 public enum SuggestedShortcuts {
     public static let withoutFunctionKey = ShortcutChord(modifiers: [.control, .option], keyCode: nil)
 }

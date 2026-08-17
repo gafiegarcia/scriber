@@ -12,9 +12,8 @@ final class Preferences: ObservableObject {
         static let subscriptionUsage = "subscriptionUsage"
         static let apiCreditsExhausted = "apiCreditsExhausted"
         static let dictationShortcut = "dictationShortcut"
-        /// Read once, to carry an existing install onto the single shortcut. Hold
-        /// is the half that survives: it is the chord people actually press, and
-        /// a short press of it now does what Toggle used to.
+        /// Read once, to carry an install stored under an older key onto the
+        /// dictation shortcut. Never written.
         static let legacyHoldShortcut = "holdShortcut"
         static let languageCode = "languageCode"
         static let noVerbatim = "noVerbatim"
