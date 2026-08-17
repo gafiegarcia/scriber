@@ -1336,6 +1336,13 @@ public enum ShortcutPreferences {
         usable(dictation) ? dictation : .defaultDictation
     }
 
+    /// The recorded chord is offered as something to switch back to, so one that
+    /// is no longer bindable has to stop being offered — selecting it would bind
+    /// what the recorder itself would now refuse.
+    public static func resolve(custom: ShortcutChord?) -> ShortcutChord? {
+        custom.flatMap { usable($0) ? $0 : nil }
+    }
+
     private static func usable(_ chord: ShortcutChord) -> Bool {
         chord.isValid && !ReservedShortcuts.reserves(chord)
     }

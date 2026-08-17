@@ -88,8 +88,10 @@ final class Preferences: ObservableObject {
         dictationShortcut = resolvedDictation
         // Anything already bound that is not one of the presets was recorded by
         // hand, whether or not this key existed when it was.
-        customShortcut = Self.decode(ShortcutChord.self, key: Keys.customShortcut, defaults: defaults)
-            ?? (SuggestedShortcuts.offers.contains(resolvedDictation) ? nil : resolvedDictation)
+        customShortcut = ShortcutPreferences.resolve(
+            custom: Self.decode(ShortcutChord.self, key: Keys.customShortcut, defaults: defaults)
+                ?? (SuggestedShortcuts.offers.contains(resolvedDictation) ? nil : resolvedDictation)
+        )
         languageCode = defaults.string(forKey: Keys.languageCode) ?? "auto"
         noVerbatim = defaults.object(forKey: Keys.noVerbatim) == nil ? true : defaults.bool(forKey: Keys.noVerbatim)
         keyterms = Self.decode([String].self, key: Keys.keyterms, defaults: defaults) ?? []

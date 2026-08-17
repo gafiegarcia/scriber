@@ -1758,4 +1758,51 @@ struct ReservedShortcutsTests {
         let stored = ShortcutChord(modifiers: [.command, .shift], keyCode: 2)
         #expect(ShortcutPreferences.resolve(dictation: stored) == stored)
     }
+
+    /// Loading replaces an unbindable chord with the default and says nothing, so
+    /// every refusal rule added later is a chance to take someone's binding away
+    /// on the next launch. These are the shapes people are actually holding.
+    @Test("Shortcuts people already have survive a load")
+    func establishedChordsSurvive() throws {
+        let storedForms = [
+            #"{"modifiers":22}"#,                          // fn+⌃+⌥
+            #"{"modifiers":6}"#,                            // ⌃+⌥
+            #"{"modifiers":16}"#,                           // fn
+            #"{"modifiers":1,"modifierSide":"right"}"#,     // Right ⌘, as build 155 wrote it
+            #"{"modifiers":2,"modifierKeyCodes":[61]}"#,    // Right ⌥, as build 156 wrote it
+        ]
+        for form in storedForms {
+            let chord = try JSONDecoder().decode(ShortcutChord.self, from: Data(form.utf8))
+            #expect(
+                ShortcutPreferences.resolve(dictation: chord) == chord,
+                "\(chord.displayName) was replaced on load"
+            )
+        }
+    }
+
+    /// A recorded chord is offered as a button to switch back to, so one that is
+    /// no longer bindable has to stop being offered rather than sit there binding
+    /// what the recorder would refuse.
+    @Test("A recorded chord that is no longer bindable stops being offered")
+    func unbindableCustomIsDropped() {
+        let refused = ShortcutChord(modifiers: [.command, .shift], keyCode: nil)
+        #expect(ReservedShortcuts.reserves(refused))
+        #expect(ShortcutPreferences.resolve(custom: refused) == nil)
+
+        let fine = ShortcutChord(modifiers: [.control, .option], keyCode: nil)
+        #expect(ShortcutPreferences.resolve(custom: fine) == fine)
+        #expect(ShortcutPreferences.resolve(custom: nil) == nil)
+    }
+
+    /// The one shape that does lose its binding: a ⌘ combination bound before
+    /// that was refused. Nothing tells the user, which is the cost of the rule.
+    @Test("A newly refused chord is replaced with the default")
+    func newlyRefusedChordIsReplaced() throws {
+        let stored = try JSONDecoder().decode(
+            ShortcutChord.self,
+            from: Data(#"{"modifiers":3,"modifierKeyCodes":[55,58]}"#.utf8) // Left ⌘+Left ⌥
+        )
+        #expect(ReservedShortcuts.reserves(stored))
+        #expect(ShortcutPreferences.resolve(dictation: stored) == .defaultDictation)
+    }
 }
