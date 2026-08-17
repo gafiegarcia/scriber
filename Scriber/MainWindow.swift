@@ -306,18 +306,18 @@ struct MenuBarContent: View {
 
     var body: some View {
         Group {
-            Button("Open Scriber") { openMain(destination: .dictation) }
-            Button("Settings") { openMain(destination: .settings) }
             // The only surface left when setup is closed part-way: the main
             // window is suppressed for the whole of setup, so the toolbar's
-            // warning control does not exist to carry this.
+            // warning control does not exist to carry this — and Open Scriber
+            // would put on screen the window that suppression exists to keep away.
             if !runtime.preferences.onboardingComplete {
-                Divider()
                 Button { openOnboarding() } label: {
                     Label("Finish Setup…", systemImage: "exclamationmark.triangle.fill")
                 }
             }
             if runtime.preferences.onboardingComplete {
+                Button("Open Scriber") { openMain(destination: .dictation) }
+                Button("Settings") { openMain(destination: .settings) }
                 if !runtime.coordinator.permissionReadiness.isReady {
                     Divider()
                     Button { openMain(destination: .permissions) } label: {
