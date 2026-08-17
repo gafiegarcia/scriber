@@ -185,13 +185,14 @@ public enum AudioInputSelection: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-/// A microphone that stops sending audio partway through a recording.
+/// A microphone that stops sending audio partway through a recording. Called
+/// "Microphone cut out" everywhere the user can read it; use those words in copy.
 ///
-/// macOS can mute a capture stream after it has already started — the input volume
-/// set to its minimum is one way to see it, where the first seconds record normally
-/// and the rest arrive as nothing. The audio reaching transcription is genuinely
-/// incomplete, and the loudest-moment signal check cannot see it, so the dictation
-/// comes back quietly missing its second half.
+/// The audio reaching transcription is genuinely incomplete, and the loudest-moment
+/// signal check cannot see it — one loud moment early vouches for the whole take —
+/// so the dictation comes back quietly missing its second half. Do not reach for a
+/// zero input volume to reproduce it: that flat-lines from the first buffer and is
+/// caught by the no-signal check instead.
 public enum MicrophoneDropoutPolicy {
     /// Digital silence, not quiet. A live microphone in a silent room still sends
     /// its own noise floor, tens of decibels above this; only a stream that has
