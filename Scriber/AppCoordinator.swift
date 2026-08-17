@@ -1465,16 +1465,12 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    /// Bluetooth output keeps its silence a moment longer, so the headset's
-    /// scramble back out of call mode happens where nobody can hear it.
+    /// The mute outlasts the recording by a moment, so other apps do not come
+    /// back in the same instant the input stream closes.
     private func endOtherAudioMuting() {
         pendingUnmute?.cancel()
-        guard OtherAudioMuteService.outputIsBluetooth() else {
-            restoreOtherAudio()
-            return
-        }
         pendingUnmute = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(OtherAudioMutePolicy.bluetoothSettleDelay))
+            try? await Task.sleep(for: .seconds(OtherAudioMutePolicy.restoreDelay))
             guard !Task.isCancelled else { return }
             self?.restoreOtherAudio()
         }
