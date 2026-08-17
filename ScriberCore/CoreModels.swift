@@ -35,8 +35,7 @@ public struct ShortcutChord: Codable, Hashable, Sendable {
         self.keyCode = keyCode
     }
 
-    public static let defaultHold = ShortcutChord(modifiers: [.function], keyCode: nil)
-    public static let defaultToggle = ShortcutChord(modifiers: [.function], keyCode: 49)
+    public static let defaultDictation = ShortcutChord(modifiers: [.function], keyCode: nil)
 
     public var isValid: Bool { !modifiers.isEmpty }
 
@@ -506,17 +505,33 @@ enum HandsFreePillAction: Equatable, Sendable {
 }
 
 public enum ShortcutAction: Equatable, Sendable {
-    case holdPressed
-    case holdReleased
-    case togglePressed
+    /// The dictation shortcut went down. Recording starts here in every case, so
+    /// the first word is never lost to a decision that has not been made yet.
+    case pressed
+    /// It came back up after being down past `DictationShortcutTiming.tapThreshold`,
+    /// which reads as talking while holding it.
+    case releasedAfterHold
+    /// It came back up before that, which asks for hands-free instead. The
+    /// recording started by `pressed` carries on rather than restarting.
+    case releasedAsTap
     case cancel
 
     public func stopsRecording(mode: RecordingMode) -> Bool {
         switch (self, mode) {
-        case (.holdReleased, .held), (.togglePressed, .locked): true
+        case (.releasedAfterHold, .held), (.pressed, .locked): true
         default: false
         }
     }
+}
+
+/// How long the dictation shortcut must stay down to mean "I am talking now"
+/// rather than "start listening and let go".
+///
+/// The decision is taken on release, not on press, so this never delays the
+/// start of a recording. Too short and a brief deliberate hold ends up
+/// hands-free; too long and a tap feels like it hung.
+public enum DictationShortcutTiming {
+    public static let tapThreshold: TimeInterval = 0.25
 }
 
 public enum PillDismissalAction: Equatable, Sendable {
@@ -755,23 +770,14 @@ public enum PasteConfirmationPolicy {
 }
 
 public struct ShortcutMatcher: Sendable {
-    public var hold: ShortcutChord
-    public var toggle: ShortcutChord
+    public var dictation: ShortcutChord
 
-    public init(hold: ShortcutChord, toggle: ShortcutChord) {
-        self.hold = hold
-        self.toggle = toggle
+    public init(dictation: ShortcutChord) {
+        self.dictation = dictation
     }
 
-    public func matchesExactly(_ chord: ShortcutChord, modifiers: KeyModifiers, keyCode: UInt16?) -> Bool {
-        chord.modifiers == modifiers && chord.keyCode == keyCode
-    }
-
-    public func matchesToggleWhileHeld(modifiers: KeyModifiers, keyCode: UInt16?) -> Bool {
-        guard keyCode == toggle.keyCode else { return false }
-        let permittedExtras = hold.modifiers.subtracting(toggle.modifiers)
-        let normalized = modifiers.subtracting(permittedExtras)
-        return normalized == toggle.modifiers
+    public func matches(modifiers: KeyModifiers, keyCode: UInt16?) -> Bool {
+        dictation.modifiers == modifiers && dictation.keyCode == keyCode
     }
 }
 
@@ -796,12 +802,22 @@ public struct ShortcutTapInput: Equatable, Sendable {
     /// True for the stream macOS sends while a key stays down. A repeat is not a
     /// new press, and every place that treats it as one has to say so explicitly.
     public let isRepeat: Bool
+    /// Seconds on a monotonic clock. Supplied by the caller rather than read here
+    /// so the tap machine stays a pure function a test can drive.
+    public let timestamp: TimeInterval
 
-    public init(kind: Kind, keyCode: UInt16, modifiers: KeyModifiers, isRepeat: Bool = false) {
+    public init(
+        kind: Kind,
+        keyCode: UInt16,
+        modifiers: KeyModifiers,
+        isRepeat: Bool = false,
+        timestamp: TimeInterval = 0
+    ) {
         self.kind = kind
         self.keyCode = keyCode
         self.modifiers = modifiers
         self.isRepeat = isRepeat
+        self.timestamp = timestamp
     }
 }
 
@@ -832,32 +848,22 @@ public struct ShortcutTapOutcome: Equatable, Sendable {
 public struct ShortcutTapMachine: Sendable {
     public private(set) var mode: ShortcutMonitorMode = .idle
     public private(set) var holdLatched = false
-    public private(set) var toggleLatched = false
 
     private var matcher: ShortcutMatcher
-    private var holdEnabled: Bool
-    private var toggleEnabled: Bool
     private var isConfigurationCaptureActive = false
+    /// When the latched press happened, so the release can tell a tap from a hold.
+    private var pressedAt: TimeInterval?
     private var suppressedKeyCodes = Set<UInt16>()
     /// Whether the Escape press that began a run of repeats was consumed, so the
     /// repeats agree with it without asking again or cancelling a second time.
     private var escapeConsumed = false
 
-    public init(hold: ShortcutChord, toggle: ShortcutChord, holdEnabled: Bool, toggleEnabled: Bool) {
-        matcher = ShortcutMatcher(hold: hold, toggle: toggle)
-        self.holdEnabled = holdEnabled
-        self.toggleEnabled = toggleEnabled
+    public init(dictation: ShortcutChord) {
+        matcher = ShortcutMatcher(dictation: dictation)
     }
 
-    public mutating func reconfigure(
-        hold: ShortcutChord,
-        toggle: ShortcutChord,
-        holdEnabled: Bool,
-        toggleEnabled: Bool
-    ) {
-        matcher = ShortcutMatcher(hold: hold, toggle: toggle)
-        self.holdEnabled = holdEnabled
-        self.toggleEnabled = toggleEnabled
+    public mutating func reconfigure(dictation: ShortcutChord) {
+        matcher = ShortcutMatcher(dictation: dictation)
         reset()
     }
 
@@ -888,13 +894,15 @@ public struct ShortcutTapMachine: Sendable {
     /// user was aiming at.
     private mutating func resetLatches() {
         holdLatched = false
-        toggleLatched = false
+        pressedAt = nil
     }
 
-    /// A locked recording is stopped by Toggle alone, and a busy one is not the
-    /// keyboard's to stop. Anything else: letting go of Hold ends it.
-    private var stopsOnHoldRelease: Bool {
-        mode != .locked && mode != .busy
+    /// Which release the press earned, given how long it stayed down.
+    private func release(at timestamp: TimeInterval) -> ShortcutAction {
+        guard let pressedAt, timestamp - pressedAt >= DictationShortcutTiming.tapThreshold else {
+            return .releasedAsTap
+        }
+        return .releasedAfterHold
     }
 
     public mutating func handle(
@@ -926,42 +934,27 @@ public struct ShortcutTapMachine: Sendable {
 
     private mutating func handleKeyUp(_ input: ShortcutTapInput) -> ShortcutTapOutcome {
         let wasSuppressed = suppressedKeyCodes.remove(input.keyCode) != nil
-        if matcher.toggle.keyCode == input.keyCode { toggleLatched = false }
-        if matcher.hold.keyCode == input.keyCode, holdLatched {
-            holdLatched = false
-            return ShortcutTapOutcome(
-                suppressesEvent: true,
-                effects: stopsOnHoldRelease ? [.action(.holdReleased)] : []
-            )
+        if matcher.dictation.keyCode == input.keyCode, holdLatched {
+            let action = release(at: input.timestamp)
+            resetLatches()
+            return ShortcutTapOutcome(suppressesEvent: true, effects: [.action(action)])
         }
         return ShortcutTapOutcome(suppressesEvent: wasSuppressed)
     }
 
     private mutating func handleKeyDown(_ input: ShortcutTapInput) -> ShortcutTapOutcome {
-        if holdEnabled, matcher.hold.keyCode != nil,
-           matcher.matchesExactly(matcher.hold, modifiers: input.modifiers, keyCode: input.keyCode) {
-            // The chord bound to Hold is Scriber's in every mode, so it returns
-            // here rather than falling through. Falling through let the chord's
-            // own auto-repeat read as the user typing, which cancelled the
-            // recording and cleared the latch, so the next repeat started another
-            // one — and leaked the character to the app in front on the way past.
+        if matcher.dictation.keyCode != nil,
+           matcher.matches(modifiers: input.modifiers, keyCode: input.keyCode) {
+            // The dictation chord is Scriber's in every mode, so it returns here
+            // rather than falling through. Falling through let the chord's own
+            // auto-repeat read as the user typing, which cancelled the recording
+            // and cleared the latch, so the next repeat started another one — and
+            // leaked the character to the app in front on the way past.
             suppressedKeyCodes.insert(input.keyCode)
-            guard !input.isRepeat, !holdLatched, mode == .idle else { return .suppressed }
+            guard !input.isRepeat, !holdLatched else { return .suppressed }
             holdLatched = true
-            return ShortcutTapOutcome(suppressesEvent: true, effects: [.action(.holdPressed)])
-        }
-
-        let toggleMatches = mode == .held
-            ? matcher.matchesToggleWhileHeld(modifiers: input.modifiers, keyCode: input.keyCode)
-            : matcher.matchesExactly(matcher.toggle, modifiers: input.modifiers, keyCode: input.keyCode)
-        if toggleEnabled, toggleMatches {
-            // Same shape as Hold above. A held Toggle chord used to re-fire once
-            // per repeat, nagging "Still transcribing" and then starting a fresh
-            // recording the moment transcription finished.
-            suppressedKeyCodes.insert(input.keyCode)
-            guard !input.isRepeat, !toggleLatched else { return .suppressed }
-            toggleLatched = true
-            return ShortcutTapOutcome(suppressesEvent: true, effects: [.action(.togglePressed)])
+            pressedAt = input.timestamp
+            return ShortcutTapOutcome(suppressesEvent: true, effects: [.action(.pressed)])
         }
 
         if mode == .held {
@@ -971,24 +964,22 @@ public struct ShortcutTapMachine: Sendable {
     }
 
     private mutating func handleFlagsChanged(_ input: ShortcutTapInput) -> ShortcutTapOutcome {
-        let holdSatisfied = holdEnabled && matcher.hold.modifiers.isSubset(of: input.modifiers)
-
-        if holdEnabled, matcher.hold.keyCode == nil, !holdLatched, mode == .idle,
-           matcher.matchesExactly(matcher.hold, modifiers: input.modifiers, keyCode: nil) {
+        if !holdLatched, matcher.dictation.keyCode == nil,
+           matcher.matches(modifiers: input.modifiers, keyCode: nil) {
             holdLatched = true
-            return ShortcutTapOutcome(suppressesEvent: false, effects: [.action(.holdPressed)])
+            pressedAt = input.timestamp
+            return ShortcutTapOutcome(suppressesEvent: false, effects: [.action(.pressed)])
         }
 
         // Latch-driven rather than mode-driven. The press reaches the coordinator
         // a run-loop turn before the mode comes back, and a release landing in
         // that window used to be dropped on the `.idle` branch — leaving a
-        // recording running that nothing was going to stop.
-        if holdLatched, !holdSatisfied {
-            holdLatched = false
-            return ShortcutTapOutcome(
-                suppressesEvent: false,
-                effects: stopsOnHoldRelease ? [.action(.holdReleased)] : []
-            )
+        // recording running that nothing was going to stop. A keyed chord releases
+        // here too, when one of its modifiers goes up before its key does.
+        if holdLatched, !matcher.dictation.modifiers.isSubset(of: input.modifiers) {
+            let action = release(at: input.timestamp)
+            resetLatches()
+            return ShortcutTapOutcome(suppressesEvent: false, effects: [.action(action)])
         }
 
         // Modifier-only shortcuts (including bare Fn) must not consume the
@@ -1138,20 +1129,13 @@ public enum ReservedShortcuts {
     ]
 }
 
-/// Resolves what was loaded from disk into a pair Scriber can actually run.
+/// Resolves what was loaded from disk into a chord Scriber can actually run.
 public enum ShortcutPreferences {
     /// A stored chord predates every rule added since it was stored, and nothing
     /// on the load path has ever checked one. Replaces anything unbindable with
-    /// its default, and refuses to hand back a pair that is the same chord twice.
-    public static func resolve(
-        hold: ShortcutChord,
-        toggle: ShortcutChord
-    ) -> (hold: ShortcutChord, toggle: ShortcutChord) {
-        var hold = usable(hold) ? hold : .defaultHold
-        var toggle = usable(toggle) ? toggle : .defaultToggle
-        if hold == toggle { toggle = .defaultToggle }
-        if hold == toggle { hold = .defaultHold }
-        return (hold, toggle)
+    /// the default.
+    public static func resolve(dictation: ShortcutChord) -> ShortcutChord {
+        usable(dictation) ? dictation : .defaultDictation
     }
 
     private static func usable(_ chord: ShortcutChord) -> Bool {

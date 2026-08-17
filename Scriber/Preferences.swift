@@ -11,10 +11,11 @@ final class Preferences: ObservableObject {
         static let apiKeyValidity = "apiKeyValidity"
         static let subscriptionUsage = "subscriptionUsage"
         static let apiCreditsExhausted = "apiCreditsExhausted"
-        static let holdShortcut = "holdShortcut"
-        static let toggleShortcut = "toggleShortcut"
-        static let holdShortcutEnabled = "holdShortcutEnabled"
-        static let toggleShortcutEnabled = "toggleShortcutEnabled"
+        static let dictationShortcut = "dictationShortcut"
+        /// Read once, to carry an existing install onto the single shortcut. Hold
+        /// is the half that survives: it is the chord people actually press, and
+        /// a short press of it now does what Toggle used to.
+        static let legacyHoldShortcut = "holdShortcut"
         static let languageCode = "languageCode"
         static let noVerbatim = "noVerbatim"
         static let keyterms = "keyterms"
@@ -39,10 +40,7 @@ final class Preferences: ObservableObject {
     @Published var apiKeyValidity: APIKeyValidity { didSet { defaults.set(apiKeyValidity.rawValue, forKey: Keys.apiKeyValidity) } }
     @Published var subscriptionUsage: ElevenLabsSubscriptionUsage? { didSet { save(subscriptionUsage, key: Keys.subscriptionUsage) } }
     @Published var apiCreditsExhausted: Bool { didSet { defaults.set(apiCreditsExhausted, forKey: Keys.apiCreditsExhausted) } }
-    @Published var holdShortcut: ShortcutChord { didSet { save(holdShortcut, key: Keys.holdShortcut) } }
-    @Published var toggleShortcut: ShortcutChord { didSet { save(toggleShortcut, key: Keys.toggleShortcut) } }
-    @Published var holdShortcutEnabled: Bool { didSet { defaults.set(holdShortcutEnabled, forKey: Keys.holdShortcutEnabled) } }
-    @Published var toggleShortcutEnabled: Bool { didSet { defaults.set(toggleShortcutEnabled, forKey: Keys.toggleShortcutEnabled) } }
+    @Published var dictationShortcut: ShortcutChord { didSet { save(dictationShortcut, key: Keys.dictationShortcut) } }
     @Published var languageCode: String { didSet { defaults.set(languageCode, forKey: Keys.languageCode) } }
     @Published var noVerbatim: Bool { didSet { defaults.set(noVerbatim, forKey: Keys.noVerbatim) } }
     @Published var keyterms: [String] { didSet { save(keyterms, key: Keys.keyterms) } }
@@ -80,13 +78,10 @@ final class Preferences: ObservableObject {
         apiKeyValidity = defaults.string(forKey: Keys.apiKeyValidity).flatMap(APIKeyValidity.init(rawValue:)) ?? .unchecked
         subscriptionUsage = Self.decode(ElevenLabsSubscriptionUsage.self, key: Keys.subscriptionUsage, defaults: defaults)
         apiCreditsExhausted = defaults.bool(forKey: Keys.apiCreditsExhausted)
-        let storedHold = Self.decode(ShortcutChord.self, key: Keys.holdShortcut, defaults: defaults) ?? .defaultHold
-        let storedToggle = Self.decode(ShortcutChord.self, key: Keys.toggleShortcut, defaults: defaults) ?? .defaultToggle
-        let resolvedShortcuts = ShortcutPreferences.resolve(hold: storedHold, toggle: storedToggle)
-        holdShortcut = resolvedShortcuts.hold
-        toggleShortcut = resolvedShortcuts.toggle
-        holdShortcutEnabled = defaults.object(forKey: Keys.holdShortcutEnabled) == nil ? true : defaults.bool(forKey: Keys.holdShortcutEnabled)
-        toggleShortcutEnabled = defaults.object(forKey: Keys.toggleShortcutEnabled) == nil ? true : defaults.bool(forKey: Keys.toggleShortcutEnabled)
+        let storedDictation = Self.decode(ShortcutChord.self, key: Keys.dictationShortcut, defaults: defaults)
+            ?? Self.decode(ShortcutChord.self, key: Keys.legacyHoldShortcut, defaults: defaults)
+            ?? .defaultDictation
+        dictationShortcut = ShortcutPreferences.resolve(dictation: storedDictation)
         languageCode = defaults.string(forKey: Keys.languageCode) ?? "auto"
         noVerbatim = defaults.object(forKey: Keys.noVerbatim) == nil ? true : defaults.bool(forKey: Keys.noVerbatim)
         keyterms = Self.decode([String].self, key: Keys.keyterms, defaults: defaults) ?? []
@@ -122,11 +117,12 @@ final class Preferences: ObservableObject {
         if defaults.object(forKey: Keys.automaticUpdateChecks) == nil {
             defaults.set(true, forKey: Keys.automaticUpdateChecks)
         }
-        // A chord replaced above was read before `didSet` was live, so it has to
-        // be written back here or the stored value survives to be replaced again
-        // on the next launch.
-        if resolvedShortcuts.hold != storedHold { save(resolvedShortcuts.hold, key: Keys.holdShortcut) }
-        if resolvedShortcuts.toggle != storedToggle { save(resolvedShortcuts.toggle, key: Keys.toggleShortcut) }
+        // The chord above was read before `didSet` was live, so it has to be
+        // written back here — otherwise a replaced one is replaced again on every
+        // launch, and one carried over from the old key is carried over forever.
+        if defaults.object(forKey: Keys.dictationShortcut) == nil || dictationShortcut != storedDictation {
+            save(dictationShortcut, key: Keys.dictationShortcut)
+        }
     }
 
     /// Reads a flag that is on until the user turns it off. `bool(forKey:)` alone

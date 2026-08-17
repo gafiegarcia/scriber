@@ -4,28 +4,23 @@ import Testing
 
 @Suite("Shortcut matching")
 struct ShortcutMatcherTests {
-    @Test("Default shortcuts are distinct exact chords")
-    func defaultShortcuts() {
-        let matcher = ShortcutMatcher(hold: .defaultHold, toggle: .defaultToggle)
-        #expect(matcher.matchesExactly(.defaultHold, modifiers: [.function], keyCode: nil))
-        #expect(matcher.matchesExactly(.defaultToggle, modifiers: [.function], keyCode: 49))
-        #expect(!matcher.matchesExactly(.defaultToggle, modifiers: [.function, .control], keyCode: 49))
+    @Test("The dictation chord matches exactly, modifiers and key alike")
+    func defaultShortcut() {
+        let matcher = ShortcutMatcher(dictation: .defaultDictation)
+        #expect(matcher.matches(modifiers: [.function], keyCode: nil))
+        #expect(!matcher.matches(modifiers: [.function, .control], keyCode: nil))
+        #expect(!matcher.matches(modifiers: [.function], keyCode: 49))
     }
 
-    @Test("Hold-only modifiers are ignored when locking")
-    func contextualToggle() {
-        let hold = ShortcutChord(modifiers: [.function, .control, .option], keyCode: nil)
-        let matcher = ShortcutMatcher(hold: hold, toggle: .defaultToggle)
-        #expect(matcher.matchesToggleWhileHeld(modifiers: [.function, .control, .option], keyCode: 49))
-        #expect(!matcher.matchesToggleWhileHeld(modifiers: [.function, .control, .option, .shift], keyCode: 49))
-    }
-
-    @Test("Locked recording stops only with the hands-free toggle")
-    func lockedStopSemantics() {
-        #expect(ShortcutAction.togglePressed.stopsRecording(mode: .locked))
-        #expect(!ShortcutAction.holdPressed.stopsRecording(mode: .locked))
-        #expect(!ShortcutAction.holdReleased.stopsRecording(mode: .locked))
-        #expect(ShortcutAction.holdReleased.stopsRecording(mode: .held))
+    /// One shortcut serves both modes, so which one stops a recording depends on
+    /// the mode it is in rather than on which chord arrived.
+    @Test("A held recording stops on release; a hands-free one on the next press")
+    func stopSemantics() {
+        #expect(ShortcutAction.releasedAfterHold.stopsRecording(mode: .held))
+        #expect(!ShortcutAction.releasedAfterHold.stopsRecording(mode: .locked))
+        #expect(ShortcutAction.pressed.stopsRecording(mode: .locked))
+        #expect(!ShortcutAction.pressed.stopsRecording(mode: .held))
+        #expect(!ShortcutAction.releasedAsTap.stopsRecording(mode: .held))
     }
 
     @Test("Cancelling is permitted in every recording mode; confirming only while locked")
@@ -1177,33 +1172,48 @@ struct ShortcutTapMachineTests {
     /// configuration never showed any of this.
     private let keyedHold = ShortcutChord(modifiers: [.command, .shift], keyCode: 2)
 
-    private func machine(hold: ShortcutChord, toggle: ShortcutChord = .defaultToggle) -> ShortcutTapMachine {
-        ShortcutTapMachine(hold: hold, toggle: toggle, holdEnabled: true, toggleEnabled: true)
+    /// Past `tapThreshold`, so a release at this time reads as a hold.
+    private let heldLongEnough: TimeInterval = 1
+
+    private func machine(dictation: ShortcutChord) -> ShortcutTapMachine {
+        ShortcutTapMachine(dictation: dictation)
     }
 
-    private func down(_ keyCode: UInt16, _ modifiers: KeyModifiers, repeating: Bool = false) -> ShortcutTapInput {
-        ShortcutTapInput(kind: .keyDown, keyCode: keyCode, modifiers: modifiers, isRepeat: repeating)
+    private func down(
+        _ keyCode: UInt16,
+        _ modifiers: KeyModifiers,
+        repeating: Bool = false,
+        at timestamp: TimeInterval = 0
+    ) -> ShortcutTapInput {
+        ShortcutTapInput(
+            kind: .keyDown, keyCode: keyCode, modifiers: modifiers,
+            isRepeat: repeating, timestamp: timestamp
+        )
     }
 
-    private func up(_ keyCode: UInt16, _ modifiers: KeyModifiers) -> ShortcutTapInput {
-        ShortcutTapInput(kind: .keyUp, keyCode: keyCode, modifiers: modifiers)
+    private func up(
+        _ keyCode: UInt16,
+        _ modifiers: KeyModifiers,
+        at timestamp: TimeInterval = 1
+    ) -> ShortcutTapInput {
+        ShortcutTapInput(kind: .keyUp, keyCode: keyCode, modifiers: modifiers, timestamp: timestamp)
     }
 
-    private func flags(_ modifiers: KeyModifiers) -> ShortcutTapInput {
-        ShortcutTapInput(kind: .flagsChanged, keyCode: 0, modifiers: modifiers)
+    private func flags(_ modifiers: KeyModifiers, at timestamp: TimeInterval = 0) -> ShortcutTapInput {
+        ShortcutTapInput(kind: .flagsChanged, keyCode: 0, modifiers: modifiers, timestamp: timestamp)
     }
 
     @Test("A held chord's auto-repeat starts one recording, not eleven")
     func heldChordStartsOnce() {
-        var machine = machine(hold: keyedHold)
+        var machine = machine(dictation: keyedHold)
         var starts = 0
 
         if machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false)
-            .effects.contains(.action(.holdPressed)) { starts += 1 }
+            .effects.contains(.action(.pressed)) { starts += 1 }
         machine.setMode(.held)
         for _ in 0..<10 {
             if machine.handle(down(2, [.command, .shift], repeating: true), pillConsumesEscape: false)
-                .effects.contains(.action(.holdPressed)) { starts += 1 }
+                .effects.contains(.action(.pressed)) { starts += 1 }
         }
 
         #expect(starts == 1)
@@ -1211,8 +1221,8 @@ struct ShortcutTapMachineTests {
 
     @Test("A typing cancel cannot be restarted by the chord still being held")
     func cancelledHoldDoesNotRestartItself() {
-        var machine = machine(hold: keyedHold)
-        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.holdPressed)])
+        var machine = machine(dictation: keyedHold)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.pressed)])
         machine.setMode(.held)
         #expect(machine.handle(down(2, [.command, .shift], repeating: true), pillConsumesEscape: false).effects.isEmpty)
 
@@ -1223,13 +1233,13 @@ struct ShortcutTapMachineTests {
         #expect(machine.handle(down(2, [.command, .shift], repeating: true), pillConsumesEscape: false).effects.isEmpty)
 
         // Releasing and pressing again is still how you start the next one.
-        _ = machine.handle(up(2, [.command, .shift]), pillConsumesEscape: false)
-        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.holdPressed)])
+        _ = machine.handle(up(2, [.command, .shift], at: heldLongEnough), pillConsumesEscape: false)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.pressed)])
     }
 
     @Test("The held chord's repeats never reach the app in front")
     func heldChordRepeatsAreSwallowed() {
-        var machine = machine(hold: keyedHold)
+        var machine = machine(dictation: keyedHold)
         #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).suppressesEvent)
         machine.setMode(.held)
         for _ in 0..<3 {
@@ -1240,7 +1250,7 @@ struct ShortcutTapMachineTests {
 
     @Test("The hold chord is not typing")
     func heldChordIsNotTyping() {
-        var machine = machine(hold: keyedHold)
+        var machine = machine(dictation: keyedHold)
         _ = machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false)
         machine.setMode(.held)
 
@@ -1250,7 +1260,7 @@ struct ShortcutTapMachineTests {
 
     @Test("Any other key while held still counts as typing")
     func otherKeysStillCountAsTyping() {
-        var machine = machine(hold: keyedHold)
+        var machine = machine(dictation: keyedHold)
         _ = machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false)
         machine.setMode(.held)
 
@@ -1259,41 +1269,72 @@ struct ShortcutTapMachineTests {
         #expect(!outcome.suppressesEvent)
     }
 
-    @Test("A toggle chord's auto-repeat neither nags nor restarts")
-    func heldToggleChordFiresOnce() {
-        var machine = machine(hold: .defaultHold)
-        #expect(machine.handle(down(49, [.function]), pillConsumesEscape: false).effects == [.action(.togglePressed)])
+    @Test("Letting go quickly asks for hands-free; holding on does not")
+    func tapAndHoldAreTold() {
+        var machine = machine(dictation: .defaultDictation)
+        #expect(machine.handle(flags([.function], at: 0), pillConsumesEscape: false)
+            .effects == [.action(.pressed)])
+        #expect(machine.handle(flags([], at: 0.1), pillConsumesEscape: false)
+            .effects == [.action(.releasedAsTap)])
 
-        // `stopAndTranscribe` goes busy, which clears the latches.
-        machine.setMode(.busy)
-        #expect(machine.handle(down(49, [.function], repeating: true), pillConsumesEscape: false).effects.isEmpty)
+        _ = machine.handle(flags([.function], at: 10), pillConsumesEscape: false)
+        #expect(machine.handle(flags([], at: 11), pillConsumesEscape: false)
+            .effects == [.action(.releasedAfterHold)])
+    }
 
-        // And the still-held key must not start a recording when transcription ends.
-        machine.setMode(.idle)
-        #expect(machine.handle(down(49, [.function], repeating: true), pillConsumesEscape: false).effects.isEmpty)
+    /// On the threshold is a hold. Recording has already started either way, so
+    /// the only thing this decides is whether letting go also stops it.
+    @Test("The tap threshold is a floor, not a gap")
+    func tapThresholdBoundary() {
+        let threshold = DictationShortcutTiming.tapThreshold
+        var machine = machine(dictation: .defaultDictation)
+
+        _ = machine.handle(flags([.function], at: 0), pillConsumesEscape: false)
+        #expect(machine.handle(flags([], at: threshold - 0.001), pillConsumesEscape: false)
+            .effects == [.action(.releasedAsTap)])
+
+        _ = machine.handle(flags([.function], at: 10), pillConsumesEscape: false)
+        #expect(machine.handle(flags([], at: 10 + threshold), pillConsumesEscape: false)
+            .effects == [.action(.releasedAfterHold)])
+    }
+
+    /// The whole point of the pivot: one chord starts a hands-free recording and
+    /// the same chord stops it, with no second binding to discover.
+    @Test("A tap starts hands-free and the next press stops it")
+    func handsFreeRoundTrip() {
+        var machine = machine(dictation: .defaultDictation)
+        _ = machine.handle(flags([.function], at: 0), pillConsumesEscape: false)
+        #expect(machine.handle(flags([], at: 0.1), pillConsumesEscape: false)
+            .effects == [.action(.releasedAsTap)])
+        machine.setMode(.locked)
+
+        #expect(machine.handle(flags([.function], at: 5), pillConsumesEscape: false)
+            .effects == [.action(.pressed)])
+        #expect(ShortcutAction.pressed.stopsRecording(mode: .locked))
     }
 
     @Test("A press and its release survive a mode that has not caught up")
     func releaseArrivesBeforeTheModeDoes() {
-        var machine = machine(hold: .defaultHold)
-        #expect(machine.handle(flags([.function]), pillConsumesEscape: false).effects == [.action(.holdPressed)])
+        var machine = machine(dictation: .defaultDictation)
+        #expect(machine.handle(flags([.function]), pillConsumesEscape: false).effects == [.action(.pressed)])
 
         // No `setMode`: the press reaches the coordinator a run-loop turn later,
         // and a release landing first used to be dropped, leaving a recording
         // running that nothing was going to stop.
-        #expect(machine.handle(flags([]), pillConsumesEscape: false).effects == [.action(.holdReleased)])
+        #expect(machine.handle(flags([], at: heldLongEnough), pillConsumesEscape: false)
+            .effects == [.action(.releasedAfterHold)])
     }
 
     @Test("A second press before the mode catches up starts nothing")
     func secondPressStartsNothing() {
-        var machine = machine(hold: keyedHold)
-        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.holdPressed)])
+        var machine = machine(dictation: keyedHold)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.pressed)])
         #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects.isEmpty)
     }
 
     @Test("Escape is consumed only while a pill wants it")
     func escapeFollowsThePill() {
-        var machine = machine(hold: .defaultHold)
+        var machine = machine(dictation: .defaultDictation)
 
         let ignored = machine.handle(down(53, []), pillConsumesEscape: false)
         #expect(!ignored.suppressesEvent)
@@ -1311,7 +1352,7 @@ struct ShortcutTapMachineTests {
 
     @Test("Configuration capture passes every key through")
     func configurationCapturePassesEverythingThrough() {
-        var machine = machine(hold: keyedHold)
+        var machine = machine(dictation: keyedHold)
         machine.setConfigurationCaptureActive(true)
 
         #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false) == .passedThrough)
@@ -1320,23 +1361,27 @@ struct ShortcutTapMachineTests {
         #expect(machine.handle(down(53, []), pillConsumesEscape: true) == .passedThrough)
     }
 
-    @Test("Locked recording ignores the hold release")
-    func lockedRecordingIgnoresHoldRelease() {
-        var machine = machine(hold: .defaultHold)
-        _ = machine.handle(flags([.function]), pillConsumesEscape: false)
-        machine.setMode(.locked)
-
-        #expect(machine.handle(flags([]), pillConsumesEscape: false).effects.isEmpty)
+    @Test("A modifier-only chord presses and releases exactly once")
+    func modifierOnlyChordStillWorks() {
+        var machine = machine(dictation: .defaultDictation)
+        #expect(machine.handle(flags([.function], at: 0), pillConsumesEscape: false)
+            .effects == [.action(.pressed)])
+        machine.setMode(.held)
+        #expect(machine.handle(flags([.function], at: 0.5), pillConsumesEscape: false).effects.isEmpty)
+        #expect(machine.handle(flags([], at: heldLongEnough), pillConsumesEscape: false)
+            .effects == [.action(.releasedAfterHold)])
+        #expect(machine.handle(flags([], at: 2), pillConsumesEscape: false).effects.isEmpty)
     }
 
-    @Test("A modifier-only hold chord still presses and releases exactly once")
-    func modifierOnlyHoldStillWorks() {
-        var machine = machine(hold: .defaultHold)
-        #expect(machine.handle(flags([.function]), pillConsumesEscape: false).effects == [.action(.holdPressed)])
+    /// A keyed chord can shed a modifier before its key comes up, and that ends
+    /// the hold — otherwise the recording outlives the chord that started it.
+    @Test("Releasing a modifier ends a keyed chord's hold")
+    func keyedChordReleasesOnModifier() {
+        var machine = machine(dictation: keyedHold)
+        _ = machine.handle(down(2, [.command, .shift], at: 0), pillConsumesEscape: false)
         machine.setMode(.held)
-        #expect(machine.handle(flags([.function]), pillConsumesEscape: false).effects.isEmpty)
-        #expect(machine.handle(flags([]), pillConsumesEscape: false).effects == [.action(.holdReleased)])
-        #expect(machine.handle(flags([]), pillConsumesEscape: false).effects.isEmpty)
+        #expect(machine.handle(flags([.command], at: heldLongEnough), pillConsumesEscape: false)
+            .effects == [.action(.releasedAfterHold)])
     }
 }
 
@@ -1357,8 +1402,7 @@ struct SuggestedShortcutTests {
 
     @Test("It does not collide with the default it stands in for")
     func suggestionDiffersFromTheDefault() {
-        #expect(SuggestedShortcuts.withoutFunctionKey != .defaultHold)
-        #expect(SuggestedShortcuts.withoutFunctionKey != .defaultToggle)
+        #expect(SuggestedShortcuts.withoutFunctionKey != .defaultDictation)
     }
 }
 
@@ -1384,8 +1428,8 @@ struct ReservedShortcutsTests {
             let chord = ShortcutChord(modifiers: modifier, keyCode: nil)
             #expect(ReservedShortcuts.reserves(chord), "\(chord.displayName) alone should be refused")
         }
-        // fn alone is the default Hold binding and must stay bindable.
-        #expect(ReservedShortcuts.refusal(for: .defaultHold) == nil)
+        // fn alone is the default dictation binding and must stay bindable.
+        #expect(ReservedShortcuts.refusal(for: .defaultDictation) == nil)
         // Two modifiers together are a deliberate chord, not a key someone leans on.
         #expect(ReservedShortcuts.refusal(for: ShortcutChord(modifiers: [.control, .option], keyCode: nil)) == nil)
     }
@@ -1445,8 +1489,7 @@ struct ReservedShortcutsTests {
 
     @Test("An ordinary chord is allowed")
     func ordinaryChordsAreAllowed() {
-        #expect(ReservedShortcuts.refusal(for: .defaultHold) == nil)
-        #expect(ReservedShortcuts.refusal(for: .defaultToggle) == nil)
+        #expect(ReservedShortcuts.refusal(for: .defaultDictation) == nil)
         #expect(ReservedShortcuts.refusal(for: chord([.control, .shift], "D")) == nil)
         #expect(ReservedShortcuts.refusal(for: chord([.option], "R")) == nil)
         #expect(ReservedShortcuts.refusal(for: ShortcutChord(modifiers: [.function, .control, .option], keyCode: nil)) == nil)
@@ -1454,28 +1497,13 @@ struct ReservedShortcutsTests {
 
     @Test("A stored reserved chord is replaced on load")
     func storedReservedChordIsReplaced() {
-        let resolved = ShortcutPreferences.resolve(
-            hold: ShortcutChord(modifiers: [.command], keyCode: KeyCodeNames.code(for: "Q")),
-            toggle: .defaultToggle
-        )
-        #expect(resolved.hold == .defaultHold)
-        #expect(resolved.toggle == .defaultToggle)
+        let stored = ShortcutChord(modifiers: [.command], keyCode: KeyCodeNames.code(for: "Q"))
+        #expect(ShortcutPreferences.resolve(dictation: stored) == .defaultDictation)
     }
 
-    @Test("Sanitizing never leaves Hold and Toggle the same chord")
-    func resolvedPairIsAlwaysDistinct() {
-        let resolved = ShortcutPreferences.resolve(
-            hold: ShortcutChord(modifiers: [.command], keyCode: KeyCodeNames.code(for: "Q")),
-            toggle: .defaultHold
-        )
-        #expect(resolved.hold != resolved.toggle)
-    }
-
-    @Test("An already-valid pair is returned untouched")
-    func validPairSurvives() {
-        let hold = ShortcutChord(modifiers: [.command, .shift], keyCode: 2)
-        let resolved = ShortcutPreferences.resolve(hold: hold, toggle: .defaultToggle)
-        #expect(resolved.hold == hold)
-        #expect(resolved.toggle == .defaultToggle)
+    @Test("An already-valid chord is returned untouched")
+    func validChordSurvives() {
+        let stored = ShortcutChord(modifiers: [.command, .shift], keyCode: 2)
+        #expect(ShortcutPreferences.resolve(dictation: stored) == stored)
     }
 }

@@ -343,14 +343,10 @@ struct MenuBarContent: View {
                 }
             }
             Divider()
-            shortcutHint(
-                "Hold to Dictate: \(runtime.preferences.holdShortcut.displayName)",
-                isEnabled: runtime.preferences.holdShortcutEnabled
-            )
-            shortcutHint(
-                "Hands-free Dictation: \(runtime.preferences.toggleShortcut.displayName)",
-                isEnabled: runtime.preferences.toggleShortcutEnabled
-            )
+            // Both modes, named where someone who never reads Settings will meet
+            // them. Setup teaches this once; the menu is where it stays teachable.
+            shortcutHint("Hold \(runtime.preferences.dictationShortcut.displayName) to dictate")
+            shortcutHint("Tap it for hands-free")
             Divider()
             Button("Quit Scriber") { NSApp.terminate(nil) }
         }
@@ -360,10 +356,8 @@ struct MenuBarContent: View {
         }
     }
 
-    private func shortcutHint(_ title: String, isEnabled: Bool) -> some View {
-        Text(title)
-            .foregroundStyle(.secondary)
-            .strikethrough(!isEnabled)
+    private func shortcutHint(_ title: String) -> some View {
+        Text(title).foregroundStyle(.secondary)
     }
 
     private func openOnboarding() {

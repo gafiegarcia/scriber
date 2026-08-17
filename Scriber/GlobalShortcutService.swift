@@ -25,22 +25,12 @@ final class GlobalShortcutService {
     private var pendingEffects: [ShortcutTapEffect] = []
     private var isDrainScheduled = false
 
-    init(hold: ShortcutChord, toggle: ShortcutChord, holdEnabled: Bool, toggleEnabled: Bool) {
-        machine = ShortcutTapMachine(
-            hold: hold,
-            toggle: toggle,
-            holdEnabled: holdEnabled,
-            toggleEnabled: toggleEnabled
-        )
+    init(dictation: ShortcutChord) {
+        machine = ShortcutTapMachine(dictation: dictation)
     }
 
-    func update(hold: ShortcutChord, toggle: ShortcutChord, holdEnabled: Bool, toggleEnabled: Bool) {
-        machine.reconfigure(
-            hold: hold,
-            toggle: toggle,
-            holdEnabled: holdEnabled,
-            toggleEnabled: toggleEnabled
-        )
+    func update(dictation: ShortcutChord) {
+        machine.reconfigure(dictation: dictation)
     }
 
     func setMode(_ mode: ShortcutMonitorMode) {
@@ -85,7 +75,12 @@ final class GlobalShortcutService {
                 // Set only on keyDown; the other two report 0, which is what the
                 // machine wants for them. Without it a held chord reads as a
                 // stream of fresh presses.
-                isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+                isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
+                // Read here rather than from `event.timestamp`, whose mach units
+                // need a timebase this would have to assume. The callback runs as
+                // the event arrives, so the two agree to well under the threshold
+                // that separates a tap from a hold.
+                timestamp: ProcessInfo.processInfo.systemUptime
             )
             // This tap is installed on the main run loop, so the callback is
             // main-actor isolated. Deciding synchronously is essential: an

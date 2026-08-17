@@ -156,12 +156,7 @@ final class AppCoordinator: ObservableObject {
             modelContext: modelContext,
             servicesAllowed: servicesAllowed
         )
-        shortcuts = GlobalShortcutService(
-            hold: preferences.holdShortcut,
-            toggle: preferences.toggleShortcut,
-            holdEnabled: preferences.holdShortcutEnabled,
-            toggleEnabled: preferences.toggleShortcutEnabled
-        )
+        shortcuts = GlobalShortcutService(dictation: preferences.dictationShortcut)
 
         shortcuts.onAction = { [weak self] action in self?.handle(action) }
         // A query, not the dismissal: the tap asks this while the key is passing,
@@ -193,20 +188,8 @@ final class AppCoordinator: ObservableObject {
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
         pill.model.onDefaultAction = { [weak self] in self?.performPillDefaultAction() }
 
-        Publishers.CombineLatest4(
-            preferences.$holdShortcut,
-            preferences.$toggleShortcut,
-            preferences.$holdShortcutEnabled,
-            preferences.$toggleShortcutEnabled
-        )
-            .sink { [weak self] hold, toggle, holdEnabled, toggleEnabled in
-                self?.shortcuts.update(
-                    hold: hold,
-                    toggle: toggle,
-                    holdEnabled: holdEnabled,
-                    toggleEnabled: toggleEnabled
-                )
-            }
+        preferences.$dictationShortcut
+            .sink { [weak self] chord in self?.shortcuts.update(dictation: chord) }
             .store(in: &cancellables)
 
         preferences.$muteOtherAudioWhileRecording
@@ -846,32 +829,27 @@ final class AppCoordinator: ObservableObject {
     func handle(_ action: ShortcutAction) {
         guard preferences.onboardingComplete else { return }
         switch action {
-        case .holdPressed:
-            if phase.acceptsRecordingStart {
-                startRecording(mode: .held)
-            } else if case .transcribing = phase {
-                showTransientMessage("Still transcribing")
-            }
-        case .holdReleased:
-            if case .recording(let mode, _, _) = phase,
-               ShortcutAction.holdReleased.stopsRecording(mode: mode) {
-                stopAndTranscribe()
-            }
-        case .togglePressed:
-            guard !phase.acceptsRecordingStart else {
-                startRecording(mode: .locked)
-                return
-            }
+        // Recording always starts here, before anyone knows whether this press is
+        // a tap or a hold, so no word is lost waiting for that to be decided.
+        case .pressed:
             switch phase {
-            case .recording(let mode, let elapsed, let level) where mode == .held:
-                shortcuts.setMode(.locked)
-                setPhase(.recording(mode: .locked, elapsed: elapsed, level: level))
-            case .recording(let mode, _, _) where ShortcutAction.togglePressed.stopsRecording(mode: mode):
+            case .recording(let mode, _, _) where action.stopsRecording(mode: mode):
                 stopAndTranscribe()
             case .transcribing:
                 showTransientMessage("Still transcribing")
             default:
-                break
+                if phase.acceptsRecordingStart { startRecording(mode: .held) }
+            }
+        case .releasedAfterHold:
+            if case .recording(let mode, _, _) = phase, action.stopsRecording(mode: mode) {
+                stopAndTranscribe()
+            }
+        // The recording `pressed` started carries on, hands-free. Starting a fresh
+        // one here would throw away whatever was said during the tap itself.
+        case .releasedAsTap:
+            if case .recording(.held, let elapsed, let level) = phase {
+                shortcuts.setMode(.locked)
+                setPhase(.recording(mode: .locked, elapsed: elapsed, level: level))
             }
         case .cancel:
             _ = dismissVisiblePill()

@@ -7,15 +7,8 @@ import ScriberCore
 struct ShortcutRecorderView: View {
     let title: String
     let identifier: String
-    /// Whether the row offers switching the shortcut off. Settings does, because
-    /// a user can want neither mode bound. Setup does not: its whole job is
-    /// making one shortcut work, and offering to disable it there is an answer
-    /// to a question nobody is being asked.
-    var showsEnableToggle = true
-    @Binding var isEnabled: Bool
     @Binding var chord: ShortcutChord
     @Binding var activeRecorderID: String?
-    let conflictingChord: ShortcutChord?
     let isCaptureAllowed: Bool
     /// Bumped when the Settings window closes. A refusal explains a key the user
     /// just pressed, so it has no business still being there the next time they
@@ -32,25 +25,17 @@ struct ShortcutRecorderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                if showsEnableToggle {
-                    Toggle(title, isOn: $isEnabled)
-                        .disabled(!isEnabled && conflictingChord == chord)
-                } else {
-                    Text(title)
-                }
+                Text(title)
                 Spacer()
                 Button(isRecording ? (liveChord?.displayName ?? "Press shortcut…") : chord.displayName) {
                     isRecording ? stopRecording() : startRecording()
                 }
                 .frame(minWidth: 130)
-                .disabled(!isEnabled || !isCaptureAllowed || (activeRecorderID != nil && !isRecording))
+                .disabled(!isCaptureAllowed || (activeRecorderID != nil && !isRecording))
             }
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
         }
         .onDisappear { stopRecording() }
-        .onChange(of: isEnabled) { _, enabled in
-            if !enabled { stopRecording() }
-        }
         .onChange(of: activeRecorderID) { _, activeRecorderID in
             if activeRecorderID != identifier { stopMonitoring() }
         }
@@ -100,9 +85,6 @@ struct ShortcutRecorderView: View {
     private func commit(_ value: ShortcutChord) {
         guard value.isValid else { return reject("Include at least one modifier.") }
         if let refusal = ReservedShortcuts.refusal(for: value) { return reject(refusal) }
-        guard conflictingChord == nil || value != conflictingChord else {
-            return reject("Hold and Toggle must be different.")
-        }
         chord = value
         stopRecording()
     }

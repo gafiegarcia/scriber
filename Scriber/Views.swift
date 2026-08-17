@@ -424,26 +424,14 @@ private struct GeneralSettingsPane: View {
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-general-pane") {
             SettingsSection(
-                "Shortcuts",
-                footer: "A shortcut can be modifier keys on their own, like fn or ⌃⌥. Press Escape while recording one to cancel."
+                "Shortcut",
+                footer: "Hold it to dictate while it is down. Tap it to dictate hands-free, and tap again to stop. A shortcut can be modifier keys on their own, like fn or ⌃⌥. Press Escape while recording one to cancel."
             ) {
                 ShortcutRecorderView(
-                    title: "Hold to Dictate",
-                    identifier: "hold",
-                    isEnabled: $runtime.preferences.holdShortcutEnabled,
-                    chord: $runtime.preferences.holdShortcut,
+                    title: "Dictate",
+                    identifier: "dictation",
+                    chord: $runtime.preferences.dictationShortcut,
                     activeRecorderID: $activeShortcutRecorderID,
-                    conflictingChord: runtime.preferences.toggleShortcutEnabled ? runtime.preferences.toggleShortcut : nil,
-                    isCaptureAllowed: !runtime.coordinator.phase.isBusy,
-                    refusalResetToken: refusalResetToken
-                )
-                ShortcutRecorderView(
-                    title: "Hands-free Dictation",
-                    identifier: "toggle",
-                    isEnabled: $runtime.preferences.toggleShortcutEnabled,
-                    chord: $runtime.preferences.toggleShortcut,
-                    activeRecorderID: $activeShortcutRecorderID,
-                    conflictingChord: runtime.preferences.holdShortcutEnabled ? runtime.preferences.holdShortcut : nil,
                     isCaptureAllowed: !runtime.coordinator.phase.isBusy,
                     refusalResetToken: refusalResetToken
                 )
@@ -1218,15 +1206,15 @@ struct OnboardingView: View {
         .scrollBounceBehavior(.basedOnSize)
         .frame(minWidth: 640, maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            usesCustomShortcut = runtime.preferences.holdShortcut != .defaultHold
+            usesCustomShortcut = runtime.preferences.dictationShortcut != .defaultDictation
         }
         .onChange(of: usesCustomShortcut) { _, isCustom in
             // Choosing fn restores it; choosing Record leaves whatever is bound
             // for the recorder to replace. Guarded because the same change fires
             // when `onAppear` points the picker at what the user already has, and
             // writing then would overwrite a chord they recorded earlier.
-            guard !isCustom, runtime.preferences.holdShortcut != .defaultHold else { return }
-            runtime.preferences.holdShortcut = .defaultHold
+            guard !isCustom, runtime.preferences.dictationShortcut != .defaultDictation else { return }
+            runtime.preferences.dictationShortcut = .defaultDictation
         }
     }
 
@@ -1234,7 +1222,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Welcome to Scriber").font(.largeTitle.bold())
-                Text("Hold Fn to dictate. Your audio goes only to ElevenLabs, and your history stays on this Mac.")
+                Text("Hold fn to dictate, or tap it to go hands-free. Your audio goes only to ElevenLabs, and your history stays on this Mac.")
                     .foregroundStyle(.secondary)
             }
             GroupBox("1. ElevenLabs API key") {
@@ -1358,7 +1346,7 @@ struct OnboardingView: View {
             }
             GroupBox("4. Your Shortcut") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Hold it to dictate, and let go when you finish.")
+                    Text("Hold it to dictate, and let go when you finish. Or tap it once and keep your hands free — tap again to stop.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Picker("", selection: $usesCustomShortcut) {
@@ -1371,13 +1359,10 @@ struct OnboardingView: View {
 
                     if usesCustomShortcut {
                         ShortcutRecorderView(
-                            title: "Hold to Dictate",
-                            identifier: "onboarding-hold",
-                            showsEnableToggle: false,
-                            isEnabled: $runtime.preferences.holdShortcutEnabled,
-                            chord: $runtime.preferences.holdShortcut,
+                            title: "Dictate",
+                            identifier: "onboarding-dictation",
+                            chord: $runtime.preferences.dictationShortcut,
                             activeRecorderID: $activeShortcutRecorderID,
-                            conflictingChord: runtime.preferences.toggleShortcut,
                             isCaptureAllowed: true,
                             refusalResetToken: 0
                         )
@@ -1387,7 +1372,7 @@ struct OnboardingView: View {
                     }
 
                     ShortcutTestField(
-                        target: runtime.preferences.holdShortcut,
+                        target: runtime.preferences.dictationShortcut,
                         isConfirmed: $shortcutConfirmed
                     )
                 }
