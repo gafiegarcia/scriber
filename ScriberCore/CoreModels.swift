@@ -332,7 +332,12 @@ public enum OtherAudioMutePolicy {
     /// Sound returning in the same instant the input stream closes is what gets
     /// heard as a glitch — a device changing mode right then has not settled. A
     /// pause this short reads as nothing at all.
-    public static let restoreDelay: TimeInterval = 0.1
+    ///
+    /// It covers the transition, not a Bluetooth headset's whole trip out of
+    /// call mode, which runs about a second and stays audible. macOS's own
+    /// dictation lets that through too and only softens it with a level ramp,
+    /// which a process tap has no way to do.
+    public static let restoreDelay: TimeInterval = 0.2
 }
 
 public enum AudioSignal {
