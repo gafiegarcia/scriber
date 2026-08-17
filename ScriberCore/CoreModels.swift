@@ -325,6 +325,20 @@ public enum AudioInputSelection: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+/// When other apps get their sound back after a dictation.
+public enum OtherAudioMutePolicy {
+    /// How long to keep everything muted after recording stops, on a Bluetooth
+    /// output only.
+    ///
+    /// A headset leaves call mode when the input stream closes, and spends about
+    /// two seconds getting there — garbled and peaking. Holding the mute across
+    /// that spends the noise on silence. macOS's own dictation ramps the level
+    /// back instead, which a process tap cannot do: `CATapMuteBehavior` is muted
+    /// or unmuted with nothing in between, and the only real ramp available
+    /// would be moving the user's system volume.
+    public static let bluetoothSettleDelay: TimeInterval = 1.5
+}
+
 public enum AudioSignal {
     public static let detectionThreshold: Float = -60
     public static let visibleCeiling: Float = -6

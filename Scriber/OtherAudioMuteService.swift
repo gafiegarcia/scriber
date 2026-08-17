@@ -226,6 +226,35 @@ final class OtherAudioMuteService: OtherAudioMuting {
         return .restored
     }
 
+    /// Whether sound is currently going out over Bluetooth, which is the only
+    /// case that needs the settle delay.
+    nonisolated static func outputIsBluetooth() -> Bool {
+        var deviceAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var deviceID = AudioObjectID(kAudioObjectUnknown)
+        var deviceSize = UInt32(MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject), &deviceAddress, 0, nil, &deviceSize, &deviceID
+        ) == noErr, deviceID != kAudioObjectUnknown else { return false }
+
+        var transportAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyTransportType,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var transport = UInt32(0)
+        var transportSize = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(
+            deviceID, &transportAddress, 0, nil, &transportSize, &transport
+        ) == noErr else { return false }
+
+        return transport == kAudioDeviceTransportTypeBluetooth
+            || transport == kAudioDeviceTransportTypeBluetoothLE
+    }
+
     private func excludedProcessObjectIDs() -> [AudioObjectID] {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyTranslatePIDToProcessObject,

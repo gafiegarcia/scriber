@@ -81,6 +81,8 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 
 - Turn **Mute other audio while recording** on with System Audio Recording not yet granted, and answer the macOS prompt that follows the **Turn On** button. It arrives immediately, not during the next dictation, and Scriber stays responsive while it is on screen. This needs an account that has never granted it — a grant already given raises no prompt at all, so the check is void on Gaf's own machine.
 
+- Dictate with music playing over Bluetooth headphones. The music comes back a moment after the pill closes, and comes back clean — none of the garbled, peaking couple of seconds the headset spends leaving call mode. On the built-in speakers it comes back at once, with no added pause. Then quit Scriber mid-delay, and with the setting switched off mid-delay: both bring the sound straight back rather than leaving the Mac silent.
+
 ## When audio capture or transcription outcomes change
 
 - Set input volume to zero and dictate for as little as clears the too-brief-to-be-a-dictation guard. The **“No sound from the microphone”** pill appears with the failure sound, and the waveform is flat from the first moment. No duration is needed beyond that guard: a zero input volume sends nothing from the first buffer, so anything longer only hides a regression that shortened it. This costs no credit. Restore the input volume afterward.

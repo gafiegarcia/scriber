@@ -93,6 +93,7 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var mainWindowRequest: MainWindowRequest?
     private var settingsWindowOpener: (@MainActor () -> Void)?
     @Published private(set) var otherAudioMuteStatus: OtherAudioMuteStatus?
+    private var pendingUnmute: Task<Void, Never>?
 
     let preferences: Preferences
     let modelContext: ModelContext
@@ -199,7 +200,9 @@ final class AppCoordinator: ObservableObject {
                 if enabled, case .recording = self.phase {
                     self.beginOtherAudioMuting()
                 } else if !enabled {
-                    self.endOtherAudioMuting()
+                    // Turning it off is an instruction about right now, not the
+                    // end of a dictation, so it does not wait out the delay.
+                    self.restoreOtherAudio()
                     if self.otherAudioMuteStatus == .unavailableToStart {
                         self.otherAudioMuteStatus = nil
                     }
@@ -215,7 +218,9 @@ final class AppCoordinator: ObservableObject {
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
-            .sink { [weak self] _ in self?.endOtherAudioMuting() }
+            // Never the delayed path: nothing schedules on an app that is going
+            // away, and the tap outliving it leaves the Mac silent.
+            .sink { [weak self] _ in self?.restoreOtherAudio() }
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
@@ -1448,6 +1453,10 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func beginOtherAudioMuting() {
+        // A dictation starting inside the settle delay keeps the tap it already
+        // has, rather than tearing one down and building another.
+        pendingUnmute?.cancel()
+        pendingUnmute = nil
         switch otherAudioMuting.beginMuting() {
         case .muted, .alreadyMuted:
             otherAudioMuteStatus = nil
@@ -1456,7 +1465,24 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+    /// Bluetooth output keeps its silence a moment longer, so the headset's
+    /// scramble back out of call mode happens where nobody can hear it.
     private func endOtherAudioMuting() {
+        pendingUnmute?.cancel()
+        guard OtherAudioMuteService.outputIsBluetooth() else {
+            restoreOtherAudio()
+            return
+        }
+        pendingUnmute = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(OtherAudioMutePolicy.bluetoothSettleDelay))
+            guard !Task.isCancelled else { return }
+            self?.restoreOtherAudio()
+        }
+    }
+
+    private func restoreOtherAudio() {
+        pendingUnmute?.cancel()
+        pendingUnmute = nil
         switch otherAudioMuting.endMuting() {
         case .restored:
             if otherAudioMuteStatus == .unableToRestore {
