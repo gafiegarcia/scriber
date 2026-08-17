@@ -47,6 +47,13 @@ public enum ModifierKeyCodes {
         sides.first { $0.value.modifier == modifier && $0.value.side == side }?.key
     }
 
+    /// The modifiers whose two keys are worth telling apart. Both have a right
+    /// key on every Mac keyboard and neither is typed right-handed to open a
+    /// shortcut. Control often has no right key at all, and right Shift types
+    /// capitals all day — naming sides for those would invent a distinction the
+    /// keyboard does not make.
+    public static let sidedModifiers: KeyModifiers = [.command, .option]
+
     public static func name(for keyCode: UInt16) -> String? {
         guard let entry = sides[keyCode] else { return nil }
         let side = entry.side == .right ? "Right" : "Left"
@@ -99,7 +106,11 @@ public struct ShortcutChord: Codable, Hashable, Sendable {
     public init(modifiers: KeyModifiers, keyCode: UInt16?, modifierKeyCodes: Set<UInt16> = []) {
         self.modifiers = modifiers
         self.keyCode = keyCode
-        self.modifierKeyCodes = keyCode == nil ? modifierKeyCodes : []
+        // Only a chord built entirely from the sideable modifiers keeps its
+        // sides. Add ⌃, ⇧, or `fn` and the chord is a combination being pressed,
+        // where which key a hand lands on is not a choice anyone is making.
+        let sideable = keyCode == nil && modifiers.isSubset(of: ModifierKeyCodes.sidedModifiers)
+        self.modifierKeyCodes = sideable ? modifierKeyCodes : []
     }
 
     public init(modifiers: KeyModifiers, keyCode: UInt16?, modifierSide: ModifierSide) {
@@ -115,11 +126,10 @@ public struct ShortcutChord: Codable, Hashable, Sendable {
 
     public var isSided: Bool { !modifierKeyCodes.isEmpty }
 
-    /// True when every modifier in the chord is bound to one named key. A chord
-    /// naming some of its sides and not others cannot be produced by the
-    /// recorder and is not a state worth matching against.
-    public var namesEverySide: Bool {
-        modifierKeyCodes.count == modifiers.rawValue.nonzeroBitCount
+    /// Whether every key this chord names is a right-hand one, which is what
+    /// keeps it clear of the shortcuts people actually type.
+    public var isEntirelyRightHanded: Bool {
+        isSided && modifierKeyCodes.allSatisfy { ModifierKeyCodes.sides[$0]?.side == .right }
     }
 
     public var displayName: String {
@@ -1185,6 +1195,19 @@ public enum ReservedShortcuts {
         // decides, and this rule is about what ⌘ plus a letter already means.
         if chord.keyCode != nil, chord.modifiers == [.command] {
             return "⌘ with a single key belongs to whatever app you are typing in. Add another modifier."
+        }
+        // ⌘ with another modifier and no key is how most shortcuts on the Mac
+        // begin, so binding it starts a recording on the way into ⌘⌥I or ⌘⇧4.
+        // Held on the right it is clear of all of them, which is the same reason
+        // a lone Right ⌘ is allowed.
+        if chord.keyCode == nil,
+           chord.modifiers.contains(.command),
+           chord.modifiers.rawValue.nonzeroBitCount > 1,
+           !chord.isEntirelyRightHanded {
+            if chord.modifiers.isSubset(of: ModifierKeyCodes.sidedModifiers) {
+                return "\(chord.displayName) starts most shortcuts on the Mac. Hold both on the right instead."
+            }
+            return "\(chord.displayName) starts most shortcuts on the Mac. Add a key, or use ⌘ and ⌥ on the right."
         }
         if systemChords.contains(normalized(chord)) {
             return "macOS reserves \(chord.displayName). Choose another shortcut."

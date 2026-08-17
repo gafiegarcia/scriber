@@ -1413,6 +1413,42 @@ struct SidedModifierTests {
         #expect(!ShortcutChord(modifiers: [.option], keyCode: 2, modifierKeyCodes: [61]).isSided)
     }
 
+    /// A MacBook has no right ⌃ at all, and right ⇧ types capitals all day.
+    /// Naming sides for those would invent a distinction the keyboard does not
+    /// make — and would show `⌃+⌥` as "Left ⌃+Left ⌥" while `fn+⌃+⌥` stayed
+    /// plain, which is the same chord family described two different ways.
+    @Test("Only ⌘ and ⌥ carry sides")
+    func onlyCommandAndOptionAreSided() {
+        #expect(ShortcutChord(modifiers: [.command, .option], keyCode: nil, modifierKeyCodes: [54, 61]).isSided)
+        #expect(!ShortcutChord(modifiers: [.control, .option], keyCode: nil, modifierKeyCodes: [59, 61]).isSided)
+        #expect(!ShortcutChord(modifiers: [.shift], keyCode: nil, modifierKeyCodes: [60]).isSided)
+        #expect(!ShortcutChord(modifiers: [.function, .option], keyCode: nil, modifierKeyCodes: [61]).isSided)
+
+        // And so the two describe themselves the same way.
+        #expect(ShortcutChord(modifiers: [.control, .option], keyCode: nil, modifierKeyCodes: [59, 61]).displayName == "⌃+⌥")
+        #expect(ShortcutChord(modifiers: [.function, .control, .option], keyCode: nil).displayName == "fn+⌃+⌥")
+    }
+
+    /// Binding a ⌘ combination starts a recording on the way into every ⌘⌥I and
+    /// ⌘⇧4. On the right it clears all of them, for the same reason a lone
+    /// Right ⌘ does.
+    @Test("A ⌘ combination is refused unless it is entirely right-handed")
+    func commandCombinationsNeedTheRightHand() {
+        let bothRight = ShortcutChord(modifiers: [.command, .option], keyCode: nil, modifierKeyCodes: [54, 61])
+        let bothLeft = ShortcutChord(modifiers: [.command, .option], keyCode: nil, modifierKeyCodes: [55, 58])
+        let oneOfEach = ShortcutChord(modifiers: [.command, .option], keyCode: nil, modifierKeyCodes: [55, 61])
+
+        #expect(ReservedShortcuts.refusal(for: bothRight) == nil)
+        #expect(ReservedShortcuts.reserves(bothLeft))
+        #expect(ReservedShortcuts.reserves(oneOfEach))
+        // ⌃ and ⇧ have no right-hand answer, so these are simply refused.
+        #expect(ReservedShortcuts.reserves(ShortcutChord(modifiers: [.command, .shift], keyCode: nil)))
+        #expect(ReservedShortcuts.reserves(ShortcutChord(modifiers: [.command, .control], keyCode: nil)))
+        // Combinations without ⌘ are unaffected, including the no-fn suggestion.
+        #expect(ReservedShortcuts.refusal(for: ShortcutChord(modifiers: [.control, .option], keyCode: nil)) == nil)
+        #expect(ReservedShortcuts.refusal(for: SuggestedShortcuts.withoutFunctionKey) == nil)
+    }
+
     /// The reason this exists: a chord of two right-hand modifiers is the best
     /// free trigger on a keyboard with no `fn`, and it has to refuse the pair of
     /// left twins that report identical flags.
@@ -1587,6 +1623,7 @@ struct SidedModifierTests {
         capture.observe([.command, .option], heldKeys: [54, 61])
         #expect(capture.peakChord.modifierKeyCodes == [54, 61])
         #expect(capture.peakChord.displayName == "Right ⌘+Right ⌥")
+        #expect(ReservedShortcuts.refusal(for: capture.peakChord) == nil)
     }
 
     /// `fn` has no side at all, so a chord containing it can never name one for
