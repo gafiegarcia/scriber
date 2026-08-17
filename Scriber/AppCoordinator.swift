@@ -1462,7 +1462,14 @@ final class AppCoordinator: ObservableObject {
         // from one that works. Nothing here reads or reports any audio.
         switch outcome {
         case .muted, .alreadyMuted:
-            Self.permissionLog.info("mute: started outcome=\(String(describing: outcome), privacy: .public)")
+            // Whether any readable preflight tracks the System Audio Recording
+            // answer. Core Audio ships none for process taps, and this one asks
+            // about the screen-capture list — if it never disagrees with a
+            // decline, then a decline cannot be detected and cannot be honoured.
+            let preflight = CGPreflightScreenCaptureAccess()
+            Self.permissionLog.info(
+                "mute: started outcome=\(String(describing: outcome), privacy: .public) screenPreflight=\(preflight, privacy: .public)"
+            )
             otherAudioMuteStatus = nil
         case .unavailable(let status):
             Self.permissionLog.error("mute: refused status=\(status, privacy: .public)")
