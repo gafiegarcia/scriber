@@ -41,6 +41,20 @@ final class GlobalShortcutService {
         machine.setConfigurationCaptureActive(active)
     }
 
+    /// `CGEvent.timestamp` counts in mach units, whose ratio to nanoseconds is
+    /// the machine's to state. One is 1:1 on Apple silicon; asking is what makes
+    /// that a fact rather than an assumption.
+    private static let machTimebase: mach_timebase_info_data_t = {
+        var info = mach_timebase_info_data_t()
+        mach_timebase_info(&info)
+        return info
+    }()
+
+    private static func seconds(fromMachTime machTime: UInt64) -> TimeInterval {
+        let nanoseconds = Double(machTime) * Double(machTimebase.numer) / Double(machTimebase.denom)
+        return nanoseconds / 1_000_000_000
+    }
+
     /// Never call this from inside the tap's own callback. Its first act is
     /// `stop()`, which releases the `CFMachPort` whose callout would be on the
     /// stack. Everything the tap triggers is deferred a run-loop turn precisely so
@@ -76,11 +90,14 @@ final class GlobalShortcutService {
                 // machine wants for them. Without it a held chord reads as a
                 // stream of fresh presses.
                 isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
-                // Read here rather than from `event.timestamp`, whose mach units
-                // need a timebase this would have to assume. The callback runs as
-                // the event arrives, so the two agree to well under the threshold
-                // that separates a tap from a hold.
-                timestamp: ProcessInfo.processInfo.systemUptime
+                // When the key moved, not when this callback got to run. The tap
+                // is on the main run loop, so anything blocking the main thread —
+                // a Bluetooth headset changing mode inside Core Audio is a second
+                // of it — holds events in the queue. Reading a clock here would
+                // stamp a tap with the time it was finally noticed, and a tap
+                // stamped late is a hold, which stops the recording it just
+                // started.
+                timestamp: GlobalShortcutService.seconds(fromMachTime: event.timestamp)
             )
             // This tap is installed on the main run loop, so the callback is
             // main-actor isolated. Deciding synchronously is essential: an
