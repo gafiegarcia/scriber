@@ -20,44 +20,43 @@ Scriber is a native macOS dictation app that lives in the menu bar by default, b
 
 ## Why ElevenLabs?
 
-Its Scribe v2 model is not just benchmark-accurate, but also covers my personal use cases:
+Its Scribe v2 model is not just benchmark-accurate (lowest WER in the world at some point), but also covers my personal use cases:
 
-- handles Bahasa Indonesia well, even when quickly code-switching between it and English (a.k.a. *Jaksel-friendly*; Whisper does this too, but only to a certain extent with less accuracy)
-- knows way more key terms and phrases internally than other providers like Deepgram and local models, including Whisper
-- generous free monthly credits (for non-heavy dictation users, 10k credits, which equals 2h30m of transcription via API, just won't run out for me)
-- auto-punctuation, filler-word removal, and (slight) grammar correction work so well that it doesn't need any post-processing at all (unless you need context-aware refinement, like querying text on the screen/around the cursor to give context to the post-processing AI, which I don't need)
+- handles Bahasa Indonesia well, even when quickly code-switching between it and English (a.k.a. *Jaksel-friendly*. Whisper does this too, but only to a certain extent with less accuracy)
+- knows way more key terms and phrases internally than other providers like Deepgram and local models, including Whisper (less editing)
+- generous free monthly credits (for non-heavy dictation users like me, 10k credits, which equals 2h30m of transcription via API, is more than enough; I usually spend around 5k-8k credits/month)
+- auto-punctuation, filler-word removal, and (slight) grammar correction work so well that it doesn't need any post-processing at all in most cases
 
 ## Why not local models?
 
 I'm on a base model macbook. Running a local model means:
 
 - Downloading 1+++GB model if I want a bigger model for better accuracy
-- or sticking with small models (like Parakeet or Whisper small) or Apple's built-in dictation service, which are not smart and accurate enough to be reliable *and* usually doesn't support my first language (Bahasa).
-- When it's processing the transcription, a huge chunk of memory is used (may be up to 4gigs or something). At one point, when I tried using local Whisper-based dictation app while my usual apps are open (browser, WA, text editor, etc.), my mac stuttered for a second (I presume when loading the model to memory). I won't try doing that while other resource-heavy apps like DaVinci Resolve or FCPX is open... not like unusable, but uncomfortable.
-- I don't dictate private or incriminating information; I just type it (not the incriminating one) with the help of text replacements. I'm not worried my dictation being processed somewhere on a server.
+- or sticking with small models (like Parakeet or Whisper small) or Apple's built-in dictation service: less accurate, some don't support language auto-detect, some doesn't support my language, etc.
+- Uses a huge chunk of memory when transcribing (may be up to 4gigs with bigger, more accurate models). I have experienced a freeze on my macbook air m4 base when other resource-heavy apps are running.
+- I don't dictate private or incriminating information; I just type it (not the incriminating one) or use pw manager's auto-fill for that, so I'm not worried my dictation being processed somewhere on a server.
 
 ## (Better) Alternatives...
 
-I've been personally using Scriber for weeks, and the latest version accommodates my simple, not-too-frequent needs just fine. While I might keep maintaining it (read: report bugs and ask for features & improvements to tha clankers) and using it personally, I most likely don't have enough tokens to squash bugs and fulfill requests as much/as fast as an actual project with an actual dev. You might want to check out these personal recommendations of mine + open source options I discovered instead:
+Scriber fits my needs just fine for weeks, and while I might keep maintaining it (read: report bugs and ask for features & improvements to the clankers), I most likely don't have enough tokens to squash bugs and fulfill requests as much/as quick as an actual project with an actual dev. You might want to check out these personal recommendations of mine + open source options I discovered:
 
 ### [Wispr Flow](https://wisprflow.ai/)
 
-Seriously, if you're okay with its privacy policy (just got updated after the new Notetaker feature shipped), and how it uses >400MB of your RAM even when idle, just use Wispr Flow
+Seriously, if you're okay with its privacy policy (just got updated after the new Notetaker feature shipped; and not bothered with its current contro), and how it may use >400MB of your RAM, just use Wispr Flow
 
 - it's a trend-setter and used by many for a reason
 - great ux, great onboarding, easy to use
 - good accuracy+speed combo
 - built-in cleanup post-processing is reliable
 - free users get 2000 words/week on desktop, 1000 words/week on mobile. more than enough for many
-- and yes, fully-functional mobile app (and afaik, syncs with all your devices if you subscribe)
-- aside from the word limit, most features (except for the history sync, command mode and synced scratchpad, as far as I remember) are *not paywalled*.
-- app-aware transcription style customization. email format, casual/formal/original style (lowercase for chats, polished grammar and capitalization for email/the rest, etc.), etc. and very easy to understand and configure
-- now also has a meeting transcription feature called "Notetaker" with real-time notes, speaker diarization, and summary notes (which I believe includes your jotted down notes as well)
+- and yes, fully-functional iOS and Android apps (and afaik, syncs with all your devices if you subscribe); even though some secure (mobile banking) apps can't be accessed while its accessibility access is active
+- aside from the word limit, most features (except for the history sync, command mode and synced scratchpad, afaik) are *not paywalled*.
+- app-aware output style customization: email format, casual/formal/original style (lowercase for chats, polished grammar and capitalization for email/the rest, etc.), etc. and very easy to understand and configure
+- now also has a meeting transcription feature called "Notetaker" with real-time notes, speaker diarization, and summary notes (which I believe includes your real-time jotted down notes as well)
 
 ### [Spokenly](https://spokenly.app/)
 
-- ~~what I currently use~~ (see the last caveat below)
-- supports hosted, BYOK, and local models
+- supports numerous hosted, BYOK, and local models
 - good UX (arguably better than Wispr Flow in some parts): smart paste, hold + toggle in one shortcut, etc.
 - defaults to ElevenLabs Scribe v2 (biased...)
 - only uses ~150MB ram (on my mac)
@@ -84,11 +83,14 @@ I might go back to this if they made changes that let me use it in those apps (o
 
 ### Open source alternatives
 
-here are the ones I found. tried some, but not really tested. you can just check them out
+here are the ones I found; only really tested some. you can just check them out:
 
-1. paid-turned-open-source: [https://github.com/Beingpax/VoiceInk](https://github.com/Beingpax/VoiceInk)
-2. [freeflow](https://github.com/zachlatta/freeflow)
-3. [unramble](https://github.com/mrinalwadhwa/unramble)
+1. Blazing-fast local-first new-comer: [Talkify](https://usetalkify.app)
+    - Uses macOS built-in speech recognition (comes with its quirks, although latest macOS local asr has noticeably improved esp. the auto-punctuation)
+    - The dev boasted its speed, having the lowest latency, and IT DELIVERS
+2. paid-turned-open-source: [https://github.com/Beingpax/VoiceInk](https://github.com/Beingpax/VoiceInk)
+3. [freeflow](https://github.com/zachlatta/freeflow)
+4. [unramble](https://github.com/mrinalwadhwa/unramble)
 
 ---
 
