@@ -2,8 +2,7 @@
 
 # Scriber
 
-> **[Download the latest release](https://github.com/gafiegarcia/scriber/releases/latest)** — signed and notarized, macOS 26 or later, Apple silicon.
-> Issues are open, but replies aren't promised.
+**Skip to:** [Download](#download) · [Build it yourself](#build-it-yourself) · [Repository layout](#repository)
 
 If you're looking for a dictation app for macOS to daily-drive, you might be interested to check out [these alternatives I listed below](#better-alternatives) too.
 
@@ -116,7 +115,7 @@ Scriber checks GitHub once a day for a newer version and tells you in the menu b
 
 ## Repository
 
-The app builds from the repository root: [`Scriber`](Scriber) is the app target, [`ScriberCore`](ScriberCore) the shared package with [`ScriberCoreTests`](ScriberCoreTests) beside it, and [`Branding`](Branding) the icon artwork. Everything written down lives in [`docs`](docs):
+The app builds from the repository root: [`Scriber`](Scriber) is the app target, [`ScriberCore`](ScriberCore) the shared package with [`ScriberCoreTests`](ScriberCoreTests) beside it, and [`Branding`](Branding) the icon artwork. Docs live in [`docs`](docs):
 
 - [Building](docs/BUILDING.md): prerequisites, signing, command-line builds, installing, and first launch.
 - [Releasing](docs/RELEASING.md): notarization, the disk image, and publishing a download.
@@ -126,13 +125,11 @@ The app builds from the repository root: [`Scriber`](Scriber) is the app target,
 - [Manual checks](docs/MANUAL_CHECKS.md) and [automated checks](docs/AUTOMATED_CHECKS.md): the two verification passes.
 - [Versioning policy](docs/VERSIONING.md): how versions, builds, and tags differ.
 
-Scriber started as an Electron/Next.js app and was rewritten in Swift. That earlier implementation stopped at `0.6.0` and is no longer in the tree. It remains in Git history; `v0.8.6` is the last tag whose tree still contains it.
-
-The native line continues the product version after Electron `0.6.0`. The Xcode project is the source of truth for the bundle build number. See the [changelog](CHANGELOG.md) for released snapshots and the [versioning policy](docs/VERSIONING.md) for how versions, builds, and tags differ.
+The Xcode project is the source of truth for the bundle build number. See the [changelog](CHANGELOG.md) for released snapshots and the [versioning policy](docs/VERSIONING.md) for how versions, builds, and tags differ.
 
 ## Build it yourself
 
-You don't have to — [the download](#download) is the easy path. But if you want to change something, you need Xcode 27 beta and a **free** Apple ID; a paid developer account is not required to build. Create `Signing.local.xcconfig` with your own team identifier, then build the **Debug** configuration:
+You don't have to — [the download](#download) is the easy path. But if you want to build it yourself, you need Xcode 27 beta and a **free** Apple ID; a paid developer account is not required to build. Create `Signing.local.xcconfig` in root with your own team identifier, then build the **Debug** configuration:
 
 ```text
 DEVELOPMENT_TEAM = ABCDE12345
