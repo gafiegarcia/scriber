@@ -5,9 +5,7 @@
 > **[Download the latest release](https://github.com/gafiegarcia/scriber/releases/latest)** — signed and notarized, macOS 26 or later, Apple silicon.
 > Issues are open, but replies aren't promised.
 
-**Skip to the code:** [Download](#download) · [Build it yourself](#build-it-yourself) · [Repository layout](#repository) · [Documentation](docs) · [Product spec](docs/PRODUCT_SPEC.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
-
-If you're looking for a dictation app for macOS to daily-drive, you might want to check out [these alternatives I listed below](#better-alternatives) first (unless you're curious enough to build this yourself and try it out).
+If you're looking for a dictation app for macOS to daily-drive, you might be interested to check out [these alternatives I listed below](#better-alternatives) too.
 
 I asked Codex and Claude to build a Wispr Flow alternative (didn't like its RAM usage). It's good enough that I uninstalled the other for the time being.
 
