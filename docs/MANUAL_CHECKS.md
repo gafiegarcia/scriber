@@ -85,7 +85,7 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 
 ## When audio capture or transcription outcomes change
 
-- Set input volume to zero and dictate for as little as clears the too-brief-to-be-a-dictation guard. The **“No sound from the microphone”** pill appears with the failure sound, and the waveform is flat from the first moment. No duration is needed beyond that guard: a zero input volume sends nothing from the first buffer, so anything longer only hides a regression that shortened it. This costs no credit. Restore the input volume afterward.
+- Set input volume to zero and dictate. Where the built-in microphone is the Mac's only input, the waveform stays healthy for five to seven seconds before flattening — macOS keeps sending signal at a level the slider reads as zero — so hold past that to reach **“No sound from the microphone”**. Connect any second input device, even one Scriber is not set to use, and the same test flattens from the first moment instead. Both are worth running: the second input is what makes this look like it behaves. Costs no credit; restore the input volume afterward.
 - Submit audio with no recognisable words. **This spends API credit; ask first.** Scriber reports no words and leaves no history row behind.
 
 ## When installed-app lifecycle or menu-bar behavior changes
