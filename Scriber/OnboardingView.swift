@@ -12,6 +12,10 @@ enum OnboardingLayout {
     /// width of the window and stops being readable.
     static let contentWidth: CGFloat = 520
     static let footerHeight: CGFloat = 64
+    /// What is left for a step once the footer and its rule are taken out. A
+    /// step fills it and centres itself in it, so a short step sits in the
+    /// middle of the window rather than clinging to the top of it.
+    static let pageHeight: CGFloat = windowHeight - footerHeight - 1
     static let cardCornerRadius: CGFloat = 12
     static let heroSize: CGFloat = 68
 }
@@ -155,9 +159,12 @@ struct OnboardingView: View {
             StepIndicator(step: step)
             HStack(spacing: 12) {
                 if step == .welcome {
+                    // Nothing else on the welcome step takes focus, so without
+                    // this the ring lands here and a quiet secondary control
+                    // reads as the one being offered.
                     Button("Set Up Later", action: setUpLater)
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
+                        .buttonStyle(.link)
+                        .focusEffectDisabled()
                         .accessibilityIdentifier("onboarding-skip")
                 } else if step != .done {
                     Button("Back", action: goBack)

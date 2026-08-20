@@ -32,9 +32,9 @@ struct OnboardingPage<Content: View>: View {
                     .padding(.top, 6)
             }
             .frame(maxWidth: OnboardingLayout.contentWidth)
-            .frame(maxWidth: .infinity)
             .padding(.horizontal, 32)
             .padding(.vertical, 36)
+            .frame(maxWidth: .infinity, minHeight: OnboardingLayout.pageHeight)
         }
         .scrollBounceBehavior(.basedOnSize)
     }
@@ -98,9 +98,9 @@ struct WelcomeStep: View {
                     .padding(.top, 2)
             }
             .frame(maxWidth: OnboardingLayout.contentWidth)
-            .frame(maxWidth: .infinity)
             .padding(.horizontal, 32)
             .padding(.vertical, 44)
+            .frame(maxWidth: .infinity, minHeight: OnboardingLayout.pageHeight)
         }
         .scrollBounceBehavior(.basedOnSize)
     }
@@ -217,19 +217,14 @@ struct DataUseStep: View {
                         stepLine(1, "Click your profile picture, top right")
                         stepLine(2, "Hover **Terms and privacy**")
                         stepLine(3, "Click **Data use**, then turn the switch off")
+                        // The screenshots live behind this rather than on the
+                        // step. Shown inline they have to shrink until their own
+                        // text is unreadable, at which point they are decoration
+                        // on a step whose whole job is three sentences.
                         Button("Show me where to find it") { showsGuide = true }
                             .buttonStyle(.link)
                             .padding(.top, 2)
                             .accessibilityIdentifier("onboarding-data-use-guide")
-                        Image(.elevenLabsDataUseSetting)
-                            .resizable()
-                            .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                            }
-                            .accessibilityLabel("The Improve models for everyone setting, with a switch and a link to the privacy policy")
                     }
                 }
                 Text("It is set per workspace, so change it in the one your key came from. Switching it off only affects what you send afterwards — it does not remove what has already gone. ElevenLabs says it keeps data it generates about your voice for up to three years after your last use, except where the law requires longer; [their privacy policy](https://elevenlabs.io/privacy-policy) has the detail.")
@@ -253,30 +248,56 @@ struct DataUseStep: View {
     }
 }
 
-/// The menu path, shown over the whole window because it cannot be read any
-/// smaller. Escape or a click outside puts it away.
+/// The two screenshots, over the whole window because neither can be read any
+/// smaller. Escape, Done, or a click outside puts them away.
 struct DataUseGuideOverlay: View {
     let dismiss: () -> Void
 
     var body: some View {
         ZStack {
             Rectangle()
-                .fill(.black.opacity(0.45))
+                .fill(.black.opacity(0.6))
                 .onTapGesture(perform: dismiss)
-            VStack(spacing: 10) {
-                Image(.elevenLabsDataUseMenu)
-                    .resizable()
-                    .scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .accessibilityLabel("The ElevenLabs profile menu, with Terms and privacy expanded to show Data use")
+            VStack(spacing: 12) {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        shot(
+                            .elevenLabsDataUseMenu,
+                            caption: "Where to find it",
+                            description: "The ElevenLabs profile menu, with Terms and privacy expanded to show Data use"
+                        )
+                        shot(
+                            .elevenLabsDataUseSetting,
+                            caption: "What you'll see",
+                            description: "The Improve models for everyone setting, with a switch and a link to the privacy policy"
+                        )
+                    }
+                    .padding(.vertical, 4)
+                }
                 Button("Done", action: dismiss)
                     .keyboardShortcut(.cancelAction)
             }
-            .padding(24)
+            .padding(20)
+            // The scrim covers the footer too, so this keeps the overlay's own
+            // controls out of the band where the step's buttons sit.
+            .padding(.bottom, OnboardingLayout.footerHeight)
+            .frame(maxWidth: 560)
         }
-        .ignoresSafeArea()
         .transition(.opacity)
         .onExitCommand(perform: dismiss)
+    }
+
+    private func shot(_ resource: ImageResource, caption: String, description: String) -> some View {
+        VStack(spacing: 6) {
+            Text(caption)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.white.opacity(0.85))
+            Image(resource)
+                .resizable()
+                .scaledToFit()
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityLabel(description)
+        }
     }
 }
 
