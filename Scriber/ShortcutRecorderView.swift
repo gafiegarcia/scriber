@@ -193,50 +193,79 @@ struct ShortcutRecorderButton: View {
     }
 }
 
-struct ShortcutTestField: View {
+/// The chosen shortcut drawn as a key cap that lights up while the key is
+/// actually held, and reports the first time it is pressed.
+///
+/// Listening starts the moment this appears — there is no button to press
+/// first, because the thing being tested is a keypress and asking for a click
+/// before it is one step too many.
+///
+/// The global tap cannot serve this. It refuses to start until setup is
+/// complete, and drops every action until then, so a local monitor is the only
+/// mechanism available before setup ends.
+struct ShortcutKeyCapTester: View {
     let target: ShortcutChord
+    /// Listening stops while a recorder is capturing a custom chord, so the two
+    /// monitors are never installed at once.
+    let isPaused: Bool
     @Binding var isConfirmed: Bool
 
     @State private var monitor: Any?
+    @State private var isHeld = false
     /// The same tracker the global tap uses, so a shortcut bound to one side of
     /// a modifier is confirmed by that key here too. Comparing the flags alone
     /// let the left twin pass a test for the right key.
     @State private var heldKeys = HeldModifierKeys()
 
-    private var isListening: Bool { monitor != nil }
-
     var body: some View {
-        HStack(spacing: 8) {
-            if isConfirmed {
-                Label("\(target.displayName) works", systemImage: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                    .accessibilityIdentifier("shortcut-test-confirmed")
-            } else {
-                Button(isListening ? "Press \(target.displayName) now…" : "Test \(target.displayName)") {
-                    isListening ? stop() : start()
-                }
-                .accessibilityIdentifier("shortcut-test-button")
-                Text(isListening
-                    ? "Waiting. Escape stops listening."
-                    : "Check it reaches Scriber before you finish setup.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        VStack(spacing: 14) {
+            keyCap
+            Label(
+                isConfirmed ? "\(target.displayName) works" : "Press \(target.displayName)",
+                systemImage: isConfirmed ? "checkmark.circle.fill" : "hand.point.up.left"
+            )
+            .font(.callout)
+            .foregroundStyle(isConfirmed ? Color.green : Color.secondary)
+            .accessibilityIdentifier(isConfirmed ? "shortcut-test-confirmed" : "shortcut-test-waiting")
         }
+        .onAppear(perform: start)
         .onDisappear(perform: stop)
+        .onChange(of: isPaused) { _, paused in
+            paused ? stop() : start()
+        }
         .onChange(of: target) { _, _ in
             stop()
             isConfirmed = false
+            start()
         }
     }
 
-    private func start() {
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { event in
-            if event.type == .keyDown, event.keyCode == 53 {
-                stop()
-                return nil
+    private var keyCap: some View {
+        Text(target.displayName)
+            .font(.system(size: 20, weight: .medium, design: .rounded))
+            .foregroundStyle(isHeld ? Color.accentColor : .primary)
+            .frame(minWidth: 96)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(isHeld ? AnyShapeStyle(Color.accentColor.opacity(0.16)) : AnyShapeStyle(.background))
             }
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(isHeld ? Color.accentColor : Color(nsColor: .separatorColor), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.08), radius: 1, y: 1)
+            .animation(.easeOut(duration: 0.08), value: isHeld)
+            .accessibilityHidden(true)
+    }
+
+    private func start() {
+        guard monitor == nil, !isPaused else { return }
+        // Every event is returned rather than swallowed. A recorder capturing a
+        // new binding consumes keys on purpose; a page that merely watches must
+        // not, or Tab and Return stop reaching the buttons beside it.
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { event in
             let modifiers = KeyModifiers(event.modifierFlags)
             if event.type == .flagsChanged {
                 heldKeys.observe(keyCode: event.keyCode, modifiers: modifiers)
@@ -247,16 +276,20 @@ struct ShortcutTestField: View {
                     && matcher.matches(modifiers: modifiers, keyCode: nil, heldKeys: heldKeys.keys)
                 : event.type == .keyDown
                     && matcher.matches(modifiers: modifiers, keyCode: event.keyCode)
-            guard matched else { return nil }
-            isConfirmed = true
-            stop()
-            return nil
+            if matched {
+                isHeld = true
+                isConfirmed = true
+            } else if event.type == .flagsChanged {
+                isHeld = matcher.stillHeld(modifiers: modifiers, heldKeys: heldKeys.keys)
+            }
+            return event
         }
     }
 
     private func stop() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+        isHeld = false
         heldKeys.reset()
     }
 }

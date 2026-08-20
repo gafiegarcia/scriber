@@ -20,7 +20,7 @@ extension FocusedValues {
     }
 }
 
-private enum KeySaveFeedback {
+enum KeySaveFeedback {
     case saved
     case failed(String)
 
@@ -190,7 +190,7 @@ private struct SettingsSection<Content: View>: View {
 /// to be applied together, and a call site that used only the binding would get
 /// a toggle that silently never turns on. The setting appears in both Settings
 /// and onboarding, and both go through here.
-private struct MuteOtherAudioToggle<Content: View>: View {
+struct MuteOtherAudioToggle<Content: View>: View {
     @Binding var isOn: Bool
     /// Raises the macOS prompt the moment the user opts in. Left to the first
     /// dictation it arrives with the shortcut still held down, which is the
@@ -1153,304 +1153,10 @@ private struct PermissionsSettingsPane: View {
     }
 }
 
-struct OnboardingView: View {
-    @Environment(\.dismissWindow) private var dismissWindow
-    @EnvironmentObject private var runtime: AppRuntime
-    @State private var apiKey = ""
-    @State private var keyFeedback: KeySaveFeedback?
-    @State private var isCheckingAPIKey = false
-    @State private var error: String?
-    @State private var activeShortcutRecorderID: String?
-    /// Derived from the stored chord on appear, so a redo of setup opens on what
-    /// the user actually has rather than resetting them to `fn`.
-    /// Whether the chosen shortcut has been pressed and seen. Setup cannot
-    /// finish without it: on a keyboard with no fn key the default is
-    /// unpressable, and nothing else in setup would ever say so.
-    @State private var shortcutConfirmed = false
-    /// Held here rather than in `Preferences`, because nothing is registered
-    /// until Finish Setup: the toggle is an intention until then, and afterwards
-    /// the only honest answer is what macOS reports.
-    @State private var launchAtLogin = true
-
-    /// The setup steps are tall enough to reach the Dock, so they scroll rather
-    /// than push the window off the bottom of the screen. `fitOnboardingWindow`
-    /// sizes the window itself, to the full height the display allows, so this
-    /// only has to fill it.
-    var body: some View {
-        ScrollView {
-            setupSteps
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .frame(minWidth: 640, maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var setupSteps: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Welcome to Scriber").font(.largeTitle.bold())
-                Text("Hold fn to dictate, or tap to start and tap again to stop. Your audio goes only to ElevenLabs, and your history stays on this Mac.")
-                    .foregroundStyle(.secondary)
-            }
-            GroupBox("1. ElevenLabs API key") {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("No key yet? [Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys) with Speech to Text access.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    SecureField(
-                        runtime.preferences.apiKeyConfigured
-                            ? "Enter a new API key to replace the stored key"
-                            : "xi-api-key",
-                        text: $apiKey
-                    )
-                        .textFieldStyle(.roundedBorder)
-                        .disabled(isCheckingAPIKey)
-                        .onSubmit(submitAPIKey)
-                    HStack(spacing: 12) {
-                        Button(action: submitAPIKey) {
-                            if isCheckingAPIKey {
-                                HStack(spacing: 6) {
-                                    ProgressView().controlSize(.small)
-                                    Text("Checking…")
-                                }
-                            } else {
-                                Text("Save Key")
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!canSubmitAPIKey)
-
-                        if let keyFeedback {
-                            Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
-                                .font(.caption)
-                                .foregroundStyle(keyFeedback.color)
-                                .lineLimit(2)
-                        } else if apiKey.isEmpty, runtime.preferences.apiKeyConfigured {
-                            switch runtime.preferences.apiKeyValidity {
-                            case .valid:
-                                Label("Verified", systemImage: "checkmark.shield.fill")
-                                    .foregroundStyle(.green)
-                            case .invalid:
-                                Label("Invalid", systemImage: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.red)
-                            case .unchecked:
-                                Label("Stored in Login Keychain", systemImage: "shield")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer(minLength: 0)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 12)
-            }
-            GroupBox("2. Microphone") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        PermissionLabel(
-                            title: "Microphone",
-                            systemImage: "mic",
-                            allowed: runtime.coordinator.microphoneGranted
-                        )
-                        Spacer()
-                        MicrophonePermissionButton()
-                    }
-
-                    MicrophonePicker()
-
-                    if runtime.coordinator.microphoneGranted {
-                        VStack(alignment: .leading, spacing: 10) {
-                            AudioLevelWaveform(
-                                level: runtime.coordinator.microphoneTestLevel,
-                                presentation: .onboarding
-                            )
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-                            Label(
-                                AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
-                                    ? "Audio signal detected"
-                                    : "Speak to test your microphone",
-                                systemImage: AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
-                                    ? "waveform.badge.mic"
-                                    : "waveform"
-                            )
-                            .font(.caption)
-                            .foregroundStyle(
-                                AudioSignal.isDetected(decibels: runtime.coordinator.microphoneTestLevel)
-                                    ? Color.green
-                                    : Color.secondary
-                            )
-                        }
-                    }
-
-                    if let microphoneTestError = runtime.coordinator.microphoneTestError {
-                        Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 12)
-            }
-            GroupBox("3. Accessibility") {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        PermissionLabel(
-                            title: "Accessibility",
-                            systemImage: "keyboard",
-                            allowed: runtime.coordinator.accessibilityGranted
-                        )
-                        Spacer()
-                        AccessibilityPermissionButton()
-                    }
-                    Text("Accessibility lets Scriber watch global shortcuts and insert text into the app you were using.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 12)
-            }
-            GroupBox("4. Your Shortcut") {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Hold it to dictate and let go when you finish, or tap it and tap again when you finish.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    ShortcutPicker(
-                        chord: $runtime.preferences.dictationShortcut,
-                        customChord: $runtime.preferences.customShortcut,
-                        activeRecorderID: $activeShortcutRecorderID,
-                        isCaptureAllowed: true,
-                        refusalResetToken: 0
-                    )
-
-                    ShortcutTestField(
-                        target: runtime.preferences.dictationShortcut,
-                        isConfirmed: $shortcutConfirmed
-                    )
-                }
-                // Nothing in this step pushes outward the way the permission rows
-                // above it do, so without this it shrinks to its text and reads as
-                // a lesser card than the ones it sits with.
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 12)
-            }
-            VStack(alignment: .leading, spacing: 12) {
-                MuteOtherAudioToggle(
-                    isOn: $runtime.preferences.muteOtherAudioWhileRecording,
-                    requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
-                ) { isOn in
-                    Toggle("Mute other audio while recording", isOn: isOn)
-                }
-                Text("Silences other apps, calls, and notification sounds while you’re dictating. macOS asks for System Audio Recording access — muting works whether you click “Allow” or “Don’t Allow”, because Scriber never reads what other apps play.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Toggle("Launch Scriber when I log in", isOn: $launchAtLogin)
-            }
-            .padding(.horizontal, 4)
-            if let error {
-                Text(error)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal, 4)
-            }
-            HStack {
-                Spacer()
-                Button("Finish Setup") { finish() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(
-                        isCheckingAPIKey
-                            || !runtime.preferences.apiKeyConfigured
-                            || runtime.preferences.apiKeyValidity != .valid
-                            || !runtime.coordinator.microphoneGranted
-                            || !runtime.coordinator.accessibilityGranted
-                            || !shortcutConfirmed
-                    )
-            }
-            .padding(.horizontal, 4)
-            .padding(.top, 2)
-        }
-        .padding(32)
-        .frame(width: 640)
-        .fixedSize(horizontal: false, vertical: true)
-        .onAppear {
-            guard !runtime.preferences.onboardingComplete else {
-                dismissWindow(id: "onboarding")
-                return
-            }
-            apiKey = ""
-            // On for a first run, which is the recommendation. A Redo Setup
-            // starts from what macOS has, so the step cannot offer to turn on
-            // something that is already on — or quietly re-enable what the user
-            // has since turned off.
-            launchAtLogin = LaunchAtLoginService.state.isOn || !runtime.coordinator.isRedoingSetup
-            runtime.coordinator.refreshPermissions(source: .onboarding)
-            if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
-        }
-        .onDisappear { runtime.coordinator.stopMicrophoneTest() }
-        .onChange(of: runtime.coordinator.microphoneGranted) { _, allowed in
-            if allowed {
-                runtime.coordinator.startMicrophoneTest()
-            } else {
-                runtime.coordinator.stopMicrophoneTest()
-            }
-        }
-        .onChange(of: runtime.preferences.audioInputSelection) { _, _ in
-            if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
-        }
-        .onChange(of: apiKey) { _, newValue in
-            if !newValue.isEmpty { keyFeedback = nil }
-        }
-    }
-
-    private var canSubmitAPIKey: Bool {
-        !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isCheckingAPIKey
-    }
-
-    private func submitAPIKey() {
-        guard canSubmitAPIKey else { return }
-        Task { await saveKey() }
-    }
-
-    private func finish() {
-        runtime.coordinator.stopMicrophoneTest()
-        // Both directions, now that the step can start from a state the user is
-        // turning off rather than only from off.
-        if launchAtLogin != LaunchAtLoginService.state.isOn {
-            do { try runtime.coordinator.setLaunchAtLogin(launchAtLogin) }
-            catch { self.error = "Setup finished, but Scriber could not be set to launch at login: \(error.localizedDescription)" }
-        }
-        runtime.preferences.onboardingComplete = true
-        runtime.coordinator.startServices()
-        dismissWindow(id: "onboarding")
-        Task { @MainActor in
-            // Let the onboarding window finish closing before restoring the
-            // already-created main window to its default Dictation destination.
-            await Task.yield()
-            runtime.coordinator.openMainWindow()
-        }
-    }
-
-    private func saveKey() async {
-        guard !isCheckingAPIKey else { return }
-        isCheckingAPIKey = true
-        defer { isCheckingAPIKey = false }
-        do {
-            try await runtime.coordinator.validateAndSaveAPIKey(apiKey)
-            keyFeedback = .saved
-            apiKey = ""
-            error = nil
-        } catch {
-            keyFeedback = .failed(error.localizedDescription)
-        }
-    }
-}
-
 // Both permission rows offer one button with one word, whatever macOS has recorded
 // so far. The steps behind it — a system prompt, a trip to System Settings, or both —
 // are Scriber's problem, not something to spell out in a changing button title.
-private struct MicrophonePermissionButton: View {
+struct MicrophonePermissionButton: View {
     @EnvironmentObject private var runtime: AppRuntime
 
     var body: some View {
@@ -1460,7 +1166,7 @@ private struct MicrophonePermissionButton: View {
     }
 }
 
-private struct AccessibilityPermissionButton: View {
+struct AccessibilityPermissionButton: View {
     @EnvironmentObject private var runtime: AppRuntime
 
     var body: some View {
@@ -1470,7 +1176,7 @@ private struct AccessibilityPermissionButton: View {
     }
 }
 
-private struct PermissionLabel: View {
+struct PermissionLabel: View {
     let title: String
     let systemImage: String
     let allowed: Bool
@@ -1499,7 +1205,7 @@ private struct PermissionStatusRow<Actions: View>: View {
     }
 }
 
-private struct MicrophonePicker: View {
+struct MicrophonePicker: View {
     @EnvironmentObject private var runtime: AppRuntime
 
     var body: some View {

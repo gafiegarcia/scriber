@@ -397,9 +397,8 @@ struct ScriberApp: App {
                 .task { await promoteApplicationForVisibleWindow() }
         }
         .defaultPosition(.center)
-        // No `.windowResizability(.contentSize)`: it pins the window to the
-        // content's ideal height, which for a scroll view is greedy, and it
-        // refuses the explicit frame `fitOnboardingWindow` sets.
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .appTermination) {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
@@ -757,21 +756,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Fits onboarding to the screen itself rather than trusting AppKit's frame.
     ///
-    /// Setup is taller than a laptop display, and AppKit's own frame for it was
-    /// wrong in both directions: opened while the main window is up it gets
-    /// cascaded down until it runs under the Dock, and reopened in a later
-    /// session it gets a restored frame that the scene's `.contentSize`
-    /// resizability never re-derives — which is how it came back stuck small.
-    /// So neither is trusted. The window is given the whole height the screen
-    /// offers and centred, every time it appears. A first-time user should see
-    /// the setup steps, not have to find them by scrolling.
+    /// The scene sizes setup from its content, so this only has to place it.
+    /// AppKit's own frame is not trusted to: opened while the main window is up
+    /// it gets cascaded down until it runs under the Dock, and reopened in a
+    /// later session it gets a restored frame that `.contentSize` resizability
+    /// never re-derives — which is how it once came back stuck small.
     private func fitOnboardingWindow(_ window: NSWindow) {
-        guard let visible = (window.screen ?? NSScreen.main)?.visibleFrame else { return }
         window.isRestorable = false
-        let chrome = window.frame.height - window.contentLayoutRect.height
-        window.setContentSize(
-            NSSize(width: 640, height: max(420, visible.height - chrome - 24))
-        )
         window.center()
         // The main window is created alongside this one on a first run and, being
         // created second, ends up in front of the one the user is supposed to be
