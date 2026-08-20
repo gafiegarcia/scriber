@@ -93,15 +93,15 @@ final class AudioRecorder {
             }
     }
 
-    func start(id: UUID = UUID(), selection: AudioInputSelection) throws {
+    func start(id: UUID = UUID(), selection: AudioInputSelection) async throws {
         guard Self.microphoneAuthorized else { throw AudioRecorderError.microphoneDenied }
         let directory = try Self.pendingAudioDirectory()
-        try backend.startRecording(id: id, directory: directory, selection: selection)
+        try await backend.startRecording(id: id, directory: directory, selection: selection)
     }
 
-    func startMonitoring(selection: AudioInputSelection) throws {
+    func startMonitoring(selection: AudioInputSelection) async throws {
         guard Self.microphoneAuthorized else { throw AudioRecorderError.microphoneDenied }
-        try backend.startMonitoring(selection: selection)
+        try await backend.startMonitoring(selection: selection)
     }
 
     func stopMonitoring() {
@@ -185,54 +185,79 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     /// mid-recording can be told from a recording that simply ends quietly.
     private var stopContinuation: CheckedContinuation<CompletedRecording, Error>?
 
-    func startRecording(id: UUID, directory: URL, selection: AudioInputSelection) throws {
-        try queue.sync {
-            // Reads `recordingURL` and `stopContinuation` while they still describe
-            // the superseded recording, which the assignments below then replace.
-            if case .supersedeThenStart = lifecycle.start(id) { abandonSupersededRecording() }
-            tearDownSession()
+    /// `startRunning` is documented as slow enough to need a background queue, and
+    /// a Bluetooth headset proves it: opening the microphone drags the headset out
+    /// of music mode and the caller waits out the whole switch. The caller is the
+    /// main thread, which also carries the shortcut event tap.
+    func startRecording(id: UUID, directory: URL, selection: AudioInputSelection) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                do {
+                    // Reads `recordingURL` and `stopContinuation` while they still describe
+                    // the superseded recording, which the assignments below then replace.
+                    if case .supersedeThenStart = self.lifecycle.start(id) { self.abandonSupersededRecording() }
+                    self.tearDownSession()
 
-            let output = AVCaptureAudioFileOutput()
-            output.audioSettings = [
-                AVFormatIDKey: kAudioFormatMPEG4AAC,
-                AVSampleRateKey: 44_100,
-                AVNumberOfChannelsKey: 1,
-                AVEncoderBitRateKey: 64_000,
-                AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
-            ]
-            let capture = try makeSession(selection: selection, fileOutput: output)
-            let url = directory.appendingPathComponent("\(id.uuidString).m4a")
+                    let output = AVCaptureAudioFileOutput()
+                    output.audioSettings = [
+                        AVFormatIDKey: kAudioFormatMPEG4AAC,
+                        AVSampleRateKey: 44_100,
+                        AVNumberOfChannelsKey: 1,
+                        AVEncoderBitRateKey: 64_000,
+                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+                    ]
+                    let capture = try self.makeSession(selection: selection, fileOutput: output)
+                    let url = directory.appendingPathComponent("\(id.uuidString).m4a")
 
-            recordingURL = url
-            startedAt = .now
-            currentLevel.withLock { $0 = -160 }
-            maximumPeakLevel = -160
-            session = capture.session
-            dataOutput = capture.dataOutput
-            fileOutput = output
+                    self.recordingURL = url
+                    self.currentLevel.withLock { $0 = -160 }
+                    self.maximumPeakLevel = -160
+                    self.session = capture.session
+                    self.dataOutput = capture.dataOutput
+                    self.fileOutput = output
 
-            capture.session.startRunning()
-            output.startRecording(to: url, outputFileType: .m4a, recordingDelegate: self)
+                    capture.session.startRunning()
+                    // After the open, not before it. It backs the duration fallback,
+                    // and the time spent opening is not recorded audio.
+                    self.startedAt = .now
+                    output.startRecording(to: url, outputFileType: .m4a, recordingDelegate: self)
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
         }
     }
 
-    func startMonitoring(selection: AudioInputSelection) throws {
-        try queue.sync {
-            guard lifecycle.activeRecording == nil else { return }
-            tearDownSession()
-            let capture = try makeSession(selection: selection, fileOutput: nil)
-            currentLevel.withLock { $0 = -160 }
-            maximumPeakLevel = -160
-            session = capture.session
-            dataOutput = capture.dataOutput
-            capture.session.startRunning()
+    func startMonitoring(selection: AudioInputSelection) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                guard self.lifecycle.activeRecording == nil else {
+                    continuation.resume()
+                    return
+                }
+                do {
+                    self.tearDownSession()
+                    let capture = try self.makeSession(selection: selection, fileOutput: nil)
+                    self.currentLevel.withLock { $0 = -160 }
+                    self.maximumPeakLevel = -160
+                    self.session = capture.session
+                    self.dataOutput = capture.dataOutput
+                    capture.session.startRunning()
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
         }
     }
 
+    /// Nothing reads the result, and a recording start runs this first — waiting
+    /// on it would put the teardown back in front of the open.
     func stopMonitoring() {
-        queue.sync {
-            guard lifecycle.activeRecording == nil else { return }
-            tearDownSession()
+        queue.async {
+            guard self.lifecycle.activeRecording == nil else { return }
+            self.tearDownSession()
         }
     }
 
@@ -357,10 +382,10 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
         currentLevel.withLock { $0 = -160 }
         guard let closing, closing.isRunning else { return }
         // `stopRunning` asks the main thread to acknowledge the capture graph
-        // stopping and waits for the answer. Called here it would hold this queue
-        // while the main thread is blocked waiting for this same queue — the app
-        // freezes with the pill mid-flight. Nothing below reads the session again,
-        // so it can close on its own time.
+        // stopping and waits for the answer. Held on this queue, that round trip
+        // would put every later start behind a teardown that is waiting on a
+        // thread with its own work to finish. Nothing below reads the session
+        // again, so it can close on its own time.
         Self.teardownQueue.async { closing.stopRunning() }
     }
 

@@ -536,21 +536,23 @@ final class AppCoordinator: ObservableObject {
     func startMicrophoneTest() {
         guard microphoneGranted, !phase.isBusy else { return }
         stopMicrophoneTest()
-        do {
-            try recorder.startMonitoring(selection: preferences.audioInputSelection)
-            microphoneTestError = nil
-            microphoneTestLevel = -160
-            isMicrophoneTestRunning = true
-            microphoneTestTask = Task { [weak self] in
-                while !Task.isCancelled {
-                    guard let self else { return }
-                    microphoneTestLevel = recorder.updateMeter()
-                    try? await Task.sleep(for: .milliseconds(100))
-                }
+        microphoneTestError = nil
+        microphoneTestLevel = -160
+        isMicrophoneTestRunning = true
+        microphoneTestTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await recorder.startMonitoring(selection: preferences.audioInputSelection)
+            } catch {
+                microphoneTestError = error.localizedDescription
+                microphoneTestLevel = -160
+                isMicrophoneTestRunning = false
+                return
             }
-        } catch {
-            microphoneTestError = error.localizedDescription
-            microphoneTestLevel = -160
+            while !Task.isCancelled {
+                microphoneTestLevel = recorder.updateMeter()
+                try? await Task.sleep(for: .milliseconds(100))
+            }
         }
     }
 
@@ -1066,26 +1068,35 @@ final class AppCoordinator: ObservableObject {
             return
         }
         guard canUseConfiguredAPIKey() else { return }
-        do {
-            stopMicrophoneTest()
-            pill.setPreferredScreen(paste.captureTarget())
-            // Acknowledged on the press, never on the microphone, so the answer
-            // does not depend on what is plugged in. `-160` is the no-signal
-            // floor: the waveform draws flat until there is really something to
-            // draw, rather than claiming a level it cannot have yet.
-            playFeedback(.recordingStarted)
-            setPhase(.recording(mode: mode, elapsed: 0, level: -160))
-            try recorder.start(selection: preferences.audioInputSelection)
-            handedOff = true
-            apply(gate.apply(.sessionOpened))
-        // Not this dictation's mute, which was never begun — a previous one's
-        // pending unmute, which would otherwise be stranded by the failure.
-        } catch AudioRecorderError.inputUnavailable(let name) {
-            endOtherAudioMuting()
-            playFeedback(.terminalFailure)
-            showMessage("Microphone “\(name)” is unavailable")
-        } catch {
-            showFailure(error.localizedDescription)
+        stopMicrophoneTest()
+        pill.setPreferredScreen(paste.captureTarget())
+        // Acknowledged on the press, never on the microphone, so the answer does
+        // not depend on what is plugged in. `-160` is the no-signal floor: the
+        // waveform draws flat until there is really something to draw, rather
+        // than claiming a level it cannot have yet.
+        playFeedback(.recordingStarted)
+        setPhase(.recording(mode: mode, elapsed: 0, level: -160))
+        handedOff = true
+        // Never cancelled, and never more than one: the gate only begins a start
+        // from idle, and it leaves idle here until this task answers. Cancelling
+        // would not interrupt the session opening anyway — it would only risk
+        // skipping the answer, which is the one thing that wedges the gate.
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await recorder.start(selection: preferences.audioInputSelection)
+                apply(gate.apply(.sessionOpened))
+            // Not this dictation's mute, which was never begun — a previous
+            // one's pending unmute, which the failure would otherwise strand.
+            } catch AudioRecorderError.inputUnavailable(let name) {
+                _ = gate.apply(.startFailed)
+                endOtherAudioMuting()
+                playFeedback(.terminalFailure)
+                showMessage("Microphone “\(name)” is unavailable")
+            } catch {
+                _ = gate.apply(.startFailed)
+                showFailure(error.localizedDescription)
+            }
         }
     }
 
