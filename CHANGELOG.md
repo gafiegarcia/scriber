@@ -4,7 +4,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## 0.9.0 — 2026-08-15
 
-Native bundle build 175, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
+Native bundle build 176, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
 
 ### Added
 
@@ -39,6 +39,8 @@ Native bundle build 143, installed from an entitlement-free, locally signed Rele
 - Tapping the dictation shortcut quickly several times no longer leaves Scriber unable to record. It could refuse every dictation afterwards with "the microphone recording could not start" until the app was quit and reopened, and in some cases froze the app outright with the pill stuck on screen.
 - A quick tap no longer makes the built-in speaker pop. The start sound is no longer cut off partway through, which is what produced the click.
 - **Dictating with Bluetooth headphones no longer freezes the Mac for about a second.** Opening the microphone pulls a headset out of music mode into call mode, and Scriber used to sit and wait for that on the same thread that handles every keystroke — so anything typed during the pause piled up and arrived late. The microphone now opens out of the way, and silencing other audio does too.
+- Tapping the shortcut repeatedly no longer leaves notices behind it. A tap pair too brief to have held any speech used to come back with "No sound from the microphone", and a tap landing during one got "Still transcribing". That message is meant for a dictation given into a microphone that was muted or turned down, so it now waits for one long enough to have been that.
+- Opening Settings or the main window during a dictation now actually ends it. The pill went away but the microphone stayed open behind the window.
 - **Pressing the shortcut answers immediately.** The pill and the start sound used to wait for the microphone to open, which on a slow input meant a second of nothing at all. They now arrive on the press, whatever you are recording with, and the timer and level meter start when the microphone is really listening.
 
 ### Added
