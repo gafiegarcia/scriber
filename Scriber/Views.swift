@@ -190,6 +190,33 @@ private struct SettingsSection<Content: View>: View {
 /// to be applied together, and a call site that used only the binding would get
 /// a toggle that silently never turns on. The setting appears in both Settings
 /// and onboarding, and both go through here.
+private struct MuteOtherAudioToggle<Content: View>: View {
+    @Binding var isOn: Bool
+    /// Raises the macOS prompt the moment the user opts in. Left to the first
+    /// dictation it arrives with the shortcut still held down, which is the
+    /// worst moment to owe an answer.
+    let requestAccess: () -> Void
+    @ViewBuilder let content: (Binding<Bool>) -> Content
+
+    var body: some View {
+        content(asking)
+    }
+
+    /// No dialog stands in front of this. Scriber's explanation travels inside
+    /// macOS's own prompt, as `NSAudioCaptureUsageDescription` — which puts it
+    /// on the question it answers, and spends one fewer click getting there.
+    private var asking: Binding<Bool> {
+        Binding(
+            get: { isOn },
+            set: { turningOn in
+                let wasOff = !isOn
+                isOn = turningOn
+                if turningOn, wasOff { requestAccess() }
+            }
+        )
+    }
+}
+
 /// A toggle and the sentence explaining it, in one row.
 ///
 /// A grouped form draws a divider between rows, so a caption written as its own
@@ -829,12 +856,14 @@ private struct SoundSettingsPane: View {
                 // The warning and the settings link share the row with the
                 // toggle they are about, rather than sitting a divider away
                 // from the setting that asked for them.
-                Group {
-                    let isOn = $runtime.preferences.muteOtherAudioWhileRecording
+                MuteOtherAudioToggle(
+                    isOn: $runtime.preferences.muteOtherAudioWhileRecording,
+                    requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
+                ) { isOn in
                     VStack(alignment: .leading, spacing: 8) {
                         SettingsToggle(
                             "Mute other audio while recording",
-                            caption: "Other apps fade down while you dictate and fade back when you stop. Calls and notification sounds are lowered too. Scriber never reads or records what other apps play.",
+                            caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. macOS asks for System Audio Recording access — muting works whether you allow it or decline, because Scriber never reads what other apps play.",
                             isOn: isOn
                         )
                         .accessibilityIdentifier("mute-other-audio-toggle")
@@ -1315,11 +1344,13 @@ struct OnboardingView: View {
                 .padding(.vertical, 12)
             }
             VStack(alignment: .leading, spacing: 12) {
-                Toggle(
-                    "Mute other audio while recording",
-                    isOn: $runtime.preferences.muteOtherAudioWhileRecording
-                )
-                Text("Other apps fade down while you dictate and fade back when you stop. Scriber never reads or records what other apps play.")
+                MuteOtherAudioToggle(
+                    isOn: $runtime.preferences.muteOtherAudioWhileRecording,
+                    requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
+                ) { isOn in
+                    Toggle("Mute other audio while recording", isOn: isOn)
+                }
+                Text("Other apps continue playing silently while you dictate. macOS asks for System Audio Recording access — muting works whether you allow it or decline, because Scriber never reads what other apps play.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Launch Scriber when I log in", isOn: $launchAtLogin)

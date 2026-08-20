@@ -93,6 +93,7 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var mainWindowRequest: MainWindowRequest?
     private var settingsWindowOpener: (@MainActor () -> Void)?
     @Published private(set) var otherAudioMuteStatus: OtherAudioMuteStatus?
+    private var pendingUnmute: Task<Void, Never>?
 
     let preferences: Preferences
     let modelContext: ModelContext
@@ -201,7 +202,7 @@ final class AppCoordinator: ObservableObject {
                 } else if !enabled {
                     // Turning it off is an instruction about right now, not the
                     // end of a dictation, so it does not wait out the delay.
-                    self.endOtherAudioMuting()
+                    self.restoreOtherAudio()
                 }
             }
             .store(in: &cancellables)
@@ -216,7 +217,7 @@ final class AppCoordinator: ObservableObject {
         NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
             // Never the delayed path: nothing schedules on an app that is going
             // away, and the tap outliving it leaves the Mac silent.
-            .sink { [weak self] _ in self?.endOtherAudioMuting() }
+            .sink { [weak self] _ in self?.restoreOtherAudio() }
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
@@ -1436,7 +1437,24 @@ final class AppCoordinator: ObservableObject {
         feedbackSounds.play(cue)
     }
 
+    /// Asks for System Audio Recording at the moment the user opts in, rather
+    /// than during their next dictation — where the prompt arrives with the
+    /// shortcut still held down and the answer is owed before anything moves.
+    func requestOtherAudioAccess() {
+        Task.detached {
+            let status = OtherAudioMuteService.requestAccess()
+            await MainActor.run { [weak self] in
+                Self.permissionLog.notice("mute: access request status=\(status, privacy: .public)")
+                _ = self
+            }
+        }
+    }
+
     private func beginOtherAudioMuting() {
+        // A dictation starting inside the settle delay keeps the tap it already
+        // has, rather than tearing one down and building another.
+        pendingUnmute?.cancel()
+        pendingUnmute = nil
         let outcome = otherAudioMuting.beginMuting()
         // The Core Audio status, so a mute that quietly does nothing can be told
         // from one that works. Nothing here reads or reports any audio.
@@ -1453,7 +1471,20 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+    /// The mute outlasts the recording by a moment, so other apps do not come
+    /// back in the same instant the input stream closes.
     private func endOtherAudioMuting() {
+        pendingUnmute?.cancel()
+        pendingUnmute = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(OtherAudioMutePolicy.restoreDelay))
+            guard !Task.isCancelled else { return }
+            self?.restoreOtherAudio()
+        }
+    }
+
+    private func restoreOtherAudio() {
+        pendingUnmute?.cancel()
+        pendingUnmute = nil
         switch otherAudioMuting.endMuting() {
         case .restored:
             if otherAudioMuteStatus == .unableToRestore {
