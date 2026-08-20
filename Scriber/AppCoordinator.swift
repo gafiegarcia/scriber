@@ -221,7 +221,7 @@ final class AppCoordinator: ObservableObject {
         NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
             // Never the delayed path: nothing schedules on an app that is going
             // away, and the tap outliving it leaves the Mac silent.
-            .sink { [weak self] _ in self?.restoreOtherAudio() }
+            .sink { [weak self] _ in self?.restoreOtherAudioBeforeTerminating() }
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
@@ -1522,19 +1522,25 @@ final class AppCoordinator: ObservableObject {
         // has, rather than tearing one down and building another.
         pendingUnmute?.cancel()
         pendingUnmute = nil
-        let outcome = otherAudioMuting.beginMuting()
-        // The Core Audio status, so a mute that quietly does nothing can be told
-        // from one that works. Nothing here reads or reports any audio.
-        switch outcome {
-        case .muted, .alreadyMuted:
-            Self.permissionLog.notice(
-                "mute: started outcome=\(String(describing: outcome), privacy: .public)"
-            )
-            otherAudioMuteStatus = nil
-        case .unavailable(let status):
-            // Nothing on screen: the audio that failed to stop is audible, and a
-            // warning about it tells the user what they are already hearing.
-            Self.permissionLog.error("mute: refused status=\(status, privacy: .public)")
+        // Behind the recording rather than in front of it: building the tap is a
+        // chain of blocking Core Audio calls, and a mute that is slow or fails
+        // has no claim on how soon the pill appears.
+        Task { [weak self] in
+            guard let self else { return }
+            let outcome = await otherAudioMuting.beginMuting()
+            // The Core Audio status, so a mute that quietly does nothing can be told
+            // from one that works. Nothing here reads or reports any audio.
+            switch outcome {
+            case .muted, .alreadyMuted:
+                Self.permissionLog.notice(
+                    "mute: started outcome=\(String(describing: outcome), privacy: .public)"
+                )
+                otherAudioMuteStatus = nil
+            case .unavailable(let status):
+                // Nothing on screen: the audio that failed to stop is audible, and a
+                // warning about it tells the user what they are already hearing.
+                Self.permissionLog.error("mute: refused status=\(status, privacy: .public)")
+            }
         }
     }
 
@@ -1552,7 +1558,22 @@ final class AppCoordinator: ObservableObject {
     private func restoreOtherAudio() {
         pendingUnmute?.cancel()
         pendingUnmute = nil
-        switch otherAudioMuting.endMuting() {
+        Task { [weak self] in
+            guard let self else { return }
+            report(unmuting: await otherAudioMuting.endMuting())
+        }
+    }
+
+    /// Termination has no later turn to finish in, so this one blocks. A tap that
+    /// outlives the process leaves the Mac silent with nothing left to fix it.
+    private func restoreOtherAudioBeforeTerminating() {
+        pendingUnmute?.cancel()
+        pendingUnmute = nil
+        report(unmuting: otherAudioMuting.endMutingImmediately())
+    }
+
+    private func report(unmuting outcome: OtherAudioUnmutingOutcome) {
+        switch outcome {
         case .restored:
             if otherAudioMuteStatus == .unableToRestore {
                 otherAudioMuteStatus = nil

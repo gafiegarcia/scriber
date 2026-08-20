@@ -51,13 +51,17 @@ enum OtherAudioMuteStatus: Equatable, Sendable {
 ///
 /// Keeping this protocol independent of recording makes lifecycle behavior testable without
 /// creating a Core Audio tap or triggering the System Audio Recording permission flow.
-@MainActor
-protocol OtherAudioMuting: AnyObject {
+protocol OtherAudioMuting: AnyObject, Sendable {
     @discardableResult
-    func beginMuting() -> OtherAudioMutingOutcome
+    func beginMuting() async -> OtherAudioMutingOutcome
 
     @discardableResult
-    func endMuting() -> OtherAudioUnmutingOutcome
+    func endMuting() async -> OtherAudioUnmutingOutcome
+
+    /// For app termination only, where there is no later turn to finish in and a
+    /// tap outliving the process leaves the Mac silent.
+    @discardableResult
+    func endMutingImmediately() -> OtherAudioUnmutingOutcome
 }
 
 /// Temporarily silences every audio process except Scriber itself.
@@ -69,8 +73,13 @@ protocol OtherAudioMuting: AnyObject {
 /// The app's current process object ID and bundle ID are both excluded. The bundle ID makes the
 /// exclusion survive Core Audio process-object recreation while `processRestoreEnabled` ensures
 /// newly launched non-Scriber apps remain muted for the current session.
-@MainActor
-final class OtherAudioMuteService: OtherAudioMuting {
+final class OtherAudioMuteService: OtherAudioMuting, @unchecked Sendable {
+    /// Building a tap is a chain of blocking round trips to coreaudiod, on the
+    /// same HAL a capture session has just perturbed. Off the main thread for
+    /// the reason `requestAccess` already is, with a serial queue standing in
+    /// for the mutual exclusion the main actor used to give: a begin and an end
+    /// must never interleave.
+    private let queue = DispatchQueue(label: "com.gafiegarcia.scriber.audio-mute")
     private var tapID: AudioObjectID?
     private var aggregateDeviceID: AudioObjectID?
     private var ioProcID: AudioDeviceIOProcID?
@@ -142,12 +151,30 @@ final class OtherAudioMuteService: OtherAudioMuting {
     }
 
     @discardableResult
-    func beginMuting() -> OtherAudioMutingOutcome {
+    func beginMuting() async -> OtherAudioMutingOutcome {
+        await withCheckedContinuation { continuation in
+            queue.async { continuation.resume(returning: self.beginMutingOnQueue()) }
+        }
+    }
+
+    @discardableResult
+    func endMuting() async -> OtherAudioUnmutingOutcome {
+        await withCheckedContinuation { continuation in
+            queue.async { continuation.resume(returning: self.endMutingOnQueue()) }
+        }
+    }
+
+    @discardableResult
+    func endMutingImmediately() -> OtherAudioUnmutingOutcome {
+        queue.sync { endMutingOnQueue() }
+    }
+
+    private func beginMutingOnQueue() -> OtherAudioMutingOutcome {
         if tapID != nil, aggregateDeviceID != nil, ioProcID != nil {
             return .alreadyMuted
         }
         if tapID != nil || aggregateDeviceID != nil || ioProcID != nil,
-           case .unavailable(let status) = endMuting() {
+           case .unavailable(let status) = endMutingOnQueue() {
             return .unavailable(status)
         }
 
@@ -223,8 +250,7 @@ final class OtherAudioMuteService: OtherAudioMuting {
         return .muted
     }
 
-    @discardableResult
-    func endMuting() -> OtherAudioUnmutingOutcome {
+    private func endMutingOnQueue() -> OtherAudioUnmutingOutcome {
         guard tapID != nil || aggregateDeviceID != nil || ioProcID != nil else {
             return .alreadyRestored
         }
