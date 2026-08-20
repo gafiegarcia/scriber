@@ -28,11 +28,7 @@ swiftc -frontend -parse -D DEBUG \
   "$REPO_ROOT"/ScriberCore/*.swift
 
 swiftc -module-cache-path "$MODULE_CACHE" -typecheck \
-  "$REPO_ROOT/ScriberCore/CoreModels.swift" \
-  "$REPO_ROOT/ScriberCore/ScribeClient.swift" \
-  "$REPO_ROOT/ScriberCore/CredentialStore.swift" \
-  "$REPO_ROOT/ScriberCore/RecoveryConditions.swift" \
-  "$REPO_ROOT/ScriberCore/Toasts.swift"
+  "$REPO_ROOT"/ScriberCore/*.swift
 
 CLANG_MODULE_CACHE_PATH="$MODULE_CACHE" \
 SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
