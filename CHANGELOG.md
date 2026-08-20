@@ -4,19 +4,21 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## 0.9.0 — 2026-08-15
 
-Native bundle build 153, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
+Native bundle build 174, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
 
 ### Added
 
 - **Scriber is now a download.** It is signed with an Apple Developer ID certificate and notarized by Apple, so you can install it from a disk image or with `brew install --cask gafiegarcia/tap/scriber` and open it without macOS refusing to run it. Building from source is no longer the only way in.
 - Scriber tells you when a newer version has been released. It asks GitHub once a day and, when there is one, adds an item to the menu bar that opens the release page. It never downloads or installs anything by itself, and the check can be switched off in Settings → General.
 - **One shortcut now does both kinds of dictation.** Hold it and talk, and letting go stops. Or tap it, and Scriber keeps listening with your hands free until you tap again. There used to be two separate shortcuts, and setup only ever taught the first — so hands-free was something you found in Settings or never found at all, and on a keyboard with no `fn` key you could not reach it even then. Your existing Hold shortcut carries over as the one shortcut; the separate hands-free binding and the switches that turned each one off are gone.
-- **Setup asks which shortcut you want, and makes you press it once before finishing.** It offers `fn` or recording your own, and will not let you finish until the one you chose has actually reached Scriber. Most keyboards Apple did not make have no `fn` key that macOS can see — the key is handled inside the keyboard itself and never reaches the Mac — so the old setup left those users pressing a shortcut that could never work, with nothing on screen to say so.
+- **Setup and Settings offer the same three shortcuts, and setup makes you press yours once before finishing.** `fn`, `Right ⌘`, or `Right ⌥` — or record your own — and setup will not let you finish until the one you chose has actually reached Scriber. Most keyboards Apple did not make have no `fn` key that macOS can see, because the key is handled inside the keyboard and never reaches the Mac, so the old setup left those users pressing a shortcut that could never work with nothing on screen to say so.
+- **Scriber can tell your left ⌘ and ⌥ from the right ones.** Nothing on a Mac starts a shortcut with the right-hand key, which makes `Right ⌘` and `Right ⌥` free to hold on their own — and the closest thing to `fn` that a keyboard without one has. A shortcut bound to the right key ignores its left twin, and `Right ⌘+Right ⌥` together works as well. Binding a left one instead is refused with a note pointing at the right.
+- Setup starts with the Mac's built-in microphone selected, marked **(Recommended)** in the input list. You can still pick any other input.
 - Setup and Settings now say where an ElevenLabs API key comes from, with links to create an account and to make a key, and name the Speech to Text access it needs. The key field used to be blank with nowhere to go.
 
 ### Changed
 
-- **Mute other audio while recording** is now off until you switch it on, and switching it on explains what macOS is about to ask for. The permission is called "System Audio Recording", which sounds far broader than what Scriber does with it — quieting other apps while you speak, handing every sample straight back untouched. It used to be on by default, so macOS asked for that permission in the middle of a first dictation with nothing to explain it. Your existing setting is unchanged.
+- **Mute other audio while recording** is now off until you switch it on, and switching it on asks macOS for access there and then. It used to be on by default, so the permission arrived in the middle of a first dictation — with the shortcut still held down, and the app frozen until you answered. macOS calls it "System Audio Recording", which sounds far broader than what Scriber does with it; muting works whether you allow it or decline, because Scriber never reads what other apps play. Other apps also get their sound back a moment after a dictation rather than the instant it ends, which is what used to be heard as a glitch. Your existing setting is unchanged.
 - Scriber now runs on **macOS 26 or later**, rather than requiring macOS 27. On macOS 26 the dictation pill keeps its glass appearance but does not respond to interaction, which is the only visible difference.
 - macOS asks for your login Keychain password once, rather than after every reinstall. The signature no longer changes between builds, so the permission you grant sticks.
 

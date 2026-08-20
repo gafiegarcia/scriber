@@ -114,6 +114,8 @@ This launch suppresses activation, Dock presence, and the menu-bar item, but sti
 /usr/bin/log show --last 5m --predicate 'subsystem == "com.gafiegarcia.scriber"' --style compact
 ```
 
+Log at `.notice`. `log show` omits `.info` and `.debug` unless asked for them by flag, so a line written at either is invisible to the command above and reads as a feature that never ran.
+
 The subsystem holds three categories: `window-lifecycle`, `paste-target`, and `permissions`. Narrow to one by adding `AND category == "permissions"` to the predicate.
 
 `permissions` writes a line only when a reading actually changes — the permission or the shortcut monitor, its new value, and which refresh path saw it. Silence means nothing changed, not that nothing was observed, and a launch is silent because the published values start from the same readings the first refresh takes. A `--ui-testing` launch cannot produce a transition at all: it grants no permission and its missing-permission flag injects a fixed state. Read this category on the installed app.
