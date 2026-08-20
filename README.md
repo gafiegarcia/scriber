@@ -35,7 +35,7 @@ I'm on a base model macbook. Running a local model means:
 
 ## (Better) Alternatives...
 
-Scriber fits my needs just fine for weeks, and while I might keep maintaining it (read: report bugs and ask for features & improvements to the clankers), I most likely don't have enough tokens to squash bugs and fulfill requests as much/as quick as an actual project with an actual dev. You might want to check out these personal recommendations of mine + open source options I discovered:
+I've been using Scriber for weeks, and it fits my simple needs just fine. While I might keep maintaining it (read: report bugs and ask for features & improvements to the clankers), I most likely don't have enough tokens to squash bugs and fulfill requests as much/as quick as an actual project with an actual dev. You might want to check out these personal recommendations of mine + open source options I discovered:
 
 ### [Wispr Flow](https://wisprflow.ai/)
 
@@ -54,7 +54,7 @@ Seriously, if you're okay with its privacy policy (just got updated after the ne
 ### [Spokenly](https://spokenly.app/)
 
 - supports numerous hosted, BYOK, and local models
-- good UX (arguably better than Wispr Flow in some parts): smart paste, hold + toggle in one shortcut, etc.
+- good UX (arguably better than Wispr Flow in some parts): smart paste, hold + toggle in one shortcut, etc. (Scriber v0.9.0 also has these now)
 - defaults to ElevenLabs Scribe v2 (biased...)
 - only uses ~150MB ram (on my mac)
 - app-aware formatting, with a different approach to Wispr Flow: it lets users add and configure the "templates", customize where each one triggers, manually select it during/after dictating, and set a custom prompt for the post-processing, in contrast to Wispr Flow's approach of ready-made configs (can be confusing for normies or semi-normies like me, while Wispr Flow's settings are so easy to understand that your non-tech-y friends and family might be able to fully use and configure it given enough time)
