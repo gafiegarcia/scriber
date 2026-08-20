@@ -10,6 +10,8 @@ Every tag on `main` ships a build, so do not tag until you intend to finish this
 
   It expires **1 Feb 2027**, capped by the legacy Apple intermediate that issued it; a certificate created through the developer portal on the G2 Sub-CA instead runs to 2031. Deliberately not taken: Gaf wants the renewal as a live exercise. Releases already notarized keep validating after expiry because they are timestamped, so what expiry actually stops is signing anything new. When it lapses, create a replacement, then pin `CODE_SIGN_IDENTITY` to its SHA-1 fingerprint in `Signing.xcconfig` — two certificates sharing one common name make selection by name ambiguous. Users keep their permissions across the change: the designated requirement matches on the team identifier, which does not change.
 
+- `create-dmg`, which arranges the disk image window. `brew install create-dmg`. Build-time only — nothing from it ships inside the app.
+
 - A notary credential profile in the Keychain. Create it once:
 
 ```bash
@@ -59,13 +61,29 @@ VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/C
 STAGE=.build/dmg-stage
 rm -rf "$STAGE" && mkdir -p "$STAGE"
 ditto "$APP" "$STAGE/Scriber.app"
-ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "Scriber $VERSION" -srcfolder "$STAGE" -ov -format UDZO ".build/Scriber-$VERSION.dmg"
+
+create-dmg \
+  --volname "Scriber $VERSION" \
+  --background Branding/dmg-background.tiff \
+  --window-size 660 400 \
+  --icon-size 128 \
+  --icon "Scriber.app" 180 170 \
+  --app-drop-link 480 170 \
+  --no-internet-enable \
+  ".build/Scriber-$VERSION.dmg" "$STAGE"
 
 codesign --sign "Developer ID Application" --timestamp ".build/Scriber-$VERSION.dmg"
 xcrun notarytool submit ".build/Scriber-$VERSION.dmg" --keychain-profile "scriber-notary" --wait
 xcrun stapler staple ".build/Scriber-$VERSION.dmg"
 ```
+
+`create-dmg` places the icons by driving Finder over AppleScript, so the first run on a machine raises an automation prompt. Answer it — unanswered, the AppleEvent times out after about two minutes and the run fails with `-1712` and no image. Do not add the `Applications` symlink to the staging folder; `--app-drop-link` makes its own, and a second one appears as a stray icon.
+
+It emits UDZO, the same format the three commands below expect, so signing and notarization are unchanged by the styling.
+
+The window is light in both appearances, deliberately and unavoidably: Finder draws a volume window's labels black whenever a background picture is set, whatever that picture holds, so a dark design renders black text on a dark backdrop. Verified on macOS 27. Regenerate the background with `swift Branding/DMGBackground.swift Branding` after editing it.
+
+`hdiutil` still works but is deprecated across the board on macOS 27 in favour of `diskutil image`. Nothing here calls it directly any more; `create-dmg` does, and its warnings are expected.
 
 The disk image is notarized separately from the app inside it, and both need it. Sign the image before submitting: an unsigned one still passes the checks below, but reports `no usable signature` to any tool that assesses it as an installer.
 
