@@ -193,7 +193,8 @@ struct OnboardingView: View {
 
     /// Each gate is the thing the step exists to establish, and nothing else.
     private var canAdvance: Bool {
-        switch step {
+        guard !AppLaunchConfiguration.unlocksOnboardingSteps else { return true }
+        return switch step {
         case .apiKey:
             !isCheckingAPIKey
                 && runtime.preferences.apiKeyConfigured

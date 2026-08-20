@@ -50,6 +50,17 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding")
     }
 
+    /// Lets every setup step be advanced past without satisfying its gate.
+    ///
+    /// Four of the nine steps gate on a real grant, a real microphone signal, or
+    /// a real keypress, so without this the later steps can only be looked at by
+    /// granting permissions to a Debug build — which writes that build's identity
+    /// into the Mac's privacy lists. The gates themselves still render; only the
+    /// Continue button stops obeying them.
+    static var unlocksOnboardingSteps: Bool {
+        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding-unlocked")
+    }
+
     /// The launch smoke check's flag. The app still builds and renders its window —
     /// that is the path the check exists to exercise — but never activates, so it
     /// does not steal the front from whatever Gaf is doing. Only the smoke check
