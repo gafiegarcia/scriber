@@ -25,7 +25,6 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - A refused chord such as `⌘Q` closes the recorder with its reason, leaves the stored binding alone, and leaves the keyboard usable. Pressing the **left** ⌘ or ⌥ alone is refused with a reason naming the right-hand one.
 - Bind **Right ⌥** alone, then press the left ⌥: nothing starts. Press the right one and dictate. Then hold both, and let go of the right one while the left stays down — the recording stops there. macOS reports only that Option is down, so a release read from the flags would never come.
 - Bind **Right ⌘+Right ⌥** together, then press the two left keys: nothing starts. One of each: nothing starts. Both right ones: it records, and letting go of either stops it. Restore the preferred shortcut afterward.
-- Redo Setup with a sided shortcut bound, and press the left twin at the test step. It refuses to confirm, the same as any other wrong key. Setup's test and the global shortcut have to agree about which key counts, or setup passes a binding that then does nothing.
 - Record a new shortcut: the recorder shows the chord live and closes at the first key release, and a chord containing `fn` displays it first. Restore the preferred shortcut afterward.
 - Every pill still reads as tinted glass rather than a coloured slab, in light and dark and over both a light and a dark window behind it. Recording, transcribing, and cancellation carry no tint; a copied result is green; no-words, no-signal, permission, credential, and failure pills are amber. The glyph and the glass never disagree about which of the three a pill is.
 - Compare a green pill against an amber one **in light appearance**, which is where the tint has least to work with: they must be tellable apart from each other, not merely visible. Checking each tone on its own hides the failure that matters.
@@ -61,16 +60,38 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 
 - Pick each preset in turn: the chosen one is tinted and the others are not, and the shortcut takes effect without any confirm step. Record a custom chord, switch to a preset, and switch back — the recorded chord is still offered as its own button.
 
-## When setup's shortcut step changes
+## When setup changes
 
-- Run setup on a keyboard with no `fn` key that macOS can see, which is most keyboards Apple did not make. The `fn` choice refuses to confirm however hard the key is pressed, a recorded `⌃+⌥` confirms, and Finish Setup stays unavailable until one of them does. This is the case the step exists for and the only one that cannot be staged on Gaf's own machine.
-- Choose each option in turn and press the shortcut it names. Confirmation follows the choice rather than surviving it, so switching away from a confirmed shortcut disarms Finish Setup again.
+Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a Debug launch to reach the gated steps without granting anything to that build. The gates still render; only Continue stops obeying them, so anything below that tests a gate has to be run without it.
+
+### Its shortcut step
+
+- Run setup on a keyboard with no `fn` key that macOS can see, which is most keyboards Apple did not make. The key cap never lights up however hard the key is pressed, a recorded `⌃+⌥` does light it and confirms, and Continue stays unavailable until one of them does. This is the case the step exists for and the only one that cannot be staged on Gaf's own machine.
+- Choose each option in turn and press the shortcut it names. The cap fills while the key is held and empties when it comes up. Confirmation follows the choice rather than surviving it, so switching away from a confirmed shortcut disarms Continue again.
+- Press a sided shortcut's left twin. It refuses to confirm, the same as any other wrong key — setup's test and the global shortcut have to agree about which key counts, or setup passes a binding that then does nothing.
 - Record a custom shortcut, confirm it, and finish. The recorder still refuses a reserved chord, and the chord that reaches Settings afterwards is the one that was tested.
-- Start the test, then click into the API key field above it and type. Keys reach the field. A test that listens when it was not asked to swallows every key on the page.
-- Redo Setup with a shortcut you recorded yourself. The picker opens on the shortcut you already hold rather than resetting to `fn`, and finishing leaves it as you set it.
+- On the shortcut step, press Tab and Return. Focus moves and Continue fires. The step watches for keys the whole time it is open, and a watcher that swallows them takes the keyboard with it.
+
+### Its microphone step
+
+- Say nothing. Continue stays unavailable and the meter stays flat. Speak, and the label turns green and Continue lights up. Setup must not be completable with the microphone never tested.
+- Set the input volume to zero and speak. **Continue without testing** is already on screen — it does not have to be waited for — and using it reaches the next step.
+- Change the input device mid-step. The meter restarts and the confirmation resets, because it was the previous device that was proven.
+
+### Its shape and lifecycle
+
 - Setup is the only window on a first run — no main window behind it or showing past its edges — and finishing opens the main window for the first time. Redo Setup is the opposite case and correct: the main window is already open there, and setup sits in front of it.
-- Close setup part-way with ⌘W. The menu bar carries **Finish Setup…** and reopens setup, which is the only route back with no main window to hold a warning. Quitting and reopening returns to setup rather than the main window.
+- Close setup part-way with ⌘W, before its dictation step. The menu bar carries **Finish Setup…** and reopens setup, which is the only route back with no main window to hold a warning. Quitting and reopening returns to setup rather than the main window.
 - Press **Allow** for Microphone and again for Accessibility. System Settings comes to the front each time, on the right pane, rather than opening behind setup.
+- Redo Setup with everything already granted and a shortcut you recorded yourself. Each step shows what is already true — Verified, allowed, your own chord — rather than asking again, and finishing leaves all of it as it was.
+- Walk it on the shortest display available. The window is centred and wholly visible, and it never grows or shrinks as the steps change.
+- Take **Set Up Later** from the first step. The main window opens and its chrome names exactly what is missing; Settings fixes all of it, and **Redo Setup** returns here.
+- On the ElevenLabs data-use step, open **Show me where to find it**. Both screenshots are legible, Escape and Done both close it, and the step's own buttons do nothing while it is up.
+
+### Its dictation step
+
+- Reach the dictation step and dictate into its box. **This spends API credit; ask first.** The words land in the box itself rather than the clipboard — no other app has ever been the target here, so this is the one place that says whether Scriber can paste into its own window.
+- Close setup on the dictation step without dictating. Setup counts as finished, the shortcut works everywhere, and the login item matches what the final step's checkbox would have applied.
 
 ## When permissions or global-shortcut lifecycle change
 

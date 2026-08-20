@@ -138,7 +138,11 @@ It moves the real pointer and can press keys, so do not start one while the user
 
 `--ui-testing-onboarding` opens the setup window, which `--ui-testing` otherwise skips by marking setup complete. Launch it with activation and the `before_pid` guard, as with seeded history below.
 
+Add `--ui-testing-onboarding-unlocked` to reach the steps that gate on a real grant, a real microphone signal, or a real keypress. Without it those steps can only be passed by granting permissions to the Debug build, which writes that build's identity into the Mac's privacy lists. The gates still render — only Continue stops obeying them — so any check *of* a gate has to be run without the flag.
+
 Confirm the window is centred and fully visible above the Dock, then relaunch and confirm it again — a restored frame behaves differently from a fresh one, and `fitOnboardingWindow` in `Scriber/ScriberApp.swift` is what overrides AppKit here.
+
+Walk all nine steps. Each one fills the window without scrolling and centres in it, the footer's page dots track the step, and no step's controls move as the step changes.
 
 Also launch ordinary `--ui-testing`, open Settings, and choose **Redo Setup…** on the General tab while the main window is already open. The setup window comes to the front, remains centred above the Dock, and shows the throwaway setup state; never reset Gaf's real `onboardingComplete` preference for this inspection.
 

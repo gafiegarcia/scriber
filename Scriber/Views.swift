@@ -1148,7 +1148,29 @@ private struct PermissionsSettingsPane: View {
                 ) {
                     MicrophonePermissionButton()
                 }
+                systemAudioSignpost
             }
+        }
+    }
+
+    /// A signpost, not a status row. Core Audio ships no preflight for process
+    /// taps, so the only way to read this grant is to attempt one — which is
+    /// what raises the prompt. The row says what macOS will not report and
+    /// points at where to look, and claims nothing about the answer.
+    private var systemAudioSignpost: some View {
+        VStack(alignment: .leading, spacing: SettingsPaneLayout.captionGap) {
+            HStack {
+                Label("Screen & System Audio Recording", systemImage: "speaker.wave.2")
+                Spacer()
+                Button("Open Privacy & Security") {
+                    runtime.coordinator.openSystemAudioPrivacySettings()
+                }
+                .accessibilityIdentifier("open-system-audio-privacy-signpost")
+            }
+            Text("Used only to mute other apps while you dictate. macOS does not report whether this one is granted, so Scriber cannot show it here — muting works either way.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
