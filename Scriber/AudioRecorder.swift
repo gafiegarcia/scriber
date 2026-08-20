@@ -1,6 +1,7 @@
 @preconcurrency import AVFoundation
 import CoreAudio
 import Foundation
+import os
 #if SWIFT_PACKAGE
 import ScriberCore
 #endif
@@ -175,7 +176,10 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     private var lifecycle = RecorderLifecycle()
     private var recordingURL: URL?
     private var startedAt: Date?
-    private var currentLevel: Float = -160
+    /// The only capture state read from off `queue`: the meter polls it ten times
+    /// a second, and a `queue.sync` for it would queue behind a session opening.
+    /// `maximumPeakLevel` stays queue-owned because nothing outside reads it.
+    private let currentLevel = OSAllocatedUnfairLock(initialState: Float(-160))
     private var maximumPeakLevel: Float = -160
     /// When the microphone last sent anything at all, so a stream that goes silent
     /// mid-recording can be told from a recording that simply ends quietly.
@@ -201,7 +205,7 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
 
             recordingURL = url
             startedAt = .now
-            currentLevel = -160
+            currentLevel.withLock { $0 = -160 }
             maximumPeakLevel = -160
             session = capture.session
             dataOutput = capture.dataOutput
@@ -217,7 +221,7 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
             guard lifecycle.activeRecording == nil else { return }
             tearDownSession()
             let capture = try makeSession(selection: selection, fileOutput: nil)
-            currentLevel = -160
+            currentLevel.withLock { $0 = -160 }
             maximumPeakLevel = -160
             session = capture.session
             dataOutput = capture.dataOutput
@@ -233,7 +237,7 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     }
 
     func latestLevel() -> Float {
-        queue.sync { currentLevel }
+        currentLevel.withLock { $0 }
     }
 
     func stopRecording() async throws -> CompletedRecording {
@@ -350,7 +354,7 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
         session = nil
         dataOutput = nil
         fileOutput = nil
-        currentLevel = -160
+        currentLevel.withLock { $0 = -160 }
         guard let closing, closing.isRunning else { return }
         // `stopRunning` asks the main thread to acknowledge the capture graph
         // stopping and waits for the answer. Called here it would hold this queue
@@ -413,7 +417,7 @@ extension CaptureBackend: AVCaptureAudioDataOutputSampleBufferDelegate {
     ) {
         let channels = connection.audioChannels
         guard !channels.isEmpty else { return }
-        currentLevel = channels.map(\.averagePowerLevel).max() ?? -160
+        currentLevel.withLock { $0 = channels.map(\.averagePowerLevel).max() ?? -160 }
         let peak = channels.map(\.peakHoldLevel).max() ?? -160
         maximumPeakLevel = max(maximumPeakLevel, peak)
     }
