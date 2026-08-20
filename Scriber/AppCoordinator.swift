@@ -1084,6 +1084,11 @@ final class AppCoordinator: ObservableObject {
         // than claiming a level it cannot have yet.
         playFeedback(.recordingStarted)
         setPhase(.recording(mode: mode, elapsed: 0, level: -160))
+        // Told at the press, not at the open. The tap machine reports another key
+        // being typed only while it is in held mode, so a mode arriving with the
+        // microphone left the whole start window deaf to `fn`+delete — the key
+        // this cancel exists for.
+        shortcuts.setMode(mode == .held ? .held : .locked)
         handedOff = true
         // Never cancelled, and never more than one: the gate only begins a start
         // from idle, and it leaves idle here until this task answers. Cancelling
@@ -1099,6 +1104,7 @@ final class AppCoordinator: ObservableObject {
             } catch AudioRecorderError.inputUnavailable(let name) {
                 _ = gate.apply(.startFailed)
                 endOtherAudioMuting()
+                shortcuts.setMode(.idle)
                 playFeedback(.terminalFailure)
                 showMessage("Microphone “\(name)” is unavailable")
             } catch {
@@ -1364,14 +1370,9 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func cancelHeldRecordingForTypingIfNeeded() {
-        // A start still in flight has recorded nothing, so it cancels on any key
-        // — there is no elapsed time yet for the policy to weigh.
-        if gate.isStarting {
-            apply(gate.apply(.cancelRequested))
-            return
-        }
-        guard case .recording(let mode, let elapsed, _) = phase,
-              RecordingCancellationPolicy.cancelsForNonModifierKey(mode: mode, elapsed: elapsed) else { return }
+        var elapsed: TimeInterval = 0
+        if case .recording(_, let value, _) = phase { elapsed = value }
+        guard gate.cancelsForTyping(elapsed: elapsed) else { return }
         apply(gate.apply(.cancelRequested))
     }
 

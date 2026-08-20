@@ -139,6 +139,34 @@ struct RecordingStartGateTests {
         #expect(gate.apply(.stopRequested) == .stop)
     }
 
+    @Test("Typing cancels a held dictation from the press, not from the microphone")
+    func typingCancelsFromThePress() {
+        var gate = RecordingStartGate()
+        #expect(!gate.cancelsForTyping(elapsed: 0))
+        _ = gate.apply(.shortcut(.pressed))
+        // The window that used to be deaf: no session, no elapsed time, and the
+        // key still has to land.
+        #expect(gate.cancelsForTyping(elapsed: 0))
+        _ = gate.apply(.sessionOpened)
+        #expect(gate.cancelsForTyping(elapsed: 0.5))
+        // Past the recovery threshold it is a dictation worth keeping.
+        #expect(!gate.cancelsForTyping(elapsed: 1))
+    }
+
+    @Test("Typing never cancels a hands-free dictation, opened or not")
+    func typingLeavesHandsFreeAlone() {
+        var starting = RecordingStartGate()
+        _ = starting.apply(.shortcut(.pressed))
+        _ = starting.apply(.shortcut(.releasedAsTap))
+        #expect(!starting.cancelsForTyping(elapsed: 0))
+
+        var running = RecordingStartGate()
+        _ = running.apply(.shortcut(.pressed))
+        _ = running.apply(.sessionOpened)
+        _ = running.apply(.shortcut(.releasedAsTap))
+        #expect(!running.cancelsForTyping(elapsed: 0.1))
+    }
+
     @Test("No sequence of events can leave the gate unable to start")
     func noSequenceOfEventsLeavesTheGateUnableToStart() {
         var generator = SeededGenerator(seed: 0x5372_6962_6572_0001)

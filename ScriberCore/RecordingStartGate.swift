@@ -1,3 +1,5 @@
+import Foundation
+
 /// What a dictation gesture means while the microphone is still opening.
 ///
 /// Opening a capture session is slow enough to need a background queue, so a
@@ -71,6 +73,24 @@ public struct RecordingStartGate: Equatable, Sendable {
     public var isStarting: Bool {
         if case .starting = state { return true }
         return false
+    }
+
+    /// Whether typing some other key should abandon what is in flight.
+    ///
+    /// A held dictation is interrupted by any other key, hands-free is not, and a
+    /// start still opening is judged by what the gesture means so far — there is
+    /// no recording yet to have an age. `fn`+delete is the case that has to be
+    /// quick: it is a shortcut people use for forward-delete, and the dictation
+    /// it accidentally starts has to get out of the way at once.
+    public func cancelsForTyping(elapsed: TimeInterval) -> Bool {
+        switch state {
+        case .idle:
+            false
+        case .starting(let mode, _):
+            RecordingCancellationPolicy.cancelsForNonModifierKey(mode: mode, elapsed: 0)
+        case .running(let mode):
+            RecordingCancellationPolicy.cancelsForNonModifierKey(mode: mode, elapsed: elapsed)
+        }
     }
 
     /// Cancelling outranks stopping, and repeating either changes nothing. That
