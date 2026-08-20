@@ -32,14 +32,15 @@ enum OtherAudioUnmutingOutcome: Equatable, Sendable {
     case unavailable(OSStatus)
 }
 
+/// A mute that fails to start says nothing: the music carries on playing, which
+/// the user can hear, and nothing needs saying about a fact they are listening
+/// to. A mute that fails to *end* is the opposite — a Mac that stays silent for
+/// no visible reason, with a fix nobody would guess.
 enum OtherAudioMuteStatus: Equatable, Sendable {
-    case unavailableToStart
     case unableToRestore
 
     var message: String {
         switch self {
-        case .unavailableToStart:
-            "Other app audio could not be muted. Dictation will continue normally. Review System Audio Recording access in Privacy & Security."
         case .unableToRestore:
             "Scriber could not restore other app audio. Quit Scriber if it remains silent."
         }

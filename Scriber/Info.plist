@@ -31,7 +31,7 @@
          mechanism instead: the tap's callback discards every sample it is
          handed. -->
     <key>NSAudioCaptureUsageDescription</key>
-    <string>Silences other apps while you dictate, so they don't bleed into your microphone. macOS grants this as system audio access; Scriber ignores every sample it receives and saves nothing.</string>
+    <string>Scriber silences other apps while you dictate, so they don't bleed into your microphone. It never reads or saves what they play.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

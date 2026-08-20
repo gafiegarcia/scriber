@@ -203,9 +203,6 @@ final class AppCoordinator: ObservableObject {
                     // Turning it off is an instruction about right now, not the
                     // end of a dictation, so it does not wait out the delay.
                     self.restoreOtherAudio()
-                    if self.otherAudioMuteStatus == .unavailableToStart {
-                        self.otherAudioMuteStatus = nil
-                    }
                 }
             }
             .store(in: &cancellables)
@@ -1447,7 +1444,8 @@ final class AppCoordinator: ObservableObject {
         Task.detached {
             let status = OtherAudioMuteService.requestAccess()
             await MainActor.run { [weak self] in
-                self?.otherAudioMuteStatus = status == noErr ? nil : .unavailableToStart
+                Self.permissionLog.notice("mute: access request status=\(status, privacy: .public)")
+                _ = self
             }
         }
     }
@@ -1467,13 +1465,14 @@ final class AppCoordinator: ObservableObject {
             // about the screen-capture list — if it never disagrees with a
             // decline, then a decline cannot be detected and cannot be honoured.
             let preflight = CGPreflightScreenCaptureAccess()
-            Self.permissionLog.info(
+            Self.permissionLog.notice(
                 "mute: started outcome=\(String(describing: outcome), privacy: .public) screenPreflight=\(preflight, privacy: .public)"
             )
             otherAudioMuteStatus = nil
         case .unavailable(let status):
+            // Nothing on screen: the audio that failed to stop is audible, and a
+            // warning about it tells the user what they are already hearing.
             Self.permissionLog.error("mute: refused status=\(status, privacy: .public)")
-            otherAudioMuteStatus = .unavailableToStart
         }
     }
 

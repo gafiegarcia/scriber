@@ -190,50 +190,30 @@ private struct SettingsSection<Content: View>: View {
 /// to be applied together, and a call site that used only the binding would get
 /// a toggle that silently never turns on. The setting appears in both Settings
 /// and onboarding, and both go through here.
-private struct MuteOtherAudioConsent<Content: View>: View {
+private struct MuteOtherAudioToggle<Content: View>: View {
     @Binding var isOn: Bool
-    /// Raises the macOS prompt now. Left to the first dictation it arrives with
-    /// the shortcut still held down, which is the worst moment to owe an answer.
+    /// Raises the macOS prompt the moment the user opts in. Left to the first
+    /// dictation it arrives with the shortcut still held down, which is the
+    /// worst moment to owe an answer.
     let requestAccess: () -> Void
     @ViewBuilder let content: (Binding<Bool>) -> Content
 
-    @State private var isAsking = false
-
     var body: some View {
-        content(guarded)
-            .confirmationDialog("Mute other apps while you dictate?", isPresented: $isAsking) {
-                Button("Turn On") {
-                    isOn = true
-                    requestAccess()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text(Self.message)
-            }
+        content(asking)
     }
 
-    /// Turning it off passes straight through. Turning it on raises the dialog
-    /// instead, and the toggle stays where it was until that is answered.
-    private var guarded: Binding<Bool> {
+    /// No dialog stands in front of this. Scriber's explanation travels inside
+    /// macOS's own prompt, as `NSAudioCaptureUsageDescription` — which puts it
+    /// on the question it answers, and spends one fewer click getting there.
+    private var asking: Binding<Bool> {
         Binding(
             get: { isOn },
             set: { turningOn in
-                guard turningOn else {
-                    isOn = false
-                    return
-                }
-                guard !isOn else { return }
-                isAsking = true
+                let wasOff = !isOn
+                isOn = turningOn
+                if turningOn, wasOff { requestAccess() }
             }
         )
-    }
-
-    private static var message: String {
-        """
-        macOS calls this “System Audio Recording”. Scriber uses it only to quiet other apps while you speak, and hands every sample straight back — never inspected, recorded, or saved.
-
-        Take it back any time in System Settings → Privacy & Security → Screen & System Audio Recording.
-        """
     }
 }
 
@@ -876,7 +856,7 @@ private struct SoundSettingsPane: View {
                 // The warning and the settings link share the row with the
                 // toggle they are about, rather than sitting a divider away
                 // from the setting that asked for them.
-                MuteOtherAudioConsent(
+                MuteOtherAudioToggle(
                     isOn: $runtime.preferences.muteOtherAudioWhileRecording,
                     requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
                 ) { isOn in
@@ -1364,7 +1344,7 @@ struct OnboardingView: View {
                 .padding(.vertical, 12)
             }
             VStack(alignment: .leading, spacing: 12) {
-                MuteOtherAudioConsent(
+                MuteOtherAudioToggle(
                     isOn: $runtime.preferences.muteOtherAudioWhileRecording,
                     requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
                 ) { isOn in
