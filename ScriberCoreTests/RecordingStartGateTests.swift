@@ -42,7 +42,7 @@ struct RecordingStartGateTests {
     func escapeDuringStartWindow() {
         var gate = RecordingStartGate()
         _ = gate.apply(.shortcut(.pressed))
-        #expect(gate.apply(.cancelRequested) == .ignore)
+        #expect(gate.apply(.cancelRequested) == .cancelPendingStart)
         #expect(gate.apply(.sessionOpened) == .abandonOpenedSession)
     }
 
@@ -176,7 +176,7 @@ struct RecordingStartGateTests {
                 case .beginMetering, .abandonOpenedSession, .startDidNotOpen:
                     #expect(outstanding == 1)
                     outstanding -= 1
-                case .ignore, .promote, .stop, .cancel:
+                case .ignore, .promote, .stop, .cancel, .cancelPendingStart:
                     break
                 }
                 #expect(gate.isStarting == (outstanding == 1))

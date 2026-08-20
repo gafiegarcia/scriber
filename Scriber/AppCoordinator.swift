@@ -876,6 +876,14 @@ final class AppCoordinator: ObservableObject {
             cancelRecording()
         case .abandonOpenedSession:
             abandonOpenedSession()
+        // The recorder teardown waits for the session it has to tear down. The
+        // pill does not: leaving it up until the microphone opens reads as the
+        // keystroke having been ignored, which is what it used to look like.
+        case .cancelPendingStart:
+            meterTask?.cancel()
+            meterTask = nil
+            feedbackSounds.fadeOut()
+            returnToIdle()
         }
     }
 
@@ -1008,7 +1016,7 @@ final class AppCoordinator: ObservableObject {
 
     func openSettingsWindow(destination: MainWindowDestination) {
         selectMainWindowDestination(destination)
-        returnToIdle()
+        endDictationBeforeOpeningAWindow()
         NSApp.setActivationPolicy(.regular)
         // The opener creates the scene if it does not exist yet; the
         // notification is what orders an existing window front and carries the
@@ -1019,7 +1027,7 @@ final class AppCoordinator: ObservableObject {
 
     private func openMainWindow(destination: MainWindowDestination) {
         selectMainWindowDestination(destination)
-        returnToIdle()
+        endDictationBeforeOpeningAWindow()
         NSApp.setActivationPolicy(.regular)
         NotificationCenter.default.post(name: .openScriberMainWindow, object: nil)
         // Every pill action arrives here from a nonactivating panel, so the app
@@ -1601,6 +1609,18 @@ final class AppCoordinator: ObservableObject {
             } else {
                 self.pill.update(retainedPhase)
             }
+        }
+    }
+
+    /// `returnToIdle` takes the pill down but leaves the recorder alone, which is
+    /// right everywhere the recording has already been resolved and wrong here:
+    /// a dictation the gate still holds would keep the microphone open behind the
+    /// window, and answer the next press by transcribing it.
+    private func endDictationBeforeOpeningAWindow() {
+        if gate.isIdle {
+            returnToIdle()
+        } else {
+            apply(gate.apply(.cancelRequested))
         }
     }
 

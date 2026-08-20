@@ -55,6 +55,10 @@ public struct RecordingStartGate: Equatable, Sendable {
         /// The gesture ending this recording arrived before the microphone
         /// opened, so the file holds nothing. Close it without ever showing it.
         case abandonOpenedSession
+        /// Cancelled while the session is still opening. It will be abandoned on
+        /// arrival, but the gesture is answered now — a pill still up after the
+        /// user typed or pressed Escape reads as having been ignored.
+        case cancelPendingStart
         case startDidNotOpen
     }
 
@@ -157,7 +161,7 @@ public struct RecordingStartGate: Equatable, Sendable {
 
         case (.starting(let mode, let resolution), .cancelRequested):
             state = .starting(mode: mode, resolution: Self.combine(resolution, .cancel))
-            return .ignore
+            return .cancelPendingStart
         case (.running, .cancelRequested):
             state = .idle
             return .cancel
