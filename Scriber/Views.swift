@@ -863,7 +863,7 @@ private struct SoundSettingsPane: View {
                     VStack(alignment: .leading, spacing: 8) {
                         SettingsToggle(
                             "Mute other audio while recording",
-                            caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. Needs System Audio Recording access; Scriber never records or saves that audio.",
+                            caption: "Other apps keep playing silently and become audible again when recording stops. Calls and notification sounds are also silenced. macOS asks for System Audio Recording access — muting works whether you allow it or decline, because Scriber never reads what other apps play.",
                             isOn: isOn
                         )
                         .accessibilityIdentifier("mute-other-audio-toggle")
@@ -1350,7 +1350,7 @@ struct OnboardingView: View {
                 ) { isOn in
                     Toggle("Mute other audio while recording", isOn: isOn)
                 }
-                Text("Other apps continue playing silently while you dictate. Needs System Audio Recording access; Scriber never records or saves that audio.")
+                Text("Other apps continue playing silently while you dictate. macOS asks for System Audio Recording access — muting works whether you allow it or decline, because Scriber never reads what other apps play.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Launch Scriber when I log in", isOn: $launchAtLogin)
