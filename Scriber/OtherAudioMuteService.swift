@@ -1,5 +1,7 @@
 import CoreAudio
+import AudioToolbox
 import Foundation
+import os
 
 /// Drives the mute tap without crossing into Swift concurrency or touching the supplied audio.
 /// Core Audio invokes this function on a real-time IO thread, so it must remain nonisolated.
@@ -286,3 +288,79 @@ final class OtherAudioMuteService: OtherAudioMuting {
         return [objectID]
     }
 }
+
+#if DEBUG
+/// Answers one question before any of `AUVoiceIO` is designed in: does ducking
+/// other audio need a grant, and does it need to own the microphone?
+///
+/// `kAUVoiceIOProperty_OtherAudioDuckingConfiguration` lowers non-voice audio
+/// while a voice I/O unit runs. It asks for no System Audio Recording grant,
+/// which is the whole reason to want it — but it belongs to a unit that opens
+/// the microphone, and Scriber's recorder already has one open. Whether the two
+/// coexist decides whether ducking is an addition or a rewrite.
+///
+/// Debug-only and deliberately crude: it is a measurement, not a design.
+@MainActor
+enum DuckingProbe {
+    private static let log = Logger(subsystem: "com.gafiegarcia.scriber", category: "permissions")
+    private static var unit: AudioUnit?
+
+    static var isRequested: Bool {
+        ProcessInfo.processInfo.arguments.contains("--probe-ducking")
+    }
+
+    static func start() {
+        var description = AudioComponentDescription(
+            componentType: kAudioUnitType_Output,
+            componentSubType: kAudioUnitSubType_VoiceProcessingIO,
+            componentManufacturer: kAudioUnitManufacturer_Apple,
+            componentFlags: 0,
+            componentFlagsMask: 0
+        )
+        guard let component = AudioComponentFindNext(nil, &description) else {
+            log.error("ducking: no voice processing component")
+            return
+        }
+
+        var created: AudioUnit?
+        var status = AudioComponentInstanceNew(component, &created)
+        guard status == noErr, let created else {
+            log.error("ducking: instantiate failed status=\(status, privacy: .public)")
+            return
+        }
+        unit = created
+
+        // Input must be on: ducking belongs to the voice side of the unit.
+        var enable: UInt32 = 1
+        status = AudioUnitSetProperty(
+            created, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Input, 1,
+            &enable, UInt32(MemoryLayout<UInt32>.size)
+        )
+        log.notice("ducking: enableInput status=\(status, privacy: .public)")
+
+        var configuration = AUVoiceIOOtherAudioDuckingConfiguration(
+            mEnableAdvancedDucking: false,
+            mDuckingLevel: AUVoiceIOOtherAudioDuckingLevel.max
+        )
+        status = AudioUnitSetProperty(
+            created, kAUVoiceIOProperty_OtherAudioDuckingConfiguration, kAudioUnitScope_Global, 0,
+            &configuration, UInt32(MemoryLayout<AUVoiceIOOtherAudioDuckingConfiguration>.size)
+        )
+        log.notice("ducking: setLevel=max status=\(status, privacy: .public)")
+
+        status = AudioUnitInitialize(created)
+        log.notice("ducking: initialize status=\(status, privacy: .public)")
+        status = AudioOutputUnitStart(created)
+        log.notice("ducking: start status=\(status, privacy: .public) — other audio should be quieter now")
+    }
+
+    static func stop() {
+        guard let unit else { return }
+        AudioOutputUnitStop(unit)
+        AudioUnitUninitialize(unit)
+        AudioComponentInstanceDispose(unit)
+        self.unit = nil
+        log.notice("ducking: stopped — other audio should be back")
+    }
+}
+#endif

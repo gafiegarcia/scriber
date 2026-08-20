@@ -331,6 +331,9 @@ final class AppCoordinator: ObservableObject {
     }
 
     func startServices() {
+#if DEBUG
+        if DuckingProbe.isRequested { DuckingProbe.start() }
+#endif
         // Setup is behind us either way by the time services start, so the redo
         // marker has nothing left to distinguish.
         isRedoingSetup = false
