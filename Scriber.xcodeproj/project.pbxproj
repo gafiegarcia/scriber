@@ -23,6 +23,9 @@
 		A10000000000000000000031 /* DictationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000031 /* DictationHistory.swift */; };
 		A10000000000000000000034 /* ToastStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000034 /* ToastStack.swift */; };
 		A1000000000000000000000D /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* Views.swift */; };
+		A1000000000000000000060 /* AudioLevelWaveform.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000060 /* AudioLevelWaveform.swift */; };
+		A1000000000000000000061 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000061 /* OnboardingView.swift */; };
+		A1000000000000000000062 /* OnboardingSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000062 /* OnboardingSteps.swift */; };
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
 		A10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */; };
 		A10000000000000000000033 /* ../ScriberCore/Toasts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000033 /* ../ScriberCore/Toasts.swift */; };
@@ -61,6 +64,9 @@
 		B10000000000000000000031 /* DictationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationHistory.swift; sourceTree = "<group>"; };
 		B10000000000000000000034 /* ToastStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastStack.swift; sourceTree = "<group>"; };
 		B1000000000000000000000D /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
+		B1000000000000000000060 /* AudioLevelWaveform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelWaveform.swift; sourceTree = "<group>"; };
+		B1000000000000000000061 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		B1000000000000000000062 /* OnboardingSteps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSteps.swift; sourceTree = "<group>"; };
 		B1000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000000000000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000000000000000000010 /* Scriber.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Scriber.entitlements; sourceTree = "<group>"; };
@@ -134,6 +140,9 @@
 				B10000000000000000000031 /* DictationHistory.swift */,
 				B10000000000000000000034 /* ToastStack.swift */,
 				B1000000000000000000000D /* Views.swift */,
+				B1000000000000000000060 /* AudioLevelWaveform.swift */,
+				B1000000000000000000061 /* OnboardingView.swift */,
+				B1000000000000000000062 /* OnboardingSteps.swift */,
 				B10000000000000000000018 /* UITestingHistoryFixture.swift */,
 				B10000000000000000000041 /* UITestingLargeHistoryFixture.swift */,
 				B10000000000000000000014 /* AppIcon.icon */,
@@ -248,6 +257,9 @@
 				A10000000000000000000031 /* DictationHistory.swift in Sources */,
 				A10000000000000000000034 /* ToastStack.swift in Sources */,
 				A1000000000000000000000D /* Views.swift in Sources */,
+				A1000000000000000000060 /* AudioLevelWaveform.swift in Sources */,
+				A1000000000000000000061 /* OnboardingView.swift in Sources */,
+				A1000000000000000000062 /* OnboardingSteps.swift in Sources */,
 				A10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift in Sources */,
 				A10000000000000000000033 /* ../ScriberCore/Toasts.swift in Sources */,
 				A10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift in Sources */,
