@@ -682,8 +682,7 @@ private struct PillView: View {
     @ViewBuilder private var symbol: some View {
         switch model.phase {
         case .recording(_, _, let level):
-            AudioLevelWaveform(level: level, color: .red)
-                .frame(width: 58, height: 24)
+            AudioLevelWaveform(level: level, presentation: .pill)
         case .transcribing:
             ProgressView().controlSize(.small)
         case .dictationCopied, .transcriptCopied:
@@ -794,50 +793,6 @@ private func pillShape(for phase: AppPhase) -> AnyShape {
         AnyShape(Capsule())
     case .roundedRectangle:
         AnyShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-    }
-}
-
-struct AudioLevelWaveform: View {
-    let level: Float
-    let color: Color
-    /// Bars drawn across the available width. A wider meter needs more of them to
-    /// keep each bar as narrow as the pill's, and a bar wide enough to read as a
-    /// block stops reading as a waveform.
-    let sampleCount: Int
-    @State private var samples: [Double]
-
-    init(level: Float, color: Color = .accentColor, sampleCount: Int = 18) {
-        self.level = level
-        self.color = color
-        self.sampleCount = sampleCount
-        _samples = State(initialValue: Array(repeating: 0, count: sampleCount))
-    }
-
-    var body: some View {
-        GeometryReader { proxy in
-            let spacing: CGFloat = 2
-            let barWidth = max(1, (proxy.size.width - spacing * CGFloat(sampleCount - 1)) / CGFloat(sampleCount))
-            HStack(alignment: .center, spacing: spacing) {
-                ForEach(samples.indices, id: \.self) { index in
-                    let sample = samples[index]
-                    Capsule()
-                        .fill(color.opacity(sample == 0 ? 0.35 : 0.95))
-                        .frame(width: barWidth, height: max(2, proxy.size.height * sample))
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .onAppear { append(level) }
-        .onChange(of: level) { _, newLevel in append(newLevel) }
-        .animation(.easeOut(duration: 0.1), value: samples)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Microphone level")
-        .accessibilityValue(AudioSignal.isDetected(decibels: level) ? "Signal detected" : "No signal")
-    }
-
-    private func append(_ decibels: Float) {
-        samples.removeFirst()
-        samples.append(AudioSignal.normalized(decibels: decibels))
     }
 }
 

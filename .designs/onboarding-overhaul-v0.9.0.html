@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scriber Redesign Idea v0.7.1</title>
+    <style>
+      *,
+      *::after,
+      *::before {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        /* or whatever the actual color is */
+        --macos-blue: #007aff;
+      }
+
+      body {
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        line-height: 1;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background-image: url("https://picsum.photos/id/16/1920/1080");
+        background-position: center;
+        background-size: cover;
+        color: #111;
+      }
+
+      img {
+        height: auto;
+      }
+
+      #desktop-background {
+        position: absolute;
+        inset: 0;
+        backdrop-filter: blur(8px);
+      }
+
+      #onboarding-window {
+        position: relative;
+        width: 90%;
+        /* Find the sweet spot for the width and height, I presume after the content is finished so you can measure the optimal dimension */
+        min-width: 640px;
+        max-width: 960px;
+        height: 90%;
+        max-height: 700px;
+        border-radius: 1rem; /* ignore this value; macOS 27 has less rounded app border, so this is just mimicking that */
+        border: 1px solid #bbb;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background-color: white;
+      }
+
+      #top-row {
+        z-index: 1;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        padding: 0 1rem;
+        height: 3rem;
+        justify-content: space-between;
+        backdrop-filter: blur(6px);
+        background-color: #fffa;
+      }
+
+      #stoplight-buttons {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      .stoplight-button {
+        width: 0.875rem;
+        height: 0.875rem;
+        border-radius: 50%;
+
+        &.red {
+          background-color: #ff5f57;
+        }
+
+        &.yellow {
+          background-color: #ffcc00;
+        }
+
+        &.green {
+          background-color: #28c840;
+        }
+      }
+
+      main {
+        position: absolute;
+        inset: 0;
+
+        > div {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 1.5rem;
+          padding: 1rem;
+        }
+
+        > div[hidden] {
+          display: none;
+        }
+      }
+
+      #logo {
+        width: 75px;
+        height: auto;
+      }
+
+      h1 {
+        font-size: 2.25em;
+      }
+
+      .btn-div {
+        display: flex;
+        gap: 1rem;
+      }
+
+      .mtop {
+        margin-top: 2rem;
+      }
+
+      .btn {
+        /*just use idiomatic buttons*/
+        appearance: none;
+        font: inherit;
+        padding: 0.75rem 1.25rem;
+        border-radius: 999px;
+
+        &.accent {
+          /*forget what this is called, prominent or something*/
+          background-color: var(--macos-blue);
+          color: white;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="desktop-background"></div>
+    <div id="onboarding-window">
+      <header id="top-row">
+        <div id="stoplight-buttons">
+          <div class="stoplight-button red"></div>
+          <div class="stoplight-button yellow"></div>
+          <div class="stoplight-button green"></div>
+        </div>
+        <div
+          data-description="potential place to put the steps (ref: Wispr Flow)"
+        ></div>
+      </header>
+      <main>
+        <div id="slide-1" class="slide">
+          <svg
+            id="logo"
+            xmlns="http://www.w3.org/2000/svg"
+            width="1024"
+            height="1024"
+            viewBox="0 0 1024 1024"
+            fill="none"
+            role="img"
+            aria-labelledby="title description"
+          >
+            <title id="title">
+              Scriber microphone mark on a black background
+            </title>
+            <desc id="description">
+              A white geometric microphone on a black rounded square.
+            </desc>
+
+            <rect width="1024" height="1024" rx="200" fill="#000000" />
+            <rect
+              x="470"
+              y="257"
+              width="84"
+              height="280"
+              rx="42"
+              fill="#FFFFFF"
+              stroke="#FFFFFF"
+              stroke-width="64"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M337 533C337 533 337 687.5 512 687.5C687 687.5 687 533 687 533"
+              stroke="#FFFFFF"
+              stroke-width="64"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M512 691V795M413 795H611"
+              stroke="#FFFFFF"
+              stroke-width="64"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <h1>Welcome to Scriber</h1>
+          <div class="btn-div mtop">
+            <!-- please help me out with the copy for the buttons -->
+            <button class="btn">Skip</button>
+            <button
+              class="accent btn"
+              data-nav="next"
+              data-description="or Configure, or something else"
+            >
+              Setup
+            </button>
+          </div>
+        </div>
+        <div id="slide-2" class="slide" hidden>
+          <!-- I was going to style the rest of the slides differently than the first one; but up to you man -->
+          <h1>Slide 2 placeholder</h1>
+          <p data-description="placeholder body copy">Content goes here.</p>
+          <!-- definitely not how I want to place the buttons; it shouldn't stick to the middle like this, somewhere consistent with the other slides; please suggest idiomatic swift code -->
+          <div class="btn-div mtop">
+            <button class="btn" data-nav="back">Back</button>
+            <button class="accent btn" data-nav="next">Next</button>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script>
+      const slides = document.querySelectorAll(" main > .slide");
+      let currentSlide = 0;
+
+      function showSlide(index) {
+        slides.forEach((slide, i) => {
+          slide.hidden = i !== index;
+        });
+        currentSlide = index;
+      }
+
+      document.addEventListener("click", (event) => {
+        const nav = event.target.closest("[data-nav]");
+        if (!nav) return;
+
+        if (nav.dataset.nav === "next" && currentSlide < slides.length - 1) {
+          showSlide(currentSlide + 1);
+        } else if (nav.dataset.nav === "back" && currentSlide > 0) {
+          showSlide(currentSlide - 1);
+        }
+      });
+    </script>
+  </body>
+</html>

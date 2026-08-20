@@ -803,18 +803,10 @@ private struct SoundSettingsPane: View {
                 // for someone who only came to change a device.
                 VStack(alignment: .leading, spacing: 10) {
                     if runtime.coordinator.isMicrophoneTestRunning {
-                        // The pill's red, because this is the same thing the pill
-                        // shows: a live microphone. A meter that reads differently
-                        // here than it does mid-dictation teaches two things for one
-                        // signal. 35 bars across 116pt reproduces the pill's ~1.3pt
-                        // bar at twice its width; 18 of them here would each be three
-                        // times as wide.
                         AudioLevelWaveform(
                             level: runtime.coordinator.microphoneTestLevel,
-                            color: .red,
-                            sampleCount: 35
+                            presentation: .inputTest
                         )
-                        .frame(width: 116, height: 24)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -1268,8 +1260,10 @@ struct OnboardingView: View {
 
                     if runtime.coordinator.microphoneGranted {
                         VStack(alignment: .leading, spacing: 10) {
-                            AudioLevelWaveform(level: runtime.coordinator.microphoneTestLevel)
-                                .frame(height: 42)
+                            AudioLevelWaveform(
+                                level: runtime.coordinator.microphoneTestLevel,
+                                presentation: .onboarding
+                            )
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 10)
                                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
