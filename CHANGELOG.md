@@ -4,7 +4,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## 0.9.0 — 2026-08-15
 
-Native bundle build 174, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
+Native bundle build 175, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
 
 ### Added
 
@@ -15,6 +15,7 @@ Native bundle build 174, signed with a Developer ID Application certificate unde
 - **Scriber can tell your left ⌘ and ⌥ from the right ones.** Nothing on a Mac starts a shortcut with the right-hand key, which makes `Right ⌘` and `Right ⌥` free to hold on their own — and the closest thing to `fn` that a keyboard without one has. A shortcut bound to the right key ignores its left twin, and `Right ⌘+Right ⌥` together works as well. Binding a left one instead is refused with a note pointing at the right.
 - Setup starts with the Mac's built-in microphone selected, marked **(Recommended)** in the input list. You can still pick any other input.
 - Setup and Settings now say where an ElevenLabs API key comes from, with links to create an account and to make a key, and name the Speech to Text access it needs. The key field used to be blank with nowhere to go.
+- The disk image now opens arranged: Scriber on the left, an **Applications** shortcut on the right, and an arrow between them. It used to open unstyled, with the two the wrong way round for the drag.
 
 ### Changed
 
@@ -37,6 +38,8 @@ Native bundle build 143, installed from an entitlement-free, locally signed Rele
 - The **Window** menu no longer drops half its items a moment after you open it. **Close ⌘W**, **Fill**, **Center**, **Move & Resize**, and **Full Screen Tile** stay put for as long as the menu is open.
 - Tapping the dictation shortcut quickly several times no longer leaves Scriber unable to record. It could refuse every dictation afterwards with "the microphone recording could not start" until the app was quit and reopened, and in some cases froze the app outright with the pill stuck on screen.
 - A quick tap no longer makes the built-in speaker pop. The start sound is no longer cut off partway through, which is what produced the click.
+- **Dictating with Bluetooth headphones no longer freezes the Mac for about a second.** Opening the microphone pulls a headset out of music mode into call mode, and Scriber used to sit and wait for that on the same thread that handles every keystroke — so anything typed during the pause piled up and arrived late. The microphone now opens out of the way, and silencing other audio does too.
+- **Pressing the shortcut answers immediately.** The pill and the start sound used to wait for the microphone to open, which on a slow input meant a second of nothing at all. They now arrive on the press, whatever you are recording with, and the timer and level meter start when the microphone is really listening.
 
 ### Added
 
