@@ -78,6 +78,11 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Set the input volume to zero and speak. **Continue without testing** is already on screen — it does not have to be waited for — and using it reaches the next step.
 - Change the input device mid-step. The meter restarts and the confirmation resets, because it was the previous device that was proven.
 
+### Its ElevenLabs key step
+
+- Delete Scriber's key from Keychain Access, then open setup. The field is empty with no **Verified** badge beside it and Continue stays dead. The badge and the gate both speak for a Keychain item, and the preferences behind them do not change when that item is deleted, so setup has to look rather than remember.
+- Save a key, step forward, then come back. The badge still reads Verified and the field offers to replace rather than to add.
+
 ### Its shape and lifecycle
 
 - Setup is the only window on a first run — no main window behind it or showing past its edges — and finishing opens the main window for the first time. Redo Setup is the opposite case and correct: the main window is already open there, and setup sits in front of it.

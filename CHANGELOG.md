@@ -27,6 +27,10 @@ Native bundle build 179, signed with a Developer ID Application certificate unde
 - Scriber now runs on **macOS 26 or later**, rather than requiring macOS 27. On macOS 26 the dictation pill keeps its glass appearance but does not respond to interaction, which is the only visible difference.
 - macOS asks for your login Keychain password once, rather than after every reinstall. The signature no longer changes between builds, so the permission you grant sticks.
 
+### Fixed
+
+- Setup no longer claims your ElevenLabs key is **Verified** when it is not there. Deleting the key from Keychain Access left setup showing a green tick and letting you carry on, because the tick was reading a remembered answer rather than looking for the key — so setup finished and the first dictation failed with nothing having warned you.
+
 ### Removed
 
 - The **"Microphone cut out"** warning is gone. It was meant to tell you when your microphone stopped sending audio partway through a dictation, but Bluetooth earbuds send literal silence between phrases, so it fired on an ordinary pause before you stopped recording — announcing that part of your dictation was missing when all of it had arrived. A microphone that sends nothing at all is still reported, as before.
