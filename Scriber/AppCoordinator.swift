@@ -103,6 +103,10 @@ final class AppCoordinator: ObservableObject {
     private let permissionReadinessOverride: PermissionReadiness?
     private let keychain = KeychainStore()
     private let recorder = AudioRecorder()
+    /// What the user has asked for, which a session still opening cannot answer
+    /// yet. Every gesture that starts, stops or cancels a dictation goes through
+    /// it, so none of them has to read a `phase` that has not caught up.
+    private var gate = RecordingStartGate()
     private let scribe = ScribeClient()
     private let updateChecker = UpdateChecker()
     private let paste = PasteService()
@@ -830,31 +834,46 @@ final class AppCoordinator: ObservableObject {
 
     func handle(_ action: ShortcutAction) {
         guard preferences.onboardingComplete else { return }
-        switch action {
-        // Recording always starts here, before anyone knows whether this press is
-        // a tap or a hold, so no word is lost waiting for that to be decided.
-        case .pressed:
-            switch phase {
-            case .recording(let mode, _, _) where action.stopsRecording(mode: mode):
-                stopAndTranscribe()
-            case .transcribing:
-                showTransientMessage("Still transcribing")
-            default:
-                if phase.acceptsRecordingStart { startRecording(mode: .held) }
-            }
-        case .releasedAfterHold:
-            if case .recording(let mode, _, _) = phase, action.stopsRecording(mode: mode) {
-                stopAndTranscribe()
-            }
-        // The recording `pressed` started carries on, hands-free. Starting a fresh
-        // one here would throw away whatever was said during the tap itself.
-        case .releasedAsTap:
-            if case .recording(.held, let elapsed, let level) = phase {
-                shortcuts.setMode(.locked)
-                setPhase(.recording(mode: .locked, elapsed: elapsed, level: level))
-            }
-        case .cancel:
+        // The pill's own dismissal, answered from what is on screen rather than
+        // from what the recorder is doing.
+        if case .cancel = action {
             _ = dismissVisiblePill()
+            return
+        }
+        // Only a press with no dictation of its own to end can reach these. Once
+        // the gate holds one, the gesture belongs to it, and asking `phase` would
+        // be asking state that a start still in flight has not published yet.
+        if gate.isIdle, case .pressed = action {
+            if case .transcribing = phase {
+                showTransientMessage("Still transcribing")
+                return
+            }
+            guard phase.acceptsRecordingStart else { return }
+        }
+        apply(gate.apply(.shortcut(action)))
+    }
+
+    private func apply(_ decision: RecordingStartGate.Decision) {
+        switch decision {
+        case .ignore, .startDidNotOpen:
+            break
+        case .beginStart(let mode):
+            beginRecording(mode: mode)
+        case .beginMetering(let mode):
+            beginMetering(mode: mode)
+        // The recording the press started carries on, hands-free. Starting a
+        // fresh one would throw away whatever was said during the tap itself.
+        case .promote(let mode):
+            shortcuts.setMode(.locked)
+            if case .recording(_, let elapsed, let level) = phase {
+                setPhase(.recording(mode: mode, elapsed: elapsed, level: level))
+            }
+        case .stop:
+            stopAndTranscribe()
+        case .cancel:
+            cancelRecording()
+        case .abandonOpenedSession:
+            abandonOpenedSession()
         }
     }
 
@@ -865,12 +884,14 @@ final class AppCoordinator: ObservableObject {
 
     func startHandsFreeFromMenu() {
         guard preferences.onboardingComplete else { return }
-        if phase.acceptsRecordingStart {
-            startRecording(mode: .locked)
-        } else if case .recording = phase {
-            stopAndTranscribe()
+        if gate.isIdle {
+            guard phase.acceptsRecordingStart else {
+                showTransientMessage("Still transcribing")
+                return
+            }
+            apply(gate.apply(.startRequested(mode: .locked)))
         } else {
-            showTransientMessage("Still transcribing")
+            apply(gate.apply(.stopRequested))
         }
     }
 
@@ -878,9 +899,9 @@ final class AppCoordinator: ObservableObject {
         guard let disposition = action.disposition(for: phase) else { return }
         switch disposition {
         case .cancelRecording:
-            cancelRecording()
+            apply(gate.apply(.cancelRequested))
         case .finishRecording:
-            stopAndTranscribe()
+            apply(gate.apply(.stopRequested))
         }
     }
 
@@ -1024,7 +1045,13 @@ final class AppCoordinator: ObservableObject {
         presentPendingPermissionRecoveryIfPossible()
     }
 
-    private func startRecording(mode: RecordingMode) {
+    private func beginRecording(mode: RecordingMode) {
+        // The gate is already holding this start. Every path that refuses below
+        // has to hand it back: left holding one that never happened, it ignores
+        // every later dictation silently, with no pill and no log, until relaunch.
+        var handedOff = false
+        defer { if !handedOff { _ = gate.apply(.startFailed) } }
+
         guard preferences.onboardingComplete else { return }
         suppressPillForCurrentTranscription = false
         guard canUseHistoryStorage() else { return }
@@ -1043,22 +1070,37 @@ final class AppCoordinator: ObservableObject {
             stopMicrophoneTest()
             pill.setPreferredScreen(paste.captureTarget())
             try recorder.start(selection: preferences.audioInputSelection)
-            if preferences.muteOtherAudioWhileRecording { beginOtherAudioMuting() }
-            playFeedback(.recordingStarted)
-            shortcuts.setMode(mode == .held ? .held : .locked)
-            setPhase(.recording(mode: mode, elapsed: 0, level: -80))
-            startMeter(mode: mode)
+            handedOff = true
+            apply(gate.apply(.sessionOpened))
+        // Not this dictation's mute, which was never begun — a previous one's
+        // pending unmute, which would otherwise be stranded by the failure.
         } catch AudioRecorderError.inputUnavailable(let name) {
             endOtherAudioMuting()
             playFeedback(.terminalFailure)
             showMessage("Microphone “\(name)” is unavailable")
         } catch {
-            endOtherAudioMuting()
             showFailure(error.localizedDescription)
         }
     }
 
-    private func startMeter(mode: RecordingMode) {
+    private func beginMetering(mode: RecordingMode) {
+        if preferences.muteOtherAudioWhileRecording { beginOtherAudioMuting() }
+        playFeedback(.recordingStarted)
+        shortcuts.setMode(mode == .held ? .held : .locked)
+        setPhase(.recording(mode: mode, elapsed: 0, level: -80))
+        startMeter()
+    }
+
+    /// The gesture ending this dictation arrived before the microphone opened, so
+    /// the file holds nothing. Closed without ever being shown, which is what a
+    /// recording too short to have captured anything already gets.
+    private func abandonOpenedSession() {
+        recorder.cancel()
+        feedbackSounds.fadeOut()
+        returnToIdle()
+    }
+
+    private func startMeter() {
         meterTask?.cancel()
         let startedAt = Date.now
         meterTask = Task { [weak self] in
@@ -1069,7 +1111,7 @@ final class AppCoordinator: ObservableObject {
                 let currentMode: RecordingMode
                 if case .recording(let value, _, _) = phase { currentMode = value } else { return }
                 setPhase(.recording(mode: currentMode, elapsed: elapsed, level: level))
-                if elapsed >= 600 { stopAndTranscribe(); return }
+                if elapsed >= 600 { apply(gate.apply(.stopRequested)); return }
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
@@ -1287,9 +1329,15 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func cancelHeldRecordingForTypingIfNeeded() {
+        // A start still in flight has recorded nothing, so it cancels on any key
+        // — there is no elapsed time yet for the policy to weigh.
+        if gate.isStarting {
+            apply(gate.apply(.cancelRequested))
+            return
+        }
         guard case .recording(let mode, let elapsed, _) = phase,
               RecordingCancellationPolicy.cancelsForNonModifierKey(mode: mode, elapsed: elapsed) else { return }
-        cancelRecording()
+        apply(gate.apply(.cancelRequested))
     }
 
     private func retainCancelledRecording(_ completed: CompletedRecording) {
@@ -1351,7 +1399,7 @@ final class AppCoordinator: ObservableObject {
         case .passThrough:
             return false
         case .cancelRecording:
-            cancelRecording()
+            apply(gate.apply(.cancelRequested))
         case .hideTranscription:
             suppressPillForCurrentTranscription = true
             pill.dismiss()
