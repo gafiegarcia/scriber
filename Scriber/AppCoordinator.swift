@@ -1069,6 +1069,12 @@ final class AppCoordinator: ObservableObject {
         do {
             stopMicrophoneTest()
             pill.setPreferredScreen(paste.captureTarget())
+            // Acknowledged on the press, never on the microphone, so the answer
+            // does not depend on what is plugged in. `-160` is the no-signal
+            // floor: the waveform draws flat until there is really something to
+            // draw, rather than claiming a level it cannot have yet.
+            playFeedback(.recordingStarted)
+            setPhase(.recording(mode: mode, elapsed: 0, level: -160))
             try recorder.start(selection: preferences.audioInputSelection)
             handedOff = true
             apply(gate.apply(.sessionOpened))
@@ -1083,9 +1089,11 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+    /// The microphone is open, so the recording can start describing itself: the
+    /// timer counts from here rather than from the press, and the meter has
+    /// something real to report.
     private func beginMetering(mode: RecordingMode) {
         if preferences.muteOtherAudioWhileRecording { beginOtherAudioMuting() }
-        playFeedback(.recordingStarted)
         shortcuts.setMode(mode == .held ? .held : .locked)
         setPhase(.recording(mode: mode, elapsed: 0, level: -80))
         startMeter()
