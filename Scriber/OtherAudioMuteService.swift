@@ -1,3 +1,4 @@
+import AudioToolbox
 import CoreAudio
 import Foundation
 
@@ -74,14 +75,25 @@ final class OtherAudioMuteService: OtherAudioMuting {
     private var tapID: AudioObjectID?
     private var aggregateDeviceID: AudioObjectID?
     private var ioProcID: AudioDeviceIOProcID?
+    /// Runs alongside the tap for one thing only: letting go of it ramps other
+    /// audio back up over about a second, where the tap can only switch. While
+    /// the tap holds everything silent this changes nothing anyone can hear —
+    /// including Scriber's own cue lifting the duck, which is inaudible under a
+    /// mute the cue is excluded from.
+    private var duckingUnit: AudioUnit?
 
-    deinit {
+    isolated deinit {
         if let aggregateDeviceID, let ioProcID {
             AudioDeviceStop(aggregateDeviceID, ioProcID)
             AudioDeviceDestroyIOProcID(aggregateDeviceID, ioProcID)
         }
         if let aggregateDeviceID { AudioHardwareDestroyAggregateDevice(aggregateDeviceID) }
         if let tapID { AudioHardwareDestroyProcessTap(tapID) }
+        if let duckingUnit {
+            AudioOutputUnitStop(duckingUnit)
+            AudioUnitUninitialize(duckingUnit)
+            AudioComponentInstanceDispose(duckingUnit)
+        }
     }
 
     /// Raises the System Audio Recording prompt, by doing the one thing that
@@ -220,6 +232,7 @@ final class OtherAudioMuteService: OtherAudioMuting {
         tapID = createdTapID
         aggregateDeviceID = createdAggregateDeviceID
         ioProcID = createdIOProcID
+        startDucking()
         return .muted
     }
 
@@ -258,8 +271,57 @@ final class OtherAudioMuteService: OtherAudioMuting {
             }
         }
 
+        // After the tap, never before: the ramp is only worth anything while
+        // the audio it is ramping is audible again.
+        stopDucking()
+
         if let firstFailure { return .unavailable(firstFailure) }
         return .restored
+    }
+
+    private func startDucking() {
+        var description = AudioComponentDescription(
+            componentType: kAudioUnitType_Output,
+            componentSubType: kAudioUnitSubType_VoiceProcessingIO,
+            componentManufacturer: kAudioUnitManufacturer_Apple,
+            componentFlags: 0,
+            componentFlagsMask: 0
+        )
+        guard let component = AudioComponentFindNext(nil, &description) else { return }
+        var created: AudioUnit?
+        guard AudioComponentInstanceNew(component, &created) == noErr, let created else { return }
+
+        var enableInput: UInt32 = 1
+        var configuration = AUVoiceIOOtherAudioDuckingConfiguration(
+            mEnableAdvancedDucking: false,
+            mDuckingLevel: AUVoiceIOOtherAudioDuckingLevel.max
+        )
+        let configured = AudioUnitSetProperty(
+            created, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Input, 1,
+            &enableInput, UInt32(MemoryLayout<UInt32>.size)
+        ) == noErr
+            && AudioUnitSetProperty(
+                created, kAUVoiceIOProperty_OtherAudioDuckingConfiguration, kAudioUnitScope_Global, 0,
+                &configuration, UInt32(MemoryLayout<AUVoiceIOOtherAudioDuckingConfiguration>.size)
+            ) == noErr
+            && AudioUnitInitialize(created) == noErr
+            && AudioOutputUnitStart(created) == noErr
+
+        // Nothing is reported when this fails. The mute is what the user asked
+        // for and it has already happened; the ramp is a courtesy on top.
+        if configured {
+            duckingUnit = created
+        } else {
+            AudioComponentInstanceDispose(created)
+        }
+    }
+
+    private func stopDucking() {
+        guard let duckingUnit else { return }
+        self.duckingUnit = nil
+        AudioOutputUnitStop(duckingUnit)
+        AudioUnitUninitialize(duckingUnit)
+        AudioComponentInstanceDispose(duckingUnit)
     }
 
     private func excludedProcessObjectIDs() -> [AudioObjectID] {
