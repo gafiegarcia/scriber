@@ -1513,7 +1513,7 @@ private struct MicrophonePicker: View {
             Text("Automatic (System Default)")
                 .tag(AudioInputSelection.automatic)
             ForEach(runtime.coordinator.audioInputDevices) { device in
-                Text(device.isBuiltIn ? "\(device.name) (Built-in)" : device.name)
+                Text(device.isBuiltIn ? "\(device.name) (Recommended)" : device.name)
                     .tag(AudioInputSelection.device(id: device.id, name: device.name))
             }
             if let unavailableSelection {
