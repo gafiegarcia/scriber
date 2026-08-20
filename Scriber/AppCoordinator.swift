@@ -1195,6 +1195,14 @@ final class AppCoordinator: ObservableObject {
             // spoken, and there was nothing on screen to suggest otherwise.
             guard completed.detectedSignal else {
                 AudioRecorder.delete(relativePath: completed.relativePath)
+                guard RecordingCancellationPolicy.reportsMissingAudio(
+                    elapsed: completed.duration,
+                    detectedSignal: completed.detectedSignal
+                ) else {
+                    feedbackSounds.fadeOut()
+                    returnToIdle()
+                    return
+                }
                 paste.clearTarget()
                 pill.setPreferredScreen(nil)
                 shortcuts.setMode(.idle)

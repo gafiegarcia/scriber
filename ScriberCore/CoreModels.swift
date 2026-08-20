@@ -729,6 +729,18 @@ public enum RecordingCancellationPolicy {
     public static func cancelsForNonModifierKey(mode: RecordingMode, elapsed: TimeInterval) -> Bool {
         mode == .held && elapsed < recoveryThreshold
     }
+
+    /// Whether a recording that carried no signal is worth saying so about.
+    ///
+    /// **“No sound from the microphone”** exists for a dictation someone really
+    /// gave: a muted input, a zero volume, the wrong device. Held for less than
+    /// a moment, it describes a burst of taps or a slipped finger instead, and
+    /// reports silence to someone who never spoke. Those close the way a
+    /// misclick does, so tapping repeatedly stays inert rather than queueing
+    /// notices about recordings nobody meant to make.
+    public static func reportsMissingAudio(elapsed: TimeInterval, detectedSignal: Bool) -> Bool {
+        !detectedSignal && elapsed >= recoveryThreshold
+    }
 }
 
 /// When Scriber stops keeping the audio behind a failed or cancelled dictation.

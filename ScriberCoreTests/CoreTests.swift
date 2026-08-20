@@ -317,6 +317,19 @@ struct RecordingCancellationTests {
             detectedSignal: true
         ))
     }
+
+    @Test("A silent recording is reported only when it was long enough to have been a dictation")
+    func reportsMissingAudioOnlyForARealAttempt() {
+        // The burst: taps land inside the recovery threshold and say nothing.
+        #expect(!RecordingCancellationPolicy.reportsMissingAudio(elapsed: 0.4, detectedSignal: false))
+        #expect(!RecordingCancellationPolicy.reportsMissingAudio(elapsed: 0.99, detectedSignal: false))
+        // A dictation into a dead microphone still needs telling.
+        #expect(RecordingCancellationPolicy.reportsMissingAudio(elapsed: 1, detectedSignal: false))
+        #expect(RecordingCancellationPolicy.reportsMissingAudio(elapsed: 4, detectedSignal: false))
+        // Signal reaching the recorder is never this message, at any length.
+        #expect(!RecordingCancellationPolicy.reportsMissingAudio(elapsed: 4, detectedSignal: true))
+        #expect(!RecordingCancellationPolicy.reportsMissingAudio(elapsed: 0.1, detectedSignal: true))
+    }
 }
 
 @Suite("Pill shape")
