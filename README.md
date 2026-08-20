@@ -125,7 +125,7 @@ The app builds from the repository root: [`Scriber`](Scriber) is the app target,
 - [Manual checks](docs/MANUAL_CHECKS.md) and [automated checks](docs/AUTOMATED_CHECKS.md): the two verification passes.
 - [Versioning policy](docs/VERSIONING.md): how versions, builds, and tags differ.
 
-The Xcode project is the source of truth for the bundle build number. See the [changelog](CHANGELOG.md) for released snapshots and the [versioning policy](docs/VERSIONING.md) for how versions, builds, and tags differ.
+The Xcode project is the source of truth for the bundle build number. See the [changelog](CHANGELOG.md) for released snapshots.
 
 ## Build it yourself
 
@@ -150,7 +150,8 @@ The bundle identifier `com.gafiegarcia.scriber` is hardcoded in more places than
 - `Scriber/Info.plist`
 - `Scriber/KeychainStore.swift` — the Keychain service name
 - `Scriber/AudioRecorder.swift` — the capture queue label
-- `Scriber/PasteService.swift` and `ScriberApp.swift` — logging subsystems
+- `Scriber/OtherAudioMuteService.swift` — the aggregate device identifier
+- `Scriber/PasteService.swift`, `ScriberApp.swift`, `AppCoordinator.swift`, and `LaunchAtLoginService.swift` — logging subsystems
 - `PRODUCT_BUNDLE_IDENTIFIER` in both configurations of the Xcode target
 
 [`PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) is the one to read first if you plan to change anything.
