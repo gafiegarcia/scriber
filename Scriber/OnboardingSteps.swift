@@ -154,6 +154,10 @@ struct APIKeyStep: View {
                 }
             }
         }
+        // Again on the step itself, not only when setup opens: the badge and the
+        // gate below it both speak for a Keychain item this is the last chance
+        // to confirm is still there.
+        .onAppear { runtime.coordinator.reconcileStoredAPIKey() }
     }
 
     @ViewBuilder private var status: some View {

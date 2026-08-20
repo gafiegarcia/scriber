@@ -252,6 +252,7 @@ struct OnboardingView: View {
         // is already on — or quietly re-enable what the user has since turned off.
         launchAtLogin = LaunchAtLoginService.state.isOn || !runtime.coordinator.isRedoingSetup
         runtime.coordinator.refreshPermissions(source: .onboarding)
+        runtime.coordinator.reconcileStoredAPIKey()
         if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
     }
 

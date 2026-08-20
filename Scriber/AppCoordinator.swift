@@ -660,6 +660,34 @@ final class AppCoordinator: ObservableObject {
         NotificationCenter.default.post(name: .openScriberOnboardingWindow, object: nil)
     }
 
+    /// Clears the stored credential state when the Keychain item behind it is
+    /// gone.
+    ///
+    /// `apiKeyConfigured` and `apiKeyValidity` are preferences, and deleting the
+    /// Keychain item does not touch them — so on its own the app goes on
+    /// reporting a key it no longer holds. `validateStoredAPIKeyOnce` is what
+    /// normally reconciles the two, and it cannot run here: it sits behind
+    /// `startServices`' `onboardingComplete` guard, which is false for exactly
+    /// as long as setup is open. Setup is where the claim is made, so setup has
+    /// to check it.
+    ///
+    /// Absence only. A key that is present keeps whatever validity was last
+    /// established, because deciding otherwise means a network round trip every
+    /// time setup opens.
+    func reconcileStoredAPIKey() {
+        guard servicesAllowed, preferences.apiKeyConfigured else { return }
+        let revision = credentialRevision.current
+        Task { [weak self] in
+            guard let self else { return }
+            let stored = try? await keychain.readAPIKey()
+            guard stored?.isEmpty ?? true else { return }
+            guard !Task.isCancelled, credentialRevision.matches(revision) else { return }
+            preferences.apiKeyConfigured = false
+            preferences.apiKeyValidity = .unchecked
+            refreshCredentialRecovery(force: false)
+        }
+    }
+
     private func validateStoredAPIKeyOnce() {
         guard !checkedStoredAPIKeyThisLaunch else { return }
         checkedStoredAPIKeyThisLaunch = true
