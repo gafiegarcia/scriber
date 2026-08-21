@@ -1,5 +1,30 @@
 import SwiftUI
 
+/// A live level, published on its own rather than from whatever produces it.
+///
+/// `ObservableObject` publishes per object, so a level on a wide-reaching object
+/// re-renders every view observing that object ten times a second — for a number
+/// only the meter draws. Kept here, the only views invalidated are the ones that
+/// asked for it. The recording pill already does this with `PillModel`.
+@MainActor
+final class AudioLevelSource: ObservableObject {
+    @Published private(set) var level: Float = -160
+
+    func update(_ level: Float) { self.level = level }
+    func reset() { level = -160 }
+}
+
+/// A meter driven by an `AudioLevelSource`. Observing happens here, in a leaf,
+/// so the step or pane around it is not rebuilt at the level's cadence.
+struct AudioLevelMeter: View {
+    @ObservedObject var source: AudioLevelSource
+    let presentation: AudioLevelWaveform.Presentation
+
+    var body: some View {
+        AudioLevelWaveform(level: source.level, presentation: presentation)
+    }
+}
+
 /// A live microphone level, drawn as a scrolling history of bars.
 ///
 /// Two features depend on this — the pill and the microphone test — so it takes a
@@ -91,7 +116,11 @@ struct AudioLevelWaveform: View {
         .modifier(PlateBackground(plate: presentation.plate))
         .onAppear { append(level) }
         .onChange(of: level) { _, newLevel in append(newLevel) }
-        .animation(.easeOut(duration: 0.1), value: samples)
+        // No implicit animation over `samples`. Interpolating every bar between
+        // ticks costs more than everything else this view does — about twelve
+        // points of CPU on an M4 — to glide a meter that already refreshes ten
+        // times a second. Level meters step; the pill's did too, and nobody was
+        // reading the movement.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Microphone level")
         .accessibilityValue(AudioSignal.isDetected(decibels: level) ? "Signal detected" : "No signal")

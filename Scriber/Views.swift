@@ -803,8 +803,8 @@ private struct SoundSettingsPane: View {
                 // for someone who only came to change a device.
                 VStack(alignment: .leading, spacing: 10) {
                     if runtime.coordinator.isMicrophoneTestRunning {
-                        AudioLevelWaveform(
-                            level: runtime.coordinator.microphoneTestLevel,
+                        AudioLevelMeter(
+                            source: runtime.coordinator.microphoneLevel,
                             presentation: .inputTest
                         )
                         .accessibilityIdentifier("microphone-level-meter")

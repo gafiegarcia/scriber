@@ -80,7 +80,12 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var microphonePermissionState = AudioRecorder.microphonePermissionState
     @Published private(set) var launchAtLoginState = LaunchAtLoginService.state
     @Published private(set) var audioInputDevices = AudioRecorder.availableInputDevices()
-    @Published private(set) var microphoneTestLevel: Float = -160
+    /// Not `@Published` on this object: it changes ten times a second, and
+    /// publishing it here re-renders everything that observes the coordinator.
+    let microphoneLevel = AudioLevelSource()
+    /// Flips once when the input is first heard, so a step can gate on it without
+    /// watching the level itself.
+    @Published private(set) var microphoneSignalDetected = false
     @Published private(set) var microphoneTestError: String?
     @Published private(set) var isMicrophoneTestRunning = false
     @Published private(set) var shortcutMonitorAvailable = false
@@ -537,7 +542,8 @@ final class AppCoordinator: ObservableObject {
         guard microphoneGranted, !phase.isBusy else { return }
         stopMicrophoneTest()
         microphoneTestError = nil
-        microphoneTestLevel = -160
+        microphoneLevel.reset()
+        microphoneSignalDetected = false
         isMicrophoneTestRunning = true
         microphoneTestTask = Task { [weak self] in
             guard let self else { return }
@@ -545,12 +551,16 @@ final class AppCoordinator: ObservableObject {
                 try await recorder.startMonitoring(selection: preferences.audioInputSelection)
             } catch {
                 microphoneTestError = error.localizedDescription
-                microphoneTestLevel = -160
+                microphoneLevel.reset()
                 isMicrophoneTestRunning = false
                 return
             }
             while !Task.isCancelled {
-                microphoneTestLevel = recorder.updateMeter()
+                let level = recorder.updateMeter()
+                microphoneLevel.update(level)
+                if !microphoneSignalDetected, AudioSignal.isDetected(decibels: level) {
+                    microphoneSignalDetected = true
+                }
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
@@ -560,7 +570,7 @@ final class AppCoordinator: ObservableObject {
         microphoneTestTask?.cancel()
         microphoneTestTask = nil
         recorder.stopMonitoring()
-        microphoneTestLevel = -160
+        microphoneLevel.reset()
         isMicrophoneTestRunning = false
     }
 
@@ -1162,6 +1172,16 @@ final class AppCoordinator: ObservableObject {
         returnToIdle()
     }
 
+    /// Whether two phases are the same recording differing only in the numbers
+    /// the meter refreshes. Anything else — starting, locking, stopping — is a
+    /// change this object's observers can see, and publishes.
+    private static func differsOnlyByMeter(_ lhs: AppPhase, _ rhs: AppPhase) -> Bool {
+        guard case .recording(let lhsMode, _, _) = lhs,
+              case .recording(let rhsMode, _, _) = rhs
+        else { return false }
+        return lhsMode == rhsMode
+    }
+
     private func startMeter() {
         meterTask?.cancel()
         let startedAt = Date.now
@@ -1672,7 +1692,19 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func setPhase(_ phase: AppPhase) {
-        self.phase = phase
+        // The meter re-enters here ten times a second with a fresh level and
+        // elapsed time. `ObservableObject` publishes per object rather than per
+        // property, and `AppRuntime` forwards this one's `objectWillChange` to
+        // every view holding it — so a tick that changes only the numbers on the
+        // pill re-evaluates and re-lays out the menu bar and every open window.
+        // Measured at about 42% of a core on an M4 through a whole dictation,
+        // against 2% for the capture itself.
+        //
+        // The pill is the only thing that draws either number, and it has its own
+        // model to draw them from — `pill.update` below is unconditional. Every
+        // other reader of this property asks `phase.isBusy`, which a meter tick
+        // cannot change.
+        if !Self.differsOnlyByMeter(phase, self.phase) { self.phase = phase }
         if suppressPillForCurrentTranscription {
             pill.dismiss()
         } else {

@@ -125,6 +125,8 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 
 ## When audio capture or transcription outcomes change
 
+- Watch Scriber in Activity Monitor through a dictation, and again with Settings' input test running. Both sit near the cost of the capture itself — a few percent — not tens of percent. Two things put it there before: a level published on `AppCoordinator`, which republishes the whole object and so re-renders every open window and the menu bar ten times a second, and an implicit animation interpolating every bar of the meter between ticks. Neither shows up as the meter in a profile; both read as SwiftUI layout.
+
 - Set input volume to zero and dictate. Where the built-in microphone is the Mac's only input, the waveform stays healthy for five to seven seconds before flattening — macOS keeps sending signal at a level the slider reads as zero — so hold past that to reach **“No sound from the microphone”**. Connect any second input device, even one Scriber is not set to use, and the same test flattens from the first moment instead. Both are worth running: the second input is what makes this look like it behaves. Costs no credit; restore the input volume afterward.
 - Submit audio with no recognisable words. **This spends API credit; ask first.** Scriber reports no words and leaves no history row behind.
 

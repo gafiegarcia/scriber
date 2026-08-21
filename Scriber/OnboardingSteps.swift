@@ -396,11 +396,10 @@ struct PermissionsStep: View {
                 }
             }
         }
-        .onChange(of: runtime.coordinator.microphoneTestLevel) { _, level in
-            // First sample only. The level publishes ten times a second, and this
-            // writes state the whole flow reads.
-            guard !signalObserved, AudioSignal.isDetected(decibels: level) else { return }
-            signalObserved = true
+        // The coordinator decides this from the samples themselves and flips it
+        // once, so the step never watches a value that changes ten times a second.
+        .onChange(of: runtime.coordinator.microphoneSignalDetected) { _, detected in
+            if detected { signalObserved = true }
         }
     }
 
@@ -414,8 +413,8 @@ struct PermissionsStep: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             VStack(alignment: .leading, spacing: 10) {
-                AudioLevelWaveform(
-                    level: runtime.coordinator.microphoneTestLevel,
+                AudioLevelMeter(
+                    source: runtime.coordinator.microphoneLevel,
                     presentation: .onboarding
                 )
                 .accessibilityIdentifier("onboarding-level-meter")
