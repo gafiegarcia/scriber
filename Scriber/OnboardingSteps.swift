@@ -341,7 +341,7 @@ struct MicrophoneStep: View {
                 .font(.callout)
                 .foregroundStyle(signalObserved ? Color.green : Color.secondary)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
             if let microphoneTestError = runtime.coordinator.microphoneTestError {
                 Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
