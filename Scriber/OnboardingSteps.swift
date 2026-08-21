@@ -22,13 +22,21 @@ struct OnboardingPage<Content: View>: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(title).font(.title.bold())
                     if let subtitle { prose(subtitle) }
                     if let subtitleDetail { prose(subtitleDetail) }
                 }
+                // The title is pinned; what it introduces is centred in the room
+                // left under it. A step asking one thing then sits in the middle
+                // of its page rather than clinging to the heading, and a step
+                // asking several still starts in the same place. Both spacers
+                // collapse to their minimum once the content fills the page, so
+                // a tall step keeps its normal gap and scrolls from there.
+                Spacer(minLength: 22)
                 content
+                Spacer(minLength: 22)
             }
             .frame(width: OnboardingLayout.contentWidth, alignment: .leading)
             .padding(.horizontal, OnboardingLayout.pageMargin)
@@ -236,14 +244,12 @@ struct DataUseStep: View {
                             .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                     }
                     .accessibilityLabel("ElevenLabs' Improve the models for everyone setting, a switch above a link to their privacy policy")
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Turn it off under **profile → Terms and privacy → Data use**, in the workspace your key came from.")
                         .font(.callout)
                         .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                    Button("Show me") { showsGuide = true }
+                    Button("Show me where to find it") { showsGuide = true }
                         .buttonStyle(.link)
-                        .accessibilityLabel("Show me where to find it")
                         .accessibilityIdentifier("onboarding-data-use-guide")
                 }
                 // The whole call to action sits inside the link, so a wrap
@@ -291,28 +297,49 @@ struct DataUseGuideSheet: View {
     }
 }
 
-// MARK: - 4 · Microphone
+// MARK: - 4 · Permissions
 
-struct MicrophoneStep: View {
+/// Both grants on one step. They were separate while each needed a page of its
+/// own to explain itself; the microphone's test is what makes this one tall, and
+/// Accessibility beside it costs a row. Asking for two related things once beats
+/// two pages that each look like the same page.
+struct PermissionsStep: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Binding var signalObserved: Bool
     let skipTest: () -> Void
 
     var body: some View {
         OnboardingPage(
-            title: "Let Scriber hear you",
-            subtitle: runtime.coordinator.microphoneGranted
-                ? "Say something. The meter has to move before setup can go on."
-                : "Scriber listens only while you are dictating."
+            title: "Let Scriber hear you and type for you",
+            subtitle: "Scriber listens only while you are dictating, and types only where your cursor already is."
         ) {
-            OnboardingCard {
-                if runtime.coordinator.microphoneGranted {
-                    granted
-                } else {
-                    HStack {
-                        PermissionLabel(title: "Microphone", systemImage: "mic", allowed: false)
-                        Spacer()
-                        MicrophonePermissionButton()
+            VStack(alignment: .leading, spacing: 12) {
+                OnboardingCard {
+                    if runtime.coordinator.microphoneGranted {
+                        granted
+                    } else {
+                        HStack {
+                            PermissionLabel(title: "Microphone", systemImage: "mic", allowed: false)
+                            Spacer()
+                            MicrophonePermissionButton()
+                        }
+                    }
+                }
+                OnboardingCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            PermissionLabel(
+                                title: "Accessibility",
+                                systemImage: "keyboard",
+                                allowed: runtime.coordinator.accessibilityGranted
+                            )
+                            Spacer()
+                            AccessibilityPermissionButton()
+                        }
+                        Text("Lets Scriber notice your shortcut in any app, and put your words where your cursor is.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -323,7 +350,7 @@ struct MicrophoneStep: View {
     }
 
     private var granted: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             MicrophonePicker()
             VStack(alignment: .leading, spacing: 10) {
                 AudioLevelWaveform(
@@ -374,31 +401,6 @@ struct MicrophoneStep: View {
     }
 }
 
-// MARK: - 5 · Accessibility
-
-struct AccessibilityStep: View {
-    @EnvironmentObject private var runtime: AppRuntime
-
-    var body: some View {
-        OnboardingPage(
-            title: "Let Scriber type for you",
-            subtitle: "Accessibility lets Scriber notice your shortcut in any app, and put your words where your cursor is."
-        ) {
-            OnboardingCard {
-                HStack {
-                    PermissionLabel(
-                        title: "Accessibility",
-                        systemImage: "keyboard",
-                        allowed: runtime.coordinator.accessibilityGranted
-                    )
-                    Spacer()
-                    AccessibilityPermissionButton()
-                }
-            }
-        }
-    }
-}
-
 // MARK: - 6 · Keyboard shortcut
 
 struct ShortcutStep: View {
@@ -423,7 +425,7 @@ struct ShortcutStep: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                 }
-                DisclosureGroup("Use a different key", isExpanded: $showsAlternatives) {
+                DisclosureGroup(isExpanded: $showsAlternatives) {
                     ShortcutPicker(
                         chord: $runtime.preferences.dictationShortcut,
                         customChord: $runtime.preferences.customShortcut,
@@ -432,6 +434,13 @@ struct ShortcutStep: View {
                         refusalResetToken: 0
                     )
                     .padding(.top, 10)
+                } label: {
+                    // The chevron alone is a small target to hit. A caption that
+                    // names the control belongs to it, so clicking the words
+                    // does what clicking the triangle does.
+                    Text("Use a different key")
+                        .contentShape(.rect)
+                        .onTapGesture { showsAlternatives.toggle() }
                 }
                 .font(.callout)
                 .accessibilityIdentifier("onboarding-shortcut-alternatives")

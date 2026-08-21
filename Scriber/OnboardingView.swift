@@ -26,8 +26,7 @@ enum OnboardingStep: Int, CaseIterable, Comparable {
     case welcome
     case apiKey
     case dataUse
-    case microphone
-    case accessibility
+    case permissions
     case shortcut
     case muteAudio
     case tryIt
@@ -121,13 +120,11 @@ struct OnboardingView: View {
             )
         case .dataUse:
             DataUseStep(showsGuide: $showsDataUseGuide)
-        case .microphone:
-            MicrophoneStep(signalObserved: $microphoneSignalObserved) {
+        case .permissions:
+            PermissionsStep(signalObserved: $microphoneSignalObserved) {
                 microphoneTestSkipped = true
                 goForward()
             }
-        case .accessibility:
-            AccessibilityStep()
         case .shortcut:
             ShortcutStep(
                 activeRecorderID: $activeShortcutRecorderID,
@@ -200,10 +197,10 @@ struct OnboardingView: View {
                 && !runtime.coordinator.isCheckingStoredAPIKey
                 && runtime.preferences.apiKeyConfigured
                 && runtime.preferences.apiKeyValidity == .valid
-        case .microphone:
-            runtime.coordinator.microphoneGranted && (microphoneSignalObserved || microphoneTestSkipped)
-        case .accessibility:
-            runtime.coordinator.accessibilityGranted
+        case .permissions:
+            runtime.coordinator.microphoneGranted
+                && (microphoneSignalObserved || microphoneTestSkipped)
+                && runtime.coordinator.accessibilityGranted
         case .shortcut:
             shortcutConfirmed
         default:
@@ -297,10 +294,8 @@ struct OnboardingView: View {
         switch candidate {
         case .apiKey:
             runtime.preferences.apiKeyConfigured && runtime.preferences.apiKeyValidity == .valid
-        case .microphone:
-            runtime.coordinator.microphoneGranted
-        case .accessibility:
-            runtime.coordinator.accessibilityGranted
+        case .permissions:
+            runtime.coordinator.microphoneGranted && runtime.coordinator.accessibilityGranted
         default:
             true
         }
