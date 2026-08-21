@@ -136,7 +136,7 @@ struct OnboardingView: View {
         case .tryIt:
             TryItStep(text: $tryItText)
         case .done:
-            DoneStep(launchAtLogin: $launchAtLogin, error: error)
+            DoneStep(launchAtLogin: launchAtLoginChoice, error: error)
         }
     }
 
@@ -339,19 +339,38 @@ struct OnboardingView: View {
         runtime.coordinator.startServices()
     }
 
-    /// Applied once, on Done or on the window going away — whichever comes
-    /// first, so closing setup at Try it still honours the default rather than
-    /// silently dropping it.
+    /// The box on the last step, which acts the moment it is ticked rather than
+    /// collecting an answer for later. Settings' switch reports what macOS has
+    /// registered, so a refusal reaches it immediately; a box that waits until
+    /// Done can be ticked, refused, and ticked again with nothing happening in
+    /// between.
+    private var launchAtLoginChoice: Binding<Bool> {
+        Binding(get: { launchAtLogin }, set: { applyLaunchAtLogin($0) })
+    }
+
+    /// Applies the default once, on Done or on the window going away — whichever
+    /// comes first, so closing setup at Try it still honours the box nobody
+    /// touched rather than silently dropping it. A box that was touched has
+    /// already been applied, and this leaves it alone.
     private func applyLaunchAtLoginOnce() {
         guard !didApplyLaunchAtLogin else { return }
+        guard launchAtLogin != LaunchAtLoginService.state.isOn else {
+            didApplyLaunchAtLogin = true
+            return
+        }
+        applyLaunchAtLogin(launchAtLogin)
+    }
+
+    private func applyLaunchAtLogin(_ enabled: Bool) {
         didApplyLaunchAtLogin = true
-        guard launchAtLogin != LaunchAtLoginService.state.isOn else { return }
+        launchAtLogin = enabled
+        error = nil
         do {
-            try runtime.coordinator.setLaunchAtLogin(launchAtLogin)
+            try runtime.coordinator.setLaunchAtLogin(enabled)
             // A refusal does not throw. macOS keeps the entry switched off under
             // Background App Activity and reports the old state straight back,
             // which is the same shape Settings detects.
-            if launchAtLogin, !runtime.coordinator.launchAtLoginState.isOn {
+            if enabled, !runtime.coordinator.launchAtLoginState.isOn {
                 // Follows Settings, where the switch snaps back: a box left
                 // ticked above the refusal claims the opposite of the message
                 // under it. The request stays registered with macOS either way,

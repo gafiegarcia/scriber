@@ -103,7 +103,8 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Grant the microphone and accept the relaunch macOS offers. Setup comes back on the microphone step rather than at the welcome page. Then revoke the key or the grant a step behind it and relaunch again: setup stops at the step that is unmet, never past it.
 - Finish setup, then take **Redo Setup**. It opens on the welcome step, not on the step the last run ended on.
 - Finish setup a second time from that redo and press **Done**. The main window's warning control loses **Setup is not finished** — a redo that cannot be finished leaves the app claiming setup is still owed.
-- Switch Scriber off under **Background App Activity** in System Settings, reopen Scriber — it quits the moment it is disallowed — and walk setup to its last step. Tick **Launch Scriber when I log in** and press **Done**: the tick clears itself and the refusal appears with **Open Login Items…** under it, the same answer Settings gives rather than a ticked box standing over a message that contradicts it. Done a second time finishes setup. Switch the row back on afterward.
+- Switch Scriber off under **Background App Activity** in System Settings, reopen Scriber — it quits the moment it is disallowed — and walk setup to its last step. Ticking **Launch Scriber when I log in** clears the tick then and there, with the refusal and **Open Login Items…** under it, the same answer Settings gives; tick it again and the same answer comes back rather than the tick sticking. **Done** closes setup on the first press, the refusal having already been read.
+- Reach that step on a first run without touching the box, which arrives ticked. The refusal appears on the first **Done** instead, since an untouched box has nothing to react to, and the second **Done** finishes setup. Switch the row back on afterward.
 
 ### Its dictation step
 
