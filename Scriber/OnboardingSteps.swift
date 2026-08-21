@@ -397,7 +397,10 @@ struct PermissionsStep: View {
             }
         }
         .onChange(of: runtime.coordinator.microphoneTestLevel) { _, level in
-            if AudioSignal.isDetected(decibels: level) { signalObserved = true }
+            // First sample only. The level publishes ten times a second, and this
+            // writes state the whole flow reads.
+            guard !signalObserved, AudioSignal.isDetected(decibels: level) else { return }
+            signalObserved = true
         }
     }
 
@@ -415,9 +418,6 @@ struct PermissionsStep: View {
                     level: runtime.coordinator.microphoneTestLevel,
                     presentation: .onboarding
                 )
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .accessibilityIdentifier("onboarding-level-meter")
                 Label(
                     signalObserved ? "Scriber can hear you" : "Speak to test your microphone",

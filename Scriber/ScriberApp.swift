@@ -569,6 +569,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// sequence stops trying to put that window back on screen.
     private var initialWindowDismissed = false
     private var escapeMonitor: Any?
+    private var onboardingCentreMonitor: Any?
+    /// Windows already placed. `fitOnboardingWindow` runs from `didBecomeKey`,
+    /// which fires every time setup is clicked back into — re-centring there
+    /// takes the window's position away from whoever moved it.
+    private var fittedOnboardingWindows = Set<ObjectIdentifier>()
 
     // Temporary: traces which path orders the startup window back on screen after
     // an early Command-W. Records only window titles, booleans, and policies.
@@ -629,6 +634,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             : UserDefaults.standard.bool(forKey: "showAppInDock")
         NSApp.setActivationPolicy(AppLaunchConfiguration.keepsRegularActivationPolicy ? .regular : .accessory)
         installSettingsEscapeMonitor()
+        installOnboardingCentreMonitor()
         let center = NotificationCenter.default
         NSApp.windows.filter(AppWindowIdentity.isManagedWindow).forEach { $0.isReleasedWhenClosed = false }
         observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] note in
@@ -651,6 +657,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.initialWindowDismissed = true
                 self?.activationRetryTask?.cancel()
                 self?.activationRetryTask = nil
+                self?.fittedOnboardingWindows.remove(ObjectIdentifier(window))
             }
             Task { @MainActor [weak self] in
                 guard AppWindowIdentity.isManagedWindow(window) else { return }
@@ -754,7 +761,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// setup already complete, and `showWindow` can only order a window that
     /// AppKit has actually created. The caller's `openWindow(id:)` is what creates
     /// it; this waits for it to appear and then does the ordering and activation.
+    /// Stops Control-C standing in for Enter on the setup window, and hands the
+    /// key to the menu instead — which is where it was always meant to go.
+    ///
+    /// AppKit resolves Control-C to `NSEnterCharacter` (0x03), the character the
+    /// Enter key sends, so a window's default button answers to it and answers
+    /// first. Window ▸ Center never sees ⌃🌐C, though clicking that same item
+    /// works. The two keys are only separable before that resolution, where Enter
+    /// reports 0x03 with no modifier and Control-C reports "c" with Control held.
+    ///
+    /// Offering the event to the main menu rather than centring the window here
+    /// is what makes the shortcut behave exactly like the menu item: same
+    /// animation, same resting place. `NSWindow.center` is not that command — it
+    /// rests a window above centre by design, and moves it in one jump. Anything
+    /// the menu declines is swallowed, because Control-C is not a command in this
+    /// window either way.
+    ///
+    /// App-lifetime, beside the Settings escape monitor and for the same reason:
+    /// a SwiftUI `Window` scene does not reliably run `onAppear` when its window
+    /// is re-shown, so a monitor tied to that has nothing keeping it alive.
+    private func installOnboardingCentreMonitor() {
+        onboardingCentreMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.modifierFlags.contains(.control),
+                  !event.modifierFlags.contains(.command),
+                  event.charactersIgnoringModifiers?.lowercased() == "c",
+                  let window = event.window,
+                  window.title == AppWindowIdentity.onboardingTitle
+            else { return event }
+            MainActor.assumeIsolated { NSApp.mainMenu?.performKeyEquivalent(with: event) }
+            return nil
+        }
+    }
+
     private func showOnboardingWindow() {
+        // Setup is presented in front of whatever asked for it, so the windows it
+        // replaces go first — through `performClose`, the same route as Command-W
+        // and the red control, so the close observers that reconcile the Dock
+        // icon still run.
+        for window in NSApp.windows
+        where AppWindowIdentity.isManagedWindow(window)
+            && window.title != AppWindowIdentity.onboardingTitle {
+            window.performClose(nil)
+        }
         onboardingWindowTask?.cancel()
         onboardingWindowTask = Task { @MainActor [weak self] in
             for _ in 0..<40 {
@@ -774,6 +822,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// later session it gets a restored frame that `.contentSize` resizability
     /// never re-derives — which is how it once came back stuck small.
     private func fitOnboardingWindow(_ window: NSWindow) {
+        guard fittedOnboardingWindows.insert(ObjectIdentifier(window)).inserted else { return }
         window.isRestorable = false
         // macOS disables its own Window ▸ Center and Fill for a window that
         // cannot be resized, and a disabled menu item does not consume its key —

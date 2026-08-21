@@ -807,9 +807,6 @@ private struct SoundSettingsPane: View {
                             level: runtime.coordinator.microphoneTestLevel,
                             presentation: .inputTest
                         )
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .accessibilityIdentifier("microphone-level-meter")
 
                         // Tied to the meter rather than to how the user arrived. The

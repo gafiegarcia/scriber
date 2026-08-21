@@ -28,10 +28,17 @@ struct AudioLevelWaveform: View {
             }
         }
 
-        /// Every meter is red, because every meter shows the same thing: a live
-        /// microphone. One that reads differently here than it does mid-dictation
-        /// teaches two things for one signal.
-        var color: Color { .red }
+        /// The plate the bars sit on, where there is one. The pill draws over
+        /// its own material and wants none. Kept here with size and colour
+        /// because it is the same recipe — leaving it at the call sites is how
+        /// the two meters drifted before this type existed.
+        var plate: (insets: EdgeInsets, cornerRadius: CGFloat)? {
+            switch self {
+            case .pill: nil
+            case .inputTest: (EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10), 8)
+            case .onboarding: (EdgeInsets(top: 12, leading: 14, bottom: 12, trailing: 14), 10)
+            }
+        }
 
         /// Held near the pill's 18:1 bar, so a bar stays a bar at any width. Wide
         /// bars read as blocks, and a block does not read as a waveform.
@@ -42,6 +49,12 @@ struct AudioLevelWaveform: View {
             return max(8, Int(((size.width + spacing) / (targetBarWidth + spacing)).rounded()))
         }
     }
+
+    /// Every meter is red, because every meter shows the same thing: a live
+    /// microphone. One that reads differently in setup than it does mid-dictation
+    /// teaches two things for one signal — so this is not a per-presentation
+    /// choice.
+    private static let barColor = Color.red
 
     let level: Float
     let presentation: Presentation
@@ -68,13 +81,14 @@ struct AudioLevelWaveform: View {
                 ForEach(samples.indices, id: \.self) { index in
                     let sample = samples[index]
                     Capsule()
-                        .fill(presentation.color.opacity(sample == 0 ? 0.35 : 0.95))
+                        .fill(Self.barColor.opacity(sample == 0 ? 0.35 : 0.95))
                         .frame(width: barWidth, height: max(floor, proxy.size.height * sample))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(width: presentation.size.width, height: presentation.size.height)
+        .modifier(PlateBackground(plate: presentation.plate))
         .onAppear { append(level) }
         .onChange(of: level) { _, newLevel in append(newLevel) }
         .animation(.easeOut(duration: 0.1), value: samples)
@@ -86,5 +100,22 @@ struct AudioLevelWaveform: View {
     private func append(_ decibels: Float) {
         samples.removeFirst()
         samples.append(AudioSignal.normalized(decibels: decibels))
+    }
+}
+
+private struct PlateBackground: ViewModifier {
+    let plate: (insets: EdgeInsets, cornerRadius: CGFloat)?
+
+    func body(content: Content) -> some View {
+        if let plate {
+            content
+                .padding(plate.insets)
+                .background(
+                    .quaternary,
+                    in: RoundedRectangle(cornerRadius: plate.cornerRadius, style: .continuous)
+                )
+        } else {
+            content
+        }
     }
 }

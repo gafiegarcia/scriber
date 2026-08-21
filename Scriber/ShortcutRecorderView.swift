@@ -265,23 +265,28 @@ struct ShortcutKeyCapTester: View {
         // Every event is returned rather than swallowed. A recorder capturing a
         // new binding consumes keys on purpose; a page that merely watches must
         // not, or Tab and Return stop reaching the buttons beside it.
+        // Built once rather than per event: it depends only on `target`, and a
+        // change to that restarts the monitor.
+        let matcher = ShortcutMatcher(dictation: target)
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { event in
             let modifiers = KeyModifiers(event.modifierFlags)
             if event.type == .flagsChanged {
                 heldKeys.observe(keyCode: event.keyCode, modifiers: modifiers)
             }
-            let matcher = ShortcutMatcher(dictation: target)
             let matched = target.keyCode == nil
                 ? event.type == .flagsChanged
                     && matcher.matches(modifiers: modifiers, keyCode: nil, heldKeys: heldKeys.keys)
                 : event.type == .keyDown
                     && matcher.matches(modifiers: modifiers, keyCode: event.keyCode)
-            if matched {
-                isHeld = true
-                isConfirmed = true
-            } else if event.type == .flagsChanged {
-                isHeld = matcher.stillHeld(modifiers: modifiers, heldKeys: heldKeys.keys)
-            }
+            // Only on a change. A held key auto-repeats, and both of these are
+            // bindings into the flow's own state.
+            let nowHeld = matched
+                ? true
+                : (event.type == .flagsChanged
+                    ? matcher.stillHeld(modifiers: modifiers, heldKeys: heldKeys.keys)
+                    : isHeld)
+            if nowHeld != isHeld { isHeld = nowHeld }
+            if matched, !isConfirmed { isConfirmed = true }
             return event
         }
     }

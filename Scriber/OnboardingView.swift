@@ -59,9 +59,7 @@ struct OnboardingView: View {
     /// until setup ends: the checkbox is an intention until then, and afterwards
     /// the only honest answer is what macOS reports.
     @State private var launchAtLogin = true
-    @State private var didCompleteSetup = false
     @State private var didApplyLaunchAtLogin = false
-    @State private var centreShortcutMonitor: Any?
     /// `resumedStep` has to read the credential before the check it kicks off can
     /// answer, so the restore is checked once more when it does.
     @State private var didClampAfterValidation = false
@@ -77,14 +75,9 @@ struct OnboardingView: View {
         .sheet(isPresented: $showsDataUseGuide) {
             DataUseGuideSheet { showsDataUseGuide = false }
         }
-        .onAppear {
-            prepare()
-            watchForCentreShortcut()
-        }
+        .onAppear(perform: prepare)
         .onDisappear {
             runtime.coordinator.stopMicrophoneTest()
-            if let centreShortcutMonitor { NSEvent.removeMonitor(centreShortcutMonitor) }
-            centreShortcutMonitor = nil
             applyLaunchAtLoginOnce()
         }
         .onChange(of: runtime.coordinator.isCheckingStoredAPIKey) { _, checking in
@@ -271,7 +264,6 @@ struct OnboardingView: View {
         showsDataUseGuide = false
         tryItText = ""
         error = nil
-        didCompleteSetup = false
         didApplyLaunchAtLogin = false
         didClampAfterValidation = false
         // On for a first run, which is the recommendation. A Redo Setup starts
@@ -292,8 +284,12 @@ struct OnboardingView: View {
     /// to need — so the two are resolved together.
     private var resumedStep: OnboardingStep {
         let stored = OnboardingStep(rawValue: runtime.preferences.onboardingStep) ?? .welcome
-        let firstUnmet = OnboardingStep.allCases.first { !isSatisfied($0) } ?? stored
-        return min(stored, firstUnmet)
+        return min(stored, firstUnmetStep ?? stored)
+    }
+
+    /// The earliest step the app can see is not yet satisfied, if any.
+    private var firstUnmetStep: OnboardingStep? {
+        OnboardingStep.allCases.first { !isSatisfied($0) }
     }
 
     /// Pulls the flow back if the restore landed past a step that has since
@@ -304,9 +300,7 @@ struct OnboardingView: View {
     /// takes. Runs once per appearance: after this, an unmet step is something
     /// the user has caused and not something to be moved away from mid-read.
     private func clampToFirstUnmetStep() {
-        guard let firstUnmet = OnboardingStep.allCases.first(where: { !isSatisfied($0) }),
-              step > firstUnmet
-        else { return }
+        guard let firstUnmet = firstUnmetStep, step > firstUnmet else { return }
         move(to: firstUnmet, advancing: false)
     }
 
@@ -337,41 +331,10 @@ struct OnboardingView: View {
         }
     }
 
-    /// Stops Control-C standing in for Enter, and hands the key to the menu
-    /// instead — which is where it was always meant to go.
-    ///
-    /// AppKit resolves Control-C to `NSEnterCharacter` (0x03), the character the
-    /// Enter key sends, so the default button answers to it and answers first.
-    /// The Window menu's Center never sees ⌃🌐C, though clicking that same item
-    /// works. The two keys are only separable before that resolution, where
-    /// Enter reports 0x03 with no modifier and Control-C reports "c" with
-    /// Control held — which is what this reads.
-    ///
-    /// Offering the event to the main menu rather than centring the window here
-    /// is what makes the shortcut behave exactly like the menu item: same
-    /// animation, same resting place. `NSWindow.center` is not that command —
-    /// it places a window higher than centre by design, and moves it in one
-    /// jump. Anything the menu declines is swallowed, because Control-C is not
-    /// a command in this window either way.
-    private func watchForCentreShortcut() {
-        guard centreShortcutMonitor == nil else { return }
-        centreShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard event.modifierFlags.contains(.control),
-                  !event.modifierFlags.contains(.command),
-                  event.charactersIgnoringModifiers?.lowercased() == "c",
-                  let window = event.window,
-                  window.title == AppWindowIdentity.onboardingTitle
-            else { return event }
-            NSApp.mainMenu?.performKeyEquivalent(with: event)
-            return nil
-        }
-    }
-
     /// Marks setup finished and brings the app's services up. Idempotent: Back
     /// out of Try it and forward into it again, and this runs once.
     private func completeSetup() {
-        guard !didCompleteSetup else { return }
-        didCompleteSetup = true
+        guard !runtime.preferences.onboardingComplete else { return }
         runtime.preferences.onboardingComplete = true
         runtime.coordinator.startServices()
     }
