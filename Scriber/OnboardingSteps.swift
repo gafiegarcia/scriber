@@ -23,19 +23,30 @@ struct OnboardingPage<Content: View>: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(title).font(.title.bold())
-                    if let subtitle { prose(subtitle) }
-                    if let subtitleDetail { prose(subtitleDetail) }
-                }
-                // The title is pinned; what it introduces is centred in the room
-                // left under it. A step asking one thing then sits in the middle
-                // of its page rather than clinging to the heading, and a step
-                // asking several still starts in the same place. Both spacers
-                // collapse to their minimum once the content fills the page, so
-                // a tall step keeps its normal gap and scrolls from there.
+                Text(title)
+                    .font(.title.bold())
+                    // Announced as a heading rather than as another line of
+                    // text, so VoiceOver can move between steps by heading
+                    // instead of reading each page from the top.
+                    .accessibilityAddTraits(.isHeader)
+                // The title alone is pinned. Everything it introduces — the
+                // sentence as much as the controls — centres in the room left
+                // under it, so a step asking one thing sits in the middle of its
+                // page rather than clinging to the heading, and its sentence
+                // stays next to what it describes rather than stranded above a
+                // gap. Both spacers collapse to their minimum once the content
+                // fills the page, so a tall step keeps its normal gap and
+                // scrolls from there.
                 Spacer(minLength: 22)
-                content
+                VStack(alignment: .leading, spacing: 18) {
+                    if subtitle != nil || subtitleDetail != nil {
+                        VStack(alignment: .leading, spacing: 6) {
+                            if let subtitle { prose(subtitle) }
+                            if let subtitleDetail { prose(subtitleDetail) }
+                        }
+                    }
+                    content
+                }
                 Spacer(minLength: 22)
             }
             .frame(width: OnboardingLayout.contentWidth, alignment: .leading)
@@ -85,6 +96,7 @@ struct WelcomeStep: View {
                     .accessibilityHidden(true)
                 Text("Welcome to Scriber")
                     .font(.largeTitle.bold())
+                    .accessibilityAddTraits(.isHeader)
                 Text("Press a key, talk, and your words appear wherever you were typing.")
                     .font(.title3)
                     .foregroundStyle(.secondary)
