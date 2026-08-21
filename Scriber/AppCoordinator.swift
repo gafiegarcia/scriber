@@ -659,6 +659,14 @@ final class AppCoordinator: ObservableObject {
         // in `AppDelegate.showWindow(titled:)`; route through it rather than
         // building a second.
         NSApp.setActivationPolicy(.regular)
+        // Setup is the only thing to do next, and it is presented in front of
+        // whatever asked for it — so leaving the main window and Settings open
+        // behind it stacks three windows the user has no use for. They close
+        // first; setup opens into the space.
+        for window in NSApp.windows where AppWindowIdentity.isManagedWindow(window)
+            && window.title != AppWindowIdentity.onboardingTitle {
+            window.close()
+        }
         NotificationCenter.default.post(name: .openScriberOnboardingWindow, object: nil)
     }
 

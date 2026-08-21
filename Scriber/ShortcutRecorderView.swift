@@ -222,7 +222,7 @@ struct ShortcutKeyCapTester: View {
             keyCap
             Label(
                 isConfirmed ? "\(target.displayName) works" : "Press \(target.displayName)",
-                systemImage: isConfirmed ? "checkmark.circle.fill" : "hand.point.up.left"
+                systemImage: isConfirmed ? "checkmark.circle.fill" : "keyboard"
             )
             .font(.callout)
             .foregroundStyle(isConfirmed ? Color.green : Color.secondary)

@@ -561,6 +561,7 @@ private struct MainWindowCommands: Commands {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var observers: [NSObjectProtocol] = []
     private var activationRetryTask: Task<Void, Never>?
+    private var accessoryDemotionTask: Task<Void, Never>?
     private var onboardingWindowTask: Task<Void, Never>?
     private var settingsWindowTask: Task<Void, Never>?
     private var showAppInDock = false
@@ -923,12 +924,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func reconcileActivationPolicy() {
-        let policy: NSApplication.ActivationPolicy =
-            hasVisibleManagedWindow
-                || showAppInDock
-                || AppLaunchConfiguration.keepsRegularActivationPolicy
-            ? .regular
-            : .accessory
+        guard !wantsRegularActivationPolicy else {
+            accessoryDemotionTask?.cancel()
+            accessoryDemotionTask = nil
+            applyActivationPolicy(.regular)
+            return
+        }
+        // Demoting waits a beat. A window that closes to hand over to another —
+        // setup finishing into the main window — leaves a moment with nothing
+        // visible, and dropping to accessory only to be promoted straight back is
+        // what leaves a second Dock tile behind, pointing at the same app. The
+        // gap is a handover, not an empty app; a quarter second tells them apart.
+        guard accessoryDemotionTask == nil else { return }
+        accessoryDemotionTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard let self, !Task.isCancelled else { return }
+            accessoryDemotionTask = nil
+            guard !wantsRegularActivationPolicy else { return }
+            applyActivationPolicy(.accessory)
+        }
+    }
+
+    private var wantsRegularActivationPolicy: Bool {
+        hasVisibleManagedWindow
+            || showAppInDock
+            || AppLaunchConfiguration.keepsRegularActivationPolicy
+    }
+
+    private func applyActivationPolicy(_ policy: NSApplication.ActivationPolicy) {
         guard NSApp.activationPolicy() != policy else { return }
         let applied = NSApp.setActivationPolicy(policy)
         Self.windowLog.notice(
