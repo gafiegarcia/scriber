@@ -7,26 +7,34 @@ import SwiftUI
 /// card. Steps differ in what is in the card and nothing else, which is what
 /// makes nine separate decisions read as one flow.
 struct OnboardingPage<Content: View>: View {
-    let symbol: String
+    /// Absent on a step whose own illustration is the thing worth looking at,
+    /// where a decorative symbol above it only competes for the same glance.
+    var symbol: String?
     var tint: Color = .accentColor
     let title: String
     let subtitle: LocalizedStringKey?
+    /// A second sentence, set as its own line rather than left to wrap. Used
+    /// where the two halves are alternatives and reading them as one paragraph
+    /// is what makes them hard to tell apart.
+    var subtitleDetail: LocalizedStringKey? = nil
     @ViewBuilder let content: Content
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                OnboardingHero(symbol: symbol, tint: tint)
-                    .padding(.bottom, 4)
+                if let symbol {
+                    OnboardingHero(symbol: symbol, tint: tint)
+                        .padding(.bottom, 4)
+                }
                 Text(title)
                     .font(.title.bold())
                     .multilineTextAlignment(.center)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
+                if subtitle != nil || subtitleDetail != nil {
+                    VStack(spacing: 6) {
+                        if let subtitle { prose(subtitle) }
+                        if let subtitleDetail { prose(subtitleDetail) }
+                    }
+                    .frame(maxWidth: OnboardingLayout.proseWidth)
                 }
                 content
                     .padding(.top, 6)
@@ -37,6 +45,14 @@ struct OnboardingPage<Content: View>: View {
             .frame(maxWidth: .infinity, minHeight: OnboardingLayout.pageHeight)
         }
         .scrollBounceBehavior(.basedOnSize)
+    }
+
+    private func prose(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.body)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -90,7 +106,7 @@ struct WelcomeStep: View {
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                Text("Setup takes about two minutes. Your audio goes only to ElevenLabs, and your dictation history stays on this Mac.")
+                Text("Setup takes about two minutes. Your audio goes only to ElevenLabs, and your history stays on this Mac.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -118,50 +134,71 @@ struct APIKeyStep: View {
         OnboardingPage(
             symbol: "key.fill",
             title: "Connect ElevenLabs",
-            subtitle: "Scriber sends your recordings to ElevenLabs, which turns them into text. It is the only service Scriber uses, and the free tier covers daily dictation."
+            subtitle: "ElevenLabs is the service that turns your recordings into text. It is the only one Scriber uses, and its free tier covers daily dictation."
         ) {
-            OnboardingCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("No key yet? [Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys) with Speech to Text access.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    SecureField(
-                        runtime.preferences.apiKeyConfigured
-                            ? "Enter a new API key to replace the stored key"
-                            : "xi-api-key",
-                        text: $apiKey
-                    )
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(isChecking)
-                    .onSubmit(submit)
-                    .accessibilityIdentifier("onboarding-api-key-field")
-                    HStack(spacing: 12) {
-                        Button(action: submit) {
-                            if isChecking {
-                                HStack(spacing: 6) {
-                                    ProgressView().controlSize(.small)
-                                    Text("Checking…")
+            VStack(spacing: 12) {
+                OnboardingCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("No key yet? [Create a free account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys) with Speech to Text access.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 10) {
+                            SecureField(
+                                "",
+                                text: $apiKey,
+                                // Styled rather than passed as a plain string:
+                                // the default placeholder sits at nearly label
+                                // weight, which reads as a value already in the
+                                // field.
+                                prompt: Text("xi-api-key").foregroundStyle(.tertiary)
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .disabled(isChecking)
+                            .onSubmit(submit)
+                            .accessibilityLabel("ElevenLabs API key")
+                            .accessibilityIdentifier("onboarding-api-key-field")
+                            // Trailing, where every other primary action in
+                            // setup is, rather than under the field on the left.
+                            Button(action: submit) {
+                                if isChecking {
+                                    HStack(spacing: 6) {
+                                        ProgressView().controlSize(.small)
+                                        Text("Checking…")
+                                    }
+                                } else {
+                                    Text("Save Key")
                                 }
-                            } else {
-                                Text("Save Key")
                             }
+                            .disabled(!canSubmit)
                         }
-                        .disabled(!canSubmit)
                         status
-                        Spacer(minLength: 0)
                     }
                 }
+                Text("Your key is kept in this Mac's login Keychain. ElevenLabs shows it once, so save a copy in your password manager before you leave the page.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        // Again on the step itself, not only when setup opens: the badge and the
-        // gate below it both speak for a Keychain item this is the last chance
-        // to confirm is still there.
-        .onAppear { runtime.coordinator.reconcileStoredAPIKey() }
+        // Every arrival, forward or back, rather than once when setup opens.
+        // Nothing tells Scriber that the key was deleted from the Keychain or
+        // revoked on ElevenLabs' side, so the badge is only as true as its last
+        // look — and this step is where it is claimed.
+        .onAppear { runtime.coordinator.validateStoredAPIKey() }
     }
 
     @ViewBuilder private var status: some View {
-        if let keyFeedback {
+        if runtime.coordinator.isCheckingStoredAPIKey {
+            Label {
+                Text("Checking your saved key…")
+            } icon: {
+                ProgressView().controlSize(.small)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        } else if let keyFeedback {
             Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
                 .font(.caption)
                 .foregroundStyle(keyFeedback.color)
@@ -210,98 +247,76 @@ struct DataUseStep: View {
     @Binding var showsGuide: Bool
 
     var body: some View {
+        // No hero symbol. The screenshot below is this step's illustration, and
+        // it is the reason the step is believed: a warning about a switch that
+        // never shows the switch reads as something Scriber made up.
         OnboardingPage(
-            symbol: "hand.raised.fill",
             title: "One setting worth changing",
-            subtitle: "New ElevenLabs accounts have **Improve models for everyone** switched on, which lets your recordings train their models."
+            subtitle: "New ElevenLabs accounts have **Improve the models for everyone** switched on, which lets your recordings train their models."
         ) {
             VStack(spacing: 14) {
-                OnboardingCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        stepLine(1, "Click your profile picture, top right")
-                        stepLine(2, "Hover **Terms and privacy**")
-                        stepLine(3, "Click **Data use**, then turn the switch off")
-                        // The screenshots live behind this rather than on the
-                        // step. Shown inline they have to shrink until their own
-                        // text is unreadable, at which point they are decoration
-                        // on a step whose whole job is three sentences.
-                        Button("Show me where to find it") { showsGuide = true }
-                            .buttonStyle(.link)
-                            .padding(.top, 2)
-                            .accessibilityIdentifier("onboarding-data-use-guide")
+                Image(.elevenLabsDataUseSetting)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: OnboardingLayout.contentWidth)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                     }
+                    .accessibilityLabel("ElevenLabs' Improve the models for everyone setting, a switch above a link to their privacy policy")
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Turn it off under **profile → Terms and privacy → Data use**, in the workspace your key came from.")
+                        .font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button("Show me") { showsGuide = true }
+                        .buttonStyle(.link)
+                        .accessibilityLabel("Show me where to find it")
+                        .accessibilityIdentifier("onboarding-data-use-guide")
                 }
-                Text("It is set per workspace, so change it in the one your key came from. Switching it off only affects what you send afterwards — it does not remove what has already gone. ElevenLabs says it keeps data it generates about your voice for up to three years after your last use, except where the law requires longer; [their privacy policy](https://elevenlabs.io/privacy-policy) has the detail.")
+                // The whole call to action sits inside the link, so a wrap
+                // splits one phrase rather than stranding "policy." on a line
+                // of its own.
+                Text("Switching it off changes what you send from then on. ElevenLabs keeps what it already generated about your voice for up to three years after your last use, or longer where the law requires. [Read their privacy policy](https://elevenlabs.io/privacy-policy).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-        }
-    }
-
-    private func stepLine(_ number: Int, _ text: LocalizedStringKey) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("\(number)")
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 14, alignment: .trailing)
-            Text(text)
-                .font(.callout)
-                .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
 
-/// The two screenshots, over the whole window because neither can be read any
-/// smaller. Escape, Done, or a click outside puts them away.
-struct DataUseGuideOverlay: View {
+/// The route through ElevenLabs' own interface, as a sheet rather than a
+/// hand-drawn scrim: a sheet already dims what is behind it, keeps its buttons
+/// in normal control colours against the window rather than against a dark
+/// wash, answers Escape, and cannot cover the footer it is presented from.
+struct DataUseGuideSheet: View {
     let dismiss: () -> Void
 
     var body: some View {
-        ZStack {
-            Rectangle()
-                .fill(.black.opacity(0.6))
-                .onTapGesture(perform: dismiss)
-            VStack(spacing: 12) {
-                ScrollView {
-                    VStack(spacing: 20) {
-                        shot(
-                            .elevenLabsDataUseMenu,
-                            caption: "Where to find it",
-                            description: "The ElevenLabs profile menu, with Terms and privacy expanded to show Data use"
-                        )
-                        shot(
-                            .elevenLabsDataUseSetting,
-                            caption: "What you'll see",
-                            description: "The Improve models for everyone setting, with a switch and a link to the privacy policy"
-                        )
-                    }
-                    .padding(.vertical, 4)
-                }
-                Button("Done", action: dismiss)
-                    .keyboardShortcut(.cancelAction)
-            }
-            .padding(20)
-            // The scrim covers the footer too, so this keeps the overlay's own
-            // controls out of the band where the step's buttons sit.
-            .padding(.bottom, OnboardingLayout.footerHeight)
-            .frame(maxWidth: 560)
-        }
-        .transition(.opacity)
-        .onExitCommand(perform: dismiss)
-    }
-
-    private func shot(_ resource: ImageResource, caption: String, description: String) -> some View {
-        VStack(spacing: 6) {
-            Text(caption)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.white.opacity(0.85))
-            Image(resource)
+        VStack(spacing: 14) {
+            Text("Where to find it")
+                .font(.headline)
+            Image(.elevenLabsDataUseMenu)
                 .resizable()
                 .scaledToFit()
+                .frame(maxHeight: 500)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .accessibilityLabel(description)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                }
+                .accessibilityLabel("The ElevenLabs profile menu. One, the profile button at the top right. Two, Terms and privacy near the bottom of the menu. Three, Data use in the submenu that opens beside it.")
+            HStack {
+                Spacer()
+                Button("Done", action: dismiss)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
+        .padding(20)
+        .frame(width: 520)
     }
 }
 
@@ -317,7 +332,7 @@ struct MicrophoneStep: View {
             symbol: "mic.fill",
             title: "Let Scriber hear you",
             subtitle: runtime.coordinator.microphoneGranted
-                ? "Say something. The meter has to move before setup can go on — that is the only way to know your microphone works."
+                ? "Say something. The meter has to move before setup can go on."
                 : "Scriber listens only while you are dictating."
         ) {
             OnboardingCard {
@@ -426,8 +441,9 @@ struct ShortcutStep: View {
     var body: some View {
         OnboardingPage(
             symbol: "command",
-            title: "Pick your key",
-            subtitle: "**Tap it** and Scriber keeps recording with your hands free — tap again when you are done. **Or hold it**, talk, and let go to finish."
+            title: "Your keyboard shortcut",
+            subtitle: "**Tap it** to start dictating hands-free, tap it again when you are done.",
+            subtitleDetail: "**Or hold it**, talk, and let go to finish."
         ) {
             VStack(spacing: 14) {
                 OnboardingCard {
@@ -483,7 +499,7 @@ struct MuteAudioStep: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                Text("Using Bluetooth headphones or a speaker? Audio can come back in call quality for a second or two before it returns to normal. Choosing your Mac's built-in microphone on the previous step avoids it.")
+                Text("Using Bluetooth headphones or a speaker? Audio can come back in call quality for a second or two before it returns to normal — which is why the built-in or a wired microphone is the one to pick.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -502,31 +518,42 @@ struct TryItStep: View {
     var body: some View {
         OnboardingPage(
             symbol: "text.cursor",
-            title: "Try it",
-            subtitle: "Everything is set up. Dictate into the box below and see it land."
+            title: "Try it!",
+            subtitle: "Everything is set up. Dictate into the box and watch it land."
         ) {
+            // Both layers take the same padding from the container rather than
+            // each padding itself, so the placeholder cannot drift away from the
+            // caret. What is left is the text view's own container inset, which
+            // is horizontal only and is the sole number tuned by eye.
             ZStack(alignment: .topLeading) {
-                TextEditor(text: $text)
-                    .font(.body)
-                    .scrollContentBackground(.hidden)
-                    .padding(10)
-                    .frame(height: 150)
-                    .background(Color(nsColor: .textBackgroundColor), in: shape)
-                    .overlay { shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1) }
-                    .focused($isFocused)
-                    .accessibilityIdentifier("onboarding-try-it-field")
                 if text.isEmpty {
                     Text("Tap \(shortcut) to dictate. Tap \(shortcut) again to stop.")
                         .font(.body)
                         .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 15)
-                        .padding(.vertical, 18)
+                        .padding(.leading, Self.textContainerInset)
                         .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
+                TextEditor(text: $text)
+                    .font(.body)
+                    .scrollContentBackground(.hidden)
+                    .focused($isFocused)
+                    .accessibilityLabel("Dictate here")
+                    .accessibilityIdentifier("onboarding-try-it-field")
             }
+            .padding(10)
+            .frame(height: 150)
+            .background(Color(nsColor: .textBackgroundColor), in: shape)
+            .overlay { shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1) }
         }
         .onAppear { isFocused = true }
     }
+
+    /// `NSTextView` lays its text out at the leading edge of whatever frame
+    /// SwiftUI gives it, so the placeholder needs no inset of its own. Named
+    /// rather than dropped, because it is the number to reach for if a future
+    /// macOS starts insetting the container again and the two drift apart.
+    private static let textContainerInset: CGFloat = 0
 
     private var shortcut: String { runtime.preferences.dictationShortcut.displayName }
 
@@ -547,7 +574,7 @@ struct DoneStep: View {
             symbol: "checkmark.circle.fill",
             tint: .green,
             title: "You're set",
-            subtitle: "Tap **\(runtime.preferences.dictationShortcut.displayName)** in any app to dictate. Scriber lives in your menu bar, and Settings has everything else — including a way to redo this setup."
+            subtitle: "Tap **\(runtime.preferences.dictationShortcut.displayName)** in any app to dictate. Scriber lives in your menu bar, and Settings has the rest."
         ) {
             VStack(spacing: 12) {
                 OnboardingCard {

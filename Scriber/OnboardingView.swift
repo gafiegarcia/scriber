@@ -7,10 +7,14 @@ enum OnboardingLayout {
     /// between Settings (660×560) and the main window (900×640) keeps setup
     /// recognisably part of the same app.
     static let windowWidth: CGFloat = 760
-    static let windowHeight: CGFloat = 620
+    static let windowHeight: CGFloat = 680
     /// Text and cards are held to this, so a line of prose never runs the full
     /// width of the window and stops being readable.
     static let contentWidth: CGFloat = 520
+    /// Narrower than the cards under it. A centred sentence reads as a shape as
+    /// much as a line, and the wider it is allowed to run the more lopsided the
+    /// last line looks against the ones above it.
+    static let proseWidth: CGFloat = 490
     static let footerHeight: CGFloat = 64
     /// What is left for a step once the footer and its rule are taken out. A
     /// step fills it and centres itself in it, so a short step sits in the
@@ -71,10 +75,8 @@ struct OnboardingView: View {
         }
         .frame(width: OnboardingLayout.windowWidth, height: OnboardingLayout.windowHeight)
         .background(Color(nsColor: .windowBackgroundColor))
-        .overlay {
-            if showsDataUseGuide {
-                DataUseGuideOverlay { showsDataUseGuide = false }
-            }
+        .sheet(isPresented: $showsDataUseGuide) {
+            DataUseGuideSheet { showsDataUseGuide = false }
         }
         .onAppear(perform: prepare)
         .onDisappear {
@@ -197,6 +199,7 @@ struct OnboardingView: View {
         return switch step {
         case .apiKey:
             !isCheckingAPIKey
+                && !runtime.coordinator.isCheckingStoredAPIKey
                 && runtime.preferences.apiKeyConfigured
                 && runtime.preferences.apiKeyValidity == .valid
         case .microphone:
@@ -232,6 +235,9 @@ struct OnboardingView: View {
 
     private func move(to next: OnboardingStep, advancing: Bool) {
         isAdvancing = advancing
+        // Written on every move, so a relaunch mid-setup — which granting the
+        // microphone invites — knows where it was.
+        runtime.preferences.onboardingStep = next.rawValue
         guard !reduceMotion else {
             step = next
             return
@@ -241,19 +247,65 @@ struct OnboardingView: View {
 
     // MARK: - Lifecycle
 
+    /// Runs on every appearance, and an appearance is not always a first one:
+    /// SwiftUI keeps a `Window` scene's `@State` alive after the window closes,
+    /// so a second run of setup starts out holding the first run's answers —
+    /// including the step it ended on and the flag saying setup is already
+    /// finished. Everything the flow accumulates is cleared here rather than
+    /// trusted to be fresh.
     private func prepare() {
         guard !runtime.preferences.onboardingComplete else {
             dismissWindow(id: "onboarding")
             return
         }
         apiKey = ""
+        keyFeedback = nil
+        isCheckingAPIKey = false
+        activeShortcutRecorderID = nil
+        shortcutConfirmed = false
+        microphoneSignalObserved = false
+        microphoneTestSkipped = false
+        showsDataUseGuide = false
+        tryItText = ""
+        error = nil
+        didCompleteSetup = false
+        didApplyLaunchAtLogin = false
         // On for a first run, which is the recommendation. A Redo Setup starts
         // from what macOS has, so the step cannot offer to turn on something that
         // is already on — or quietly re-enable what the user has since turned off.
         launchAtLogin = LaunchAtLoginService.state.isOn || !runtime.coordinator.isRedoingSetup
         runtime.coordinator.refreshPermissions(source: .onboarding)
-        runtime.coordinator.reconcileStoredAPIKey()
+        runtime.coordinator.validateStoredAPIKey()
+        step = resumedStep
         if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
+    }
+
+    /// Where setup left off, clamped to the first step whose gate is not yet
+    /// met. Granting the microphone makes macOS offer to relaunch Scriber, and
+    /// coming back to the welcome step after that reads as having lost the
+    /// grant. Resuming past an unmet requirement would be the opposite mistake —
+    /// a step whose Continue cannot be pressed, above a Back nobody is expecting
+    /// to need — so the two are resolved together.
+    private var resumedStep: OnboardingStep {
+        let stored = OnboardingStep(rawValue: runtime.preferences.onboardingStep) ?? .welcome
+        let firstUnmet = OnboardingStep.allCases.first { !isSatisfied($0) } ?? stored
+        return min(stored, firstUnmet)
+    }
+
+    /// Whether a step's gate is already met by what the app can see right now.
+    /// Only the steps that ask something of the system can answer: the rest are
+    /// decisions, and a decision cannot be recovered from state.
+    private func isSatisfied(_ candidate: OnboardingStep) -> Bool {
+        switch candidate {
+        case .apiKey:
+            runtime.preferences.apiKeyConfigured && runtime.preferences.apiKeyValidity == .valid
+        case .microphone:
+            runtime.coordinator.microphoneGranted
+        case .accessibility:
+            runtime.coordinator.accessibilityGranted
+        default:
+            true
+        }
     }
 
     /// Marks setup finished and brings the app's services up. Idempotent: Back
@@ -285,11 +337,20 @@ struct OnboardingView: View {
     }
 
     private func finish() {
+        // Reaching the last step is its own proof that setup is done. Leaving
+        // that to the Try it transition alone made Done a button that closed the
+        // window and finished nothing whenever that transition had been taken on
+        // a previous run of the flow.
+        completeSetup()
         applyLaunchAtLoginOnce()
         close()
     }
 
     private func close() {
+        // Both routes here have just finished setup, and a finished setup has no
+        // step left to resume. Closing the window with ⌘W deliberately does not
+        // come through here: that one is meant to be resumable.
+        runtime.preferences.onboardingStep = 0
         runtime.coordinator.stopMicrophoneTest()
         dismissWindow(id: "onboarding")
         Task { @MainActor in

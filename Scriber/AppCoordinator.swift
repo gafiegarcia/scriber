@@ -121,7 +121,7 @@ final class AppCoordinator: ObservableObject {
     private var currentRecord: DictationRecord?
     private var currentRecording: CompletedRecording?
     private var checkedStoredAPIKeyThisLaunch = false
-    private var isCheckingStoredAPIKey = false
+    @Published private(set) var isCheckingStoredAPIKey = false
     private var storedAPIKeyValidationTask: Task<Void, Never>?
     /// Separate from `preferences.lastUpdateCheck`, which records only a check
     /// that got an answer. `startServices` runs again every time the menu bar
@@ -650,6 +650,8 @@ final class AppCoordinator: ObservableObject {
     func restartOnboarding() {
         isRedoingSetup = true
         preferences.onboardingComplete = false
+        // A redo is a fresh run, not a resumption of the one that finished.
+        preferences.onboardingStep = 0
         // `openWindow(id:)` creates the scene but does not reliably bring it in
         // front of the window the action was invoked from — the first attempt left
         // onboarding rendered behind Settings, with Settings no longer the key
@@ -660,37 +662,30 @@ final class AppCoordinator: ObservableObject {
         NotificationCenter.default.post(name: .openScriberOnboardingWindow, object: nil)
     }
 
-    /// Clears the stored credential state when the Keychain item behind it is
-    /// gone.
-    ///
-    /// `apiKeyConfigured` and `apiKeyValidity` are preferences, and deleting the
-    /// Keychain item does not touch them — so on its own the app goes on
-    /// reporting a key it no longer holds. `validateStoredAPIKeyOnce` is what
-    /// normally reconciles the two, and it cannot run here: it sits behind
-    /// `startServices`' `onboardingComplete` guard, which is false for exactly
-    /// as long as setup is open. Setup is where the claim is made, so setup has
-    /// to check it.
-    ///
-    /// Absence only. A key that is present keeps whatever validity was last
-    /// established, because deciding otherwise means a network round trip every
-    /// time setup opens.
-    func reconcileStoredAPIKey() {
-        guard servicesAllowed, preferences.apiKeyConfigured else { return }
-        let revision = credentialRevision.current
-        Task { [weak self] in
-            guard let self else { return }
-            let stored = try? await keychain.readAPIKey()
-            guard stored?.isEmpty ?? true else { return }
-            guard !Task.isCancelled, credentialRevision.matches(revision) else { return }
-            preferences.apiKeyConfigured = false
-            preferences.apiKeyValidity = .unchecked
-            refreshCredentialRecovery(force: false)
-        }
-    }
-
     private func validateStoredAPIKeyOnce() {
         guard !checkedStoredAPIKeyThisLaunch else { return }
+        validateStoredAPIKey()
+    }
+
+    /// Re-reads the Keychain and re-checks the key it finds, so a surface that
+    /// reports on the credential can be sure of it rather than repeating what it
+    /// was last told.
+    ///
+    /// `apiKeyConfigured` and `apiKeyValidity` are preferences, and neither
+    /// deleting the Keychain item nor revoking the key on ElevenLabs' side
+    /// touches them — so left alone the app goes on reporting a key it may no
+    /// longer hold or be able to use. `validateStoredAPIKeyOnce` reconciles that
+    /// at launch and cannot help setup: it sits behind `startServices`'
+    /// `onboardingComplete` guard, which is false for exactly as long as setup
+    /// is open. Setup is where the claim is made, so setup asks again each time
+    /// it comes back to the step that makes it.
+    ///
+    /// Spends no transcription credit — validation reads the account rather than
+    /// uploading audio.
+    func validateStoredAPIKey() {
+        guard servicesAllowed else { return }
         checkedStoredAPIKeyThisLaunch = true
+        storedAPIKeyValidationTask?.cancel()
         let validationRevision = credentialRevision.current
         isCheckingStoredAPIKey = true
         storedAPIKeyValidationTask = Task { [weak self] in

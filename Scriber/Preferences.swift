@@ -20,6 +20,7 @@ final class Preferences: ObservableObject {
         static let noVerbatim = "noVerbatim"
         static let keyterms = "keyterms"
         static let onboardingComplete = "onboardingComplete"
+        static let onboardingStep = "onboardingStep"
         static let startInBackground = "startInBackground"
         static let showInMenuBar = "showInMenuBar"
         static let showAppInDock = "showAppInDock"
@@ -48,6 +49,9 @@ final class Preferences: ObservableObject {
     @Published var noVerbatim: Bool { didSet { defaults.set(noVerbatim, forKey: Keys.noVerbatim) } }
     @Published var keyterms: [String] { didSet { save(keyterms, key: Keys.keyterms) } }
     @Published var onboardingComplete: Bool { didSet { defaults.set(onboardingComplete, forKey: Keys.onboardingComplete) } }
+    /// How far setup had got, so granting a permission macOS then wants the app
+    /// relaunched for returns to the step that asked rather than to the start.
+    @Published var onboardingStep: Int { didSet { defaults.set(onboardingStep, forKey: Keys.onboardingStep) } }
     @Published var startInBackground: Bool { didSet { defaults.set(startInBackground, forKey: Keys.startInBackground) } }
     @Published var showInMenuBar: Bool { didSet { defaults.set(showInMenuBar, forKey: Keys.showInMenuBar) } }
     @Published var showAppInDock: Bool {
@@ -96,6 +100,7 @@ final class Preferences: ObservableObject {
         noVerbatim = defaults.object(forKey: Keys.noVerbatim) == nil ? true : defaults.bool(forKey: Keys.noVerbatim)
         keyterms = Self.decode([String].self, key: Keys.keyterms, defaults: defaults) ?? []
         onboardingComplete = defaults.bool(forKey: Keys.onboardingComplete)
+        onboardingStep = defaults.integer(forKey: Keys.onboardingStep)
         startInBackground = Self.optInFlag(Keys.startInBackground, in: defaults)
         showInMenuBar = defaults.object(forKey: Keys.showInMenuBar) == nil ? true : defaults.bool(forKey: Keys.showInMenuBar)
         showAppInDock = defaults.bool(forKey: Keys.showAppInDock)
