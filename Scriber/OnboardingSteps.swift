@@ -3,14 +3,15 @@ import SwiftUI
 
 // MARK: - Shared page chrome
 
-/// The shape every setup step takes: a symbol, a title, a sentence, and one
-/// card. Steps differ in what is in the card and nothing else, which is what
-/// makes nine separate decisions read as one flow.
+/// The shape every setup step takes: a title, a sentence, and the controls that
+/// step owns — all ranged left and hung from the top of the page.
+///
+/// The title sits at the same height on every step, which is what lets someone
+/// press Continue eight times without the page reshuffling under them. Centring
+/// cost that twice over: a short step and a tall one put their titles in
+/// different places, and a centred sentence that wraps leaves a ragged last line
+/// no amount of rewording fixes for every window.
 struct OnboardingPage<Content: View>: View {
-    /// Absent on a step whose own illustration is the thing worth looking at,
-    /// where a decorative symbol above it only competes for the same glance.
-    var symbol: String?
-    var tint: Color = .accentColor
     let title: String
     let subtitle: LocalizedStringKey?
     /// A second sentence, set as its own line rather than left to wrap. Used
@@ -21,28 +22,19 @@ struct OnboardingPage<Content: View>: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                if let symbol {
-                    OnboardingHero(symbol: symbol, tint: tint)
-                        .padding(.bottom, 4)
-                }
-                Text(title)
-                    .font(.title.bold())
-                    .multilineTextAlignment(.center)
-                if subtitle != nil || subtitleDetail != nil {
-                    VStack(spacing: 6) {
-                        if let subtitle { prose(subtitle) }
-                        if let subtitleDetail { prose(subtitleDetail) }
-                    }
-                    .frame(maxWidth: OnboardingLayout.proseWidth)
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title).font(.title.bold())
+                    if let subtitle { prose(subtitle) }
+                    if let subtitleDetail { prose(subtitleDetail) }
                 }
                 content
-                    .padding(.top, 6)
             }
-            .frame(maxWidth: OnboardingLayout.contentWidth)
-            .padding(.horizontal, 32)
-            .padding(.vertical, 36)
-            .frame(maxWidth: .infinity, minHeight: OnboardingLayout.pageHeight)
+            .frame(width: OnboardingLayout.contentWidth, alignment: .leading)
+            .padding(.horizontal, OnboardingLayout.pageMargin)
+            .padding(.top, OnboardingLayout.pageMargin)
+            .padding(.bottom, 28)
+            .frame(maxWidth: .infinity, minHeight: OnboardingLayout.pageHeight, alignment: .top)
         }
         .scrollBounceBehavior(.basedOnSize)
     }
@@ -51,25 +43,8 @@ struct OnboardingPage<Content: View>: View {
         Text(text)
             .font(.body)
             .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
-    }
-}
-
-private struct OnboardingHero: View {
-    let symbol: String
-    let tint: Color
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(tint.opacity(0.12))
-            .frame(width: OnboardingLayout.heroSize, height: OnboardingLayout.heroSize)
-            .overlay {
-                Image(systemName: symbol)
-                    .font(.system(size: 30, weight: .medium))
-                    .foregroundStyle(tint)
-            }
-            .accessibilityHidden(true)
+            .frame(maxWidth: OnboardingLayout.proseWidth, alignment: .leading)
     }
 }
 
@@ -132,11 +107,10 @@ struct APIKeyStep: View {
 
     var body: some View {
         OnboardingPage(
-            symbol: "key.fill",
             title: "Connect ElevenLabs",
             subtitle: "ElevenLabs is the service that turns your recordings into text. It is the only one Scriber uses, and its free tier covers daily dictation."
         ) {
-            VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
                 OnboardingCard {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("No key yet? [Create a free account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys) with Speech to Text access.")
@@ -179,7 +153,7 @@ struct APIKeyStep: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: OnboardingLayout.proseWidth, alignment: .leading)
             }
         }
         // Every arrival, forward or back, rather than once when setup opens.
@@ -247,14 +221,11 @@ struct DataUseStep: View {
     @Binding var showsGuide: Bool
 
     var body: some View {
-        // No hero symbol. The screenshot below is this step's illustration, and
-        // it is the reason the step is believed: a warning about a switch that
-        // never shows the switch reads as something Scriber made up.
         OnboardingPage(
             title: "One setting worth changing",
             subtitle: "New ElevenLabs accounts have **Improve the models for everyone** switched on, which lets your recordings train their models."
         ) {
-            VStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 14) {
                 Image(.elevenLabsDataUseSetting)
                     .resizable()
                     .scaledToFit()
@@ -329,7 +300,6 @@ struct MicrophoneStep: View {
 
     var body: some View {
         OnboardingPage(
-            symbol: "mic.fill",
             title: "Let Scriber hear you",
             subtitle: runtime.coordinator.microphoneGranted
                 ? "Say something. The meter has to move before setup can go on."
@@ -355,7 +325,7 @@ struct MicrophoneStep: View {
     private var granted: some View {
         VStack(alignment: .leading, spacing: 16) {
             MicrophonePicker()
-            VStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 10) {
                 AudioLevelWaveform(
                     level: runtime.coordinator.microphoneTestLevel,
                     presentation: .onboarding
@@ -411,7 +381,6 @@ struct AccessibilityStep: View {
 
     var body: some View {
         OnboardingPage(
-            symbol: "keyboard",
             title: "Let Scriber type for you",
             subtitle: "Accessibility lets Scriber notice your shortcut in any app, and put your words where your cursor is."
         ) {
@@ -440,12 +409,11 @@ struct ShortcutStep: View {
 
     var body: some View {
         OnboardingPage(
-            symbol: "command",
             title: "Your keyboard shortcut",
             subtitle: "**Tap it** to start dictating hands-free, tap it again when you are done.",
             subtitleDetail: "**Or hold it**, talk, and let go to finish."
         ) {
-            VStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 14) {
                 OnboardingCard {
                     ShortcutKeyCapTester(
                         target: runtime.preferences.dictationShortcut,
@@ -479,11 +447,10 @@ struct MuteAudioStep: View {
 
     var body: some View {
         OnboardingPage(
-            symbol: "speaker.slash.fill",
             title: "Mute other audio while you dictate",
             subtitle: "Silences other apps, calls, and notification sounds for as long as you are talking."
         ) {
-            VStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 14) {
                 OnboardingCard {
                     VStack(alignment: .leading, spacing: 10) {
                         MuteOtherAudioToggle(
@@ -517,7 +484,6 @@ struct TryItStep: View {
 
     var body: some View {
         OnboardingPage(
-            symbol: "text.cursor",
             title: "Try it!",
             subtitle: "Everything is set up. Dictate into the box and watch it land."
         ) {
@@ -542,7 +508,7 @@ struct TryItStep: View {
                     .accessibilityIdentifier("onboarding-try-it-field")
             }
             .padding(10)
-            .frame(height: 150)
+            .frame(height: 200)
             .background(Color(nsColor: .textBackgroundColor), in: shape)
             .overlay { shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1) }
         }
@@ -571,12 +537,10 @@ struct DoneStep: View {
 
     var body: some View {
         OnboardingPage(
-            symbol: "checkmark.circle.fill",
-            tint: .green,
             title: "You're set",
             subtitle: "Tap **\(runtime.preferences.dictationShortcut.displayName)** in any app to dictate. Scriber lives in your menu bar, and Settings has the rest."
         ) {
-            VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
                 OnboardingCard {
                     Toggle("Launch Scriber when I log in", isOn: $launchAtLogin)
                         .accessibilityIdentifier("onboarding-launch-at-login")

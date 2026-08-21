@@ -6,22 +6,20 @@ enum OnboardingLayout {
     /// so every step is laid out against a page that never changes shape. Sitting
     /// between Settings (660×560) and the main window (900×640) keeps setup
     /// recognisably part of the same app.
-    static let windowWidth: CGFloat = 760
-    static let windowHeight: CGFloat = 680
-    /// Text and cards are held to this, so a line of prose never runs the full
-    /// width of the window and stops being readable.
-    static let contentWidth: CGFloat = 520
-    /// Narrower than the cards under it. A centred sentence reads as a shape as
-    /// much as a line, and the wider it is allowed to run the more lopsided the
-    /// last line looks against the ones above it.
-    static let proseWidth: CGFloat = 490
+    static let windowWidth: CGFloat = 700
+    static let windowHeight: CGFloat = 650
+    static let pageMargin: CGFloat = 40
+    /// What a step's cards and controls span: the window less its margins.
+    static let contentWidth: CGFloat = windowWidth - pageMargin * 2
+    /// Paragraphs stop short of the full column. Cards want the width; a line of
+    /// prose that runs the whole way becomes hard to track back from.
+    static let proseWidth: CGFloat = 560
     static let footerHeight: CGFloat = 64
     /// What is left for a step once the footer and its rule are taken out. A
-    /// step fills it and centres itself in it, so a short step sits in the
-    /// middle of the window rather than clinging to the top of it.
+    /// step fills it and hangs from the top of it, so its title lands in the
+    /// same place on every step rather than moving with the content below it.
     static let pageHeight: CGFloat = windowHeight - footerHeight - 1
     static let cardCornerRadius: CGFloat = 12
-    static let heroSize: CGFloat = 68
 }
 
 enum OnboardingStep: Int, CaseIterable, Comparable {
