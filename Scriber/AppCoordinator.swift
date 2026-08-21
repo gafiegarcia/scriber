@@ -1704,6 +1704,10 @@ final class AppCoordinator: ObservableObject {
         // model to draw them from — `pill.update` below is unconditional. Every
         // other reader of this property asks `phase.isBusy`, which a meter tick
         // cannot change.
+        //
+        // So this property's level and elapsed time are stale for the length of a
+        // recording. Anything needing either live reads the pill's model or takes
+        // it as a parameter — do not start reading them from here.
         if !Self.differsOnlyByMeter(phase, self.phase) { self.phase = phase }
         if suppressPillForCurrentTranscription {
             pill.dismiss()
