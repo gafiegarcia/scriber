@@ -30,7 +30,7 @@ struct OnboardingPage<Content: View>: View {
             // Horizontal alignment stays ranged left inside the column; only the
             // column is centred.
             VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 12) {
                     Text(title)
                         .font(.title.bold())
                         // Announced as a heading rather than as another line of
@@ -89,11 +89,11 @@ struct WelcomeStep: View {
                 Text("Welcome to Scriber")
                     .font(.largeTitle.bold())
                     .accessibilityAddTraits(.isHeader)
-                Text("Press a key, talk, and your words appear wherever you were typing.")
+                Text("Press a key, talk, and your words appear wherever your cursor is.")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                Text("Setup takes about two minutes. Your audio goes only to ElevenLabs, and your history stays on this Mac.")
+                Text("Your audio goes only to ElevenLabs, and your history stays on this Mac.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -139,11 +139,13 @@ struct APIKeyStep: View {
                             SecureField(
                                 "",
                                 text: $apiKey,
-                                // Styled rather than passed as a plain string:
-                                // the default placeholder sits at nearly label
-                                // weight, which reads as a value already in the
-                                // field.
-                                prompt: Text("xi-api-key").foregroundStyle(.tertiary)
+                                // `xi-api-key` is the header ElevenLabs wants
+                                // the key in, not the shape of the key, and it
+                                // read here as an example to copy. Styled rather
+                                // than passed as a plain string: the default
+                                // placeholder sits at nearly label weight, which
+                                // reads as a value already entered.
+                                prompt: Text("Paste your key").foregroundStyle(.tertiary)
                             )
                             .textFieldStyle(.roundedBorder)
                             .disabled(isChecking)
@@ -514,39 +516,30 @@ struct TryItStep: View {
             title: "Try it!",
             subtitle: "Everything is set up. Dictate into the box and watch it land."
         ) {
-            // Both layers take the same padding from the container rather than
-            // each padding itself, so the placeholder cannot drift away from the
-            // caret. What is left is the text view's own container inset, which
-            // is horizontal only and is the sole number tuned by eye.
-            ZStack(alignment: .topLeading) {
-                if text.isEmpty {
-                    Text("Tap \(shortcut) to dictate. Tap \(shortcut) again to stop.")
-                        .font(.body)
-                        .foregroundStyle(.tertiary)
-                        .padding(.leading, Self.textContainerInset)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                }
-                TextEditor(text: $text)
-                    .font(.body)
-                    .scrollContentBackground(.hidden)
-                    .focused($isFocused)
-                    .accessibilityLabel("Dictate here")
-                    .accessibilityIdentifier("onboarding-try-it-field")
-            }
+            // A field with a real prompt rather than a `TextEditor` under a
+            // label positioned to look like one. The hand-placed version could
+            // only ever be aligned by matching whatever inset the text view
+            // happened to use, which is not published and is not promised to
+            // stay put. `reservesSpace` keeps the box the same height empty or
+            // full, so nothing moves as the transcript lands.
+            TextField(
+                "",
+                text: $text,
+                prompt: Text("Tap \(shortcut) to dictate. Tap \(shortcut) again to stop."),
+                axis: .vertical
+            )
+            .textFieldStyle(.plain)
+            .font(.body)
+            .lineLimit(9, reservesSpace: true)
+            .focused($isFocused)
+            .accessibilityLabel("Dictate here")
+            .accessibilityIdentifier("onboarding-try-it-field")
             .padding(10)
-            .frame(height: 200)
             .background(Color(nsColor: .textBackgroundColor), in: shape)
             .overlay { shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1) }
         }
         .onAppear { isFocused = true }
     }
-
-    /// `NSTextView` lays its text out at the leading edge of whatever frame
-    /// SwiftUI gives it, so the placeholder needs no inset of its own. Named
-    /// rather than dropped, because it is the number to reach for if a future
-    /// macOS starts insetting the container again and the two drift apart.
-    private static let textContainerInset: CGFloat = 0
 
     private var shortcut: String { runtime.preferences.dictationShortcut.displayName }
 
@@ -564,7 +557,7 @@ struct DoneStep: View {
 
     var body: some View {
         OnboardingPage(
-            title: "You're set",
+            title: "You're set! ✓",
             subtitle: "Tap **\(runtime.preferences.dictationShortcut.displayName)** in any app to dictate. Scriber lives in your menu bar, and Settings has the rest."
         ) {
             VStack(alignment: .leading, spacing: 12) {

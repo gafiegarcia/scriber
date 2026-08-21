@@ -62,6 +62,7 @@ struct OnboardingView: View {
     @State private var launchAtLogin = true
     @State private var didCompleteSetup = false
     @State private var didApplyLaunchAtLogin = false
+    @State private var centreShortcutMonitor: Any?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -74,21 +75,21 @@ struct OnboardingView: View {
         .sheet(isPresented: $showsDataUseGuide) {
             DataUseGuideSheet { showsDataUseGuide = false }
         }
-        .onAppear(perform: prepare)
+        .onAppear {
+            prepare()
+            watchForCentreShortcut()
+        }
         .onDisappear {
             runtime.coordinator.stopMicrophoneTest()
+            if let centreShortcutMonitor { NSEvent.removeMonitor(centreShortcutMonitor) }
+            centreShortcutMonitor = nil
             applyLaunchAtLoginOnce()
         }
-        .onChange(of: runtime.coordinator.microphoneGranted) { _, allowed in
-            if allowed {
-                runtime.coordinator.startMicrophoneTest()
-            } else {
-                runtime.coordinator.stopMicrophoneTest()
-            }
-        }
+        .onChange(of: step) { _, _ in syncMicrophoneTest() }
+        .onChange(of: runtime.coordinator.microphoneGranted) { _, _ in syncMicrophoneTest() }
         .onChange(of: runtime.preferences.audioInputSelection) { _, _ in
             microphoneSignalObserved = false
-            if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
+            syncMicrophoneTest()
         }
         .onChange(of: apiKey) { _, newValue in
             if !newValue.isEmpty { keyFeedback = nil }
@@ -162,7 +163,7 @@ struct OnboardingView: View {
                         .buttonStyle(.link)
                         .focusEffectDisabled()
                         .accessibilityIdentifier("onboarding-skip")
-                } else if step != .done {
+                } else {
                     Button("Back", action: goBack)
                         .accessibilityIdentifier("onboarding-back")
                 }
@@ -271,7 +272,7 @@ struct OnboardingView: View {
         runtime.coordinator.refreshPermissions(source: .onboarding)
         runtime.coordinator.validateStoredAPIKey()
         step = resumedStep
-        if runtime.coordinator.microphoneGranted { runtime.coordinator.startMicrophoneTest() }
+        syncMicrophoneTest()
     }
 
     /// Where setup left off, clamped to the first step whose gate is not yet
@@ -297,6 +298,42 @@ struct OnboardingView: View {
             runtime.coordinator.microphoneGranted && runtime.coordinator.accessibilityGranted
         default:
             true
+        }
+    }
+
+    /// The microphone is held open only by the step that draws a meter from it.
+    /// Left running for the whole of setup it lights the menu bar's recording
+    /// indicator on every page, which says Scriber is listening when it has no
+    /// reason to be. Try it does not need this: a real dictation opens the input
+    /// itself and closes it again.
+    private func syncMicrophoneTest() {
+        if step == .permissions, runtime.coordinator.microphoneGranted {
+            runtime.coordinator.startMicrophoneTest()
+        } else {
+            runtime.coordinator.stopMicrophoneTest()
+        }
+    }
+
+    /// Stops Control-C standing in for Enter, and centres the window on
+    /// ⌃🌐C the way the Window menu's own item does.
+    ///
+    /// AppKit resolves Control-C to `NSEnterCharacter` (0x03) — the character
+    /// the Enter key sends — so the default button answers to it, and it answers
+    /// first: the system's Center never sees the key, though clicking the same
+    /// command in the menu works. The two are only separable before that
+    /// resolution, where Enter reports 0x03 with no modifier and Control-C
+    /// reports "c" with Control held.
+    private func watchForCentreShortcut() {
+        guard centreShortcutMonitor == nil else { return }
+        centreShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.modifierFlags.contains(.control),
+                  !event.modifierFlags.contains(.command),
+                  event.charactersIgnoringModifiers?.lowercased() == "c",
+                  let window = event.window,
+                  window.title == AppWindowIdentity.onboardingTitle
+            else { return event }
+            if event.modifierFlags.contains(.function) { window.center() }
+            return nil
         }
     }
 

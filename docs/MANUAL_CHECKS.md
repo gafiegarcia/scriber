@@ -79,6 +79,7 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Set the input volume to zero and speak. **Continue without testing** is already on screen — it does not have to be waited for — and using it reaches the next step.
 - Change the input device mid-step. The meter restarts and the confirmation resets, because it was the previous device that was proven.
 - Reach the step with both grants already given. The microphone card, its meter and help, and the Accessibility row below them all fit without the page scrolling.
+- Watch the menu bar's orange recording indicator across the whole flow. It appears on this step and on no other. Scriber holds the input open only where it draws a meter from it; Try it opens and closes it around the dictation itself.
 
 ### Its ElevenLabs key step
 
@@ -95,7 +96,7 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Press **Allow** for Microphone and again for Accessibility. System Settings comes to the front each time, on the right pane, rather than opening behind setup.
 - Redo Setup with everything already granted and a shortcut you recorded yourself. Each step shows what is already true — Verified, allowed, your own chord — rather than asking again, and finishing leaves all of it as it was.
 - Walk it on the shortest display available. The window is centred and wholly visible, and it never grows or shrinks as the steps change.
-- Drag setup away from the centre and press **⌃🌐C**, or use Window ▸ Center. The window centres rather than advancing a step. macOS disables that command for a window it cannot resize, and a disabled item does not consume its key — which left Control-C reaching the default button, since AppKit reads it as the Enter character. Check the window still cannot actually be resized by dragging an edge.
+- Drag setup away from the centre and press **⌃🌐C**. The window centres rather than advancing a step, and Window ▸ Center does the same when clicked. AppKit resolves Control-C to the Enter character, so the default button used to answer it first and the system's Center never saw the key. Press **Return** and **⌃C** on the same step to confirm the split held: Return advances, Control-C does nothing. Check the window still cannot be resized by dragging an edge.
 - Take **Set Up Later** from the first step. The main window opens and its chrome names exactly what is missing; Settings fixes all of it, and **Redo Setup** returns here.
 - On the ElevenLabs data-use step, open **Show me**. The whole menu is visible rather than cut off at the bottom, its Done button reads as a normal control rather than something behind the dimming, and Escape and Done both close it.
 - Grant the microphone and accept the relaunch macOS offers. Setup comes back on the microphone step rather than at the welcome page. Then revoke the key or the grant a step behind it and relaunch again: setup stops at the step that is unmet, never past it.
