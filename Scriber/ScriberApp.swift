@@ -789,6 +789,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.styleMask.insert(.resizable)
         window.contentMinSize = size
         window.contentMaxSize = size
+        // The mask is claimed for Center alone. Left as it comes, a resizable
+        // window is also a full-screen one, and this window's content is pinned
+        // to the size above — so full screen would strand the page in the middle
+        // of an empty display.
+        window.collectionBehavior.insert(.fullScreenNone)
         window.center()
         // The main window is created alongside this one on a first run and, being
         // created second, ends up in front of the one the user is supposed to be

@@ -586,10 +586,17 @@ struct DoneStep: View {
                         .accessibilityIdentifier("onboarding-launch-at-login")
                 }
                 if let error {
-                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .font(OnboardingType.caption)
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                            .font(OnboardingType.caption)
+                            .foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                        // Naming the list is not enough on its own: it is several
+                        // panes deep, and the refusal is only actionable there.
+                        Button("Open Login Items…") { runtime.coordinator.openLoginItemsSettings() }
+                            .controlSize(.small)
+                    }
+                    .accessibilityIdentifier("onboarding-launch-at-login-advice")
                 }
             }
         }

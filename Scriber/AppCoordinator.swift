@@ -691,7 +691,13 @@ final class AppCoordinator: ObservableObject {
         storedAPIKeyValidationTask = Task { [weak self] in
             guard let self else { return }
             defer {
-                if credentialRevision.matches(validationRevision) {
+                // Cancellation here means another call to this method replaced
+                // this task, and did so without advancing the revision, because
+                // nothing about the credential changed. The other cancel sites
+                // do advance it, which is what keeps their check sufficient;
+                // this one would otherwise clear the flag and drop the handle
+                // belonging to the validation now in flight.
+                if !Task.isCancelled, credentialRevision.matches(validationRevision) {
                     isCheckingStoredAPIKey = false
                     storedAPIKeyValidationTask = nil
                     refreshCredentialRecovery(force: true)

@@ -62,6 +62,9 @@ struct OnboardingView: View {
     @State private var didCompleteSetup = false
     @State private var didApplyLaunchAtLogin = false
     @State private var centreShortcutMonitor: Any?
+    /// `resumedStep` has to read the credential before the check it kicks off can
+    /// answer, so the restore is checked once more when it does.
+    @State private var didClampAfterValidation = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -83,6 +86,11 @@ struct OnboardingView: View {
             if let centreShortcutMonitor { NSEvent.removeMonitor(centreShortcutMonitor) }
             centreShortcutMonitor = nil
             applyLaunchAtLoginOnce()
+        }
+        .onChange(of: runtime.coordinator.isCheckingStoredAPIKey) { _, checking in
+            guard !checking, !didClampAfterValidation else { return }
+            didClampAfterValidation = true
+            clampToFirstUnmetStep()
         }
         .onChange(of: step) { _, _ in syncMicrophoneTest() }
         .onChange(of: runtime.coordinator.microphoneGranted) { _, _ in syncMicrophoneTest() }
@@ -121,8 +129,11 @@ struct OnboardingView: View {
             DataUseStep(showsGuide: $showsDataUseGuide)
         case .permissions:
             PermissionsStep(signalObserved: $microphoneSignalObserved) {
+                // Only the test is skipped. Accessibility shares this step and
+                // is not something this button offers to pass, so the move still
+                // goes through the gate.
                 microphoneTestSkipped = true
-                goForward()
+                if canAdvance { goForward() }
             }
         case .shortcut:
             ShortcutStep(
@@ -262,6 +273,7 @@ struct OnboardingView: View {
         error = nil
         didCompleteSetup = false
         didApplyLaunchAtLogin = false
+        didClampAfterValidation = false
         // On for a first run, which is the recommendation. A Redo Setup starts
         // from what macOS has, so the step cannot offer to turn on something that
         // is already on — or quietly re-enable what the user has since turned off.
@@ -282,6 +294,20 @@ struct OnboardingView: View {
         let stored = OnboardingStep(rawValue: runtime.preferences.onboardingStep) ?? .welcome
         let firstUnmet = OnboardingStep.allCases.first { !isSatisfied($0) } ?? stored
         return min(stored, firstUnmet)
+    }
+
+    /// Pulls the flow back if the restore landed past a step that has since
+    /// turned out to be unmet. `prepare` can only clamp against what the
+    /// credential preferences say at that instant, and the check it starts on the
+    /// same line is what decides whether they were telling the truth — so a key
+    /// deleted from the Keychain reads as valid for exactly as long as that check
+    /// takes. Runs once per appearance: after this, an unmet step is something
+    /// the user has caused and not something to be moved away from mid-read.
+    private func clampToFirstUnmetStep() {
+        guard let firstUnmet = OnboardingStep.allCases.first(where: { !isSatisfied($0) }),
+              step > firstUnmet
+        else { return }
+        move(to: firstUnmet, advancing: false)
     }
 
     /// Whether a step's gate is already met by what the app can see right now.
@@ -359,6 +385,13 @@ struct OnboardingView: View {
         guard launchAtLogin != LaunchAtLoginService.state.isOn else { return }
         do {
             try runtime.coordinator.setLaunchAtLogin(launchAtLogin)
+            // A refusal does not throw. macOS keeps the entry switched off under
+            // Background App Activity and reports the old state straight back,
+            // which is the same shape Settings detects.
+            if launchAtLogin, !runtime.coordinator.launchAtLoginState.isOn {
+                error = runtime.coordinator.launchAtLoginState.recoveryAdvice
+                    ?? "macOS would not add Scriber to your login items."
+            }
         } catch {
             self.error = "Scriber could not be set to launch at login: \(error.localizedDescription)"
         }
@@ -375,7 +408,12 @@ struct OnboardingView: View {
         // window and finished nothing whenever that transition had been taken on
         // a previous run of the flow.
         completeSetup()
+        // Whether the refusal is already on screen. Setup closes over it the
+        // second time Done is pressed rather than trapping someone on a step
+        // whose only control refuses to finish.
+        let alreadyReported = didApplyLaunchAtLogin
         applyLaunchAtLoginOnce()
+        guard error == nil || alreadyReported else { return }
         close()
     }
 
