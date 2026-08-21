@@ -63,7 +63,7 @@ struct OnboardingPage<Content: View>: View {
             .font(.body)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: OnboardingLayout.proseWidth, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -166,14 +166,16 @@ struct APIKeyStep: View {
                             }
                             .disabled(!canSubmit)
                         }
-                        status
+                        // Given its row up front. Letting it appear on the
+                        // first save would move the card, and the page centred
+                        // under the title moves with it.
+                        status.frame(minHeight: 15, alignment: .leading)
                     }
                 }
                 Text("Your key is kept in this Mac's login Keychain. ElevenLabs shows it once, so save a copy in your password manager before you leave the page.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: OnboardingLayout.proseWidth, alignment: .leading)
             }
         }
         // Every arrival, forward or back, rather than once when setup opens.
@@ -419,7 +421,6 @@ struct ShortcutStep: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Binding var activeRecorderID: String?
     @Binding var isConfirmed: Bool
-    @State private var showsAlternatives = false
 
     var body: some View {
         OnboardingPage(
@@ -427,8 +428,13 @@ struct ShortcutStep: View {
             subtitle: "**Tap it** to start dictating hands-free, tap it again when you are done.",
             subtitleDetail: "**Or hold it**, talk, and let go to finish."
         ) {
-            VStack(alignment: .leading, spacing: 14) {
-                OnboardingCard {
+            // The choice is shown rather than hidden behind a disclosure. It was
+            // folded away to save height the step no longer needs, and it cost
+            // twice for that: opening it resized the step, and the people who
+            // most need it are the ones on a keyboard with no `fn`, who have no
+            // reason to expect a second control exists.
+            OnboardingCard {
+                VStack(alignment: .leading, spacing: 14) {
                     ShortcutKeyCapTester(
                         target: runtime.preferences.dictationShortcut,
                         isPaused: activeRecorderID != nil,
@@ -436,8 +442,7 @@ struct ShortcutStep: View {
                     )
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                }
-                DisclosureGroup(isExpanded: $showsAlternatives) {
+                    Divider()
                     ShortcutPicker(
                         chord: $runtime.preferences.dictationShortcut,
                         customChord: $runtime.preferences.customShortcut,
@@ -445,17 +450,8 @@ struct ShortcutStep: View {
                         isCaptureAllowed: true,
                         refusalResetToken: 0
                     )
-                    .padding(.top, 10)
-                } label: {
-                    // The chevron alone is a small target to hit. A caption that
-                    // names the control belongs to it, so clicking the words
-                    // does what clicking the triangle does.
-                    Text("Use a different key")
-                        .contentShape(.rect)
-                        .onTapGesture { showsAlternatives.toggle() }
+                    .accessibilityIdentifier("onboarding-shortcut-alternatives")
                 }
-                .font(.callout)
-                .accessibilityIdentifier("onboarding-shortcut-alternatives")
             }
         }
     }

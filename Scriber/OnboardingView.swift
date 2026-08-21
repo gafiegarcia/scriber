@@ -6,14 +6,13 @@ enum OnboardingLayout {
     /// so every step is laid out against a page that never changes shape. Sitting
     /// between Settings (660×560) and the main window (900×640) keeps setup
     /// recognisably part of the same app.
-    static let windowWidth: CGFloat = 700
-    static let windowHeight: CGFloat = 650
+    static let windowWidth: CGFloat = 660
+    static let windowHeight: CGFloat = 700
     static let pageMargin: CGFloat = 40
-    /// What a step's cards and controls span: the window less its margins.
+    /// The single column everything on a step is set in — cards, images, and
+    /// prose alike. Two widths is what made captions stop short of the card
+    /// above them, with nothing to say why one edge sat inside the other.
     static let contentWidth: CGFloat = windowWidth - pageMargin * 2
-    /// Paragraphs stop short of the full column. Cards want the width; a line of
-    /// prose that runs the whole way becomes hard to track back from.
-    static let proseWidth: CGFloat = 560
     static let footerHeight: CGFloat = 64
     /// What is left for a step once the footer and its rule are taken out. A
     /// step fills it and hangs from the top of it, so its title lands in the

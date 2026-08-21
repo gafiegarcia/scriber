@@ -71,7 +71,7 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Press a sided shortcut's left twin. It refuses to confirm, the same as any other wrong key — setup's test and the global shortcut have to agree about which key counts, or setup passes a binding that then does nothing.
 - Record a custom shortcut, confirm it, and finish. The recorder still refuses a reserved chord, and the chord that reaches Settings afterwards is the one that was tested.
 - On the shortcut step, press Tab and Return. Focus moves and Continue fires. The step watches for keys the whole time it is open, and a watcher that swallows them takes the keyboard with it.
-- Click the words **Use a different key**, not the chevron beside them. The presets appear. The chevron alone is a few points across.
+- Watch the step while nothing is pressed. Nothing on it changes height on its own: the presets are always showing, so the card cannot resize under the page centred beneath the title.
 
 ### Its permissions step
 
@@ -86,6 +86,7 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Delete the key while the step is already showing **Verified**, then step forward and back. The badge is gone. The step re-checks on every arrival, which is the only thing standing between a deleted key and a finished setup.
 - Revoke the key on ElevenLabs rather than deleting it locally, then return to the step. It reads **Invalid** and Continue is dead. **Spends no transcription credit** — validation reads the account.
 - Save a key, step forward, then come back. The badge still reads Verified and the field offers to replace rather than to add.
+- Watch the card as the first key saves. The badge appears in a row that was already there, so nothing above it moves.
 
 ### Its shape and lifecycle
 
