@@ -352,6 +352,11 @@ struct OnboardingView: View {
             // Background App Activity and reports the old state straight back,
             // which is the same shape Settings detects.
             if launchAtLogin, !runtime.coordinator.launchAtLoginState.isOn {
+                // Follows Settings, where the switch snaps back: a box left
+                // ticked above the refusal claims the opposite of the message
+                // under it. The request stays registered with macOS either way,
+                // so this drops the claim rather than the user's ask.
+                launchAtLogin = false
                 error = runtime.coordinator.launchAtLoginState.recoveryAdvice
                     ?? "macOS would not add Scriber to your login items."
             }
