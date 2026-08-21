@@ -71,12 +71,14 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Press a sided shortcut's left twin. It refuses to confirm, the same as any other wrong key — setup's test and the global shortcut have to agree about which key counts, or setup passes a binding that then does nothing.
 - Record a custom shortcut, confirm it, and finish. The recorder still refuses a reserved chord, and the chord that reaches Settings afterwards is the one that was tested.
 - On the shortcut step, press Tab and Return. Focus moves and Continue fires. The step watches for keys the whole time it is open, and a watcher that swallows them takes the keyboard with it.
+- Click the words **Use a different key**, not the chevron beside them. The presets appear. The chevron alone is a few points across.
 
-### Its microphone step
+### Its permissions step
 
 - Say nothing. Continue stays unavailable and the meter stays flat. Speak, and the label turns green and Continue lights up. Setup must not be completable with the microphone never tested.
 - Set the input volume to zero and speak. **Continue without testing** is already on screen — it does not have to be waited for — and using it reaches the next step.
 - Change the input device mid-step. The meter restarts and the confirmation resets, because it was the previous device that was proven.
+- Reach the step with both grants already given. The microphone card, its meter and help, and the Accessibility row below them all fit without the page scrolling.
 
 ### Its ElevenLabs key step
 
