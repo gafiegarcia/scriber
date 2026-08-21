@@ -81,6 +81,8 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 ### Its ElevenLabs key step
 
 - Delete Scriber's key from Keychain Access, then open setup. The field is empty with no **Verified** badge beside it and Continue stays dead. The badge and the gate both speak for a Keychain item, and the preferences behind them do not change when that item is deleted, so setup has to look rather than remember.
+- Delete the key while the step is already showing **Verified**, then step forward and back. The badge is gone. The step re-checks on every arrival, which is the only thing standing between a deleted key and a finished setup.
+- Revoke the key on ElevenLabs rather than deleting it locally, then return to the step. It reads **Invalid** and Continue is dead. **Spends no transcription credit** — validation reads the account.
 - Save a key, step forward, then come back. The badge still reads Verified and the field offers to replace rather than to add.
 
 ### Its shape and lifecycle
@@ -91,7 +93,10 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Redo Setup with everything already granted and a shortcut you recorded yourself. Each step shows what is already true — Verified, allowed, your own chord — rather than asking again, and finishing leaves all of it as it was.
 - Walk it on the shortest display available. The window is centred and wholly visible, and it never grows or shrinks as the steps change.
 - Take **Set Up Later** from the first step. The main window opens and its chrome names exactly what is missing; Settings fixes all of it, and **Redo Setup** returns here.
-- On the ElevenLabs data-use step, open **Show me where to find it**. Both screenshots are legible, Escape and Done both close it, and the step's own buttons do nothing while it is up.
+- On the ElevenLabs data-use step, open **Show me**. The whole menu is visible rather than cut off at the bottom, its Done button reads as a normal control rather than something behind the dimming, and Escape and Done both close it.
+- Grant the microphone and accept the relaunch macOS offers. Setup comes back on the microphone step rather than at the welcome page. Then revoke the key or the grant a step behind it and relaunch again: setup stops at the step that is unmet, never past it.
+- Finish setup, then take **Redo Setup**. It opens on the welcome step, not on the step the last run ended on.
+- Finish setup a second time from that redo and press **Done**. The main window's warning control loses **Setup is not finished** — a redo that cannot be finished leaves the app claiming setup is still owed.
 
 ### Its dictation step
 

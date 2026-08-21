@@ -29,6 +29,8 @@ Native bundle build 180, signed with a Developer ID Application certificate unde
 
 ### Fixed
 
+- **Redo Setup** now starts at the beginning instead of opening on the last page of the run before it — and its **Done** button finishes setup, rather than closing the window while the main window went on saying setup was not finished.
+- Setup remembers which step it was on. Granting the microphone, which macOS answers by offering to relaunch Scriber, now comes back to the step that asked instead of starting over.
 - Setup no longer claims your ElevenLabs key is **Verified** when it is not there. Deleting the key from Keychain Access left setup showing a green tick and letting you carry on, because the tick was reading a remembered answer rather than looking for the key — so setup finished and the first dictation failed with nothing having warned you.
 
 ### Removed
