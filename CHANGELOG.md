@@ -4,7 +4,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## 0.9.0 — 2026-08-15
 
-Native bundle build 182, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
+Native bundle build 183, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
 
 ### Added
 
