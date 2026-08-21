@@ -774,6 +774,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// never re-derives — which is how it once came back stuck small.
     private func fitOnboardingWindow(_ window: NSWindow) {
         window.isRestorable = false
+        // macOS disables its own Window ▸ Center and Fill for a window that
+        // cannot be resized, and a disabled menu item does not consume its key —
+        // so ⌃🌐C fell through to the app, where AppKit reads Control-C as the
+        // Enter character (`NSEnterCharacter` is 0x03) and fires the default
+        // button. Someone reaching for Center advanced a step instead.
+        //
+        // Claiming the resizable mask while pinning both size limits to the
+        // fixed frame enables those commands and still leaves nothing to drag.
+        let size = NSSize(
+            width: OnboardingLayout.windowWidth,
+            height: OnboardingLayout.windowHeight
+        )
+        window.styleMask.insert(.resizable)
+        window.contentMinSize = size
+        window.contentMaxSize = size
         window.center()
         // The main window is created alongside this one on a first run and, being
         // created second, ends up in front of the one the user is supposed to be

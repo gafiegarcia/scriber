@@ -4,13 +4,13 @@ import SwiftUI
 // MARK: - Shared page chrome
 
 /// The shape every setup step takes: a title, a sentence, and the controls that
-/// step owns — all ranged left and hung from the top of the page.
+/// step owns — ranged left in a column that is centred in the page.
 ///
-/// The title sits at the same height on every step, which is what lets someone
-/// press Continue eight times without the page reshuffling under them. Centring
-/// cost that twice over: a short step and a tall one put their titles in
-/// different places, and a centred sentence that wraps leaves a ragged last line
-/// no amount of rewording fixes for every window.
+/// Ranged left rather than centred text: a centred sentence that wraps leaves a
+/// ragged last line, and the only fix available is rewording each string until
+/// it happens to fit, which holds for one window and one font. The column being
+/// centred is what keeps a short step from sitting in the top corner of a
+/// half-empty page.
 struct OnboardingPage<Content: View>: View {
     let title: String
     let subtitle: LocalizedStringKey?
@@ -22,38 +22,30 @@ struct OnboardingPage<Content: View>: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title)
-                    .font(.title.bold())
-                    // Announced as a heading rather than as another line of
-                    // text, so VoiceOver can move between steps by heading
-                    // instead of reading each page from the top.
-                    .accessibilityAddTraits(.isHeader)
-                // The title alone is pinned. Everything it introduces — the
-                // sentence as much as the controls — centres in the room left
-                // under it, so a step asking one thing sits in the middle of its
-                // page rather than clinging to the heading, and its sentence
-                // stays next to what it describes rather than stranded above a
-                // gap. Both spacers collapse to their minimum once the content
-                // fills the page, so a tall step keeps its normal gap and
-                // scrolls from there.
-                Spacer(minLength: 22)
-                VStack(alignment: .leading, spacing: 18) {
-                    if subtitle != nil || subtitleDetail != nil {
-                        VStack(alignment: .leading, spacing: 6) {
-                            if let subtitle { prose(subtitle) }
-                            if let subtitleDetail { prose(subtitleDetail) }
-                        }
-                    }
-                    content
+            // Title, sentence and controls travel as one block, centred in the
+            // page. Pinning the title held it still between steps, but it bought
+            // that by stranding every short step's content against the bottom of
+            // a half-empty page — and the two were never really separable
+            // anyway, since a title with nothing under it is not a step.
+            // Horizontal alignment stays ranged left inside the column; only the
+            // column is centred.
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title)
+                        .font(.title.bold())
+                        // Announced as a heading rather than as another line of
+                        // text, so VoiceOver can move between steps by heading
+                        // instead of reading each page from the top.
+                        .accessibilityAddTraits(.isHeader)
+                    if let subtitle { prose(subtitle) }
+                    if let subtitleDetail { prose(subtitleDetail) }
                 }
-                Spacer(minLength: 22)
+                content
             }
             .frame(width: OnboardingLayout.contentWidth, alignment: .leading)
             .padding(.horizontal, OnboardingLayout.pageMargin)
-            .padding(.top, OnboardingLayout.pageMargin)
-            .padding(.bottom, 28)
-            .frame(maxWidth: .infinity, minHeight: OnboardingLayout.pageHeight, alignment: .top)
+            .padding(.vertical, 32)
+            .frame(maxWidth: .infinity, minHeight: OnboardingLayout.pageHeight)
         }
         .scrollBounceBehavior(.basedOnSize)
     }
@@ -130,13 +122,19 @@ struct APIKeyStep: View {
             title: "Connect ElevenLabs",
             subtitle: "ElevenLabs is the service that turns your recordings into text. It is the only one Scriber uses, and its free tier covers daily dictation."
         ) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
+                // Above the card rather than inside it. These are the things to
+                // go and do before the field below can be filled in, and reading
+                // them off the same plate the field sits on made them look like
+                // part of it.
+                VStack(alignment: .leading, spacing: 10) {
+                    numbered(1, "[Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up) if you do not have one.")
+                    numbered(2, "[Add an API key](https://elevenlabs.io/app/developers/api-keys) with **Speech to Text** access.")
+                    numbered(3, "Give it **User** access too, if you want Scriber to show how much ElevenLabs credit you have left.")
+                    numbered(4, "Paste the key below.")
+                }
                 OnboardingCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("No key yet? [Create a free account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys) with Speech to Text access.")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: 10) {
                             SecureField(
                                 "",
@@ -183,6 +181,18 @@ struct APIKeyStep: View {
         // revoked on ElevenLabs' side, so the badge is only as true as its last
         // look — and this step is where it is claimed.
         .onAppear { runtime.coordinator.validateStoredAPIKey() }
+    }
+
+    private func numbered(_ number: Int, _ text: LocalizedStringKey) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("\(number).")
+                .font(.callout.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 16, alignment: .trailing)
+            Text(text)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     @ViewBuilder private var status: some View {
