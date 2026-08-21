@@ -96,7 +96,7 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Press **Allow** for Microphone and again for Accessibility. System Settings comes to the front each time, on the right pane, rather than opening behind setup.
 - Redo Setup with everything already granted and a shortcut you recorded yourself. Each step shows what is already true — Verified, allowed, your own chord — rather than asking again, and finishing leaves all of it as it was.
 - Walk it on the shortest display available. The window is centred and wholly visible, and it never grows or shrinks as the steps change.
-- Drag setup away from the centre and press **⌃🌐C**. The window centres rather than advancing a step, and Window ▸ Center does the same when clicked. AppKit resolves Control-C to the Enter character, so the default button used to answer it first and the system's Center never saw the key. Press **Return** and **⌃C** on the same step to confirm the split held: Return advances, Control-C does nothing. Check the window still cannot be resized by dragging an edge.
+- Drag setup away from the centre and press **⌃🌐C**. The window travels to the centre exactly as it does from Window ▸ Center — same animation, same resting place, because the key is handed to that same menu item rather than centred here. AppKit resolves Control-C to the Enter character, so the default button used to answer it first and the system's Center never saw the key. Press **Return** and **⌃C** on the same step to confirm the split held: Return advances, Control-C does nothing. Check the window still cannot be resized by dragging an edge.
 - Take **Set Up Later** from the first step. The main window opens and its chrome names exactly what is missing; Settings fixes all of it, and **Redo Setup** returns here.
 - On the ElevenLabs data-use step, open **Show me**. The whole menu is visible rather than cut off at the bottom, its Done button reads as a normal control rather than something behind the dimming, and Escape and Done both close it.
 - Grant the microphone and accept the relaunch macOS offers. Setup comes back on the microphone step rather than at the welcome page. Then revoke the key or the grant a step behind it and relaunch again: setup stops at the step that is unmet, never past it.
@@ -104,6 +104,8 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Finish setup a second time from that redo and press **Done**. The main window's warning control loses **Setup is not finished** — a redo that cannot be finished leaves the app claiming setup is still owed.
 
 ### Its dictation step
+
+- Reach it straight after choosing the shortcut. It is where the two ways to press it are taught, and the first place either can be tried.
 
 - Reach the dictation step and dictate into its box. **This spends API credit; ask first.** The words land in the box itself rather than the clipboard — no other app has ever been the target here, so this is the one place that says whether Scriber can paste into its own window.
 - Close setup on the dictation step without dictating. Setup counts as finished, the shortcut works everywhere, and the login item matches what the final step's checkbox would have applied.

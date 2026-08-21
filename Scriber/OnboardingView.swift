@@ -27,7 +27,6 @@ enum OnboardingStep: Int, CaseIterable, Comparable {
     case dataUse
     case permissions
     case shortcut
-    case muteAudio
     case tryIt
     case done
 
@@ -130,8 +129,6 @@ struct OnboardingView: View {
                 activeRecorderID: $activeShortcutRecorderID,
                 isConfirmed: $shortcutConfirmed
             )
-        case .muteAudio:
-            MuteAudioStep()
         case .tryIt:
             TryItStep(text: $tryItText)
         case .done:
@@ -314,15 +311,22 @@ struct OnboardingView: View {
         }
     }
 
-    /// Stops Control-C standing in for Enter, and centres the window on
-    /// ⌃🌐C the way the Window menu's own item does.
+    /// Stops Control-C standing in for Enter, and hands the key to the menu
+    /// instead — which is where it was always meant to go.
     ///
-    /// AppKit resolves Control-C to `NSEnterCharacter` (0x03) — the character
-    /// the Enter key sends — so the default button answers to it, and it answers
-    /// first: the system's Center never sees the key, though clicking the same
-    /// command in the menu works. The two are only separable before that
-    /// resolution, where Enter reports 0x03 with no modifier and Control-C
-    /// reports "c" with Control held.
+    /// AppKit resolves Control-C to `NSEnterCharacter` (0x03), the character the
+    /// Enter key sends, so the default button answers to it and answers first.
+    /// The Window menu's Center never sees ⌃🌐C, though clicking that same item
+    /// works. The two keys are only separable before that resolution, where
+    /// Enter reports 0x03 with no modifier and Control-C reports "c" with
+    /// Control held — which is what this reads.
+    ///
+    /// Offering the event to the main menu rather than centring the window here
+    /// is what makes the shortcut behave exactly like the menu item: same
+    /// animation, same resting place. `NSWindow.center` is not that command —
+    /// it places a window higher than centre by design, and moves it in one
+    /// jump. Anything the menu declines is swallowed, because Control-C is not
+    /// a command in this window either way.
     private func watchForCentreShortcut() {
         guard centreShortcutMonitor == nil else { return }
         centreShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
@@ -332,7 +336,7 @@ struct OnboardingView: View {
                   let window = event.window,
                   window.title == AppWindowIdentity.onboardingTitle
             else { return event }
-            if event.modifierFlags.contains(.function) { window.center() }
+            NSApp.mainMenu?.performKeyEquivalent(with: event)
             return nil
         }
     }

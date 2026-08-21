@@ -52,11 +52,30 @@ struct OnboardingPage<Content: View>: View {
 
     private func prose(_ text: LocalizedStringKey) -> some View {
         Text(text)
-            .font(.body)
+            .font(OnboardingType.subtitle)
             .foregroundStyle(.secondary)
+            .lineSpacing(OnboardingType.lineSpacing)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
+
+/// One ladder for the whole flow, a step above what Settings uses.
+///
+/// Setup is read once, often on a display the reader is not sitting close to,
+/// and its captions had drifted to the smallest size the system offers — which
+/// is a size for a footnote beside a control someone is already looking at, not
+/// for the only explanation of a decision. Three sizes and two colours: primary
+/// for anything acted on, secondary for what supports it.
+enum OnboardingType {
+    /// The step's own sentence, under the title.
+    static let subtitle = Font.title3
+    /// Instructions and labels the reader acts on.
+    static let body = Font.body
+    /// Supporting notes beside or below what they describe.
+    static let caption = Font.callout
+    /// Every size here is set tighter than it reads well at by default.
+    static let lineSpacing: CGFloat = 3
 }
 
 /// The plate a step's controls sit on. One recipe, so no step invents its own.
@@ -94,7 +113,7 @@ struct WelcomeStep: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                 Text("Your audio goes only to ElevenLabs, and your history stays on this Mac.")
-                    .font(.callout)
+                    .font(OnboardingType.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -120,7 +139,7 @@ struct APIKeyStep: View {
     var body: some View {
         OnboardingPage(
             title: "Connect ElevenLabs",
-            subtitle: "ElevenLabs is the service that turns your recordings into text. It is the only one Scriber uses, and its free tier covers daily dictation."
+            subtitle: "ElevenLabs is the service that turns your recordings into text. It is currently the only one Scriber uses, and it has a generous free tier."
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 // Above the card rather than inside it. These are the things to
@@ -175,7 +194,7 @@ struct APIKeyStep: View {
                     }
                 }
                 Text("Your key is kept in this Mac's login Keychain. ElevenLabs shows it once, so save a copy in your password manager before you leave the page.")
-                    .font(.caption)
+                    .font(OnboardingType.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -190,11 +209,11 @@ struct APIKeyStep: View {
     private func numbered(_ number: Int, _ text: LocalizedStringKey) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text("\(number).")
-                .font(.callout.monospacedDigit())
+                .font(OnboardingType.body.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 16, alignment: .trailing)
             Text(text)
-                .font(.callout)
+                .font(OnboardingType.body)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -206,26 +225,26 @@ struct APIKeyStep: View {
             } icon: {
                 ProgressView().controlSize(.small)
             }
-            .font(.caption)
+            .font(OnboardingType.caption)
             .foregroundStyle(.secondary)
         } else if let keyFeedback {
             Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
-                .font(.caption)
+                .font(OnboardingType.caption)
                 .foregroundStyle(keyFeedback.color)
                 .lineLimit(2)
         } else if apiKey.isEmpty, runtime.preferences.apiKeyConfigured {
             switch runtime.preferences.apiKeyValidity {
             case .valid:
                 Label("Verified", systemImage: "checkmark.shield.fill")
-                    .font(.caption)
+                    .font(OnboardingType.caption)
                     .foregroundStyle(.green)
             case .invalid:
                 Label("Invalid", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
+                    .font(OnboardingType.caption)
                     .foregroundStyle(.red)
             case .unchecked:
                 Label("Stored in Login Keychain", systemImage: "shield")
-                    .font(.caption)
+                    .font(OnboardingType.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -259,7 +278,7 @@ struct DataUseStep: View {
     var body: some View {
         OnboardingPage(
             title: "One setting worth changing",
-            subtitle: "New ElevenLabs accounts have **Improve the models for everyone** switched on, which lets your recordings train their models."
+            subtitle: "Every ElevenLabs workspace has **Improve the models for everyone** switched on by default, which lets your recordings train their models."
         ) {
             VStack(alignment: .leading, spacing: 14) {
                 Image(.elevenLabsDataUseSetting)
@@ -274,7 +293,7 @@ struct DataUseStep: View {
                     .accessibilityLabel("ElevenLabs' Improve the models for everyone setting, a switch above a link to their privacy policy")
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Turn it off under **profile → Terms and privacy → Data use**, in the workspace your key came from.")
-                        .font(.callout)
+                        .font(OnboardingType.body)
                         .fixedSize(horizontal: false, vertical: true)
                     Button("Show me where to find it") { showsGuide = true }
                         .buttonStyle(.link)
@@ -284,7 +303,7 @@ struct DataUseStep: View {
                 // splits one phrase rather than stranding "policy." on a line
                 // of its own.
                 Text("Switching it off changes what you send from then on. ElevenLabs keeps what it already generated about your voice for up to three years after your last use, or longer where the law requires. [Read their privacy policy](https://elevenlabs.io/privacy-policy).")
-                    .font(.caption)
+                    .font(OnboardingType.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -365,7 +384,7 @@ struct PermissionsStep: View {
                             AccessibilityPermissionButton()
                         }
                         Text("Lets Scriber notice your shortcut in any app, and put your words where your cursor is.")
-                            .font(.caption)
+                            .font(OnboardingType.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -379,7 +398,14 @@ struct PermissionsStep: View {
 
     private var granted: some View {
         VStack(alignment: .leading, spacing: 14) {
-            MicrophonePicker()
+            VStack(alignment: .leading, spacing: 6) {
+                MicrophonePicker()
+                Text("Your Mac's built-in microphone and wired microphones work best. Bluetooth microphones are less reliable.")
+                    .font(OnboardingType.caption)
+                    .foregroundStyle(.secondary)
+                    .lineSpacing(OnboardingType.lineSpacing)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             VStack(alignment: .leading, spacing: 10) {
                 AudioLevelWaveform(
                     level: runtime.coordinator.microphoneTestLevel,
@@ -393,13 +419,13 @@ struct PermissionsStep: View {
                     signalObserved ? "Scriber can hear you" : "Speak to test your microphone",
                     systemImage: signalObserved ? "checkmark.circle.fill" : "waveform"
                 )
-                .font(.callout)
+                .font(OnboardingType.body)
                 .foregroundStyle(signalObserved ? Color.green : Color.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if let microphoneTestError = runtime.coordinator.microphoneTestError {
                 Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
+                    .font(OnboardingType.caption)
                     .foregroundStyle(.red)
             }
             Divider()
@@ -414,9 +440,9 @@ struct PermissionsStep: View {
     private var help: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Not hearing anything?")
-                .font(.callout.weight(.medium))
+                .font(OnboardingType.body.weight(.medium))
             Text("Input volume is a macOS setting — around halfway works for most microphones.")
-                .font(.caption)
+                .font(OnboardingType.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 12) {
@@ -439,8 +465,7 @@ struct ShortcutStep: View {
     var body: some View {
         OnboardingPage(
             title: "Your keyboard shortcut",
-            subtitle: "**Tap it** to start dictating hands-free, tap it again when you are done.",
-            subtitleDetail: "**Or hold it**, talk, and let go to finish."
+            subtitle: "Pick the key you will press to dictate, then press it once so Scriber knows it can see it."
         ) {
             // The choice is shown rather than hidden behind a disclosure. It was
             // folded away to save height the step no longer needs, and it cost
@@ -471,42 +496,7 @@ struct ShortcutStep: View {
     }
 }
 
-// MARK: - 7 · Mute other audio
-
-struct MuteAudioStep: View {
-    @EnvironmentObject private var runtime: AppRuntime
-
-    var body: some View {
-        OnboardingPage(
-            title: "Mute other audio while you dictate",
-            subtitle: "Silences other apps, calls, and notification sounds for as long as you are talking."
-        ) {
-            VStack(alignment: .leading, spacing: 14) {
-                OnboardingCard {
-                    VStack(alignment: .leading, spacing: 10) {
-                        MuteOtherAudioToggle(
-                            isOn: $runtime.preferences.muteOtherAudioWhileRecording,
-                            requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
-                        ) { isOn in
-                            Toggle("Mute other audio while recording", isOn: isOn)
-                                .accessibilityIdentifier("onboarding-mute-other-audio")
-                        }
-                        Text("macOS asks for System Audio Recording access. Muting works whether you allow it or not, because Scriber never reads what other apps play.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                Text("Using Bluetooth headphones or a speaker? Audio can come back in call quality for a second or two before it returns to normal — which is why the built-in or a wired microphone is the one to pick.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-}
-
-// MARK: - 8 · Try it
+// MARK: - 6 · Try it
 
 struct TryItStep: View {
     @EnvironmentObject private var runtime: AppRuntime
@@ -514,9 +504,13 @@ struct TryItStep: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
+        // The two ways to use the shortcut are taught here rather than on the
+        // step that chose it: this is the first moment either one can be tried,
+        // and a rule read one step before it can be used is a rule read twice.
         OnboardingPage(
             title: "Try it!",
-            subtitle: "Everything is set up. Dictate into the box and watch it land."
+            subtitle: "**Tap it** to start dictating hands-free, and tap it again when you are done.",
+            subtitleDetail: "**Or hold it**, talk, and let go to finish."
         ) {
             // A field with a real prompt rather than a `TextEditor` under a
             // label positioned to look like one. The hand-placed version could
@@ -531,8 +525,8 @@ struct TryItStep: View {
                 axis: .vertical
             )
             .textFieldStyle(.plain)
-            .font(.body)
-            .lineLimit(9, reservesSpace: true)
+            .font(OnboardingType.body)
+            .lineLimit(8, reservesSpace: true)
             .focused($isFocused)
             .accessibilityLabel("Dictate here")
             .accessibilityIdentifier("onboarding-try-it-field")
@@ -550,8 +544,13 @@ struct TryItStep: View {
     }
 }
 
-// MARK: - 9 · Done
+// MARK: - 7 · Done
 
+/// Also where the two standing preferences are offered. Muting had a step of
+/// its own while it sat before Try it; moved behind it, a whole page for one
+/// switch is a page asking someone who has just watched their words land to
+/// stop and read again. Both settings belong to how Scriber behaves from here
+/// on, which is what this step is about.
 struct DoneStep: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Binding var launchAtLogin: Bool
@@ -560,16 +559,32 @@ struct DoneStep: View {
     var body: some View {
         OnboardingPage(
             title: "You're set! ✓",
-            subtitle: "Tap **\(runtime.preferences.dictationShortcut.displayName)** in any app to dictate. Scriber lives in your menu bar, and Settings has the rest."
+            subtitle: "Tap **\(runtime.preferences.dictationShortcut.displayName)** in any app to dictate. Scriber lives in your menu bar, and Settings has the rest — including a way to run this setup again."
         ) {
             VStack(alignment: .leading, spacing: 12) {
+                OnboardingCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        MuteOtherAudioToggle(
+                            isOn: $runtime.preferences.muteOtherAudioWhileRecording,
+                            requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
+                        ) { isOn in
+                            Toggle("Mute other audio while recording", isOn: isOn)
+                                .accessibilityIdentifier("onboarding-mute-other-audio")
+                        }
+                        Text("Silences other apps, calls, and notification sounds for as long as you are talking. macOS asks for System Audio Recording access; muting works whether you allow it or not, because Scriber never reads what other apps play.")
+                            .font(OnboardingType.caption)
+                            .foregroundStyle(.secondary)
+                            .lineSpacing(OnboardingType.lineSpacing)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 OnboardingCard {
                     Toggle("Launch Scriber when I log in", isOn: $launchAtLogin)
                         .accessibilityIdentifier("onboarding-launch-at-login")
                 }
                 if let error {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
+                        .font(OnboardingType.caption)
                         .foregroundStyle(.red)
                         .fixedSize(horizontal: false, vertical: true)
                 }
