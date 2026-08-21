@@ -42,6 +42,11 @@ struct OnboardingPage<Content: View>: View {
                 }
                 content
             }
+            // Set here rather than on each block of prose. It descends to
+            // every `Text` below, so a step cannot forget it — which is how the
+            // numbered lists ended up tighter than the sentence above them while
+            // both claimed the same design.
+            .lineSpacing(OnboardingType.lineSpacing)
             .frame(width: OnboardingLayout.contentWidth, alignment: .leading)
             .padding(.horizontal, OnboardingLayout.pageMargin)
             .padding(.vertical, 32)
@@ -54,7 +59,6 @@ struct OnboardingPage<Content: View>: View {
         Text(text)
             .font(OnboardingType.subtitle)
             .foregroundStyle(.secondary)
-            .lineSpacing(OnboardingType.lineSpacing)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -119,6 +123,7 @@ struct WelcomeStep: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 2)
             }
+            .lineSpacing(OnboardingType.lineSpacing)
             .frame(maxWidth: OnboardingLayout.contentWidth)
             .padding(.horizontal, 32)
             .padding(.vertical, 44)
@@ -403,7 +408,6 @@ struct PermissionsStep: View {
                 Text("Your Mac's built-in microphone and wired microphones work best. Bluetooth microphones are less reliable.")
                     .font(OnboardingType.caption)
                     .foregroundStyle(.secondary)
-                    .lineSpacing(OnboardingType.lineSpacing)
                     .fixedSize(horizontal: false, vertical: true)
             }
             VStack(alignment: .leading, spacing: 10) {
@@ -574,7 +578,6 @@ struct DoneStep: View {
                         Text("Silences other apps, calls, and notification sounds for as long as you are talking. macOS asks for System Audio Recording access; muting works whether you allow it or not, because Scriber never reads what other apps play.")
                             .font(OnboardingType.caption)
                             .foregroundStyle(.secondary)
-                            .lineSpacing(OnboardingType.lineSpacing)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
