@@ -129,9 +129,11 @@ struct APIKeyStep: View {
                 // part of it.
                 VStack(alignment: .leading, spacing: 10) {
                     numbered(1, "[Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up) if you do not have one.")
-                    numbered(2, "[Add an API key](https://elevenlabs.io/app/developers/api-keys) with **Speech to Text** access.")
-                    numbered(3, "Give it **User** access too, if you want Scriber to show how much ElevenLabs credit you have left.")
-                    numbered(4, "Paste the key below.")
+                    // ElevenLabs' own labels, capitalised as their dashboard
+                    // capitalises them, so the words on this step are the words
+                    // to look for on the page it sends people to.
+                    numbered(2, "[Create an API key](https://elevenlabs.io/app/developers/api-keys). If you turn **Restrict Key** on (recommended), enable **Speech to Text** under Endpoints, and **User** under Administration if you want Scriber to show your remaining credits.")
+                    numbered(3, "Paste the key below.")
                 }
                 OnboardingCard {
                     VStack(alignment: .leading, spacing: 12) {
