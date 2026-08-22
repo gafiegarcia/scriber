@@ -95,22 +95,10 @@ extension MainWindowDestination {
     }
 }
 
-/// The gaps Settings sets for itself. Row insets and the rules between rows
-/// belong to the grouped form and stay at its numbers, so a row's content and
-/// the rule beside it are always in line.
+/// The gaps Settings sets for itself. Row insets, section headers, and the rules
+/// between rows belong to the grouped form and stay at its numbers, so everything
+/// in a card sits on the same leading edge.
 private enum SettingsPaneLayout {
-    /// Hangs a section header 2pt off the leading edge of its card, matching the
-    /// main window's day label and a Finder sidebar heading.
-    ///
-    /// A grouped form draws the header 10pt inside the card, which reads as the
-    /// header being indented under the thing it names. What should look indented
-    /// is the content.
-    ///
-    /// Known and unfixed: that 10pt is AppKit's, not ours, and no API reads it,
-    /// so this number is one measurement short of derivable. A macOS update that
-    /// moves the 10 moves this with it.
-    static let sectionHeaderOutdent: CGFloat = -12
-
     /// Between a setting and the sentence explaining it, added on top of the gap
     /// AppKit's two-`Text` toggle label draws — which is tight enough that the
     /// caption reads as a wrapped second line of the title.
@@ -120,46 +108,6 @@ private enum SettingsPaneLayout {
     /// inside either of them, so the indent is not the only thing saying one
     /// governs the other.
     static let nestedSettingGap: CGFloat = 14
-}
-
-/// A `Section` whose header sits outside its card, and which has no header at all
-/// when it is not given one — an empty header view still takes vertical space.
-///
-/// `footer` is for a note about the whole group, which belongs below the card
-/// rather than inside it. A note about one control goes in that control's row
-/// instead; see `SettingsToggle`.
-private struct SettingsSection<Content: View>: View {
-    let title: String?
-    /// A key rather than a `String` so a footer can carry a Markdown link;
-    /// `Text` only parses Markdown from literals.
-    let footer: LocalizedStringKey?
-    @ViewBuilder let content: Content
-
-    init(_ title: String? = nil, footer: LocalizedStringKey? = nil, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.footer = footer
-        self.content = content()
-    }
-
-    var body: some View {
-        if let title, let footer {
-            Section {
-                content
-            } header: {
-                Text(title).padding(.leading, SettingsPaneLayout.sectionHeaderOutdent)
-            } footer: {
-                Text(footer).padding(.leading, SettingsPaneLayout.sectionHeaderOutdent)
-            }
-        } else if let title {
-            Section {
-                content
-            } header: {
-                Text(title).padding(.leading, SettingsPaneLayout.sectionHeaderOutdent)
-            }
-        } else {
-            Section { content }
-        }
-    }
 }
 
 /// Wraps whatever renders the mute-other-audio setting, handing it a binding
@@ -386,10 +334,7 @@ private struct GeneralSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-general-pane") {
-            SettingsSection(
-                "Shortcut",
-                footer: "Tap to dictate and tap again to stop. Hold and release for quick dictation. Cancel recording with Escape."
-            ) {
+            Section {
                 ShortcutPicker(
                     chord: $runtime.preferences.dictationShortcut,
                     customChord: $runtime.preferences.customShortcut,
@@ -397,8 +342,12 @@ private struct GeneralSettingsPane: View {
                     isCaptureAllowed: !runtime.coordinator.phase.isBusy,
                     refusalResetToken: refusalResetToken
                 )
+            } header: {
+                Text("Shortcut")
+            } footer: {
+                Text("Tap to dictate and tap again to stop. Hold and release for quick dictation. Cancel recording with Escape.")
             }
-            SettingsSection("Startup and Presence") {
+            Section("Startup and Presence") {
                 // Both toggles share one row, because a divider between a setting
                 // and the setting that depends on it reads as two unrelated
                 // settings — the same divider the group boundary uses. The indent
@@ -465,7 +414,7 @@ private struct GeneralSettingsPane: View {
                 Toggle("Show in Dock", isOn: $runtime.preferences.showAppInDock)
                     .accessibilityIdentifier("show-app-in-dock-toggle")
             }
-            SettingsSection("Updates") {
+            Section("Updates") {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 10) {
                         Button(action: { runtime.coordinator.checkForUpdates(force: true) }) {
@@ -496,7 +445,7 @@ private struct GeneralSettingsPane: View {
                 )
                 .accessibilityIdentifier("automatic-update-checks-toggle")
             }
-            SettingsSection {
+            Section {
                 // Nothing is destroyed by walking setup again — it reads current
                 // state, so a step already satisfied is presented as satisfied —
                 // but it does replace the window in front of you, so it asks.
@@ -562,7 +511,7 @@ private struct DictationSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-dictation-pane") {
-            SettingsSection("Transcription") {
+            Section("Transcription") {
                 Picker("Language", selection: $runtime.preferences.languageCode) {
                     Text("Automatic").tag("auto")
                     Text("English").tag("en")
@@ -654,7 +603,7 @@ private struct DictationSettingsPane: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
-            SettingsSection("History") {
+            Section("History") {
                 SettingsToggle(
                     "Delete unused recordings after 30 days",
                     caption: "Failed and cancelled dictations keep their audio so you can retry them. Transcripts and history entries are always kept; only the unused recording is removed.",
@@ -769,7 +718,7 @@ private struct SoundSettingsPane: View {
         SettingsPane(accessibilityIdentifier: "settings-sound-pane") {
             // Not "Input": the picker inside already carries that label, and a
             // section repeating its only row's name reads as a stutter.
-            SettingsSection("Microphone") {
+            Section("Microphone") {
                 MicrophonePicker()
                     .accessibilityIdentifier("microphone-input-picker")
 
@@ -813,7 +762,7 @@ private struct SoundSettingsPane: View {
                     }
                 }
             }
-            SettingsSection("While Dictating") {
+            Section("While Dictating") {
                 SettingsToggle(
                     "Play sounds while dictating",
                     caption: "You hear one sound when recording starts, and another when a dictation fails or is cancelled.",
@@ -873,10 +822,7 @@ private struct ElevenLabsSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-elevenlabs-pane") {
-            SettingsSection(
-                "API Key",
-                footer: "Scriber needs a key with Speech to Text access. [Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys). Enable User → Read on that key as well to show your credits here."
-            ) {
+            Section {
                 VStack(alignment: .leading, spacing: 10) {
                     SecureField(
                         text: $apiKey,
@@ -927,12 +873,16 @@ private struct ElevenLabsSettingsPane: View {
                         }
                     }
                 }
+            } header: {
+                Text("API Key")
+            } footer: {
+                Text("Scriber needs a key with Speech to Text access. [Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys). Enable User → Read on that key as well to show your credits here.")
             }
             // Guarded here rather than inside the block: `subscriptionUsageView`
             // renders nothing while a valid key's usage has yet to arrive, and an
             // empty section still draws its header.
             if showsUsageSection {
-                SettingsSection("Credits") {
+                Section("Credits") {
                     subscriptionUsageView
                 }
             }
@@ -1109,7 +1059,7 @@ private struct PermissionsSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-permissions-pane") {
-            SettingsSection {
+            Section {
                 PermissionStatusRow(
                     title: "Accessibility",
                     systemImage: "keyboard",
