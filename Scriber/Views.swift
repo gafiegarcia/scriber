@@ -181,17 +181,35 @@ private struct SettingsToggle: View {
 
 /// The shape every tab's content takes: one grouped form, capped so a wide
 /// window leaves margins rather than stretching every control across it.
-private struct SettingsPane<Content: View>: View {
+///
+/// `accessory` is for an action belonging to the whole tab rather than to any one
+/// group in it. It sits below the form and outside its scrolling, trailing-
+/// aligned, where System Settings puts the same kind of button. An action scoped
+/// to a single group stays a row inside that group.
+private struct SettingsPane<Content: View, Accessory: View>: View {
     let accessibilityIdentifier: String
     @ViewBuilder let content: Content
+    @ViewBuilder let accessory: Accessory
 
     var body: some View {
-        Form { content }
-            .formStyle(.grouped)
-            .accessibilityIdentifier(accessibilityIdentifier)
-            .padding()
-            .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 0) {
+            Form { content }
+                .formStyle(.grouped)
+                .accessibilityIdentifier(accessibilityIdentifier)
+            HStack {
+                Spacer()
+                accessory
+            }
+        }
+        .padding()
+        .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+extension SettingsPane where Accessory == EmptyView {
+    init(accessibilityIdentifier: String, @ViewBuilder content: () -> Content) {
+        self.init(accessibilityIdentifier: accessibilityIdentifier, content: content) { EmptyView() }
     }
 }
 
@@ -343,28 +361,6 @@ private struct GeneralSettingsPane: View {
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-general-pane") {
             Section {
-                ShortcutPicker(
-                    chord: $runtime.preferences.dictationShortcut,
-                    customChord: $runtime.preferences.customShortcut,
-                    activeRecorderID: $activeShortcutRecorderID,
-                    isCaptureAllowed: !runtime.coordinator.phase.isBusy,
-                    refusalResetToken: refusalResetToken
-                )
-            } header: {
-                // Above the card rather than below it: these are instructions for
-                // the control, and the form's header is the only slot that reads
-                // before it. The caption's font and weight are set here because a
-                // header hands its own down to everything inside it.
-                VStack(alignment: .leading, spacing: SettingsPaneLayout.captionGap) {
-                    Text("Shortcut")
-                    Text("Tap to dictate and tap again to stop. Hold and release for quick dictation. Cancel recording with Escape.")
-                        .font(.callout)
-                        .fontWeight(.regular)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            Section {
                 // Both toggles share one row, because a divider between a setting
                 // and the setting that depends on it reads as two unrelated
                 // settings — the same divider the group boundary uses. The indent
@@ -430,8 +426,28 @@ private struct GeneralSettingsPane: View {
                 Toggle("Show in menu bar", isOn: $runtime.preferences.showInMenuBar)
                 Toggle("Show in Dock", isOn: $runtime.preferences.showAppInDock)
                     .accessibilityIdentifier("show-app-in-dock-toggle")
+            }
+            Section {
+                ShortcutPicker(
+                    chord: $runtime.preferences.dictationShortcut,
+                    customChord: $runtime.preferences.customShortcut,
+                    activeRecorderID: $activeShortcutRecorderID,
+                    isCaptureAllowed: !runtime.coordinator.phase.isBusy,
+                    refusalResetToken: refusalResetToken
+                )
             } header: {
-                sectionGapHeader()
+                // Above the card rather than below it: these are instructions for
+                // the control, and the form's header is the only slot that reads
+                // before it. The caption's font and weight are set here because a
+                // header hands its own down to everything inside it.
+                VStack(alignment: .leading, spacing: SettingsPaneLayout.captionGap) {
+                    Text("Shortcut")
+                    Text("Tap to dictate and tap again to stop. Hold and release for quick dictation. Cancel recording with Escape.")
+                        .font(.callout)
+                        .fontWeight(.regular)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Section {
                 VStack(alignment: .leading, spacing: 10) {
@@ -464,20 +480,14 @@ private struct GeneralSettingsPane: View {
                 )
                 .accessibilityIdentifier("automatic-update-checks-toggle")
             } header: {
-                sectionGapHeader()
+                Text("Updates")
             }
-            Section {
-                // Nothing is destroyed by walking setup again — it reads current
-                // state, so a step already satisfied is presented as satisfied —
-                // but it does replace the window in front of you, so it asks.
-                HStack {
-                    Button("Redo Setup…") { confirmRestartSetup = true }
-                        .accessibilityIdentifier("restart-onboarding")
-                    Spacer()
-                }
-            } header: {
-                sectionGapHeader()
-            }
+        } accessory: {
+            // Nothing is destroyed by walking setup again — it reads current
+            // state, so a step already satisfied is presented as satisfied —
+            // but it does replace the window in front of you, so it asks.
+            Button("Redo Setup…") { confirmRestartSetup = true }
+                .accessibilityIdentifier("restart-onboarding")
         }
         .confirmationDialog("Go through setup again?", isPresented: $confirmRestartSetup) {
             Button("Redo Setup") {
