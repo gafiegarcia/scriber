@@ -110,34 +110,11 @@ struct MainWindowView: View {
                 // on. The button groups with the workspace instead.
                 DefaultToolbarItem(kind: .search, placement: .primaryAction)
 
-                // Both app-level controls in one item, and the warning after
-                // the button rather than before it, so a condition appearing or
-                // clearing moves nothing: the pair grows rightward into the
-                // space before the search field instead of pushing a control
-                // the user aims at. The warning sits here rather than with the
-                // workspace because it reports that the *app* cannot run, which
-                // is not a fact about Dictation.
-                //
-                // One item and not two, so the empty state needs no trust: an
-                // `HStack` holding only the button measures exactly as the
-                // button alone did. A second item that renders nothing cannot
-                // be checked here — every `--ui-testing` launch starts without
-                // a key and so always raises a condition — and shipping a
-                // titlebar gap that only appears on a correctly configured Mac
-                // is not worth the tidier declaration.
+                // The warning sits here rather than with the workspace because it
+                // reports that the *app* cannot run, which is not a fact about
+                // Dictation.
                 ToolbarItem(placement: .primaryAction) {
-                    HStack(spacing: 2) {
-                        Button {
-                            runtime.coordinator.openSettingsWindow(destination: .settings)
-                        } label: {
-                            Image(systemName: "gearshape")
-                        }
-                        .help("Scriber Settings")
-                        .accessibilityLabel("Settings")
-                        .accessibilityIdentifier("open-settings")
-
-                        if !recoveryConditions.isEmpty { recoveryControl }
-                    }
+                    if !recoveryConditions.isEmpty { recoveryControl }
                 }
             }
             .searchFocused($searchFocused)
