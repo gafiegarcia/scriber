@@ -194,7 +194,7 @@ Use this same isolated launch for the window, toolbar, Settings, and history int
 - Record `⌘Q` on the General tab. It is refused with a reason, the recorder closes, the stored binding is unchanged, and typing works everywhere in Scriber again. `⌘⇧D` is accepted.
 - `Escape` closes Settings. While a shortcut recorder is capturing it ends the capture and leaves the window open; with a confirmation on screen it dismisses only the confirmation.
 - Type a keyterm and press Return. It is added, the field clears, and the Add button stays disabled for whitespace alone.
-- Every tab still fits the window's 660x660 minimum without scrolling. Shrink Settings as far as it goes; that size is the floor the window enforces, so a tab that scrolls there scrolls at every size a user can reach.
+- Every tab is reachable and usable at the window's smallest size. A pane taller than the window scrolls, which is expected; what is not is a control that cannot be reached at all.
 - Start recording a shortcut binding on the General tab, then switch tabs. The capture ends: typing works everywhere in Scriber again, and the recorder shows its stored binding rather than a live one. A stranded recorder swallows every keystroke and suspends global shortcut matching until the window closes, and neither symptom names its own cause.
 
 ### Simulated recovery
