@@ -343,11 +343,20 @@ private struct GeneralSettingsPane: View {
                     refusalResetToken: refusalResetToken
                 )
             } header: {
-                Text("Shortcut")
-            } footer: {
-                Text("Tap to dictate and tap again to stop. Hold and release for quick dictation. Cancel recording with Escape.")
+                // Above the card rather than below it: these are instructions for
+                // the control, and the form's header is the only slot that reads
+                // before it. The caption's font and weight are set here because a
+                // header hands its own down to everything inside it.
+                VStack(alignment: .leading, spacing: SettingsPaneLayout.captionGap) {
+                    Text("Shortcut")
+                    Text("Tap to dictate and tap again to stop. Hold and release for quick dictation. Cancel recording with Escape.")
+                        .font(.callout)
+                        .fontWeight(.regular)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            Section("Startup and Presence") {
+            Section {
                 // Both toggles share one row, because a divider between a setting
                 // and the setting that depends on it reads as two unrelated
                 // settings — the same divider the group boundary uses. The indent
@@ -414,7 +423,7 @@ private struct GeneralSettingsPane: View {
                 Toggle("Show in Dock", isOn: $runtime.preferences.showAppInDock)
                     .accessibilityIdentifier("show-app-in-dock-toggle")
             }
-            Section("Updates") {
+            Section {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 10) {
                         Button(action: { runtime.coordinator.checkForUpdates(force: true) }) {
@@ -511,7 +520,7 @@ private struct DictationSettingsPane: View {
 
     var body: some View {
         SettingsPane(accessibilityIdentifier: "settings-dictation-pane") {
-            Section("Transcription") {
+            Section {
                 Picker("Language", selection: $runtime.preferences.languageCode) {
                     Text("Automatic").tag("auto")
                     Text("English").tag("en")
@@ -603,7 +612,7 @@ private struct DictationSettingsPane: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
-            Section("History") {
+            Section {
                 SettingsToggle(
                     "Delete unused recordings after 30 days",
                     caption: "Failed and cancelled dictations keep their audio so you can retry them. Transcripts and history entries are always kept; only the unused recording is removed.",
@@ -718,7 +727,7 @@ private struct SoundSettingsPane: View {
         SettingsPane(accessibilityIdentifier: "settings-sound-pane") {
             // Not "Input": the picker inside already carries that label, and a
             // section repeating its only row's name reads as a stutter.
-            Section("Microphone") {
+            Section {
                 MicrophonePicker()
                     .accessibilityIdentifier("microphone-input-picker")
 
@@ -762,7 +771,7 @@ private struct SoundSettingsPane: View {
                     }
                 }
             }
-            Section("While Dictating") {
+            Section {
                 SettingsToggle(
                     "Play sounds while dictating",
                     caption: "You hear one sound when recording starts, and another when a dictation fails or is cancelled.",
@@ -874,15 +883,20 @@ private struct ElevenLabsSettingsPane: View {
                     }
                 }
             } header: {
-                Text("API Key")
-            } footer: {
-                Text("Scriber needs a key with Speech to Text access. [Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys). Enable User → Read on that key as well to show your credits here.")
+                VStack(alignment: .leading, spacing: SettingsPaneLayout.captionGap) {
+                    Text("API Key")
+                    Text("Scriber needs a key with Speech to Text access. [Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys). Enable User → Read on that key as well to show your credits here.")
+                        .font(.callout)
+                        .fontWeight(.regular)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             // Guarded here rather than inside the block: `subscriptionUsageView`
             // renders nothing while a valid key's usage has yet to arrive, and an
             // empty section still draws its header.
             if showsUsageSection {
-                Section("Credits") {
+                Section {
                     subscriptionUsageView
                 }
             }
