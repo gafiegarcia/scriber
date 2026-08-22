@@ -181,35 +181,17 @@ private struct SettingsToggle: View {
 
 /// The shape every tab's content takes: one grouped form, capped so a wide
 /// window leaves margins rather than stretching every control across it.
-///
-/// `accessory` is for an action belonging to the whole tab rather than to any one
-/// group in it. It sits below the form and outside its scrolling, trailing-
-/// aligned, where System Settings puts the same kind of button. An action scoped
-/// to a single group stays a row inside that group.
-private struct SettingsPane<Content: View, Accessory: View>: View {
+private struct SettingsPane<Content: View>: View {
     let accessibilityIdentifier: String
     @ViewBuilder let content: Content
-    @ViewBuilder let accessory: Accessory
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form { content }
-                .formStyle(.grouped)
-                .accessibilityIdentifier(accessibilityIdentifier)
-            HStack {
-                Spacer()
-                accessory
-            }
-        }
-        .padding()
-        .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-extension SettingsPane where Accessory == EmptyView {
-    init(accessibilityIdentifier: String, @ViewBuilder content: () -> Content) {
-        self.init(accessibilityIdentifier: accessibilityIdentifier, content: content) { EmptyView() }
+        Form { content }
+            .formStyle(.grouped)
+            .accessibilityIdentifier(accessibilityIdentifier)
+            .padding()
+            .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -481,13 +463,21 @@ private struct GeneralSettingsPane: View {
                 .accessibilityIdentifier("automatic-update-checks-toggle")
             } header: {
                 Text("Updates")
+            } footer: {
+                // The last group's footer, which is the only slot a grouped form
+                // has for something below a card, outside it, and scrolling with
+                // it. Redo Setup belongs to the tab rather than to updates; the
+                // footer is where it lands, not what it is about.
+                HStack {
+                    Spacer()
+                    // Nothing is destroyed by walking setup again — it reads
+                    // current state, so a step already satisfied is presented as
+                    // satisfied — but it does replace the window in front of you,
+                    // so it asks.
+                    Button("Redo Setup…") { confirmRestartSetup = true }
+                        .accessibilityIdentifier("restart-onboarding")
+                }
             }
-        } accessory: {
-            // Nothing is destroyed by walking setup again — it reads current
-            // state, so a step already satisfied is presented as satisfied —
-            // but it does replace the window in front of you, so it asks.
-            Button("Redo Setup…") { confirmRestartSetup = true }
-                .accessibilityIdentifier("restart-onboarding")
         }
         .confirmationDialog("Go through setup again?", isPresented: $confirmRestartSetup) {
             Button("Redo Setup") {
