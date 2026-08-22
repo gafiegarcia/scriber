@@ -108,6 +108,11 @@ private enum SettingsPaneLayout {
     /// inside either of them, so the indent is not the only thing saying one
     /// governs the other.
     static let nestedSettingGap: CGFloat = 14
+
+    /// Above an action that belongs to the whole tab. A footer sits close under
+    /// its card, which is right for a sentence about that card and too close for
+    /// a button that answers to none of them.
+    static let pageActionGap: CGFloat = 12
 }
 
 /// Wraps whatever renders the mute-other-audio setting, handing it a binding
@@ -463,11 +468,14 @@ private struct GeneralSettingsPane: View {
                 .accessibilityIdentifier("automatic-update-checks-toggle")
             } header: {
                 Text("Updates")
+            }
+            // A section with no rows draws no card, so its footer is the one slot
+            // a grouped form has for something that belongs to the tab rather than
+            // to any group in it: below the last card, outside every card, and
+            // scrolling with the content.
+            Section {
+                EmptyView()
             } footer: {
-                // The last group's footer, which is the only slot a grouped form
-                // has for something below a card, outside it, and scrolling with
-                // it. Redo Setup belongs to the tab rather than to updates; the
-                // footer is where it lands, not what it is about.
                 HStack {
                     Spacer()
                     // Nothing is destroyed by walking setup again — it reads
@@ -477,6 +485,7 @@ private struct GeneralSettingsPane: View {
                     Button("Redo Setup…") { confirmRestartSetup = true }
                         .accessibilityIdentifier("restart-onboarding")
                 }
+                .padding(.top, SettingsPaneLayout.pageActionGap)
             }
         }
         .confirmationDialog("Go through setup again?", isPresented: $confirmRestartSetup) {
