@@ -393,7 +393,7 @@ struct ScriberApp: App {
         // Sized for the tallest tab rather than for all of Settings at once.
         // Only a Mac that has never opened this window sees it: SwiftUI persists
         // the frame per scene id, and a persisted frame wins.
-        .defaultSize(width: 660, height: 560)
+        .defaultSize(width: 660, height: 660)
         .commands {
             CommandGroup(replacing: .appTermination) {
                 Button("Quit Scriber") { NSApp.terminate(nil) }

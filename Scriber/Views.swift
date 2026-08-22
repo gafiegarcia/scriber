@@ -254,7 +254,7 @@ struct SettingsView: View {
         // The floor, not a preferred size. Every tab has to show all of itself
         // without scrolling, and the tallest of them is what sets this — so it
         // is raised when a tab grows, rather than letting that tab scroll.
-        .frame(minWidth: 660, minHeight: 560)
+        .frame(minWidth: 660, minHeight: 660)
         // Every one of these is on the window and not on a pane: a tab that is
         // not selected may not be mounted, and each of them has to run for state
         // the window owns.
@@ -317,6 +317,14 @@ struct SettingsView: View {
         // shape AttributeGraph aborts the process for.
         Task { @MainActor in runtime.coordinator.consumeMainWindowRequest() }
     }
+}
+
+/// A header that draws nothing, for a group that wants a titled group's spacing
+/// without a title. A grouped form leaves 40pt above a section that has a header
+/// and 10pt above one that does not, and nothing else reaches that number:
+/// `listSectionSpacing` is unavailable on macOS, and padding a `Section` is ignored.
+private func sectionGapHeader() -> some View {
+    Color.clear.frame(height: 0)
 }
 
 private struct GeneralSettingsPane: View {
@@ -422,6 +430,8 @@ private struct GeneralSettingsPane: View {
                 Toggle("Show in menu bar", isOn: $runtime.preferences.showInMenuBar)
                 Toggle("Show in Dock", isOn: $runtime.preferences.showAppInDock)
                     .accessibilityIdentifier("show-app-in-dock-toggle")
+            } header: {
+                sectionGapHeader()
             }
             Section {
                 VStack(alignment: .leading, spacing: 10) {
@@ -453,6 +463,8 @@ private struct GeneralSettingsPane: View {
                     isOn: $runtime.preferences.automaticUpdateChecks
                 )
                 .accessibilityIdentifier("automatic-update-checks-toggle")
+            } header: {
+                sectionGapHeader()
             }
             Section {
                 // Nothing is destroyed by walking setup again — it reads current
@@ -463,6 +475,8 @@ private struct GeneralSettingsPane: View {
                         .accessibilityIdentifier("restart-onboarding")
                     Spacer()
                 }
+            } header: {
+                sectionGapHeader()
             }
         }
         .confirmationDialog("Go through setup again?", isPresented: $confirmRestartSetup) {
@@ -898,6 +912,8 @@ private struct ElevenLabsSettingsPane: View {
             if showsUsageSection {
                 Section {
                     subscriptionUsageView
+                } header: {
+                    sectionGapHeader()
                 }
             }
         }
