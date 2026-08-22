@@ -95,6 +95,9 @@ extension MainWindowDestination {
     }
 }
 
+/// The gaps Settings sets for itself. Row insets and the rules between rows
+/// belong to the grouped form and stay at its numbers, so a row's content and
+/// the rule beside it are always in line.
 private enum SettingsPaneLayout {
     /// Hangs a section header 2pt off the leading edge of its card, matching the
     /// main window's day label and a Finder sidebar heading.
@@ -104,27 +107,9 @@ private enum SettingsPaneLayout {
     /// is the content.
     ///
     /// Known and unfixed: that 10pt is AppKit's, not ours, and no API reads it,
-    /// so this is one measured number short of derivable — as is
-    /// `rowHorizontalPadding`, which is added on top of the same 10. A macOS
-    /// update that moves it moves both, and these two constants are where to
-    /// answer that.
+    /// so this number is one measurement short of derivable. A macOS update that
+    /// moves the 10 moves this with it.
     static let sectionHeaderOutdent: CGFloat = -12
-
-    /// Added to each side of every row in a section card, on top of the 10pt a
-    /// grouped form already draws there, putting a row's content 12pt in.
-    ///
-    /// Horizontal only. A row's height is the form's to decide, and it already
-    /// gives a row enough; what was short was the distance to the card's sides.
-    ///
-    /// The rule between two rows keeps the form's own 10pt and so runs a little
-    /// wider than the content it separates. It cannot be made to follow:
-    /// `listRowInsets` moves nothing at all on a macOS grouped form, and the
-    /// rule is the form's to draw. The day cards read the same way on purpose,
-    /// with their rules at the card's full width.
-    ///
-    /// Applied to a section's whole content, which SwiftUI distributes to each
-    /// row — the rows are what this has to land on, not the card.
-    static let rowHorizontalPadding: CGFloat = 2
 
     /// Between a setting and the sentence explaining it, added on top of the gap
     /// AppKit's two-`Text` toggle label draws — which is tight enough that the
@@ -159,7 +144,7 @@ private struct SettingsSection<Content: View>: View {
     var body: some View {
         if let title, let footer {
             Section {
-                paddedContent
+                content
             } header: {
                 Text(title).padding(.leading, SettingsPaneLayout.sectionHeaderOutdent)
             } footer: {
@@ -167,19 +152,13 @@ private struct SettingsSection<Content: View>: View {
             }
         } else if let title {
             Section {
-                paddedContent
+                content
             } header: {
                 Text(title).padding(.leading, SettingsPaneLayout.sectionHeaderOutdent)
             }
         } else {
-            Section { paddedContent }
+            Section { content }
         }
-    }
-
-    /// Every section card's rows go through here, which is the whole reason a
-    /// plain `Section` is not used directly anywhere in Settings.
-    private var paddedContent: some View {
-        content.padding(.horizontal, SettingsPaneLayout.rowHorizontalPadding)
     }
 }
 
