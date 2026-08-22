@@ -593,7 +593,6 @@ struct DoneStep: View {
                         // Naming the list is not enough on its own: it is several
                         // panes deep, and the refusal is only actionable there.
                         Button("Open Login Items…") { runtime.coordinator.openLoginItemsSettings() }
-                            .controlSize(.small)
                     }
                     .accessibilityIdentifier("onboarding-launch-at-login-advice")
                 }
