@@ -52,7 +52,7 @@ enum AppLaunchConfiguration {
 
     /// Lets every setup step be advanced past without satisfying its gate.
     ///
-    /// Four of the nine steps gate on a real grant, a real microphone signal, or
+    /// Four of the seven steps gate on a real grant, a real microphone signal, or
     /// a real keypress, so without this the later steps can only be looked at by
     /// granting permissions to a Debug build — which writes that build's identity
     /// into the Mac's privacy lists. The gates themselves still render; only the

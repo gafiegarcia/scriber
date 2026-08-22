@@ -420,7 +420,7 @@ struct OnboardingView: View {
     }
 }
 
-/// Page dots. Non-interactive, and announced as one control rather than nine, so
+/// Page dots. Non-interactive, and announced as one control rather than seven, so
 /// VoiceOver reads a position instead of a row of unlabelled circles.
 private struct StepIndicator: View {
     let step: OnboardingStep
