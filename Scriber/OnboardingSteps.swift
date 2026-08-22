@@ -571,7 +571,7 @@ struct DoneStep: View {
                             isOn: $runtime.preferences.muteOtherAudioWhileRecording,
                             requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
                         ) { isOn in
-                            Toggle("Mute other audio while recording", isOn: isOn)
+                            Toggle("Mute other audio while dictating", isOn: isOn)
                                 .accessibilityIdentifier("onboarding-mute-other-audio")
                         }
                         Text("Silences other apps, calls, and notification sounds for as long as you are talking. macOS asks for System Audio Recording access; muting works whether you allow it or not, because Scriber never reads what other apps play.")

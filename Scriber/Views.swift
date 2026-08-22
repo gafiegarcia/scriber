@@ -797,7 +797,7 @@ private struct SoundSettingsPane: View {
             Section {
                 SettingsToggle(
                     "Play sounds while dictating",
-                    caption: "You hear one sound when recording starts, and another when a dictation fails or is cancelled.",
+                    caption: "You hear one sound when a dictation starts, and another when one fails or is cancelled.",
                     isOn: $runtime.preferences.playRecordingFeedbackSounds
                 )
                 .accessibilityIdentifier("recording-feedback-sounds-toggle")
@@ -811,7 +811,7 @@ private struct SoundSettingsPane: View {
                 ) { isOn in
                     VStack(alignment: .leading, spacing: 8) {
                         SettingsToggle(
-                            "Mute other audio while recording",
+                            "Mute other audio while dictating",
                             caption: "Silences other apps, calls, and notification sounds while you’re dictating. macOS asks for System Audio Recording access — muting works whether you click “Allow” or “Don’t Allow”, because Scriber never reads what other apps play.",
                             isOn: isOn
                         )
@@ -832,7 +832,9 @@ private struct SoundSettingsPane: View {
                                 runtime.coordinator.openSystemAudioPrivacySettings()
                             }
                             .buttonStyle(.link)
-                            .font(.caption)
+                            // Matches the caption above it, which AppKit draws
+                            // and no API reports; measured against .callout.
+                            .font(.callout)
                             .accessibilityIdentifier("open-system-audio-privacy")
                         }
                     }
