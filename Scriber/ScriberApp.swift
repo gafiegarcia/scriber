@@ -390,9 +390,11 @@ struct ScriberApp: App {
             .modelContainer(runtime.container)
             .task { await promoteApplicationForVisibleWindow() }
         }
-        // Only a Mac that has never opened this window sees it: SwiftUI persists
-        // the frame per scene id, and a persisted frame wins.
-        .defaultSize(width: 660, height: 660)
+        // Fixed, so every tab is seen at the size it was designed at and a tab
+        // taller than the window scrolls. SwiftUI persists a frame per scene id
+        // and a persisted frame wins, so a Mac that resized this window before
+        // it was fixed keeps that size until the stored frame is cleared.
+        .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .appTermination) {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
