@@ -150,22 +150,11 @@ struct MainWindowView: View {
             showingRecovery = true
         } label: {
             // Nothing around the glyph, and no `.plain`. Both are what the
-            // toolbar's own button treatment supplies: the control metrics that
-            // size it to match Settings beside it, and the hover highlight
-            // every other button in the window has. Hand-padding a plain button
-            // opted out of both — it rendered at text metrics inside a control
-            // that is not text, and gave no sign it could be clicked.
-            //
-            // It also carries no glass of its own: it shares the Settings
-            // button's item, and a capsule nested in that item's background
-            // reads as two surfaces stacked.
-            //
-            // A circle and not the triangle the other surfaces use. Sitting
-            // beside a gear, matching metrics are not enough — a triangle fills
-            // less of its box than a round glyph does, so at the same size it
-            // reads as the smaller of the two. Matching the gear's silhouette
-            // gets optical parity without tuning a scale factor. The pill and
-            // the menus keep the triangle: nothing round sits next to them.
+            // toolbar's own button treatment supplies: control metrics sized for
+            // a toolbar rather than for text, and the hover highlight every
+            // other button in the window has. Hand-padding a plain button opted
+            // out of both — it rendered at text metrics inside a control that is
+            // not text, and gave no sign it could be clicked.
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(.orange)
         }
