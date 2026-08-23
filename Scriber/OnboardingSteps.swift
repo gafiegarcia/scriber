@@ -187,7 +187,7 @@ struct APIKeyStep: View {
                                     // resizes, and the field beside it takes
                                     // the change.
                                     if isChecking { ProgressView().controlSize(.small) }
-                                    Text("Save Key")
+                                    Text("Save API Key")
                                 }
                             }
                             .disabled(!canSubmit)

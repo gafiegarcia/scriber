@@ -932,15 +932,22 @@ private struct ElevenLabsSettingsPane: View {
                             apiKeyStatusLabel
                         }
                         Spacer(minLength: 0)
-                        // Confirmed, because the key does not come back and
-                        // dictation stops until it is entered again.
-                        if runtime.preferences.apiKeyConfigured {
-                            Button("Remove API Key…", role: .destructive) {
-                                confirmRemoveKey = true
-                            }
-                            .disabled(isCheckingAPIKey || isRemovingAPIKey)
-                            .accessibilityIdentifier("remove-api-key")
+                    }
+                }
+                // Its own row, so the form draws the boundary and destroying a
+                // key is not offered from the same line as saving one. Leading,
+                // where it does not compete with Save for the eye.
+                //
+                // Confirmed, because the key does not come back and dictation
+                // stops until it is entered again.
+                if runtime.preferences.apiKeyConfigured {
+                    HStack {
+                        Button("Remove API Key…", role: .destructive) {
+                            confirmRemoveKey = true
                         }
+                        .disabled(isCheckingAPIKey || isRemovingAPIKey)
+                        .accessibilityIdentifier("remove-api-key")
+                        Spacer(minLength: 0)
                     }
                 }
             } header: {
