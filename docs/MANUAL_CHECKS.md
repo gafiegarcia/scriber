@@ -115,6 +115,7 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 
 ## When permissions or global-shortcut lifecycle change
 
+- With both grants in place, Settings' Permissions tab offers a button on every row, each naming the pane it opens — **Open Microphone Settings**, **Open Accessibility Settings**, **Open Recording Settings** — and each lands on that pane rather than the top of System Settings. No automated check reaches this: the buttons exist only once a grant is real, and a `--ui-testing` launch has none.
 - Revoke Microphone and Accessibility, separately and together. The toolbar's warning control appears, its popover lists every unresolved condition at once — including a missing key alongside missing permissions — and the pill and Settings route both work. Restore both grants before finishing; every warning should then leave. **macOS forces Quit & Reopen whenever Microphone access changes**, so no-relaunch recovery is observable only for Accessibility.
 - A keyed Hold binding held down does not stall the machine either. The tap sits in front of every system event, and work done while its callback is on the stack delays every keystroke and click on the Mac.
 - With Bluetooth headphones connected and playing, hold the shortcut and immediately type into a text field. Every character appears as it is typed, with no stall. Opening the microphone drags the headset into call mode, and this is the check that says whether Scriber is waiting for that on the thread every keystroke goes through.

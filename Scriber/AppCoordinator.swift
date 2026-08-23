@@ -216,7 +216,7 @@ final class AppCoordinator: ObservableObject {
             }
             .store(in: &cancellables)
 
-        preferences.$playRecordingFeedbackSounds
+        preferences.$playDictationFeedbackSounds
             .dropFirst()
             .sink { [weak self] enabled in
                 if !enabled { self?.feedbackSounds.stop() }
@@ -503,12 +503,12 @@ final class AppCoordinator: ObservableObject {
         NSWorkspace.shared.open(url, configuration: configuration)
     }
 
-    private func openMicrophoneSettings() {
+    func openMicrophoneSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") else { return }
         Self.openInSystemSettings(url)
     }
 
-    private func openAccessibilitySettings() {
+    func openAccessibilitySettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
         Self.openInSystemSettings(url)
     }
@@ -1566,7 +1566,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func playFeedback(_ cue: RecordingFeedbackCue) {
-        guard preferences.playRecordingFeedbackSounds else { return }
+        guard preferences.playDictationFeedbackSounds else { return }
         feedbackSounds.play(cue)
     }
 

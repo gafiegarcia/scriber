@@ -25,7 +25,7 @@ final class Preferences: ObservableObject {
         static let showInMenuBar = "showInMenuBar"
         static let showAppInDock = "showAppInDock"
         static let audioInputSelection = "audioInputSelection"
-        static let playRecordingFeedbackSounds = "playRecordingFeedbackSounds"
+        static let playDictationFeedbackSounds = "playDictationFeedbackSounds"
         static let muteOtherAudioWhileDictating = "muteOtherAudioWhileDictating"
         static let deletesExpiredRetainedAudio = "deletesExpiredRetainedAudio"
         static let automaticUpdateChecks = "automaticUpdateChecks"
@@ -61,8 +61,8 @@ final class Preferences: ObservableObject {
         }
     }
     @Published var audioInputSelection: AudioInputSelection { didSet { save(audioInputSelection, key: Keys.audioInputSelection) } }
-    @Published var playRecordingFeedbackSounds: Bool {
-        didSet { defaults.set(playRecordingFeedbackSounds, forKey: Keys.playRecordingFeedbackSounds) }
+    @Published var playDictationFeedbackSounds: Bool {
+        didSet { defaults.set(playDictationFeedbackSounds, forKey: Keys.playDictationFeedbackSounds) }
     }
     @Published var muteOtherAudioWhileDictating: Bool {
         didSet { defaults.set(muteOtherAudioWhileDictating, forKey: Keys.muteOtherAudioWhileDictating) }
@@ -105,9 +105,9 @@ final class Preferences: ObservableObject {
         showInMenuBar = defaults.object(forKey: Keys.showInMenuBar) == nil ? true : defaults.bool(forKey: Keys.showInMenuBar)
         showAppInDock = defaults.bool(forKey: Keys.showAppInDock)
         audioInputSelection = Self.decode(AudioInputSelection.self, key: Keys.audioInputSelection, defaults: defaults) ?? defaultAudioInputSelection
-        playRecordingFeedbackSounds = defaults.object(forKey: Keys.playRecordingFeedbackSounds) == nil
+        playDictationFeedbackSounds = defaults.object(forKey: Keys.playDictationFeedbackSounds) == nil
             ? true
-            : defaults.bool(forKey: Keys.playRecordingFeedbackSounds)
+            : defaults.bool(forKey: Keys.playDictationFeedbackSounds)
         // Off by default, unlike its neighbours above: turning it on is what
         // makes macOS demand System Audio Recording, and an opt-out default
         // would spend that prompt during a first dictation.
@@ -120,8 +120,8 @@ final class Preferences: ObservableObject {
         availableUpdate = Self.decode(AvailableUpdate.self, key: Keys.availableUpdate, defaults: defaults)
 
         // Materialize opt-in defaults so upgrades and subsequent launches share one explicit value.
-        if defaults.object(forKey: Keys.playRecordingFeedbackSounds) == nil {
-            defaults.set(true, forKey: Keys.playRecordingFeedbackSounds)
+        if defaults.object(forKey: Keys.playDictationFeedbackSounds) == nil {
+            defaults.set(true, forKey: Keys.playDictationFeedbackSounds)
         }
         if defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil {
             defaults.set(true, forKey: Keys.deletesExpiredRetainedAudio)

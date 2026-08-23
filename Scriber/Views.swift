@@ -798,7 +798,7 @@ private struct SoundSettingsPane: View {
                 SettingsToggle(
                     "Play sounds while dictating",
                     caption: "You hear one sound when a dictation starts, and another when one fails or is cancelled.",
-                    isOn: $runtime.preferences.playRecordingFeedbackSounds
+                    isOn: $runtime.preferences.playDictationFeedbackSounds
                 )
                 .accessibilityIdentifier("recording-feedback-sounds-toggle")
 
@@ -1130,7 +1130,7 @@ private struct PermissionsSettingsPane: View {
             HStack {
                 Label("Screen & System Audio Recording", systemImage: "speaker.wave.2")
                 Spacer()
-                Button("Open Privacy & Security") {
+                Button("Open Recording Settings") {
                     runtime.coordinator.openSystemAudioPrivacySettings()
                 }
                 .accessibilityIdentifier("open-system-audio-privacy-signpost")
@@ -1143,14 +1143,20 @@ private struct PermissionsSettingsPane: View {
     }
 }
 
-// Both permission rows offer one button with one word, whatever macOS has recorded
-// so far. The steps behind it — a system prompt, a trip to System Settings, or both —
-// are Scriber's problem, not something to spell out in a changing button title.
+// While a grant is missing, both rows offer one button with one word: the steps
+// behind it — a system prompt, a trip to System Settings, or both — are Scriber's
+// problem, not something to spell out in a changing button title. Once granted,
+// the button becomes the way back to the pane that holds the grant, and is named
+// for that pane: three buttons reading "Open Settings" would announce identically
+// to VoiceOver, and would name Scriber's own Settings besides.
 struct MicrophonePermissionButton: View {
     @EnvironmentObject private var runtime: AppRuntime
 
     var body: some View {
-        if !runtime.coordinator.microphoneGranted {
+        if runtime.coordinator.microphoneGranted {
+            Button("Open Microphone Settings") { runtime.coordinator.openMicrophoneSettings() }
+                .accessibilityIdentifier("open-microphone-settings")
+        } else {
             Button("Allow") { Task { await runtime.coordinator.allowMicrophone() } }
         }
     }
@@ -1160,7 +1166,10 @@ struct AccessibilityPermissionButton: View {
     @EnvironmentObject private var runtime: AppRuntime
 
     var body: some View {
-        if !runtime.coordinator.accessibilityGranted {
+        if runtime.coordinator.accessibilityGranted {
+            Button("Open Accessibility Settings") { runtime.coordinator.openAccessibilitySettings() }
+                .accessibilityIdentifier("open-accessibility-settings")
+        } else {
             Button("Allow") { runtime.coordinator.allowAccessibility() }
         }
     }
