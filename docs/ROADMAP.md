@@ -78,6 +78,7 @@ The first version anyone can install without Xcode and reach a working dictation
     - Tag ElevenLabs (only list Scribe v2 for now, model picker greyed out) as "(Recommended)" because it's the one I use, tested, and doesn't need post-processing layer to produce filler-free, accurate transcripts with auto-punctuations. Whisper v3 (and the Turbo variant) is also good in this regard, but falls behind in WER benchmark by considerable points compared to ElevenLabs Scribe v2. To summarize:
         - Recommended Provider: ElevenLabs (Scribe v2 as the only model option, for now)
         - Recommended Model from Groq: to be determined
+- [ ] **Decide what "Transcription" means once it is also a workspace.** It currently names the speech-to-text step inside a dictation, and **"Transcription failed"** is user-facing in four places. Settle the vocabulary alongside the workspace, not before it. ([Notion task](https://app.notion.com/p/3c571937040281b898b3c8a76b2c85d0))
 - [ ] **Build the long-form Transcription workspace.** Settings has a Dictation tab, and Transcription options get their own tab beside it. The main window's workspace control becomes a picker when this lands.
 - [ ] **Order the toolbar for two workspaces.** When the workspace control stops being a plain name, lay the toolbar out like this:
 
