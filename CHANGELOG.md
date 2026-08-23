@@ -2,6 +2,25 @@
 
 This file records intentionally identified Scriber releases and prerelease snapshots. Ordinary development builds belong in Git history, not here.
 
+## Unreleased
+
+### Added
+
+- **Settings' General tab shows which Scriber you are running.** A Version row gives the version and the build number — the pair a bug report needs to tell two installs apart — with **Check for Updates** beside it. **Report a Bug…** opens a new issue on GitHub.
+- **A permission you have already granted now offers a way back to it.** Each row on the Permissions tab opens the exact System Settings pane holding that grant, so reviewing or withdrawing one no longer means knowing where macOS keeps it.
+
+### Changed
+
+- **Settings has been redesigned around what each group actually says.** Seven section titles that only restated the rows beneath them are gone, the two that remain carry their explanation above the card rather than below it, and every caption is now the size macOS itself uses. Nothing is titled unless the title tells you something the rows do not.
+- **The Settings window no longer resizes.** It is a fixed 660×520, so every tab looks the way it was designed to whatever else is in Settings, and a tab with more in it than fits simply scrolls. It used to grow with whichever tab had the most in it, which meant no two Macs agreed on how Settings looked.
+- **The gear button has left the main window's toolbar.** Settings opens with ⌘, or from the Scriber menu, and every message that offers to fix something still opens it directly.
+- **The ElevenLabs tab reads as one thing.** The key field and **Save API Key** share a row as they do in setup, **Remove API Key…** sits apart on its own, and the credits card leads with your plan and its reset date, says when it was last checked in plain relative time, and stops repeating the word the section title already carries.
+- **Scriber says "dictating" everywhere.** The same moment was called dictating, recording, and "when recording starts" depending on where you read it.
+
+### Fixed
+
+- **Cancelling a dictation went silent, and threw away audio you could have recovered.** Every cancel was being treated as a slipped finger: no sound, no **Cancelled** message, and no retryable recording kept — even for a long dictation with speech in it. Typing during a held dictation also discarded it at any age, rather than only in the first second where a stray key is a mistake.
+
 ## 0.9.0 — 2026-08-15
 
 Native bundle build 193, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
