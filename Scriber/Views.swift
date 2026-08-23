@@ -340,6 +340,10 @@ private func sectionGapHeader() -> some View {
 }
 
 private struct GeneralSettingsPane: View {
+    /// Opens a new issue directly, rather than the repository's front page: the
+    /// user has already decided what they came to do.
+    private static let issuesURL = URL(string: "https://github.com/gafiegarcia/scriber/issues/new")
+
     @EnvironmentObject private var runtime: AppRuntime
     @Environment(\.openWindow) private var openWindow
     @Binding var activeShortcutRecorderID: String?
@@ -444,26 +448,35 @@ private struct GeneralSettingsPane: View {
                 }
             }
             Section {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: SettingsPaneLayout.captionGap) {
                     HStack(spacing: 10) {
-                        Button(action: { runtime.coordinator.checkForUpdates(force: true) }) {
-                            if runtime.coordinator.isCheckingForUpdates {
-                                HStack(spacing: 6) {
-                                    ProgressView().controlSize(.small)
-                                    Text("Checking…")
-                                }
-                            } else {
-                                Text("Check Now")
-                            }
-                        }
-                        .disabled(runtime.coordinator.isCheckingForUpdates)
-                        .accessibilityIdentifier("check-for-updates")
+                        Text("Version")
+                        Spacer(minLength: 0)
+                        Text("\(AppCoordinator.runningVersion) (\(AppCoordinator.runningBuild))")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .accessibilityLabel(
+                                "Version \(AppCoordinator.runningVersion), build \(AppCoordinator.runningBuild)"
+                            )
                         if let update = runtime.preferences.availableUpdate {
                             Link("Get \(update.version)…", destination: update.url)
                                 .buttonStyle(.borderedProminent)
                                 .accessibilityIdentifier("download-update")
                         }
-                        Spacer(minLength: 0)
+                        Button(action: { runtime.coordinator.checkForUpdates(force: true) }) {
+                            HStack(spacing: 6) {
+                                // Beside the title rather than replacing it. A
+                                // button that swaps its title for "Checking…"
+                                // resizes while it works, moving itself out from
+                                // under the pointer that just pressed it.
+                                if runtime.coordinator.isCheckingForUpdates {
+                                    ProgressView().controlSize(.small)
+                                }
+                                Text("Check for Updates")
+                            }
+                        }
+                        .disabled(runtime.coordinator.isCheckingForUpdates)
+                        .accessibilityIdentifier("check-for-updates")
                     }
                     updateStatus
                 }
@@ -485,6 +498,10 @@ private struct GeneralSettingsPane: View {
             } footer: {
                 HStack {
                     Spacer()
+                    if let issuesURL = Self.issuesURL {
+                        Link("Report a Bug…", destination: issuesURL)
+                            .accessibilityIdentifier("report-a-bug")
+                    }
                     // Nothing is destroyed by walking setup again — it reads
                     // current state, so a step already satisfied is presented as
                     // satisfied — but it does replace the window in front of you,
@@ -517,17 +534,16 @@ private struct GeneralSettingsPane: View {
     /// Never claims to be current on the strength of a check that has not
     /// happened: an install that has never reached GitHub says so.
     private var updateStatusText: String {
-        let running = AppCoordinator.runningVersion
         if let error = runtime.coordinator.updateCheckError {
             return error
         }
         if let update = runtime.preferences.availableUpdate {
-            return "Scriber \(update.version) is available. You have \(running)."
+            return "Scriber \(update.version) is available."
         }
         if runtime.preferences.lastUpdateCheck == nil {
-            return "You have Scriber \(running). No check has run yet."
+            return "No check has run yet."
         }
-        return "Scriber \(running) is the latest version."
+        return "This is the latest version."
     }
 }
 

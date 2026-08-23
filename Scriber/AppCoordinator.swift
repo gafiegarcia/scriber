@@ -750,6 +750,11 @@ final class AppCoordinator: ObservableObject {
     static let runningVersion =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
 
+    /// Shown beside the version because two installs can share a version and
+    /// differ, which is exactly the pair a bug report has to tell apart.
+    static let runningBuild =
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+
     /// `force` is the Check Now button: it ignores the once-a-day interval but
     /// not the `servicesAllowed` gate, so a `--ui-testing` launch reaches no
     /// network from either path.
