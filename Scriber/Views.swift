@@ -891,34 +891,37 @@ private struct ElevenLabsSettingsPane: View {
         SettingsPane(accessibilityIdentifier: "settings-elevenlabs-pane") {
             Section {
                 VStack(alignment: .leading, spacing: 10) {
-                    SecureField(
-                        text: $apiKey,
-                        prompt: Text(
-                            runtime.preferences.apiKeyConfigured
-                                ? "Enter a new API key to replace the stored key"
-                                : "Paste your ElevenLabs API key"
-                        )
-                    ) {
-                        Text("ElevenLabs API key")
-                    }
-                        .labelsHidden()
-                        .textFieldStyle(.roundedBorder)
-                        .disabled(isCheckingAPIKey)
-                        .focused($apiKeyFieldFocused)
-                        .onSubmit(submitAPIKey)
-                    HStack {
+                    HStack(spacing: 10) {
+                        SecureField(
+                            text: $apiKey,
+                            prompt: Text(
+                                runtime.preferences.apiKeyConfigured
+                                    ? "Enter a new API key to replace the stored key"
+                                    : "Paste your ElevenLabs API key"
+                            )
+                        ) {
+                            Text("ElevenLabs API key")
+                        }
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .disabled(isCheckingAPIKey)
+                            .focused($apiKeyFieldFocused)
+                            .onSubmit(submitAPIKey)
+                        // Trailing the field, as it is in setup: the same task in
+                        // two places, laid out the same way.
                         Button(action: submitAPIKey) {
-                            if isCheckingAPIKey {
-                                HStack(spacing: 6) {
-                                    ProgressView().controlSize(.small)
-                                    Text("Checking…")
-                                }
-                            } else {
+                            HStack(spacing: 6) {
+                                // Beside the title, not instead of it. Replacing
+                                // it resizes the button, and the field beside it
+                                // takes the change.
+                                if isCheckingAPIKey { ProgressView().controlSize(.small) }
                                 Text("Save API Key")
                             }
                         }
                             .buttonStyle(.borderedProminent)
                             .disabled(!canSubmitAPIKey)
+                    }
+                    HStack {
                         if let keyFeedback {
                             Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
                                 .font(SettingsPaneLayout.cardCaption)

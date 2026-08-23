@@ -181,12 +181,12 @@ struct APIKeyStep: View {
                             // Trailing, where every other primary action in
                             // setup is, rather than under the field on the left.
                             Button(action: submit) {
-                                if isChecking {
-                                    HStack(spacing: 6) {
-                                        ProgressView().controlSize(.small)
-                                        Text("Checking…")
-                                    }
-                                } else {
+                                HStack(spacing: 6) {
+                                    // Beside the title, not instead of it: a
+                                    // button that renames itself mid-check
+                                    // resizes, and the field beside it takes
+                                    // the change.
+                                    if isChecking { ProgressView().controlSize(.small) }
                                     Text("Save Key")
                                 }
                             }
