@@ -120,6 +120,17 @@ private enum SettingsPaneLayout {
     /// its card, which is right for a sentence about that card and too close for
     /// a button that answers to none of them.
     static let pageActionGap: CGFloat = 12
+
+    /// A caption inside a card. AppKit draws its own under a toggle's title and
+    /// reports the font to no API, so this is measured against it: both ink
+    /// 10.5pt, where SwiftUI's `.caption` inks 9.5 and reads a size small beside
+    /// one.
+    static let cardCaption: Font = .subheadline
+
+    /// A caption outside a card — under a section's title, or in its footer. The
+    /// size a grouped form draws its own footers at, and a step above the caption
+    /// inside a card, which is the order the system puts them in.
+    static let pageCaption: Font = .callout
 }
 
 /// Wraps whatever renders the mute-other-audio setting, handing it a binding
@@ -381,14 +392,14 @@ private struct GeneralSettingsPane: View {
                     ))
                     .accessibilityIdentifier("launch-at-login-toggle")
                     if let launchAtLoginError {
-                        Text(launchAtLoginError).font(.caption).foregroundStyle(.red)
+                        Text(launchAtLoginError).font(SettingsPaneLayout.cardCaption).foregroundStyle(.red)
                     }
                     // The toggle snapping back is the only other signal here, and
                     // on its own it reads as a bug rather than as something the
                     // user has to go and switch on.
                     if launchAtLoginRefused, let advice = runtime.coordinator.launchAtLoginState.recoveryAdvice {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(advice).font(.caption).foregroundStyle(.secondary)
+                            Text(advice).font(SettingsPaneLayout.cardCaption).foregroundStyle(.secondary)
                             Button("Open Login Items…") { runtime.coordinator.openLoginItemsSettings() }
                                 .controlSize(.small)
                         }
@@ -441,7 +452,7 @@ private struct GeneralSettingsPane: View {
                 VStack(alignment: .leading, spacing: SettingsPaneLayout.captionGap) {
                     Text("Shortcut")
                     Text("Tap to dictate and tap again to stop. Hold and release for quick dictation. Cancel recording with Escape.")
-                        .font(.callout)
+                        .font(SettingsPaneLayout.pageCaption)
                         .fontWeight(.regular)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -500,6 +511,7 @@ private struct GeneralSettingsPane: View {
                     Spacer()
                     if let issuesURL = Self.issuesURL {
                         Link("Report a Bug…", destination: issuesURL)
+                            .buttonStyle(.bordered)
                             .accessibilityIdentifier("report-a-bug")
                     }
                     // Nothing is destroyed by walking setup again — it reads
@@ -526,7 +538,7 @@ private struct GeneralSettingsPane: View {
 
     private var updateStatus: some View {
         Text(updateStatusText)
-            .font(.caption)
+            .font(SettingsPaneLayout.cardCaption)
             .foregroundStyle(.secondary)
             .accessibilityIdentifier("update-status")
     }
@@ -649,13 +661,13 @@ private struct DictationSettingsPane: View {
                         }
                     }
                     if let keytermError {
-                        Text(keytermError).font(.caption).foregroundStyle(.red)
+                        Text(keytermError).font(SettingsPaneLayout.cardCaption).foregroundStyle(.red)
                     }
                     if !runtime.preferences.keyterms.isEmpty {
                         KeytermsCard(terms: runtime.preferences.keyterms, onRemove: removeKeyterm)
                     }
                     Text("ElevenLabs applies an additional usage charge when keyterms are sent.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(SettingsPaneLayout.cardCaption).foregroundStyle(.secondary)
                 }
             }
             Section {
@@ -796,14 +808,14 @@ private struct SoundSettingsPane: View {
                         // meter running is the only moment this advice is useful, and
                         // it means there is no separate state deciding when to drop it.
                         Text("Speak and watch the level. If it stays flat, check your input volume in macOS Sound Settings.")
-                            .font(.caption)
+                            .font(SettingsPaneLayout.cardCaption)
                             .foregroundStyle(.secondary)
 
                         HStack {
                             Button("Stop") { runtime.coordinator.stopMicrophoneTest() }
                             Button("Open Sound Settings") { runtime.coordinator.openSystemSoundSettings() }
                         }
-                        .font(.caption)
+                        .font(SettingsPaneLayout.cardCaption)
                     } else {
                         Button("Check Input Level") { runtime.coordinator.startMicrophoneTest() }
                             .accessibilityIdentifier("microphone-level-test-button")
@@ -812,7 +824,7 @@ private struct SoundSettingsPane: View {
 
                     if let microphoneTestError = runtime.coordinator.microphoneTestError {
                         Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption)
+                            .font(SettingsPaneLayout.cardCaption)
                             .foregroundStyle(.orange)
                     }
                 }
@@ -841,7 +853,7 @@ private struct SoundSettingsPane: View {
                         .accessibilityIdentifier("mute-other-audio-toggle")
                         if let status = runtime.coordinator.otherAudioMuteStatus {
                             Label(status.message, systemImage: "exclamationmark.triangle.fill")
-                                .font(.caption)
+                                .font(SettingsPaneLayout.cardCaption)
                                 .foregroundStyle(.orange)
                                 .accessibilityIdentifier("other-audio-mute-status")
                         }
@@ -855,10 +867,7 @@ private struct SoundSettingsPane: View {
                                 runtime.coordinator.openSystemAudioPrivacySettings()
                             }
                             .buttonStyle(.link)
-                            // Matches the caption above it, which AppKit draws
-                            // and reports to no API. Measured: both ink 10.5pt,
-                            // where .callout is half a point taller.
-                            .font(.subheadline)
+                            .font(SettingsPaneLayout.cardCaption)
                             .accessibilityIdentifier("open-system-audio-privacy")
                         }
                     }
@@ -912,7 +921,7 @@ private struct ElevenLabsSettingsPane: View {
                             .disabled(!canSubmitAPIKey)
                         if let keyFeedback {
                             Label(keyFeedback.message, systemImage: keyFeedback.systemImage)
-                                .font(.caption)
+                                .font(SettingsPaneLayout.cardCaption)
                                 .foregroundStyle(keyFeedback.color)
                                 .lineLimit(2)
                                 .accessibilityIdentifier("api-key-save-feedback")
@@ -935,7 +944,7 @@ private struct ElevenLabsSettingsPane: View {
                 VStack(alignment: .leading, spacing: SettingsPaneLayout.captionGap) {
                     Text("API Key")
                     Text("Scriber needs a key with Speech to Text access. [Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up), then [add an API key](https://elevenlabs.io/app/developers/api-keys). Enable User → Read on that key as well to show your credits here.")
-                        .font(.callout)
+                        .font(SettingsPaneLayout.pageCaption)
                         .fontWeight(.regular)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1082,11 +1091,11 @@ private struct ElevenLabsSettingsPane: View {
                         .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
                     }
                 }
-                .font(.caption)
+                .font(SettingsPaneLayout.cardCaption)
                 .foregroundStyle(.secondary)
                 if usage.remainingCredits == 0, usage.canExtendCredits {
                     Text("Included credits are depleted, but ElevenLabs reports that extended usage is available.")
-                        .font(.caption)
+                        .font(SettingsPaneLayout.cardCaption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -1099,7 +1108,7 @@ private struct ElevenLabsSettingsPane: View {
                 Label("Speech-to-Text access verified", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                 Text(runtime.coordinator.subscriptionUsageError ?? "Credit usage is unavailable for this API key.")
-                    .font(.caption)
+                    .font(SettingsPaneLayout.cardCaption)
                     .foregroundStyle(.secondary)
                 Button {
                     Task { await runtime.coordinator.refreshSubscriptionUsage() }
@@ -1159,7 +1168,7 @@ private struct PermissionsSettingsPane: View {
                 .accessibilityIdentifier("open-system-audio-privacy-signpost")
             }
             Text("Used only to mute other apps while you dictate. macOS does not report whether this one is granted, so Scriber cannot show it here — muting works either way.")
-                .font(.caption)
+                .font(SettingsPaneLayout.cardCaption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
