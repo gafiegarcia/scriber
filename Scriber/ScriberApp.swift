@@ -575,6 +575,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// which fires every time setup is clicked back into — re-centring there
     /// takes the window's position away from whoever moved it.
     private var fittedOnboardingWindows = Set<ObjectIdentifier>()
+    private var fittedSettingsWindows = Set<ObjectIdentifier>()
 
     // Temporary: traces which path orders the startup window back on screen after
     // an early Command-W. Records only window titles, booleans, and policies.
@@ -645,6 +646,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 window.isReleasedWhenClosed = false
                 NSApp.setActivationPolicy(.regular)
                 if window.title == AppWindowIdentity.onboardingTitle { self?.fitOnboardingWindow(window) }
+                if AppWindowIdentity.isSettingsWindow(window) { self?.fitSettingsWindow(window) }
             }
         })
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self] note in
@@ -659,6 +661,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.activationRetryTask?.cancel()
                 self?.activationRetryTask = nil
                 self?.fittedOnboardingWindows.remove(ObjectIdentifier(window))
+                self?.fittedSettingsWindows.remove(ObjectIdentifier(window))
             }
             Task { @MainActor [weak self] in
                 guard AppWindowIdentity.isManagedWindow(window) else { return }
@@ -822,6 +825,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// it gets cascaded down until it runs under the Dock, and reopened in a
     /// later session it gets a restored frame that `.contentSize` resizability
     /// never re-derives — which is how it once came back stuck small.
+    /// Holds Settings at its fixed size, and keeps Window ▸ Center working there.
+    ///
+    /// `.contentSize` resizability sizes a window from its content but never
+    /// re-derives a frame AppKit restored from an earlier session, so a Mac that
+    /// resized Settings while it still could reopens it at whatever size it was
+    /// left at. Pinning both limits and setting the size corrects that on the way
+    /// in, and leaves the saved position alone — a settings window that jumps
+    /// across the screen on every open is worse than one that opens where it was.
+    ///
+    /// The resizable mask is claimed for the reason `fitOnboardingWindow` gives:
+    /// macOS disables Window ▸ Center and Fill for a window that cannot be
+    /// resized, a disabled item does not consume its key, and ⌃🌐C then reaches
+    /// the app as `NSEnterCharacter` and fires the default button. Here that is
+    /// whichever button a confirmation is resting on.
+    private func fitSettingsWindow(_ window: NSWindow) {
+        guard fittedSettingsWindows.insert(ObjectIdentifier(window)).inserted else { return }
+        let size = NSSize(width: SettingsWindowLayout.width, height: SettingsWindowLayout.height)
+        window.styleMask.insert(.resizable)
+        window.contentMinSize = size
+        window.contentMaxSize = size
+        window.setContentSize(size)
+        window.collectionBehavior.insert(.fullScreenNone)
+    }
+
     private func fitOnboardingWindow(_ window: NSWindow) {
         guard fittedOnboardingWindows.insert(ObjectIdentifier(window)).inserted else { return }
         window.isRestorable = false

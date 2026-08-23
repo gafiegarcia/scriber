@@ -4,7 +4,7 @@ import SwiftUI
 enum OnboardingLayout {
     /// The window is fixed at this size and the scene derives its frame from it,
     /// so every step is laid out against a page that never changes shape. Sitting
-    /// between Settings (660×560) and the main window (900×640) keeps setup
+    /// between Settings (660×520) and the main window (900×640) keeps setup
     /// recognisably part of the same app.
     static let windowWidth: CGFloat = 660
     static let windowHeight: CGFloat = 700

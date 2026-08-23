@@ -9,6 +9,13 @@ enum MainPageLayout {
     static let maxContentWidth: CGFloat = 640
 }
 
+/// Settings is fixed at this size. The scene derives its frame from it and the
+/// window layer pins both limits to it, so the two have to read the same number.
+enum SettingsWindowLayout {
+    static let width: CGFloat = 660
+    static let height: CGFloat = 520
+}
+
 struct SearchDictationHistoryActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
@@ -259,7 +266,7 @@ struct SettingsView: View {
         // The size, not a floor: the window is fixed, so a tab is seen at the
         // size it was designed at whatever else is in Settings, and a tab with
         // more in it than fits scrolls. Adding a setting does not move this.
-        .frame(width: 660, height: 520)
+        .frame(width: SettingsWindowLayout.width, height: SettingsWindowLayout.height)
         // Every one of these is on the window and not on a pane: a tab that is
         // not selected may not be mounted, and each of them has to run for state
         // the window owns.
