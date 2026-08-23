@@ -1122,6 +1122,7 @@ final class AppCoordinator: ObservableObject {
         // waveform draws flat until there is really something to draw, rather
         // than claiming a level it cannot have yet.
         playFeedback(.dictationStarted)
+        recordingStartedAt = Date.now
         setPhase(.recording(mode: mode, elapsed: 0, level: -160))
         // Told at the press, not at the open. The tap machine reports another key
         // being typed only while it is in held mode, so a mode arriving with the
@@ -1204,8 +1205,7 @@ final class AppCoordinator: ObservableObject {
         meterTask = nil
         endOtherAudioMuting()
         shortcuts.setMode(.busy)
-        var elapsed: TimeInterval = 0
-        if case .recording(_, let value, _) = phase { elapsed = value }
+        let elapsed = elapsedSincePress
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -1386,7 +1386,8 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func cancelRecording() {
-        guard case .recording(_, let elapsed, _) = phase else { return }
+        guard case .recording = phase else { return }
+        let elapsed = elapsedSincePress
         meterTask?.cancel()
         meterTask = nil
         endOtherAudioMuting()
@@ -1419,9 +1420,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func cancelHeldRecordingForTypingIfNeeded() {
-        var elapsed: TimeInterval = 0
-        if case .recording(_, let value, _) = phase { elapsed = value }
-        guard gate.cancelsForTyping(elapsed: elapsed) else { return }
+        guard gate.cancelsForTyping(elapsed: elapsedSincePress) else { return }
         apply(gate.apply(.cancelRequested))
     }
 
@@ -1682,7 +1681,23 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+    /// When the press that began this dictation arrived.
+    ///
+    /// The cancellation thresholds are counted from the press rather than from
+    /// the microphone opening, and they cannot read `phase`: the meter stopped
+    /// publishing into it so it would stop re-rendering the app, so the elapsed
+    /// time carried there is frozen at whatever it was when the phase last
+    /// materially changed. The pill keeps its own clock, which counts from the
+    /// open and is what the user sees.
+    private var recordingStartedAt: Date?
+
+    private var elapsedSincePress: TimeInterval {
+        guard let recordingStartedAt else { return 0 }
+        return Date.now.timeIntervalSince(recordingStartedAt)
+    }
+
     private func returnToIdle() {
+        recordingStartedAt = nil
         endOtherAudioMuting()
         suppressPillForCurrentTranscription = false
         paste.clearTarget()
