@@ -342,14 +342,6 @@ struct SettingsView: View {
     }
 }
 
-/// A header that draws nothing, for a group that wants a titled group's spacing
-/// without a title. A grouped form leaves 40pt above a section that has a header
-/// and 10pt above one that does not, and nothing else reaches that number:
-/// `listSectionSpacing` is unavailable on macOS, and padding a `Section` is ignored.
-private func sectionGapHeader() -> some View {
-    Color.clear.frame(height: 0)
-}
-
 private struct GeneralSettingsPane: View {
     /// Opens a new issue directly, rather than the repository's front page: the
     /// user has already decided what they came to do.
@@ -967,7 +959,7 @@ private struct ElevenLabsSettingsPane: View {
                 Section {
                     subscriptionUsageView
                 } header: {
-                    sectionGapHeader()
+                    Text("Remaining credits")
                 }
             }
         }
@@ -1051,10 +1043,19 @@ private struct ElevenLabsSettingsPane: View {
         )
         if let usage = runtime.preferences.subscriptionUsage {
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Label(presentation.cachedUsageTitle, systemImage: "gauge.with.dots.needle.33percent")
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(usage.tier.capitalized + " plan")
+                        if let resetAt = usage.resetAt {
+                            Text("Resets \(resetAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(SettingsPaneLayout.cardCaption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     Spacer()
-                    Text("\(usage.remainingCredits.formatted()) of \(usage.totalCredits.formatted()) remaining")
+                    // The section names them as remaining, so the number does not
+                    // have to say it twice.
+                    Text("\(usage.remainingCredits.formatted()) of \(usage.totalCredits.formatted()) credits")
                         .monospacedDigit()
                 }
                 HStack(spacing: 8) {
@@ -1082,22 +1083,28 @@ private struct ElevenLabsSettingsPane: View {
                     }
                 }
                 HStack {
-                    Text(usage.tier.capitalized + " plan")
-                    if let resetAt = usage.resetAt {
-                        Text("· Resets \(resetAt.formatted(date: .abbreviated, time: .shortened))")
-                    }
-                    Text("· Updated \(usage.fetchedAt.formatted(date: .abbreviated, time: .shortened))")
+                    // Relative, because how long ago it was read is the useful
+                    // part; a date and time has to be subtracted from now first.
+                    Text("Last checked \(usage.fetchedAt.formatted(.relative(presentation: .named)))")
                     Spacer()
                     if presentation.showsCachedUsageRefresh {
                         Button {
                             Task { await runtime.coordinator.refreshSubscriptionUsage() }
                         } label: {
-                            if runtime.coordinator.isRefreshingSubscriptionUsage {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Label("Refresh", systemImage: "arrow.clockwise")
+                            Label {
+                                Text("Refresh")
+                            } icon: {
+                                // The spinner takes the icon's place rather than
+                                // the whole label's, so the button holds its width.
+                                if runtime.coordinator.isRefreshingSubscriptionUsage {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Image(systemName: "arrow.clockwise")
+                                }
                             }
+                            .imageScale(.small)
                         }
+                        .controlSize(.small)
                         .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
                     }
                 }

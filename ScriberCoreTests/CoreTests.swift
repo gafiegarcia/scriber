@@ -744,7 +744,6 @@ struct ScribeValidationTests {
             usageUnavailable: true
         )
 
-        #expect(presentation.cachedUsageTitle == "Last known ElevenLabs credits")
         #expect(presentation.cachedUsageIsStale)
         #expect(!presentation.showsCachedUsageRefresh)
         #expect(presentation.showsUnavailableRetry)
@@ -757,7 +756,6 @@ struct ScribeValidationTests {
             usageUnavailable: false
         )
 
-        #expect(presentation.cachedUsageTitle == "ElevenLabs credits")
         #expect(!presentation.cachedUsageIsStale)
         #expect(presentation.showsCachedUsageRefresh)
         #expect(!presentation.showsUnavailableRetry)

@@ -370,10 +370,6 @@ public struct SubscriptionUsagePresentation: Equatable, Sendable {
         self.usageUnavailable = usageUnavailable
     }
 
-    public var cachedUsageTitle: String {
-        usageUnavailable ? "Last known ElevenLabs credits" : "ElevenLabs credits"
-    }
-
     public var cachedUsageIsStale: Bool { hasCachedUsage && usageUnavailable }
     public var showsCachedUsageRefresh: Bool { hasCachedUsage && !usageUnavailable }
     public var showsUnavailableRetry: Bool { usageUnavailable }
