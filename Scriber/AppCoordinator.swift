@@ -755,7 +755,7 @@ final class AppCoordinator: ObservableObject {
     static let runningBuild =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
 
-    /// `force` is the Check Now button: it ignores the once-a-day interval but
+    /// `force` is the Check for Updates button: it ignores the once-a-day interval but
     /// not the `servicesAllowed` gate, so a `--ui-testing` launch reaches no
     /// network from either path.
     func checkForUpdates(force: Bool = false) {
