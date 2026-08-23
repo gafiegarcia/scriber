@@ -1,20 +1,20 @@
 import AppKit
 
-enum RecordingFeedbackCue: Equatable, Sendable {
-    case recordingStarted
+enum DictationFeedbackCue: Equatable, Sendable {
+    case dictationStarted
     case terminalFailure
     case cancellationOrCopyFallback
 }
 
 @MainActor
-protocol RecordingFeedbackSoundPlaying: AnyObject {
-    func play(_ cue: RecordingFeedbackCue)
+protocol DictationFeedbackSoundPlaying: AnyObject {
+    func play(_ cue: DictationFeedbackCue)
     func fadeOut()
     func stop()
 }
 
 @MainActor
-final class RecordingFeedbackSoundPlayer: RecordingFeedbackSoundPlaying {
+final class DictationFeedbackSoundPlayer: DictationFeedbackSoundPlaying {
     private let startSound: NSSound?
     private let cancellationOrCopyFallbackSound: NSSound?
     private let volume: Float
@@ -35,10 +35,10 @@ final class RecordingFeedbackSoundPlayer: RecordingFeedbackSoundPlaying {
     // cutting one that is still playing — but the warm-up adds lag to a cue that fires
     // on every dictation, a worse trade than the rare pop, so cues play immediately and
     // take both hits.
-    func play(_ cue: RecordingFeedbackCue) {
+    func play(_ cue: DictationFeedbackCue) {
         stop()
         switch cue {
-        case .recordingStarted:
+        case .dictationStarted:
             _ = startSound?.play()
         case .terminalFailure:
             // The user's own system alert sound, at their alert volume. The new-style

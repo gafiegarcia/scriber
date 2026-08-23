@@ -118,7 +118,7 @@ final class AppCoordinator: ObservableObject {
     private let login = LaunchAtLoginService()
     private let pill = PillController()
     private let shortcuts: GlobalShortcutService
-    private let feedbackSounds: RecordingFeedbackSoundPlaying
+    private let feedbackSounds: DictationFeedbackSoundPlaying
     private let otherAudioMuting: OtherAudioMuting
     private let historyMaintenance: DictationHistoryMaintenance
     private var meterTask: Task<Void, Never>?
@@ -152,7 +152,7 @@ final class AppCoordinator: ObservableObject {
         persistenceAvailable: Bool = true,
         permissionReadinessOverride: PermissionReadiness? = nil,
         servicesAllowed: Bool = true,
-        feedbackSounds: RecordingFeedbackSoundPlaying = RecordingFeedbackSoundPlayer(),
+        feedbackSounds: DictationFeedbackSoundPlaying = DictationFeedbackSoundPlayer(),
         otherAudioMuting: OtherAudioMuting = OtherAudioMuteService()
     ) {
         self.preferences = preferences
@@ -1121,7 +1121,7 @@ final class AppCoordinator: ObservableObject {
         // not depend on what is plugged in. `-160` is the no-signal floor: the
         // waveform draws flat until there is really something to draw, rather
         // than claiming a level it cannot have yet.
-        playFeedback(.recordingStarted)
+        playFeedback(.dictationStarted)
         setPhase(.recording(mode: mode, elapsed: 0, level: -160))
         // Told at the press, not at the open. The tap machine reports another key
         // being typed only while it is in held mode, so a mode arriving with the
@@ -1565,7 +1565,7 @@ final class AppCoordinator: ObservableObject {
         setPhase(.transcriptionFailed(message))
     }
 
-    private func playFeedback(_ cue: RecordingFeedbackCue) {
+    private func playFeedback(_ cue: DictationFeedbackCue) {
         guard preferences.playDictationFeedbackSounds else { return }
         feedbackSounds.play(cue)
     }
