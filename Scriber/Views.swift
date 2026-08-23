@@ -1085,31 +1085,37 @@ private struct ElevenLabsSettingsPane: View {
                 HStack {
                     // Relative, because how long ago it was read is the useful
                     // part; a date and time has to be subtracted from now first.
+                    //
+                    // Styled here rather than on the row: a button sharing the
+                    // row is not a caption, and inheriting the caption's size is
+                    // what made it read as a smaller control than every other
+                    // button in Settings.
                     Text("Last checked \(usage.fetchedAt.formatted(.relative(presentation: .named)))")
+                        .font(SettingsPaneLayout.cardCaption)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     if presentation.showsCachedUsageRefresh {
                         Button {
                             Task { await runtime.coordinator.refreshSubscriptionUsage() }
                         } label: {
-                            Label {
-                                Text("Refresh")
-                            } icon: {
+                            // An `HStack` and not a `Label`, which reserves an
+                            // alignment column for its icon and leaves a gap the
+                            // width of one beside a glyph this small.
+                            HStack(spacing: 4) {
                                 // The spinner takes the icon's place rather than
                                 // the whole label's, so the button holds its width.
                                 if runtime.coordinator.isRefreshingSubscriptionUsage {
                                     ProgressView().controlSize(.small)
                                 } else {
                                     Image(systemName: "arrow.clockwise")
+                                        .imageScale(.small)
                                 }
+                                Text("Refresh")
                             }
-                            .imageScale(.small)
                         }
-                        .controlSize(.small)
                         .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)
                     }
                 }
-                .font(SettingsPaneLayout.cardCaption)
-                .foregroundStyle(.secondary)
                 if usage.remainingCredits == 0, usage.canExtendCredits {
                     Text("Included credits are depleted, but ElevenLabs reports that extended usage is available.")
                         .font(SettingsPaneLayout.cardCaption)
