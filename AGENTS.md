@@ -7,14 +7,14 @@
 ## API Keys
 
 - Keep the ElevenLabs key only in Scriber's dedicated Keychain item.
-- Tests/checks that contact ElevenLabs or consume API credit require my permission — request a manual check by the user instead when needed.
+- Tests/checks that contact ElevenLabs or consume API credit require the user's permission — request a manual check instead when needed.
 
 ## Verification
 
 - Run the routine pass in `docs/AUTOMATED_CHECKS.md`. Run its launch smoke check after any change to startup, the pill, or an `NSViewRepresentable`; it has caught a main-thread wedge no test did. Run it exactly as written, or its `kill` can land on the installed app.
 - **Checking the running app is encouraged.** Use a computer-use tool when available. If you are Claude, do not start one before asking for explicit permission; Claude's computer-use tool moves the real pointer so it will get interrupted by the user if you don't give a heads-up.
 - **Do not add a UI test suite.** Not because the project lacks one by accident — the bar is a specific regression a package test cannot catch.
-- **List out manual checks the user need to do to verify the work before concluding the session.** Name the few items from `docs/MANUAL_CHECKS.md` that match what actually changed.
+- **List out manual checks the user needs to do to verify the work before concluding the session.** Name the few items from `docs/MANUAL_CHECKS.md` that match what actually changed.
 - **Finish native work by shipping it.** Refer to the `/wrap-up` skill. Bump the build, build Release, install to `/Applications`, then run the sweep in `docs/BUILDING.md`. Scriber is in daily use; do not leave a verified change in a build directory.
 
 ## Workflow
