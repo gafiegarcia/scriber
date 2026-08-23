@@ -202,7 +202,7 @@ final class AppCoordinator: ObservableObject {
             .sink { [weak self] chord in self?.shortcuts.update(dictation: chord) }
             .store(in: &cancellables)
 
-        preferences.$muteOtherAudioWhileRecording
+        preferences.$muteOtherAudioWhileDictating
             .dropFirst()
             .sink { [weak self] enabled in
                 guard let self else { return }
@@ -1157,7 +1157,7 @@ final class AppCoordinator: ObservableObject {
     /// timer counts from here rather than from the press, and the meter has
     /// something real to report.
     private func beginMetering(mode: RecordingMode) {
-        if preferences.muteOtherAudioWhileRecording { beginOtherAudioMuting() }
+        if preferences.muteOtherAudioWhileDictating { beginOtherAudioMuting() }
         shortcuts.setMode(mode == .held ? .held : .locked)
         setPhase(.recording(mode: mode, elapsed: 0, level: -80))
         startMeter()

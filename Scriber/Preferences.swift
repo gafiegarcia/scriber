@@ -26,7 +26,7 @@ final class Preferences: ObservableObject {
         static let showAppInDock = "showAppInDock"
         static let audioInputSelection = "audioInputSelection"
         static let playRecordingFeedbackSounds = "playRecordingFeedbackSounds"
-        static let muteOtherAudioWhileRecording = "muteOtherAudioWhileRecording"
+        static let muteOtherAudioWhileDictating = "muteOtherAudioWhileDictating"
         static let deletesExpiredRetainedAudio = "deletesExpiredRetainedAudio"
         static let automaticUpdateChecks = "automaticUpdateChecks"
         static let lastUpdateCheck = "lastUpdateCheck"
@@ -64,8 +64,8 @@ final class Preferences: ObservableObject {
     @Published var playRecordingFeedbackSounds: Bool {
         didSet { defaults.set(playRecordingFeedbackSounds, forKey: Keys.playRecordingFeedbackSounds) }
     }
-    @Published var muteOtherAudioWhileRecording: Bool {
-        didSet { defaults.set(muteOtherAudioWhileRecording, forKey: Keys.muteOtherAudioWhileRecording) }
+    @Published var muteOtherAudioWhileDictating: Bool {
+        didSet { defaults.set(muteOtherAudioWhileDictating, forKey: Keys.muteOtherAudioWhileDictating) }
     }
     @Published var deletesExpiredRetainedAudio: Bool {
         didSet { defaults.set(deletesExpiredRetainedAudio, forKey: Keys.deletesExpiredRetainedAudio) }
@@ -111,7 +111,7 @@ final class Preferences: ObservableObject {
         // Off by default, unlike its neighbours above: turning it on is what
         // makes macOS demand System Audio Recording, and an opt-out default
         // would spend that prompt during a first dictation.
-        muteOtherAudioWhileRecording = defaults.bool(forKey: Keys.muteOtherAudioWhileRecording)
+        muteOtherAudioWhileDictating = defaults.bool(forKey: Keys.muteOtherAudioWhileDictating)
         deletesExpiredRetainedAudio = defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil
             ? true
             : defaults.bool(forKey: Keys.deletesExpiredRetainedAudio)

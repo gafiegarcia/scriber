@@ -568,7 +568,7 @@ struct DoneStep: View {
                 OnboardingCard {
                     VStack(alignment: .leading, spacing: 10) {
                         MuteOtherAudioToggle(
-                            isOn: $runtime.preferences.muteOtherAudioWhileRecording,
+                            isOn: $runtime.preferences.muteOtherAudioWhileDictating,
                             requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
                         ) { isOn in
                             Toggle("Mute other audio while dictating", isOn: isOn)

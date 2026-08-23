@@ -806,7 +806,7 @@ private struct SoundSettingsPane: View {
                 // toggle they are about, rather than sitting a divider away
                 // from the setting that asked for them.
                 MuteOtherAudioToggle(
-                    isOn: $runtime.preferences.muteOtherAudioWhileRecording,
+                    isOn: $runtime.preferences.muteOtherAudioWhileDictating,
                     requestAccess: { runtime.coordinator.requestOtherAudioAccess() }
                 ) { isOn in
                     VStack(alignment: .leading, spacing: 8) {
@@ -826,15 +826,16 @@ private struct SoundSettingsPane: View {
                         // failed: withdrawing the grant is something people do
                         // to a feature that works, and they arrive with no
                         // failure to route them anywhere.
-                        if runtime.preferences.muteOtherAudioWhileRecording
+                        if runtime.preferences.muteOtherAudioWhileDictating
                             || runtime.coordinator.otherAudioMuteStatus != nil {
                             Button("Open Screen & System Audio Recording settings") {
                                 runtime.coordinator.openSystemAudioPrivacySettings()
                             }
                             .buttonStyle(.link)
                             // Matches the caption above it, which AppKit draws
-                            // and no API reports; measured against .callout.
-                            .font(.callout)
+                            // and reports to no API. Measured: both ink 10.5pt,
+                            // where .callout is half a point taller.
+                            .font(.subheadline)
                             .accessibilityIdentifier("open-system-audio-privacy")
                         }
                     }
