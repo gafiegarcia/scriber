@@ -104,7 +104,7 @@ here are the ones I found; only really tested some. you can just check them out:
 [**Download the latest DMG**](https://github.com/gafiegarcia/scriber/releases/latest), open it, and drag Scriber to Applications. Or:
 
 ```bash
-brew install --cask gafiegarcia/tap/scriber
+brew install --cask gafiegarcia/scriber/scriber
 ```
 
 macOS will say Scriber was downloaded from the internet the first time you open it. That prompt is normal for anything not installed from the App Store. Scriber is signed with a Developer ID certificate and notarized by Apple, so you should never see a warning that it cannot be opened or that the developer cannot be verified — if you do, something is wrong and it is worth opening an issue.

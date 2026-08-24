@@ -122,4 +122,4 @@ shasum -a 256 ".build/Scriber-$VERSION.dmg"
 gh release create "v$VERSION" ".build/Scriber-$VERSION.dmg" --title "v$VERSION" --notes-file <(…requirements, then changelog section…)
 ```
 
-Finally update `Casks/scriber.rb` in the [tap repository](https://github.com/gafiegarcia/homebrew-tap) with the new `version` and that `sha256`. The cask points at the release asset by version, so it breaks until this lands — do it in the same sitting.
+Finally update `Casks/scriber.rb` in the [tap repository](https://github.com/gafiegarcia/homebrew-scriber) with the new `version` and that `sha256`. The cask points at the release asset by version, so it breaks until this lands — do it in the same sitting.
