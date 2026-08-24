@@ -1,9 +1,13 @@
 <div align="center">
     <img src="Branding/ScriberIcon-macOS-Dark.png" width="90px">
-    <h1>Scriber</h1>
+</div>
+
+<h1 align="center">Scriber</h1>
+
+<p align="center">
     <a href="#install"><b>Install ↓</b></a><br>
     <sub><i>macOS 26+</i></sub>
-</div>
+</p>
 <br />
 
 If you're looking for a macOS dictation app to daily-drive, you may be interested in checking out [these alternatives I've listed below](#better-alternatives).
@@ -108,7 +112,9 @@ here are the ones I found; only really tested some. you can just check them out:
 
 </details>
 
-<div align="right"><a href="#scriber">Back to top ↑</a></div>
+<div align="right">
+  <a href="#scriber">Back to top ↑</a>
+</div>
 
 ---
 
