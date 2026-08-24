@@ -144,7 +144,7 @@ struct RecordingStartGateTests {
         var gate = RecordingStartGate()
         #expect(!gate.cancelsForTyping(elapsed: 0))
         _ = gate.apply(.shortcut(.pressed))
-        // The window that used to be deaf: no session, no elapsed time, and the
+        // The window most easily left deaf: no session, no elapsed time, and the
         // key still has to land.
         #expect(gate.cancelsForTyping(elapsed: 0))
         _ = gate.apply(.sessionOpened)

@@ -167,13 +167,10 @@ struct ShortcutRecorderButton: View {
     }
 
     /// Ends the capture exactly as Escape does, and leaves the reason on screen.
-    ///
-    /// A refusal used to only set the message and keep listening, which left the
-    /// local monitor installed swallowing every key — so nothing in Scriber could
-    /// be typed into and global matching stayed suspended — while the button went
-    /// on showing the refused chord as though it had been accepted. Order matters
-    /// here: `stopRecording` never touches `error`, and `startRecording` is the
-    /// only thing that clears it, so the reason survives until the next attempt.
+    /// A refusal that only sets the message keeps the local monitor installed
+    /// swallowing every key. Order matters: `stopRecording` never touches `error`
+    /// and `startRecording` is the only thing that clears it, so the reason
+    /// survives until the next attempt.
     private func reject(_ message: String) {
         stopRecording()
         error = message

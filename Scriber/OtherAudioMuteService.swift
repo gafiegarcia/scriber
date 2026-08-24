@@ -74,11 +74,10 @@ protocol OtherAudioMuting: AnyObject, Sendable {
 /// exclusion survive Core Audio process-object recreation while `processRestoreEnabled` ensures
 /// newly launched non-Scriber apps remain muted for the current session.
 final class OtherAudioMuteService: OtherAudioMuting, @unchecked Sendable {
-    /// Building a tap is a chain of blocking round trips to coreaudiod, on the
-    /// same HAL a capture session has just perturbed. Off the main thread for
-    /// the reason `requestAccess` already is, with a serial queue standing in
-    /// for the mutual exclusion the main actor used to give: a begin and an end
-    /// must never interleave.
+    /// Building a tap is a chain of blocking round trips to coreaudiod, on the same
+    /// HAL a capture session has just perturbed. Off the main thread for the reason
+    /// `requestAccess` is, on a serial queue because a begin and an end must never
+    /// interleave.
     private let queue = DispatchQueue(label: "com.gafiegarcia.scriber.audio-mute")
     private var tapID: AudioObjectID?
     private var aggregateDeviceID: AudioObjectID?
@@ -96,11 +95,10 @@ final class OtherAudioMuteService: OtherAudioMuting, @unchecked Sendable {
     /// Raises the System Audio Recording prompt, by doing the one thing that
     /// asks for it.
     ///
-    /// Creating a tap is not the moment macOS checks — driving one is, which is
-    /// why the prompt used to land in the middle of a first dictation. So this
-    /// builds the same aggregate device and IOProc the real mute does and starts
-    /// it, then takes it all down. Its tap is `.unmuted`, so nothing anyone is
-    /// listening to goes quiet while the question is on screen.
+    /// Creating a tap is not the moment macOS checks — driving one is, so without
+    /// this the prompt lands in the middle of a first dictation. Build the same
+    /// aggregate device and IOProc the real mute does, start it, then take it all
+    /// down. Its tap is `.unmuted`, so nothing goes quiet while the question is up.
     ///
     /// Deliberately outside the actor and touching no stored state: macOS blocks
     /// its caller for as long as the prompt is up, and on the main thread that is

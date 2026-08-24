@@ -62,10 +62,9 @@ struct ShortcutMatcherTests {
 
     @Test("Every notice phase still accepts the next dictation")
     func noticePhasesAcceptRecordingStart() {
-        // A notice describes a dictation that already ended. Speaking again must not
-        // wait on its pill: `.noSpeechDetected` used to swallow both shortcuts until
-        // the pill was dismissed by hand, which is exactly when the user is likeliest
-        // to try again straight away.
+        // A notice describes a dictation that already ended, so speaking again must
+        // not wait on its pill. `.noSpeechDetected` is the trap: it is exactly when
+        // the user is likeliest to try again straight away.
         #expect(AppPhase.noSpeechDetected.acceptsRecordingStart)
         // The likeliest phase of all to be followed by an immediate retry: the user
         // just spoke into a microphone that produced nothing, and the obvious next
@@ -127,8 +126,8 @@ struct ShortcutMatcherTests {
 
     @Test("Modifier recorder commits at the first release, not the last")
     func modifierRecorderCommitsOnFirstRelease() {
-        // The recorder used to keep listening until every key was up, which made it
-        // look like releasing one key could still edit the chord. It never could.
+        // Listening until every key is up makes it look as though releasing one can
+        // still edit the chord. It cannot: the peak is what commits.
         var capture = ModifierChordCaptureState()
         capture.observe([.function, .control, .option])
 
@@ -1237,9 +1236,9 @@ struct ShortcutTapMachineTests {
         machine.setMode(.held)
         #expect(machine.handle(down(2, [.command, .shift], repeating: true), pillConsumesEscape: false).effects.isEmpty)
 
-        // What `cancelRecording` does. It clears the latch, which used to re-open
-        // the start guard so the next repeat began a whole new recording — and the
-        // one after that cancelled it again, at the key-repeat rate, forever.
+        // What `cancelRecording` does: it clears the latch. If that re-opens the
+        // start guard, the next repeat begins a whole new recording and the one
+        // after cancels it again, at the key-repeat rate, forever.
         machine.setMode(.idle)
         #expect(machine.handle(down(2, [.command, .shift], repeating: true), pillConsumesEscape: false).effects.isEmpty)
 
@@ -1329,9 +1328,9 @@ struct ShortcutTapMachineTests {
         var machine = machine(dictation: .defaultDictation)
         #expect(machine.handle(flags([.function]), pillConsumesEscape: false).effects == [.action(.pressed)])
 
-        // No `setMode`: the press reaches the coordinator a run-loop turn later,
-        // and a release landing first used to be dropped, leaving a recording
-        // running that nothing was going to stop.
+        // No `setMode`: the press reaches the coordinator a run-loop turn later, and
+        // a release landing first must not be dropped — that leaves a recording
+        // running with nothing left to stop it.
         #expect(machine.handle(flags([], at: heldLongEnough), pillConsumesEscape: false)
             .effects == [.action(.releasedAfterHold)])
     }

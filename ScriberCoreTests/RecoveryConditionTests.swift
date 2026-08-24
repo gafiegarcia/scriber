@@ -5,9 +5,9 @@ import Testing
 struct RecoveryConditionTests {
     private let blockedPermissions = PermissionReadiness(missingPermissions: [.microphone, .accessibility])
 
-    /// The setup window closes with ⌘W, so this state is reachable and has to
-    /// say something. It used to report nothing at all, which left an abandoned
-    /// setup looking like an app that simply did not work.
+    /// The setup window closes with ⌘W, so this state is reachable and has to say
+    /// something. Reporting nothing leaves an abandoned setup looking like an app
+    /// that simply does not work.
     @Test("Unfinished setup is itself the one thing reported")
     func unfinishedSetupIsReported() throws {
         let conditions = RecoveryConditions.current(
