@@ -87,11 +87,8 @@ enum SettingsTab: String, Hashable, CaseIterable, Identifiable {
 }
 
 extension MainWindowDestination {
-    /// The tab that owns this destination, or `nil` for one that names no tab.
-    ///
-    /// Nil is not a gap: a route that exists to fix something has to land on the
-    /// tab that owns it, and an ordinary opening must leave the user on whatever
-    /// tab they last chose.
+    /// The tab that owns this destination. Nil is not a gap — it means an ordinary
+    /// opening, which leaves the user on whatever tab they last chose.
     var settingsTab: SettingsTab? {
         switch self {
         case .dictation, .settings: nil
@@ -133,13 +130,11 @@ private enum SettingsPaneLayout {
     static let pageCaption: Font = .callout
 }
 
-/// Wraps whatever renders the mute-other-audio setting, handing it a binding
-/// that asks before it turns on and carrying the dialog that does the asking.
-///
-/// One view rather than a binding helper plus a separate modifier: the two have
-/// to be applied together, and a call site that used only the binding would get
-/// a toggle that silently never turns on. The setting appears in both Settings
-/// and onboarding, and both go through here.
+/// Wraps whatever renders the mute-other-audio setting, handing it a binding that
+/// asks before it turns on and carrying the dialog that does the asking. One view
+/// rather than a binding plus a separate modifier, because a call site that took
+/// only the binding gets a toggle that silently never turns on. Settings and
+/// onboarding both go through here.
 struct MuteOtherAudioToggle<Content: View>: View {
     @Binding var isOn: Bool
     /// Raises the macOS prompt the moment the user opts in. Left to the first
@@ -170,10 +165,9 @@ struct MuteOtherAudioToggle<Content: View>: View {
 /// A toggle and the sentence explaining it, in one row.
 ///
 /// A grouped form draws a divider between rows, so a caption written as its own
-/// row is separated from the setting it explains exactly as much as the next
-/// setting is — which is what made a group of two settings read as four. The
-/// two-`Text` label is AppKit's own answer: the caption renders under the title,
-/// inside the same row, with no divider available to fall between them.
+/// row is divided from the setting it explains exactly as much as the next setting
+/// is, making a group of two settings read as four. The two-`Text` label is
+/// AppKit's answer: caption under title, same row, no divider able to fall between.
 private struct SettingsToggle: View {
     let title: String
     let caption: String?
@@ -189,11 +183,10 @@ private struct SettingsToggle: View {
         if let caption {
             Toggle(isOn: $isOn) {
                 Text(title)
-                // Inside AppKit's label rather than replacing it with a stack of
-                // our own. AppKit sets the caption's font and colour and would
-                // have to be guessed at to reproduce; all this adds is the gap,
-                // which it draws far too tight to read as an explanation of the
-                // line above rather than a second line of it.
+                // Inside AppKit's label rather than a stack of our own: AppKit sets
+                // the caption's font and colour and reports neither. All this adds
+                // is the gap, which it otherwise draws too tight to read as an
+                // explanation rather than a wrapped second line.
                 Text(caption).padding(.top, SettingsPaneLayout.captionGap)
             }
         } else {
@@ -288,11 +281,10 @@ struct SettingsView: View {
             if isBusy { activeShortcutRecorderID = nil }
         }
         .onChange(of: selectedTab) { _, tab in
-            // Leaving General mid-recording would strand the recorder's local
-            // monitor, which returns nil for every key event: nothing in Scriber
-            // could be typed into, and global shortcut matching would stay
-            // suspended, until the window was closed. Clearing the ID is what
-            // `ShortcutRecorderView` watches to tear the monitor down.
+            // Leaving General mid-recording strands the recorder's local monitor,
+            // which returns nil for every key event — nothing in Scriber can be
+            // typed into and global matching stays suspended until the window
+            // closes. `ShortcutRecorderView` watches this ID to tear it down.
             if tab != .general { activeShortcutRecorderID = nil }
             // The level meter opens the microphone, so leaving its tab closes it.
             // Nothing else would: the pane keeps its state while the window lives.
@@ -403,12 +395,10 @@ private struct GeneralSettingsPane: View {
                         isOn: $runtime.preferences.startInBackground
                     )
                     .accessibilityIdentifier("start-in-background-toggle")
-                    // Disabled together, so the caption dims with the control it
-                    // explains rather than staying live beside a dead toggle.
-                    // `.disabled` alone only lowers the alpha a little and keeps
-                    // the accent colour, so a switch left on still reads as
-                    // live; draining the tint is what makes it read as governed
-                    // by the setting above.
+                    // `.disabled` alone only lowers the alpha a little and keeps the
+                    // accent colour, so a switch left on still reads as live.
+                    // Draining the tint is what makes it read as governed by the
+                    // setting above.
                     .tint(
                         runtime.coordinator.launchAtLoginState.isOn
                             ? Color.accentColor
@@ -577,11 +567,10 @@ private struct DictationSettingsPane: View {
                     Text("Indonesian").tag("id")
                 }
                 Toggle("Remove filler words and false starts", isOn: $runtime.preferences.noVerbatim)
-                // Field, captions, and the added-terms list share one Form row
-                // so the grouped form draws no divider between them. A divider
-                // per keyterm would read as more settings rows rather than as
-                // the contents of this one setting; the card below is what marks
-                // the list as belonging to Keyterms.
+                // Field, captions, and the added-terms list share one Form row so
+                // the grouped form draws no divider between them. A divider per
+                // keyterm reads as more settings rows rather than as the contents
+                // of this one setting.
                 VStack(alignment: .leading, spacing: 12) {
                     LabeledContent {
                         HStack {
@@ -592,28 +581,19 @@ private struct DictationSettingsPane: View {
                                 Text("Keyterm")
                             }
                             .labelsHidden()
-                            // Bordered, unlike the rows above it: those show a
-                            // value you pick, this one is empty until typed
-                            // into and has nothing else to announce itself as
-                            // a field.
+                            // Bordered, unlike the rows above: this one is empty
+                            // until typed into and has nothing else announcing it
+                            // as a field.
                             .textFieldStyle(.roundedBorder)
-                            // Left, not the field's default: with no alignment
-                            // set, an empty focused field with a prompt longer
-                            // than the box scrolled to keep the caret — which
-                            // sits after the prompt's last character — in
-                            // view, showing the prompt's tail pinned to the
-                            // right edge instead of its start.
+                            // Left, not the default: unset, an empty focused field
+                            // with a prompt longer than the box scrolls to keep the
+                            // caret in view, pinning the prompt's tail to the right.
                             .multilineTextAlignment(.leading)
-                            // Fixed, and sized for the word or short phrase a
-                            // keyterm actually is: a fixed width keeps the field
-                            // from reflowing as the window widens or changing
-                            // size as you type. Not `.fixedSize` paired with a
-                            // `.frame(minWidth:maxWidth:)` — that lets the true
-                            // rendered width ignore both bounds, shrinking below
-                            // the minimum on the first keystroke and overflowing
-                            // the maximum on a long entry. Wider than the prompt
-                            // text alone, so the caret-scrolling quirk noted
-                            // above does not pin the prompt's tail right again.
+                            // Fixed, so the field neither reflows as the window
+                            // widens nor resizes as you type, and wider than the
+                            // prompt so the caret quirk above cannot bite. Not
+                            // `.fixedSize` with `.frame(minWidth:maxWidth:)` — that
+                            // lets the rendered width ignore both bounds.
                             .frame(width: 200)
                             .onSubmit(submitKeyterm)
                             .accessibilityIdentifier("keyterm-field")
@@ -621,10 +601,7 @@ private struct DictationSettingsPane: View {
                                 .disabled(!canAddKeyterm)
                         }
                     } label: {
-                        // A popover behind a click, not a permanent caption
-                        // line: the explanation is one click away when wanted
-                        // instead of spending a row on every launch. Click
-                        // rather than `.help()` — a hover tooltip waits out
+                        // Click rather than `.help()`: a hover tooltip waits out
                         // AppKit's fixed delay before it appears, which reads as
                         // unresponsive for something this small.
                         HStack(spacing: 4) {
@@ -716,11 +693,8 @@ private struct DictationSettingsPane: View {
 
 /// The added keyterms as their own card, matching `DictationDayCard`'s recipe:
 /// one shape, one outline, one rule between neighbouring rows. Not drawn when
-/// there are no keyterms — an empty card would just be an empty box.
-///
-/// Not indented. The card's own border and per-row padding is what marks this
-/// as the contents of Keyterms rather than another setting; indenting on top
-/// of that read as two hierarchy cues for the same thing.
+/// there are no keyterms, and not indented — the border and per-row padding
+/// already mark this as the contents of Keyterms.
 private struct KeytermsCard: View {
     let terms: [String]
     let onRemove: (String) -> Void
@@ -782,12 +756,10 @@ private struct SoundSettingsPane: View {
                     .accessibilityIdentifier("microphone-input-picker")
 
                 // One row for the whole input test — meter, advice, controls, and
-                // whatever went wrong. Split across rows, the grouped form divided
-                // them from each other as if each were its own setting.
-                //
-                // Behind a button rather than always live: arriving on this tab
-                // should not open the microphone and light the recording indicator
-                // for someone who only came to change a device.
+                // whatever went wrong. Split across rows, the grouped form divides
+                // them as if each were its own setting. Behind a button rather than
+                // always live, so arriving on this tab does not open the microphone
+                // and light the recording indicator.
                 VStack(alignment: .leading, spacing: 10) {
                     if runtime.coordinator.isMicrophoneTestRunning {
                         AudioLevelMeter(
@@ -926,12 +898,9 @@ private struct ElevenLabsSettingsPane: View {
                         Spacer(minLength: 0)
                     }
                 }
-                // Its own row, so the form draws the boundary and destroying a
-                // key is not offered from the same line as saving one. Leading,
-                // where it does not compete with Save for the eye.
-                //
-                // Confirmed, because the key does not come back and dictation
-                // stops until it is entered again.
+                // Its own row, so destroying a key is not offered from the same line
+                // as saving one, and leading, where it does not compete with Save.
+                // Confirmed, because the key does not come back.
                 if runtime.preferences.apiKeyConfigured {
                     HStack {
                         Button("Remove API Key…", role: .destructive) {
@@ -1083,13 +1052,10 @@ private struct ElevenLabsSettingsPane: View {
                     }
                 }
                 HStack {
-                    // Relative, because how long ago it was read is the useful
-                    // part; a date and time has to be subtracted from now first.
-                    //
-                    // Styled here rather than on the row: a button sharing the
-                    // row is not a caption, and inheriting the caption's size is
-                    // what made it read as a smaller control than every other
-                    // button in Settings.
+                    // Relative, because how long ago it was read is the useful part.
+                    // Styled here rather than on the row: a button sharing the row
+                    // is not a caption, and inheriting the caption's size makes it
+                    // read as a smaller control than every other button in Settings.
                     Text("Last checked \(usage.fetchedAt.formatted(.relative(presentation: .named)))")
                         .font(SettingsPaneLayout.cardCaption)
                         .foregroundStyle(.secondary)
@@ -1198,12 +1164,11 @@ private struct PermissionsSettingsPane: View {
     }
 }
 
-// While a grant is missing, both rows offer one button with one word: the steps
-// behind it — a system prompt, a trip to System Settings, or both — are Scriber's
-// problem, not something to spell out in a changing button title. Once granted,
-// the button becomes the way back to the pane that holds the grant, and is named
-// for that pane: three buttons reading "Open Settings" would announce identically
-// to VoiceOver, and would name Scriber's own Settings besides.
+// While a grant is missing, both rows offer one button with one word; the steps
+// behind it are Scriber's problem, not a changing button title. Once granted, the
+// button leads back to the pane holding the grant and is named for that pane —
+// three buttons reading "Open Settings" would announce identically to VoiceOver,
+// and would name Scriber's own Settings besides.
 struct MicrophonePermissionButton: View {
     @EnvironmentObject private var runtime: AppRuntime
 
