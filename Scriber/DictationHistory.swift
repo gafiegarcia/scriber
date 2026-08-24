@@ -52,14 +52,12 @@ struct DictationHistoryView: View {
     }
 
     /// A `ScrollView` rather than a `List`, so the page can scroll under the
-    /// titlebar's glass. The width cap sits on the content and not on the scroll
-    /// view, which keeps the scroll indicator against the window edge where it
-    /// belongs.
+    /// titlebar's glass. The width cap sits on the content, not the scroll view,
+    /// which keeps the scroll indicator against the window edge.
     ///
-    /// The outer reader is here for the safe-area inset alone: it is the height of
-    /// the titlebar, and so the line a card's top crosses when it starts sliding
-    /// out of sight. Measuring it beats hardcoding it — the strip's height follows
-    /// the label's font, which follows the user's text size.
+    /// The outer reader is here for the safe-area inset alone — the titlebar's
+    /// height, and so the line a card's top crosses on its way out of sight.
+    /// Measure it rather than hardcoding: it follows the user's text size.
     private var historyList: some View {
         GeometryReader { outer in
             scrollingHistory(titlebarHeight: outer.safeAreaInsets.top)
@@ -99,12 +97,10 @@ struct DictationHistoryView: View {
             MainActor.assumeIsolated {
                 let title = Self.currentTitle(from: tops, crossing: titlebarHeight)
                 // `top` moves every scroll frame, so this fires every frame too.
-                // `@Published` publishes on assignment regardless of whether the
-                // value changed, and `dayTitle` is a `@StateObject` this view
-                // owns, so an unconditional write here invalidated the whole
-                // view — recomputing `sections` over the entire history — on
-                // every frame of every scroll, not just when a card actually
-                // crossed the titlebar.
+                // `@Published` publishes on assignment whether or not the value
+                // changed, so an unconditional write here invalidates the whole
+                // view — recomputing `sections` over the entire history — on every
+                // frame of every scroll.
                 if dayTitle.title != title {
                     dayTitle.title = title
                 }
@@ -115,10 +111,9 @@ struct DictationHistoryView: View {
     private static let scrollSpace = "dictation-history-scroll"
 
     /// The day the titlebar names: the last card whose top has already reached the
-    /// titlebar, or the first one still below it before any has.
-    ///
-    /// Sorted rather than trusted in order — preference values arrive in whatever
-    /// order SwiftUI collected the children, which is not the list's order.
+    /// titlebar, or the first one still below it before any has. Sorted rather than
+    /// trusted in order — preference values arrive in whatever order SwiftUI
+    /// collected the children, which is not the list's order.
     private static func currentTitle(
         from tops: [DictationSectionTop],
         crossing titlebarHeight: CGFloat
@@ -170,31 +165,24 @@ enum DictationHistoryLayout {
     /// this number at all.
     static let rowVerticalInset: CGFloat = 14
 
-    /// Between the entry time and the transcript beside it.
-    ///
-    /// Kept close to `contentInset` so the time has near-equal clearance on
-    /// both sides. Open this gap much wider than the card's own padding and the
-    /// time reads as pushed up against the border rather than as a column of
-    /// its own.
+    /// Between the entry time and the transcript beside it. Keep it close to
+    /// `contentInset`: open much wider than the card's own padding and the time
+    /// reads as pushed against the border rather than as a column of its own.
     static let timeColumnGap: CGFloat = 20
 
     static let cardCornerRadius: CGFloat = 16
 
-    /// The gap that separates one day from the next.
-    ///
-    /// Wider than it looks like it needs to be on its own. The day label sits in
-    /// the titlebar rather than between the cards, so this gap is the only thing
-    /// left marking where one day ends and the next begins.
+    /// The gap that separates one day from the next. Wider than it looks like it
+    /// needs: the day label sits in the titlebar rather than between the cards, so
+    /// this gap is the only thing marking where one day ends and the next begins.
     static let groupSpacing: CGFloat = 40
 
     /// Clearance between the titlebar's day label and the first card under it.
     static let topInset: CGFloat = 20
 
-    /// The page's fill, painted explicitly rather than inherited.
-    ///
-    /// Do not reach for another system colour to stand in for the window's own
-    /// background: none of them matches it, and the difference shows as a band
-    /// wherever the two meet.
+    /// The page's fill, painted explicitly rather than inherited. Do not reach for
+    /// another system colour to stand in for the window's own background: none
+    /// matches it, and the difference shows as a band wherever the two meet.
     static let pageBackground = Color(nsColor: .windowBackgroundColor)
 }
 
@@ -204,13 +192,11 @@ private struct DictationDayCard: View {
     let records: [DictationRecord]
 
     // One number for the outline's weight and each rule's horizontal inset, and
-    // they have to stay equal. It matches the weight a plain `Divider()` draws
-    // at, so the border and the rules between rows read as the same line. And
-    // because `strokeBorder` draws inward, the border owns exactly this outer
-    // band on every edge: insetting each rule by the same width lands its ends
-    // on the border's inner edge. Run them full width instead and the rule and
-    // the border both lay a semi-transparent `.separator` over that band,
-    // stacking into a darker dot at each end; inset any more and a gap opens.
+    // they have to stay equal. `strokeBorder` draws inward, so the border owns
+    // this outer band on every edge and insetting each rule by the same width
+    // lands its ends on the border's inner edge. Full width instead and both lay a
+    // semi-transparent `.separator` over that band, stacking into a darker dot at
+    // each end; inset any more and a gap opens.
     private let borderWidth: CGFloat = 1
 
     private var shape: RoundedRectangle {
@@ -265,14 +251,11 @@ private struct DictationHistoryRow: View {
         .hour(.twoDigits(amPM: .abbreviated))
         .minute(.twoDigits)
 
-    /// Exactly as wide as the widest time this locale can render, and no wider.
-    ///
-    /// A hardcoded width is either too loose — parking slack beside every short
-    /// time — or too tight for locales that do not use a 24-hour clock: `16.26`
-    /// is five characters here, while a 12-hour locale produces `11:59 PM`.
-    /// Measuring `timeFormat`'s own output covers both. Kept in step with
-    /// `timePointSize`; measuring a different size than the label renders is how
-    /// this silently starts clipping.
+    /// Exactly as wide as the widest time this locale can render. A hardcoded width
+    /// is either too loose or too tight — `16.26` is five characters, while a
+    /// 12-hour locale produces `11:59 PM` — so measure `timeFormat`'s own output.
+    /// Keep it in step with `timePointSize`: measuring a size the label does not
+    /// render at is how this silently starts clipping.
     fileprivate static let timeColumnWidth: CGFloat = {
         let font = NSFont.monospacedDigitSystemFont(ofSize: timePointSize, weight: .regular)
         let calendar = Calendar.autoupdatingCurrent
@@ -326,18 +309,11 @@ private struct DictationHistoryRow: View {
 
             Spacer(minLength: 12)
 
-            // One group, tight, and Retry first.
-            //
-            // A group rather than three more children of the row's own HStack,
-            // which spaces its columns by `timeColumnGap` — a distance meant to
-            // separate the time from the transcript, not one button from the
-            // button beside it. Grouping lets these sit together at 8 while the
-            // row keeps its columns.
-            //
-            // Retry leads so that copy and the overflow menu land on the same
-            // two x positions in every row. Trailing a variable-width button
-            // onto the end would have shifted them both on the rows that have
-            // one, which is exactly the misalignment this ordering avoids.
+            // A group rather than three more children of the row's HStack, which
+            // spaces its columns by `timeColumnGap` — meant to separate the time
+            // from the transcript, not one button from the next. Retry leads so
+            // copy and the overflow menu land on the same two x positions in every
+            // row; trailing a variable-width button shifts both on the rows with one.
             HStack(spacing: 8) {
                 if isRetrying {
                     ProgressView()
@@ -352,15 +328,13 @@ private struct DictationHistoryRow: View {
                 }
 
                 // Shown on every entry, including the ones with nothing to copy.
-                // A failed row used to drop the button entirely, which left its
-                // overflow menu sitting alone under a column of two controls and
-                // read as a rendering fault rather than as an absence.
+                // Dropping it on a failed row leaves the overflow menu alone under
+                // a column of two controls, which reads as a rendering fault.
                 Button(action: copy) {
                     Image(systemName: "doc.on.doc")
-                        // Not a hardcoded accent colour. An explicit
+                        // Not a hardcoded accent colour: an explicit
                         // `foregroundStyle` overrides the dimming `.disabled`
-                        // would otherwise apply, so the button on a failed entry
-                        // stayed a confident blue while refusing to do anything.
+                        // applies, leaving a dead button a confident blue.
                         .foregroundStyle(copyTint)
                         // Both axes keep the glyph and its hover target aligned
                         // with the other row controls on entries of every height.
@@ -372,13 +346,6 @@ private struct DictationHistoryRow: View {
                 .help(canCopy ? "Copy transcription" : "Nothing to copy")
                 .accessibilityLabel("Copy transcription")
 
-                // The plain SwiftUI menu, on purpose, with its default popup
-                // placement. The AppKit replacement that used to be here dropped
-                // its menu trailing-aligned and centred its glyph exactly, but
-                // it anchored the popup badly enough that the alignment was not
-                // worth the control. Built-in behaviour is the better default
-                // even where it is less precise.
-                //
                 // Known and accepted: a `Menu` keeps the width of its disclosure
                 // indicator even under `.menuIndicator(.hidden)`, so the hover
                 // background — which wraps the control — sits slightly right of
@@ -386,15 +353,8 @@ private struct DictationHistoryRow: View {
                 // control failed; the offset lives inside it. Do not spend a
                 // fourth on it.
                 Menu {
-                    // Confirmed, and with the ellipsis that says so.
-                    //
-                    // Clearing the whole history has always asked first while
-                    // deleting a single entry happened instantly, which is
-                    // backwards: clearing everything is a decision you arrive at,
-                    // and deleting one entry is the one you reach by mis-aiming a
-                    // menu. A transcript is not recoverable — there is no undo for
-                    // this and no trash to fish it out of — so the cheap dialog is
-                    // worth more here than on the bulk action.
+                    // Confirmed, and with the ellipsis that says so: a transcript
+                    // is not recoverable, and this is the item reached by mis-aiming.
                     Button("Delete…", role: .destructive) { confirmDelete = true }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -410,22 +370,12 @@ private struct DictationHistoryRow: View {
         }
         .padding(.horizontal, DictationHistoryLayout.contentInset)
         .padding(.vertical, DictationHistoryLayout.rowVerticalInset)
-        // No row hover state and no click-to-copy. Both were built and removed
-        // the same day, and the reason is worth keeping so they are not rebuilt
-        // the same way: a whole-row copy target and selectable text inside it
-        // cannot both be honest. Selectable text hit-tests first, so clicking
-        // the transcript — the obvious place to aim — selected instead of
-        // copying, while clicking the empty space beside it copied. Learning
-        // that a row-wide affordance excludes the one thing on the row you would
-        // click is worse than not offering it. The row hover went with it: it
-        // advertised a target that did not exist, and it could not cover the
-        // gaps between entries, so the highlight dropped out as the pointer
-        // crossed from one row to the next.
-        //
-        // Wispr Flow does make this work. Doing it properly means giving up
-        // `textSelection` on the transcript, or hosting the row in AppKit where
-        // a click and a drag can be told apart before either is committed.
-        // Neither is worth it for a second route to a button that is right there.
+        // Do not add a row hover state or click-to-copy. A whole-row copy target
+        // and selectable text inside it cannot both be honest: selectable text
+        // hit-tests first, so clicking the transcript selects while clicking the
+        // space beside it copies. Doing it properly means giving up
+        // `textSelection`, or hosting the row in AppKit where a click and a drag
+        // can be told apart before either is committed.
         .contextMenu {
             if canCopy {
                 Button("Copy", action: copy)
@@ -438,10 +388,9 @@ private struct DictationHistoryRow: View {
             // irreversible action must not disagree about whether it asks first.
             Button("Delete…", role: .destructive) { confirmDelete = true }
         }
-        // On the row rather than on either menu. A `confirmationDialog` attached
-        // inside a menu's content closure goes with the menu when it closes, so
-        // the dialog never gets presented; the row outlives both menus and is
-        // what both of them set `confirmDelete` on.
+        // On the row rather than on either menu: a `confirmationDialog` attached
+        // inside a menu's content closure goes with the menu when it closes, so it
+        // never gets presented.
         .confirmationDialog(
             "Delete this dictation?",
             isPresented: $confirmDelete
@@ -458,9 +407,8 @@ private struct DictationHistoryRow: View {
     }
 
     /// Dimmed here rather than by `.disabled`, which cannot dim a colour the view
-    /// sets itself. Plain `.secondary` is not enough: it lands level with the row's
-    /// own quietest text, and a copy button with nothing to copy still read as
-    /// live. This has to sit clearly below that, not beside it.
+    /// sets itself. Plain `.secondary` is not enough — it lands level with the
+    /// row's quietest text, so a dead copy button still reads as live.
     private var copyTint: Color {
         return canCopy ? .accentColor : Color.secondary.opacity(0.4)
     }
@@ -479,16 +427,12 @@ private struct DictationHistoryRow: View {
     }
 }
 
-/// Hover feedback for the borderless icon controls in a history row.
+/// Hover feedback for the borderless icon controls in a history row. `.borderless`
+/// draws no background in any state, so these give no sign they are controls until
+/// clicked, and the padding is what gives a 16pt glyph a target to aim at.
 ///
-/// `.borderless` draws no background at all, in any state, so these controls
-/// give no sign they are controls until they are clicked. The padding is part
-/// of the treatment rather than decoration around it: it is what gives a 16pt
-/// glyph a click target big enough to aim at.
-///
-/// The fill is deliberately near the threshold of visible. It only has to say
-/// the pointer is on a control; anything heavier parks a grey box in a quiet
-/// row and the eye catches the box rather than the transcript.
+/// Keep the fill near the threshold of visible: anything heavier parks a grey box
+/// in a quiet row and the eye catches the box rather than the transcript.
 private struct RowIconHover: ViewModifier {
     private static let fill: Double = 0.055
 
