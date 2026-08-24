@@ -21,10 +21,9 @@ enum MainWindowDestination: Hashable {
     case apiKey
     case usage
     case microphone
-    /// Settings, on the Permissions tab. Distinct from `.settings`, which names
-    /// no tab and so leaves the one already showing alone: a route that exists
-    /// to fix something has to land on the tab that owns it, and an ordinary
-    /// opening must not drag the user off the tab they chose.
+    /// Settings, on the Permissions tab. Distinct from `.settings`, which names no
+    /// tab and leaves the one already showing alone: a route that exists to fix
+    /// something lands on the tab that owns it, an ordinary opening does not.
     case permissions
 }
 
@@ -33,12 +32,9 @@ struct MainWindowRequest: Equatable {
     let destination: MainWindowDestination
 }
 
-/// Whether a Settings shortcut recorder currently owns the keyboard.
-///
-/// Shared rather than held on the coordinator because the reader is
-/// `AppDelegate`, which SwiftUI creates on its own and which is handed no
-/// runtime. It describes one app-wide keyboard mode, and both the app and the
-/// delegate are singletons, so there is nothing here for an instance to own.
+/// Whether a Settings shortcut recorder currently owns the keyboard. Shared
+/// rather than held on the coordinator because the reader is `AppDelegate`, which
+/// SwiftUI creates on its own and hands no runtime.
 @MainActor
 enum ShortcutConfigurationCapture {
     static var isActive = false
@@ -46,10 +42,9 @@ enum ShortcutConfigurationCapture {
 
 @MainActor
 final class AppCoordinator: ObservableObject {
-    /// Fallback cadence for permission state that macOS does not announce. This
-    /// runs for the whole life of a menu-bar app, so it is deliberately slow; the
-    /// Accessibility hint and the activation refresh cover the cases a user can
-    /// actually notice.
+    /// Fallback cadence for permission state macOS does not announce. Runs for the
+    /// whole life of a menu-bar app, so keep it slow: the Accessibility hint and
+    /// the activation refresh cover the cases a user can actually notice.
     private static let permissionPollInterval: TimeInterval = 5
 
     /// Records only permission booleans, state names, and which refresh path
@@ -59,10 +54,9 @@ final class AppCoordinator: ObservableObject {
         category: "permissions"
     )
 
-    /// Which caller drove a permission refresh. Every reading below is unchanged
-    /// on almost every tick, so a logged change names the path that caught it —
-    /// a grant the poll never observed and an ordinary grant look identical
-    /// otherwise.
+    /// Which caller drove a permission refresh, so a logged change names the path
+    /// that caught it — a grant the poll never observed and an ordinary grant look
+    /// identical otherwise.
     enum PermissionRefreshSource: String {
         case launch
         case startServices
@@ -136,9 +130,8 @@ final class AppCoordinator: ObservableObject {
     private var credentialRevision = CredentialRevision()
     private var suppressPillForCurrentTranscription = false
     /// Whether setup is being walked a second time. `onboardingComplete` cannot
-    /// answer this — Redo Setup clears it, so a redo and a first run look
-    /// identical to it — and the two differ in what a step should offer:
-    /// a first run recommends, a redo shows what is already there.
+    /// answer it — Redo Setup clears that — and the two differ in what a step
+    /// offers: a first run recommends, a redo shows what is already there.
     private(set) var isRedoingSetup = false
     private var permissionRecoveryPresentationPending = false
     private var permissionRecoveryLaunchGate = PermissionRecoveryLaunchGate()
@@ -243,14 +236,12 @@ final class AppCoordinator: ObservableObject {
 
         if servicesAllowed {
             // Neither Accessibility trust nor microphone authorization publishes a
-            // documented change notification, and revoked Accessibility is exactly the
-            // case Scriber cannot detect from a keypress, because it stops seeing the
-            // keypress at all. macOS does post the long-standing private
-            // `com.apple.accessibility.api` distributed notification when the trust
-            // database changes, so that is used as a hint to check promptly. It is
-            // undocumented and its new value is not readable at post time, so
-            // correctness still rests on the slow fallback poll and the activation
-            // refresh below; the hint only removes the delay.
+            // documented change notification, and revoked Accessibility cannot be
+            // detected from a keypress because Scriber stops seeing the keypress.
+            // The private `com.apple.accessibility.api` distributed notification is
+            // used as a hint only: it is undocumented and its new value is not
+            // readable at post time, so correctness rests on the fallback poll and
+            // the activation refresh below.
             DistributedNotificationCenter.default()
                 .publisher(for: Notification.Name("com.apple.accessibility.api"))
                 .sink { [weak self] _ in
@@ -387,12 +378,11 @@ final class AppCoordinator: ObservableObject {
             microphoneGranted = !permissionReadinessOverride.missingPermissions.contains(.microphone)
             microphonePermissionState = microphoneGranted ? .allowed : .denied
         } else {
-            // Assign only on change. `@Published` publishes on every assignment,
-            // and the poll above runs on `.common`, so it fires while a menu is
-            // tracking. A no-op write there re-evaluates the whole `App` body,
-            // SwiftUI reinstalls the main menu, and the open Window menu loses
-            // the items AppKit contributes from the key window — Close ⌘W among
-            // them. Every reading here is unchanged on almost every tick.
+            // Assign only on change. `@Published` publishes on every assignment and
+            // the poll above runs on `.common`, so it fires while a menu is
+            // tracking; a no-op write re-evaluates the whole `App` body, SwiftUI
+            // reinstalls the main menu, and the open Window menu loses the items
+            // AppKit contributes from the key window — Close ⌘W among them.
             let trusted = AXIsProcessTrusted()
             if accessibilityGranted != trusted {
                 accessibilityGranted = trusted
@@ -482,21 +472,17 @@ final class AppCoordinator: ObservableObject {
     }
 
     /// Backs the Accessibility row's single Allow button. Only the System Settings
-    /// toggle can grant this, so the pane is the whole action. Raising the system
-    /// prompt as well would add nothing: it cannot grant the permission, macOS shows
-    /// it once per app, and what lists Scriber in that pane is the trust check every
-    /// launch already makes — a fresh process registers itself, a running one cannot.
+    /// toggle can grant this, so the pane is the whole action — the system prompt
+    /// cannot grant it and macOS shows it once per app. What lists Scriber in that
+    /// pane is the trust check made at launch; a running process cannot re-register.
     func allowAccessibility() {
         openAccessibilitySettings()
     }
 
-    /// Opens System Settings and brings it to the front.
-    ///
-    /// `NSWorkspace.open(_:)` alone leaves it behind whatever Scriber window
-    /// sent the user there, which for setup means the pane opens invisibly
-    /// underneath and the Allow button reads as broken. `activates` on the
-    /// configuration is what orders it front; hiding Scriber is not enough,
-    /// because a pane that was already open never redraws itself forward.
+    /// Opens System Settings and brings it to the front. `NSWorkspace.open(_:)`
+    /// alone leaves it behind the Scriber window that sent the user there, so the
+    /// Allow button reads as broken. `activates` is what orders it front; hiding
+    /// Scriber is not enough, because an already-open pane never redraws forward.
     private static func openInSystemSettings(_ url: URL) {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
@@ -613,16 +599,8 @@ final class AppCoordinator: ObservableObject {
     }
 
     /// Removes the stored key, so the missing-credential path can be reached from
-    /// inside the app.
-    ///
-    /// It could not before: Settings offered no way to remove a saved key, so
-    /// checking that Scriber reports a missing key on its own meant deleting the
-    /// item in Keychain Access. That is a bad way to find out whether your own app
-    /// handles its own failure state.
-    ///
-    /// Cancels any in-flight validation first and advances the revision, so a
-    /// validation that was already running cannot land afterwards and mark the key
-    /// valid again.
+    /// inside the app. Cancels any in-flight validation and advances the revision,
+    /// so one already running cannot land afterwards and mark the key valid again.
     func removeAPIKey() async throws {
         credentialRevision.advance()
         storedAPIKeyValidationTask?.cancel()
@@ -651,23 +629,18 @@ final class AppCoordinator: ObservableObject {
         refreshCredentialRecovery(force: true)
     }
 
-    /// Sends the user back through onboarding.
-    ///
-    /// Only the flag is cleared. The key, grants, and history stay where they are —
-    /// onboarding reads current state, so it presents each step as already
-    /// satisfied rather than asking for it again, and nothing is destroyed by
-    /// looking at it a second time.
+    /// Sends the user back through onboarding. Only the flag is cleared — the key,
+    /// grants, and history stay, and onboarding reads current state, so each step
+    /// presents as already satisfied rather than asking again.
     func restartOnboarding() {
         isRedoingSetup = true
         preferences.onboardingComplete = false
         // A redo is a fresh run, not a resumption of the one that finished.
         preferences.onboardingStep = 0
         // `openWindow(id:)` creates the scene but does not reliably bring it in
-        // front of the window the action was invoked from — the first attempt left
-        // onboarding rendered behind Settings, with Settings no longer the key
-        // window. Ordering and activation already have one careful implementation
-        // in `AppDelegate.showWindow(titled:)`; route through it rather than
-        // building a second.
+        // front of the window the action came from, which leaves onboarding behind
+        // Settings. Route through `AppDelegate.showWindow(titled:)`, which already
+        // implements ordering and activation, rather than building a second.
         NSApp.setActivationPolicy(.regular)
         NotificationCenter.default.post(name: .openScriberOnboardingWindow, object: nil)
     }
@@ -677,21 +650,16 @@ final class AppCoordinator: ObservableObject {
         validateStoredAPIKey()
     }
 
-    /// Re-reads the Keychain and re-checks the key it finds, so a surface that
-    /// reports on the credential can be sure of it rather than repeating what it
-    /// was last told.
+    /// Re-reads the Keychain and re-checks the key it finds, so a surface reporting
+    /// on the credential can be sure of it rather than repeating what it was told.
     ///
-    /// `apiKeyConfigured` and `apiKeyValidity` are preferences, and neither
-    /// deleting the Keychain item nor revoking the key on ElevenLabs' side
-    /// touches them — so left alone the app goes on reporting a key it may no
-    /// longer hold or be able to use. `validateStoredAPIKeyOnce` reconciles that
-    /// at launch and cannot help setup: it sits behind `startServices`'
-    /// `onboardingComplete` guard, which is false for exactly as long as setup
-    /// is open. Setup is where the claim is made, so setup asks again each time
-    /// it comes back to the step that makes it.
+    /// `apiKeyConfigured` and `apiKeyValidity` are preferences, and neither deleting
+    /// the Keychain item nor revoking the key at ElevenLabs touches them, so left
+    /// alone the app reports a key it may no longer hold. `validateStoredAPIKeyOnce`
+    /// reconciles that at launch but sits behind `startServices`' `onboardingComplete`
+    /// guard, so setup has to ask again each time it returns to the step.
     ///
-    /// Spends no transcription credit — validation reads the account rather than
-    /// uploading audio.
+    /// Spends no transcription credit — validation reads the account, not audio.
     func validateStoredAPIKey() {
         guard servicesAllowed else { return }
         checkedStoredAPIKeyThisLaunch = true
@@ -701,12 +669,10 @@ final class AppCoordinator: ObservableObject {
         storedAPIKeyValidationTask = Task { [weak self] in
             guard let self else { return }
             defer {
-                // Cancellation here means another call to this method replaced
-                // this task, and did so without advancing the revision, because
-                // nothing about the credential changed. The other cancel sites
-                // do advance it, which is what keeps their check sufficient;
-                // this one would otherwise clear the flag and drop the handle
-                // belonging to the validation now in flight.
+                // Cancellation here means another call replaced this task without
+                // advancing the revision, because nothing about the credential
+                // changed. Without both checks this clears the flag and drops the
+                // handle belonging to the validation now in flight.
                 if !Task.isCancelled, credentialRevision.matches(validationRevision) {
                     isCheckingStoredAPIKey = false
                     storedAPIKeyValidationTask = nil
@@ -823,12 +789,11 @@ final class AppCoordinator: ObservableObject {
             : "Credit usage is temporarily unavailable. Try refreshing again."
     }
 
-    /// Reconciles the credential block after anything that could change it.
-    ///
-    /// `force` presents the current problem even when it has not changed, which is
-    /// what the once-per-launch check needs: onboarding can be complete while the
-    /// stored key has since been revoked or replaced, and the user has to learn
-    /// that from Scriber rather than from a dictation that quietly does nothing.
+    /// Reconciles the credential block after anything that could change it. `force`
+    /// presents the current problem even when unchanged, which the once-per-launch
+    /// check needs: onboarding can be complete while the stored key has since been
+    /// revoked, and the user has to learn that from Scriber rather than from a
+    /// dictation that quietly does nothing.
     private func refreshCredentialRecovery(force: Bool) {
         let previous = lastObservedCredentialReadiness
         let current = credentialReadiness
@@ -1039,12 +1004,9 @@ final class AppCoordinator: ObservableObject {
         mainWindowRequest = MainWindowRequest(destination: destination)
     }
 
-    /// Discards a request once the window has acted on it.
-    ///
-    /// A request that outlives its own delivery gets re-applied every time the
-    /// window appears again, so a single trip to the key field would go on
-    /// selecting the ElevenLabs tab and taking focus on every later opening.
-    /// Settings is the only reader, so nothing else loses anything by this.
+    /// Discards a request once the window has acted on it. One that outlives its
+    /// delivery is re-applied every time the window appears, so a single trip to
+    /// the key field would keep selecting that tab and taking focus.
     func consumeMainWindowRequest() {
         mainWindowRequest = nil
     }
@@ -1074,17 +1036,11 @@ final class AppCoordinator: ObservableObject {
         endDictationBeforeOpeningAWindow()
         NSApp.setActivationPolicy(.regular)
         NotificationCenter.default.post(name: .openScriberMainWindow, object: nil)
-        // Every pill action arrives here from a nonactivating panel, so the app
-        // the user was working in is still frontmost and Scriber has no
-        // activation of its own for the cooperative `activate(from:)` inside
-        // `showWindow` to build on. That call reports success and macOS then
-        // declines to honour it, which is why an already-open window came to the
-        // front of Scriber's own layer and no further — the window opened and
-        // changed section exactly as asked, behind whatever the user was in.
-        //
-        // The two routes that do land, the menu bar item and Command-comma, both
-        // ask outright. This is the same request, and it is warranted the same
-        // way: the user just clicked a button asking to be taken somewhere.
+        // Every pill action arrives from a nonactivating panel, so Scriber has no
+        // activation for the cooperative `activate(from:)` inside `showWindow` to
+        // build on: that call reports success and macOS declines to honour it,
+        // leaving the window at the front of Scriber's own layer and no further.
+        // Ask outright, as the menu bar item and Command-comma both do.
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -1234,25 +1190,18 @@ final class AppCoordinator: ObservableObject {
     private func finishRecording(_ completed: CompletedRecording) {
         do {
             // A press this brief was never a dictation attempt, so it gets no
-            // correction: the signal and duration guards below both speak up, and
-            // to someone whose finger slipped they are noise about something they
-            // never asked for. The start cue fades rather than stopping dead,
-            // which is what made a slipped finger crack the speaker.
+            // correction. The start cue fades rather than stopping dead — cutting
+            // it makes a slipped finger crack the speaker.
             guard !RecordingCancellationPolicy.isMisclick(elapsed: completed.duration) else {
                 AudioRecorder.delete(relativePath: completed.relativePath)
                 feedbackSounds.fadeOut()
                 returnToIdle()
                 return
             }
-            // Discarded, as before — nothing crossed the signal threshold, so there
-            // is nothing to transcribe and no reason to spend credit on it. What
-            // changed is that it no longer happens in silence.
-            //
-            // This was the one terminal outcome with no feedback of any kind: no
-            // transcript, no history row, no sound, no pill, just the recording
-            // pill vanishing. A microphone that is muted, set to zero input volume,
-            // or simply the wrong device therefore looked exactly like not having
-            // spoken, and there was nothing on screen to suggest otherwise.
+            // Nothing crossed the signal threshold, so there is nothing to
+            // transcribe and no credit to spend — but say so rather than
+            // discarding in silence, which makes a muted or wrong input look
+            // exactly like not having spoken.
             guard completed.detectedSignal else {
                 AudioRecorder.delete(relativePath: completed.relativePath)
                 guard RecordingCancellationPolicy.reportsMissingAudio(
@@ -1367,10 +1316,9 @@ final class AppCoordinator: ObservableObject {
     }
 
     /// ElevenLabs returned a transcript with no words in it. The dictation is
-    /// discarded as before — nothing useful was captured and an empty history row
-    /// would be noise — but it no longer happens silently. A dead or wrongly
-    /// selected input is the likeliest cause, and a user who cannot tell the
-    /// difference between "no words" and "nothing happened" has no way to find it.
+    /// discarded, since an empty history row would be noise, but not silently: a
+    /// dead or wrongly selected input is the likeliest cause and the user needs to
+    /// be able to tell "no words" from "nothing happened".
     private func discardNoContent(record: DictationRecord, recording: CompletedRecording) {
         AudioRecorder.delete(relativePath: recording.relativePath)
         modelContext.delete(record)
@@ -1688,12 +1636,10 @@ final class AppCoordinator: ObservableObject {
 
     /// When the press that began this dictation arrived.
     ///
-    /// The cancellation thresholds are counted from the press rather than from
-    /// the microphone opening, and they cannot read `phase`: the meter stopped
-    /// publishing into it so it would stop re-rendering the app, so the elapsed
-    /// time carried there is frozen at whatever it was when the phase last
-    /// materially changed. The pill keeps its own clock, which counts from the
-    /// open and is what the user sees.
+    /// The cancellation thresholds count from the press, not from the microphone
+    /// opening, and they cannot read `phase` — the meter no longer publishes into
+    /// it, so its elapsed time is frozen at the last material change. The pill
+    /// keeps its own clock, which is what the user sees.
     private var recordingStartedAt: Date?
 
     private var elapsedSincePress: TimeInterval {
@@ -1713,21 +1659,15 @@ final class AppCoordinator: ObservableObject {
 
     private func setPhase(_ phase: AppPhase) {
         // The meter re-enters here ten times a second with a fresh level and
-        // elapsed time. `ObservableObject` publishes per object rather than per
-        // property, and `AppRuntime` forwards this one's `objectWillChange` to
-        // every view holding it — so a tick that changes only the numbers on the
-        // pill re-evaluates and re-lays out the menu bar and every open window.
-        // Measured at about 42% of a core on an M4 through a whole dictation,
+        // elapsed time. `ObservableObject` publishes per object, and `AppRuntime`
+        // forwards this one's `objectWillChange` to every view holding it, so a
+        // tick that changes only the pill's numbers re-lays out the menu bar and
+        // every open window — about 42% of a core on an M4 through a dictation,
         // against 2% for the capture itself.
         //
-        // The pill is the only thing that draws either number, and it has its own
-        // model to draw them from — `pill.update` below is unconditional. Every
-        // other reader of this property asks `phase.isBusy`, which a meter tick
-        // cannot change.
-        //
         // So this property's level and elapsed time are stale for the length of a
-        // recording. Anything needing either live reads the pill's model or takes
-        // it as a parameter — do not start reading them from here.
+        // recording, and the pill draws them from its own model instead. Anything
+        // needing either live takes it as a parameter — do not read them here.
         if !Self.differsOnlyByMeter(phase, self.phase) { self.phase = phase }
         if suppressPillForCurrentTranscription {
             pill.dismiss()
