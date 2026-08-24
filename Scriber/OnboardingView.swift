@@ -244,11 +244,9 @@ struct OnboardingView: View {
     // MARK: - Lifecycle
 
     /// Runs on every appearance, and an appearance is not always a first one:
-    /// SwiftUI keeps a `Window` scene's `@State` alive after the window closes,
-    /// so a second run of setup starts out holding the first run's answers —
-    /// including the step it ended on and the flag saying setup is already
-    /// finished. Everything the flow accumulates is cleared here rather than
-    /// trusted to be fresh.
+    /// SwiftUI keeps a `Window` scene's `@State` alive after the window closes, so
+    /// a second run of setup starts holding the first run's answers. Clear
+    /// everything the flow accumulates here rather than trusting it to be fresh.
     private func prepare() {
         guard !runtime.preferences.onboardingComplete else {
             dismissWindow(id: "onboarding")
@@ -276,12 +274,10 @@ struct OnboardingView: View {
         syncMicrophoneTest()
     }
 
-    /// Where setup left off, clamped to the first step whose gate is not yet
-    /// met. Granting the microphone makes macOS offer to relaunch Scriber, and
-    /// coming back to the welcome step after that reads as having lost the
-    /// grant. Resuming past an unmet requirement would be the opposite mistake —
-    /// a step whose Continue cannot be pressed, above a Back nobody is expecting
-    /// to need — so the two are resolved together.
+    /// Where setup left off, clamped to the first step whose gate is not yet met.
+    /// Granting the microphone makes macOS offer to relaunch Scriber, and returning
+    /// to the welcome step after that reads as having lost the grant; resuming past
+    /// an unmet requirement is the opposite mistake, so the two resolve together.
     private var resumedStep: OnboardingStep {
         let stored = OnboardingStep(rawValue: runtime.preferences.onboardingStep) ?? .welcome
         return min(stored, firstUnmetStep ?? stored)
@@ -292,13 +288,11 @@ struct OnboardingView: View {
         OnboardingStep.allCases.first { !isSatisfied($0) }
     }
 
-    /// Pulls the flow back if the restore landed past a step that has since
-    /// turned out to be unmet. `prepare` can only clamp against what the
-    /// credential preferences say at that instant, and the check it starts on the
-    /// same line is what decides whether they were telling the truth — so a key
-    /// deleted from the Keychain reads as valid for exactly as long as that check
-    /// takes. Runs once per appearance: after this, an unmet step is something
-    /// the user has caused and not something to be moved away from mid-read.
+    /// Pulls the flow back if the restore landed past a step since found unmet.
+    /// `prepare` can only clamp against what the credential preferences say at that
+    /// instant, so a key deleted from the Keychain reads as valid until the check it
+    /// starts returns. Runs once per appearance: after this, an unmet step is the
+    /// user's doing and not something to move away from mid-read.
     private func clampToFirstUnmetStep() {
         guard let firstUnmet = firstUnmetStep, step > firstUnmet else { return }
         move(to: firstUnmet, advancing: false)

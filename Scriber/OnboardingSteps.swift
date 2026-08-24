@@ -6,11 +6,10 @@ import SwiftUI
 /// The shape every setup step takes: a title, a sentence, and the controls that
 /// step owns — ranged left in a column that is centred in the page.
 ///
-/// Ranged left rather than centred text: a centred sentence that wraps leaves a
-/// ragged last line, and the only fix available is rewording each string until
-/// it happens to fit, which holds for one window and one font. The column being
-/// centred is what keeps a short step from sitting in the top corner of a
-/// half-empty page.
+/// Keep the text ranged left: a centred sentence that wraps leaves a ragged last
+/// line, fixable only by rewording each string until it happens to fit, which
+/// holds for one window and one font. Centring the column is what keeps a short
+/// step out of the top corner of a half-empty page.
 struct OnboardingPage<Content: View>: View {
     let title: String
     let subtitle: LocalizedStringKey?
@@ -23,12 +22,9 @@ struct OnboardingPage<Content: View>: View {
     var body: some View {
         ScrollView {
             // Title, sentence and controls travel as one block, centred in the
-            // page. Pinning the title held it still between steps, but it bought
-            // that by stranding every short step's content against the bottom of
-            // a half-empty page — and the two were never really separable
-            // anyway, since a title with nothing under it is not a step.
-            // Horizontal alignment stays ranged left inside the column; only the
-            // column is centred.
+            // page. Pinning the title holds it still between steps but strands
+            // every short step's content against the bottom of a half-empty page.
+            // Only the column is centred; its contents stay ranged left.
             VStack(alignment: .leading, spacing: 22) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(title)
@@ -64,13 +60,9 @@ struct OnboardingPage<Content: View>: View {
     }
 }
 
-/// One ladder for the whole flow, a step above what Settings uses.
-///
-/// Setup is read once, often on a display the reader is not sitting close to,
-/// and its captions had drifted to the smallest size the system offers — which
-/// is a size for a footnote beside a control someone is already looking at, not
-/// for the only explanation of a decision. Three sizes and two colours: primary
-/// for anything acted on, secondary for what supports it.
+/// One ladder for the whole flow, a step above what Settings uses, because setup
+/// is read once and often on a display the reader is not sitting close to. Three
+/// sizes and two colours: primary for anything acted on, secondary for support.
 enum OnboardingType {
     /// The step's own sentence, under the title.
     static let subtitle = Font.title3
@@ -165,12 +157,9 @@ struct APIKeyStep: View {
                             SecureField(
                                 "",
                                 text: $apiKey,
-                                // `xi-api-key` is the header ElevenLabs wants
-                                // the key in, not the shape of the key, and it
-                                // read here as an example to copy. Styled rather
-                                // than passed as a plain string: the default
-                                // placeholder sits at nearly label weight, which
-                                // reads as a value already entered.
+                                // Styled rather than passed as a plain string: the
+                                // default placeholder sits at nearly label weight,
+                                // which reads as a value already entered.
                                 prompt: Text("Paste your key").foregroundStyle(.tertiary)
                             )
                             .textFieldStyle(.roundedBorder)
@@ -515,12 +504,10 @@ struct TryItStep: View {
             subtitle: "**Tap it** to start dictating hands-free, and tap it again when you are done.",
             subtitleDetail: "**Or hold it**, talk, and let go to finish."
         ) {
-            // A field with a real prompt rather than a `TextEditor` under a
-            // label positioned to look like one. The hand-placed version could
-            // only ever be aligned by matching whatever inset the text view
-            // happened to use, which is not published and is not promised to
-            // stay put. `reservesSpace` keeps the box the same height empty or
-            // full, so nothing moves as the transcript lands.
+            // A field with a real prompt rather than a `TextEditor` under a label
+            // positioned to look like one, which can only be aligned by matching an
+            // inset the text view never publishes. `reservesSpace` keeps the box the
+            // same height empty or full, so nothing moves as the transcript lands.
             TextField(
                 "",
                 text: $text,

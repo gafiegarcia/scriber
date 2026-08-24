@@ -17,19 +17,14 @@ struct MainWindowView: View {
 
     /// Whether the next time this window becomes key counts as *opening* it.
     ///
-    /// True at launch, and true again from the moment the window closes. Every
-    /// route that puts the window back on screen — Open Scriber in the menu bar, a
-    /// Dock click, the startup poll in `AppDelegate` — ends in AppKit making this
-    /// window key, and that is both the one signal all of them share and the first
-    /// moment at which asking for focus can succeed. `onAppear` is neither: it runs
-    /// before the window is key, and three of those routes order a retained window
-    /// front without SwiftUI presenting anything.
+    /// Becoming key is the one signal every route back on screen shares, and the
+    /// first moment asking for focus can succeed. `onAppear` is neither: it runs
+    /// before the window is key, and several routes order a retained window front
+    /// without SwiftUI presenting anything.
     ///
-    /// Becoming key also happens every time the user merely switches back to a
-    /// window that stayed open, and moving focus then would drop a transcript
-    /// selection they were part-way through making. So this is consumed once per
-    /// presentation and only a close re-arms it: an app switch, an unhide, and a
-    /// de-miniaturize all leave focus where the user left it.
+    /// Consumed once per presentation, re-armed only by a close — becoming key also
+    /// happens on an app switch, an unhide, and a de-miniaturize, and moving focus
+    /// then drops a transcript selection the user was part-way through making.
     @State private var opensWithSearchFocused = true
 
     private var recoveryConditions: [RecoveryCondition] {
@@ -40,15 +35,14 @@ struct MainWindowView: View {
         )
     }
 
-    /// A record is inserted before its transcription starts, so that an interrupted
-    /// job keeps its audio and can be recovered at the next launch. Until the
-    /// outcome is known there is nothing truthful to show for it — the row would
-    /// read "Transcription failed." purely because no text or error exists yet — so
-    /// in-flight dictations stay out of the list. A record the user explicitly
-    /// retried is exempt: it was already on screen and keeps its "Retrying" label.
+    /// A record is inserted before its transcription starts, so an interrupted job
+    /// keeps its audio and can be recovered at the next launch. Until the outcome is
+    /// known the row would read "Transcription failed." purely because no text or
+    /// error exists yet, so in-flight dictations stay out of the list. One the user
+    /// explicitly retried is exempt, and keeps its "Retrying" label.
     ///
-    /// The window owns this rather than the page because the toolbar count and the
-    /// list have to agree, and two copies of the filter is how they stop agreeing.
+    /// The window owns this rather than the page: the toolbar count and the list
+    /// have to agree, and two copies of the filter is how they stop agreeing.
     private var visibleRecords: [DictationRecord] {
         records.filter {
             $0.transcriptionState != .transcribing
@@ -70,16 +64,14 @@ struct MainWindowView: View {
                 prompt: workspace.searchPrompt
             )
             .toolbar {
-                // One item, because both parts describe the workspace: which
-                // one, and how much it holds. The count reads as the
-                // workspace's own subtitle, and adjacency is what keeps it
-                // reading as one rather than as a separate fact.
+                // One item, because both parts describe the workspace: which one,
+                // and how much it holds. Adjacency is what keeps the count reading
+                // as its subtitle rather than as a separate fact.
                 ToolbarItem(placement: .navigation) {
                     HStack(spacing: 10) {
-                        // Plain text, because it is not a control. A background here
-                        // said "click me" about the one thing in this group that
-                        // does nothing; it earns one back when Transcription lands
-                        // and this becomes a Picker.
+                        // Plain text, because it is not a control. It earns a
+                        // background back when Transcription lands and this
+                        // becomes a Picker.
                         Text(workspace.title)
                             .font(.headline)
 
@@ -95,10 +87,9 @@ struct MainWindowView: View {
                 // chrome, which is what this window has already crashed on.
                 .sharedBackgroundVisibility(.hidden)
 
-                // Declared rather than left implicit, because `.searchable`
-                // otherwise contributes a *second* search item and a second
-                // flexible space, and the button ends up balanced between the
-                // two springs in the middle of the titlebar.
+                // Declared rather than left implicit: `.searchable` otherwise
+                // contributes a second search item and a second flexible space,
+                // leaving the button balanced between two springs mid-titlebar.
                 //
                 // Known and unfixed: this button cannot sit beside the search
                 // field. `.searchable` anchors the field to the trailing edge
@@ -106,8 +97,7 @@ struct MainWindowView: View {
                 // gets past it — `.primaryAction` and `.confirmationAction`
                 // measure identically, and declaration order does not move it.
                 // Reaching the mockup's position means hand-building the field
-                // in AppKit, which is the machinery this window already crashed
-                // on. The button groups with the workspace instead.
+                // in AppKit, which is machinery this window has already crashed on.
                 DefaultToolbarItem(kind: .search, placement: .primaryAction)
 
                 // The warning sits here rather than with the workspace because it
@@ -149,12 +139,9 @@ struct MainWindowView: View {
         Button {
             showingRecovery = true
         } label: {
-            // Nothing around the glyph, and no `.plain`. Both are what the
-            // toolbar's own button treatment supplies: control metrics sized for
-            // a toolbar rather than for text, and the hover highlight every
-            // other button in the window has. Hand-padding a plain button opted
-            // out of both — it rendered at text metrics inside a control that is
-            // not text, and gave no sign it could be clicked.
+            // Nothing around the glyph, and no `.plain`. The toolbar's own button
+            // treatment supplies both the control metrics and the hover highlight;
+            // hand-padding a plain button opts out of both.
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(.orange)
         }
@@ -189,11 +176,9 @@ struct MainWindowView: View {
 
     /// Consumes a pending presentation by focusing the toolbar's search field.
     ///
-    /// Deferred by one main-actor turn rather than written directly.
-    /// `didBecomeKeyNotification` is posted from inside AppKit's key-window
-    /// transition, and a `@FocusState` write SwiftUI cannot satisfy yet is dropped
-    /// silently rather than queued. A turn is enough, and unlike a sleep it is not
-    /// a guess at how long the transition takes.
+    /// Deferred by one main-actor turn. `didBecomeKeyNotification` is posted from
+    /// inside AppKit's key-window transition, and a `@FocusState` write SwiftUI
+    /// cannot satisfy yet is dropped silently rather than queued.
     ///
     /// Known and accepted: a route that orders the window front without winning
     /// activation leaves this armed, so search takes focus on the click that
