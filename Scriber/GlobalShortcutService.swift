@@ -90,13 +90,11 @@ final class GlobalShortcutService {
                 // machine wants for them. Without it a held chord reads as a
                 // stream of fresh presses.
                 isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
-                // When the key moved, not when this callback got to run. The tap
-                // is on the main run loop, so anything blocking the main thread —
-                // a Bluetooth headset changing mode inside Core Audio is a second
-                // of it — holds events in the queue. Reading a clock here would
-                // stamp a tap with the time it was finally noticed, and a tap
-                // stamped late is a hold, which stops the recording it just
-                // started.
+                // When the key moved, not when this callback got to run. The tap is
+                // on the main run loop, so anything blocking the main thread — a
+                // Bluetooth headset changing mode inside Core Audio is a second of
+                // it — holds events in the queue, and a tap stamped late reads as a
+                // hold, which stops the recording it just started.
                 timestamp: GlobalShortcutService.seconds(fromMachTime: event.timestamp)
             )
             // This tap is installed on the main run loop, so the callback is
@@ -161,20 +159,16 @@ final class GlobalShortcutService {
     }
 
     /// Hands the work back to the run loop, so the callback returns the moment it
-    /// has decided.
+    /// has decided. Starting a recording opens an `AVCaptureSession`, builds a
+    /// CoreAudio aggregate device, and asks the window server for every window on
+    /// screen — run inline, all of that happens while the system is blocked waiting
+    /// for this tap to reply, and a stalled callback takes the machine with it.
     ///
-    /// Starting a recording opens an `AVCaptureSession`, builds a CoreAudio
-    /// aggregate device, and asks the window server for every window on screen.
-    /// Run inline, all of that happened while the system was blocked waiting for
-    /// this tap to reply, which is what let a stalled callback take the machine
-    /// with it.
-    ///
-    /// One buffer drained by one task, not a task per effect: a press and its
-    /// release inverted would either leave a recording nothing stops or stop one
-    /// that never started, and unstructured tasks have no order relative to each
-    /// other. Ordering comes from the array here, not from the scheduler.
-    /// `DispatchQueue.main.async` is FIFO too, but it wants an `@escaping
-    /// @Sendable` closure and this class is neither.
+    /// One buffer drained by one task, not a task per effect: unstructured tasks
+    /// have no order relative to each other, and a press and release inverted
+    /// either leaves a recording nothing stops or stops one that never started.
+    /// Ordering comes from the array here. `DispatchQueue.main.async` is FIFO too,
+    /// but wants an `@escaping @Sendable` closure and this class is neither.
     private func schedule(_ effects: [ShortcutTapEffect]) {
         guard !effects.isEmpty else { return }
         pendingEffects.append(contentsOf: effects)

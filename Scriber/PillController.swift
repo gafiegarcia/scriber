@@ -731,15 +731,11 @@ private struct PillView: View {
         case .permissionsRequired(let missing):
             PermissionReadiness(missingPermissions: missing).recoveryMessage
         case .dictationCopied(_, let message), .transcriptionFailed(let message): message
-        // Kept short deliberately: the compact pill gives its subtitle one line
-        // and truncates, and these phases also carry a countdown, an action, and
-        // a dismiss control on the same row. The cause goes here; the fix is the
-        // button.
-        //
-        // These two no longer say the same thing. Sound reaching the recorder and
-        // no words coming back is a different problem from no sound arriving at
-        // all, and the old copy blamed a muted microphone for both — which was
-        // actively wrong in the case where audio did arrive.
+        // Keep these short: the compact pill gives its subtitle one line and
+        // truncates, and these phases also carry a countdown, an action, and a
+        // dismiss control on the same row. The cause goes here; the fix is the
+        // button. Keep the two distinct — sound arriving with no words in it is a
+        // different problem from no sound arriving.
         case .noSpeechDetected: "No recognisable words in the recording"
         case .noAudioSignal: "Check the selected input and its volume"
         default: nil

@@ -4,41 +4,32 @@ import SwiftData
 
 /// Deterministic Dictation history for `--ui-testing-seed-history`.
 ///
-/// This file exists because the history list could not be checked safely. Under
-/// `--ui-testing` the container is `isStoredInMemoryOnly` and therefore empty, so
-/// the only build with entries in it was the installed Release build running real
-/// history — where "does the overflow menu delete the right entry" means deleting
-/// one of Gaf's real dictations, and where producing a new entry costs API credit.
-/// Roughly ten interface checks in `docs/MANUAL_CHECKS.md` were blocked on that.
-///
 /// Four invariants, each a way to get this wrong that the call site does not show:
 ///
-/// 1. **Audio filenames are namespaced `ui-testing-fixture-*.m4a`.**
-///    `pendingAudioRelativePath` is a real path, `PendingAudio` is a single
-///    directory that `--ui-testing` does **not** isolate, and
-///    `AppCoordinator.delete` calls `AudioRecorder.delete` unconditionally. A name
-///    that cannot collide with a real `<uuid>.m4a`, pointing at a file that does
-///    not exist, makes that a no-op instead of a deletion in Gaf's real directory.
-/// 2. **No entry is older than the 30-day retention period.** Otherwise
-///    `expireRetainedAudio` would rewrite `errorMessage` and clear audio paths
-///    underneath a check in progress. (It is now also gated on `servicesAllowed`,
-///    so this is belt and braces — but the fixture should not depend on that.)
+/// 1. **Audio filenames stay namespaced `ui-testing-fixture-*.m4a`.**
+///    `pendingAudioRelativePath` is a real path, `PendingAudio` is one directory
+///    that `--ui-testing` does **not** isolate, and `AppCoordinator.delete` calls
+///    `AudioRecorder.delete` unconditionally. A name that cannot collide with a
+///    real `<uuid>.m4a` makes that a no-op rather than a deletion in Gaf's own
+///    directory.
+/// 2. **No entry is older than the 30-day retention period**, or
+///    `expireRetainedAudio` rewrites `errorMessage` and clears audio paths under a
+///    check in progress. Its `servicesAllowed` gate is belt and braces; do not
+///    depend on it.
 /// 3. **Every field combination is one the app itself can produce.** Success sets
 ///    `text` and clears the audio path; failure leaves `text` nil, sets
 ///    `errorMessage`, and keeps the path; cancellation is always textless; a
-///    `.copied` delivery only arises from the paste fallback, which leaves an
-///    `errorMessage` on an otherwise succeeded record. Worth recording as a
-///    negative result: **no code path produces a failed or cancelled record that
-///    has text**, which is exactly why copy is always unavailable on those rows.
+///    `.copied` delivery arises only from the paste fallback, leaving an
+///    `errorMessage` on an otherwise succeeded record. **No code path produces a
+///    failed or cancelled record with text**, which is why copy is always
+///    unavailable on those rows.
 /// 4. **Today's rows use fixed wall-clock times**, so a run before 18:42 shows a
-///    few timestamps in the future. Deliberate: times computed from `.now` either
-///    drift, so the rows stop matching the table below, or collapse into each
-///    other just after midnight, so the sort order stops being deterministic.
-///    Nothing being checked depends on a timestamp being in the past.
+///    few timestamps in the future. Times computed from `.now` either drift out of
+///    step with the table below or collapse into each other just after midnight,
+///    losing the deterministic sort. Nothing checked here needs a past timestamp.
 ///
-/// There is no idempotence guard. The container is new in every process and
-/// `AppRuntime` builds once, so `seed` runs at most once per launch. The absence
-/// would look like an oversight otherwise.
+/// No idempotence guard: the container is new in every process and `AppRuntime`
+/// builds once, so `seed` runs at most once per launch.
 @MainActor
 enum UITestingHistoryFixture {
     /// 23 records over four day groups, of which **22 render** — entry 06 is
@@ -311,13 +302,10 @@ enum UITestingHistoryFixture {
     /// Stable identifiers, so a record keeps the same identity across launches and
     /// a check can name the entry it is about.
     ///
-    /// Force-unwrapped on purpose. A `?? UUID()` fallback would silently destroy
-    /// the determinism this exists for; the only way to reach a nil here is to
-    /// break the format string, and then it should fail loudly on the first
-    /// seeded launch rather than quietly producing random ids.
-    /// `nonisolated` because it is pure and `Entry.makeRecord` is not on the main
-    /// actor. Only `seed` needs to be, and only because `ModelContext` is not
-    /// `Sendable`.
+    /// Force-unwrapped on purpose: a `?? UUID()` fallback would silently destroy
+    /// the determinism this exists for. The only way to reach nil is to break the
+    /// format string, which should fail loudly on the first seeded launch.
+    /// `nonisolated` because it is pure and `Entry.makeRecord` is not main-actor.
     private nonisolated static func id(_ index: Int) -> UUID {
         UUID(uuidString: String(format: "D1C7A7E0-0000-4000-8000-%012X", index))!
     }

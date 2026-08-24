@@ -85,14 +85,13 @@ final class PasteService {
 
     // MARK: - Delivery diagnostics
     //
-    // Privacy-safe diagnostics for target selection. Scriber normally picks its
-    // paste target with `NSWorkspace.frontmostApplication`, but an LSUIElement app
-    // presenting a nonactivating panel can hold keyboard focus without becoming
-    // frontmost. These fields make that distinction visible when delivery fails.
+    // Privacy-safe diagnostics for target selection. Scriber picks its paste target
+    // with `NSWorkspace.frontmostApplication`, but an LSUIElement app presenting a
+    // nonactivating panel can hold keyboard focus without becoming frontmost.
     //
-    // Only process identities and Accessibility roles are recorded. Transcript
-    // text is never logged: keeping in-flight dictation private is the entire
-    // point of the concealed-pasteboard design, and a log would undo it.
+    // Record process identities and Accessibility roles only. Never log transcript
+    // text: keeping in-flight dictation private is the whole point of the
+    // concealed-pasteboard design, and a log would undo it.
 
     private static let diagnosticLog = Logger(
         subsystem: "com.gafiegarcia.scriber",
@@ -191,11 +190,10 @@ final class PasteService {
     /// looks like text input.
     ///
     /// When macOS positively reports a focused element that is *not* text — a web
-    /// page with no focused text box — Scriber must record no Accessibility
-    /// evidence at all. A live page mutates its own accessibility state between
-    /// the before and after snapshots through carets, timers, and streaming
-    /// content, and reading that drift as a paste mutation confirms insertions
-    /// that never happened.
+    /// page with no focused text box — record no Accessibility evidence at all. A
+    /// live page mutates its own state between the before and after snapshots
+    /// through carets, timers, and streaming content, and reading that drift as a
+    /// paste mutation confirms insertions that never happened.
     ///
     /// An empty result is not a failure. Delivery still dispatches Paste, and
     /// confirmation falls to the pasteboard probe alone, which is the documented

@@ -2,20 +2,18 @@ import Foundation
 
 /// What a dictation gesture means while the microphone is still opening.
 ///
-/// Opening a capture session is slow enough to need a background queue, so a
-/// press returns before there is anything to record. Every gesture that ends a
-/// recording can therefore arrive before the recording exists: a tap that asks
-/// for hands-free, a release, Escape, a keystroke. Deciding what those mean by
-/// looking at what is on screen fails exactly then — nothing is on screen yet —
-/// and a dropped release leaves a recording with no gesture left to stop it.
+/// Opening a capture session needs a background queue, so a press returns before
+/// there is anything to record and every gesture that ends a recording — a tap
+/// asking for hands-free, a release, Escape, a keystroke — can arrive before the
+/// recording exists. Deciding what those mean from what is on screen fails exactly
+/// then, and a dropped release leaves a recording nothing can stop.
 ///
-/// So the pending gesture is state here rather than a lookup elsewhere. The mode
-/// is installed on the press, before any session exists, and an ending that
-/// arrives early is remembered until the session opens and can honour it.
+/// So the pending gesture is state here: the mode is installed on the press, and
+/// an ending that arrives early is remembered until the session can honour it.
 ///
-/// Paired with `RecorderLifecycle`, which tracks the capture stack's own
-/// bookkeeping. This type never learns what a recording is; that one never
-/// learns what the user pressed.
+/// Paired with `RecorderLifecycle`, which tracks the capture stack's bookkeeping.
+/// This type never learns what a recording is; that one never learns what the
+/// user pressed.
 public struct RecordingStartGate: Equatable, Sendable {
     /// What to do with a session the moment it opens, when the gesture that ends
     /// it has already arrived.
