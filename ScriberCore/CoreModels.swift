@@ -47,11 +47,8 @@ public enum ModifierKeyCodes {
         sides.first { $0.value.modifier == modifier && $0.value.side == side }?.key
     }
 
-    /// The modifiers whose two keys are worth telling apart. Both have a right
-    /// key on every Mac keyboard and neither is typed right-handed to open a
-    /// shortcut. Control often has no right key at all, and right Shift types
-    /// capitals all day — naming sides for those would invent a distinction the
-    /// keyboard does not make.
+    /// The modifiers whose two keys are worth telling apart. Control often has
+    /// no right key at all, and right Shift types capitals all day.
     public static let sidedModifiers: KeyModifiers = [.command, .option]
 
     public static func name(for keyCode: UInt16) -> String? {
@@ -61,11 +58,8 @@ public enum ModifierKeyCodes {
     }
 }
 
-/// Which physical modifier keys are down right now.
-///
-/// The flags say Option is down and never which Option, so this is the only way
-/// to tell `Right ⌥` from its twin — and the only way to know a bound key came
-/// back up while the other one keeps the flag set.
+/// Which physical modifier keys are down right now. Also the only way to know a
+/// bound key came back up while its twin keeps the flag set.
 public struct HeldModifierKeys: Equatable, Sendable {
     public private(set) var keys: Set<UInt16> = []
 
@@ -95,20 +89,13 @@ public struct ShortcutChord: Codable, Hashable, Sendable {
     public var modifiers: KeyModifiers
     public var keyCode: UInt16?
     /// The exact physical modifier keys this chord requires. Empty means either
-    /// side of each modifier will do, which is what every chord meant before
-    /// sides could be told apart.
-    ///
-    /// Only kept for a chord of modifiers alone. Add an ordinary key and the
-    /// chord is something being typed, where which ⇧ a hand reaches for is not
-    /// a choice anyone makes on purpose.
+    /// side of each modifier will do. Only kept for a chord of modifiers alone;
+    /// adding an ordinary key clears it.
     public var modifierKeyCodes: Set<UInt16>
 
     public init(modifiers: KeyModifiers, keyCode: UInt16?, modifierKeyCodes: Set<UInt16> = []) {
         self.modifiers = modifiers
         self.keyCode = keyCode
-        // Only a chord built entirely from the sideable modifiers keeps its
-        // sides. Add ⌃, ⇧, or `fn` and the chord is a combination being pressed,
-        // where which key a hand lands on is not a choice anyone is making.
         let sideable = keyCode == nil && modifiers.isSubset(of: ModifierKeyCodes.sidedModifiers)
         self.modifierKeyCodes = sideable ? modifierKeyCodes : []
     }
@@ -175,13 +162,10 @@ extension ShortcutChord {
 }
 
 /// What setup suggests to someone whose keyboard has no `fn` key macOS can see.
-///
-/// Not a preset in the picker: setup offers `fn` or recording your own, and this
-/// is the hint shown once recording is the path taken. Two modifiers because
-/// `ReservedShortcuts` refuses a lone one.
+/// Not a preset in the picker — it is the hint shown once recording your own is
+/// the path taken. Two modifiers, because `ReservedShortcuts` refuses a lone one.
 public enum SuggestedShortcuts {
-    /// What setup offers, in order. Every one of them is a key held on its own,
-    /// which is the whole point: nothing to learn and nothing to clash with.
+    /// What setup offers, in order. Every one is a key held on its own.
     public static let offers = ReservedShortcuts.bindableAlone
 
     public static let withoutFunctionKey = ShortcutChord(modifiers: [.control, .option], keyCode: nil)
@@ -217,19 +201,6 @@ public struct ModifierChordCaptureState: Equatable, Sendable {
 
     /// Returns the peak modifier-only chord as soon as the **first** modifier is
     /// released, then resets for the next capture.
-    ///
-    /// It used to wait for every modifier to be released, which was worse for a
-    /// reason that is not about correctness: while keys were still down after a
-    /// release, the recorder looked like it was still listening, which invites the
-    /// belief that letting go of one key edits the chord already captured. It never
-    /// did — the peak is what gets committed either way — and it could not be made
-    /// to. Honouring it would mean deciding which keys counted as "released
-    /// together", and there is no signal that answers that: a user correcting a
-    /// mistake and a user finishing a chord produce the same events.
-    ///
-    /// Committing at the first release removes the question. The window in which
-    /// the interface implies an ability it does not have closes, and the chord is
-    /// still the peak, so every release order yields the same result as before.
     public mutating func commitOnFirstModifierRelease(
         currentModifiers: KeyModifiers
     ) -> ShortcutChord? {
@@ -249,10 +220,9 @@ public struct ModifierChordCaptureState: Equatable, Sendable {
 }
 
 public enum KeyCodeNames {
-    /// Virtual key codes for the standard ANSI layout, matching Carbon's
-    /// `kVK_` constants. Codes are positional, so this names the key by where it
-    /// sits rather than by what a remapped layout produces — good enough for a
-    /// shortcut label, and it avoids pulling Carbon into this UI-free module.
+    /// Virtual key codes for the standard ANSI layout, matching Carbon's `kVK_`
+    /// constants. Codes are positional, so this names the key by where it sits
+    /// rather than by what a remapped layout produces.
     private static let names: [UInt16: String] = [
         0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
         11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T",
@@ -276,10 +246,10 @@ public enum KeyCodeNames {
         names[keyCode] ?? "Key \(keyCode)"
     }
 
-    /// The reverse, so a table of chords can be written in the names a person
-    /// reads instead of in codes they have to trust. The positional layout makes
-    /// those codes genuinely misleading — 23 is `5` and 22 is `6`, F3 is 99 and
-    /// F5 is 96 — and a mistyped one is a rule that silently never matches.
+    /// The reverse, so a table of chords can be written in names rather than
+    /// codes. The positional layout makes the codes misleading — 23 is `5` and
+    /// 22 is `6`, F3 is 99 and F5 is 96 — and a mistyped one is a rule that
+    /// silently never matches.
     public static func code(for name: String) -> UInt16? { codes[name] }
 
     private static let codes: [String: UInt16] = Dictionary(
@@ -327,16 +297,12 @@ public enum AudioInputSelection: Codable, Equatable, Hashable, Sendable {
 
 /// When other apps get their sound back after a dictation.
 public enum OtherAudioMutePolicy {
-    /// How long the mute outlasts the recording.
-    ///
-    /// Sound returning in the same instant the input stream closes is what gets
-    /// heard as a glitch — a device changing mode right then has not settled. A
-    /// pause this short reads as nothing at all.
+    /// How long the mute outlasts the recording. Sound returning in the same
+    /// instant the input stream closes is heard as a glitch, because a device
+    /// changing mode right then has not settled.
     ///
     /// It covers the transition, not a Bluetooth headset's whole trip out of
-    /// call mode, which runs about a second and stays audible. macOS's own
-    /// dictation lets that through too and only softens it with a level ramp,
-    /// which a process tap has no way to do.
+    /// call mode, which runs about a second and stays audible.
     public static let restoreDelay: TimeInterval = 0.2
 }
 
@@ -417,11 +383,9 @@ public struct PermissionReadiness: Equatable, Sendable {
     }
 }
 
-/// Why Scriber cannot currently reach ElevenLabs, if it cannot.
-///
-/// Onboarding can complete and then stop being sufficient: a key is revoked,
-/// replaced at ElevenLabs, or the account runs out of credits. Scriber must say
-/// so on its own rather than waiting for a dictation attempt to fail.
+/// Why Scriber cannot currently reach ElevenLabs, if it cannot. Onboarding can
+/// complete and then stop being sufficient: a revoked key, a key replaced at
+/// ElevenLabs, an account out of credits.
 public enum CredentialReadiness: Equatable, Sendable {
     case ready
     case missingAPIKey
@@ -481,7 +445,7 @@ public enum LaunchAtLoginState: String, Sendable {
     public var isOn: Bool { self == .enabled }
 
     /// Why the toggle refused to stay on, for the one state where asking again
-    /// cannot help. Names the list holding the switch: the Open at Login list
+    /// cannot help. Name the list holding the switch: the Open at Login list
     /// above it has no per-item switch, so "in Login Items" alone sends people
     /// looking for a control that is not there.
     public var recoveryAdvice: String? {
@@ -556,20 +520,12 @@ public enum AppPhase: Equatable, Sendable {
     /// Nothing ever crossed the signal threshold, so the recording was discarded
     /// before it cost any API credit.
     ///
-    /// Distinct from `.noSpeechDetected` on purpose. This one means the microphone
-    /// produced no usable sound at all — muted, wrong device, input volume at zero
-    /// — and it used to be discarded in complete silence, which made a broken
-    /// microphone indistinguishable from not having spoken.
+    /// Distinct from `.noSpeechDetected` on purpose: this one means the microphone
+    /// produced no usable sound at all — muted, wrong device, input volume at zero.
     case noAudioSignal
     /// A transcript reached the clipboard instead of the cursor, from a History
-    /// retry rather than from a failed paste.
-    ///
-    /// Its own phase rather than a `.message`, because it is not an
-    /// acknowledgement of something the user just did — it is the outcome telling
-    /// them the text is *not* where they wanted it and they have to paste it
-    /// themselves. As a 1.5-second `.message` with a generic waveform it was
-    /// missable, and it named the same outcome differently from
-    /// `.dictationCopied`.
+    /// retry rather than from a failed paste. Its own phase rather than a
+    /// `.message`, which is too brief for an outcome the user has to act on.
     case transcriptCopied
     case message(String)
 
@@ -580,21 +536,17 @@ public enum AppPhase: Equatable, Sendable {
         }
     }
 
-    /// Every phase that is not itself a dictation in flight is a resting phase: the
-    /// notice on screen describes something that already finished, so a shortcut
-    /// press must start the next dictation rather than be swallowed. Enumerating
-    /// the resting phases by name is how `.noSpeechDetected` came to deadlock both
-    /// shortcuts until its pill was dismissed by hand — the pill's own countdown
-    /// clears the pill, never this phase. Derive it from `isBusy` instead so a new
-    /// phase can never fall out of the list.
+    /// Every phase that is not a dictation in flight is a resting phase: the notice
+    /// on screen describes something already finished, so a shortcut press must
+    /// start the next dictation rather than be swallowed. Derive this from `isBusy`
+    /// and never from a list of phase names — a name left out of such a list
+    /// deadlocks both shortcuts until the pill is dismissed by hand.
     public var acceptsRecordingStart: Bool { !isBusy }
 
-    /// Cancelling is permitted in every recording mode: held recording still
-    /// stops on key release, but a change of mind before that should not require
-    /// waiting for it. This governs `HandsFreePillAction.disposition(for:)`, so
-    /// it covers clicks on the pill's Cancel control only. It says nothing about
-    /// whether that control is currently drawn — see
-    /// `showsCancelRecordingControl(isHovering:)` — and nothing about Escape,
+    /// Cancelling is permitted in every recording mode. Governs
+    /// `HandsFreePillAction.disposition(for:)`, so it covers clicks on the pill's
+    /// Cancel control only: it says nothing about whether that control is drawn —
+    /// see `showsCancelRecordingControl(isHovering:)` — and nothing about Escape,
     /// which cancels through `pillDismissalAction(isPresented:)` regardless.
     var permitsCancelRecording: Bool {
         guard case .recording = self else { return false }
@@ -612,10 +564,8 @@ public enum AppPhase: Equatable, Sendable {
         }
     }
 
-    /// Confirm only makes sense while locked. A held recording already has an
-    /// explicit stop gesture — releasing the key — so offering a second one
-    /// would just be two ways to do the same thing. Unlike Cancel, its display
-    /// never depends on hover.
+    /// Confirm only makes sense while locked; a held recording stops on key
+    /// release. Unlike Cancel, its display never depends on hover.
     var showsConfirmRecordingControl: Bool {
         guard case .recording(let mode, _, _) = self else { return false }
         return mode == .locked
@@ -677,11 +627,9 @@ public enum ShortcutAction: Equatable, Sendable {
 }
 
 /// How long the dictation shortcut must stay down to mean "I am talking now"
-/// rather than "start listening and let go".
-///
-/// The decision is taken on release, not on press, so this never delays the
-/// start of a recording. Too short and a brief deliberate hold ends up
-/// hands-free; too long and a tap feels like it hung.
+/// rather than "start listening and let go". The decision is taken on release,
+/// not on press, so this never delays the start of a recording. Too short and a
+/// brief deliberate hold ends up hands-free; too long and a tap feels like it hung.
 public enum DictationShortcutTiming {
     public static let tapThreshold: TimeInterval = 0.25
 }
@@ -708,10 +656,8 @@ public enum RecordingCancellationPolicy {
     public static let recoveryThreshold: TimeInterval = 1
 
     /// Below this a press was never a dictation attempt: a finger slipped, or the
-    /// key was the modifier half of some other shortcut. Nothing is worth saying
-    /// about it — no sound, no message, no history row, just the pill closing —
-    /// because every one of those is a correction aimed at someone who did not ask
-    /// for anything.
+    /// key was the modifier half of some other shortcut. Say nothing about it —
+    /// no sound, no message, no history row, just the pill closing.
     public static let misclickThreshold: TimeInterval = 0.25
 
     public static func isMisclick(elapsed: TimeInterval) -> Bool {
@@ -727,23 +673,17 @@ public enum RecordingCancellationPolicy {
     }
 
     /// Whether a recording that carried no signal is worth saying so about.
-    ///
-    /// **“No sound from the microphone”** exists for a dictation someone really
-    /// gave: a muted input, a zero volume, the wrong device. Held for less than
-    /// a moment, it describes a burst of taps or a slipped finger instead, and
-    /// reports silence to someone who never spoke. Those close the way a
-    /// misclick does, so tapping repeatedly stays inert rather than queueing
-    /// notices about recordings nobody meant to make.
+    /// **“No sound from the microphone”** is for a dictation someone really gave —
+    /// a muted input, a zero volume, the wrong device. Held for less than a moment
+    /// it reports silence to someone who never spoke, so those close silently.
     public static func reportsMissingAudio(elapsed: TimeInterval, detectedSignal: Bool) -> Bool {
         !detectedSignal && elapsed >= recoveryThreshold
     }
 }
 
 /// When Scriber stops keeping the audio behind a failed or cancelled dictation.
-///
-/// Retained recordings exist so a dictation can be retried, but nothing ever
-/// collected them, so unretried audio accumulated in Application Support for the
-/// life of the install. That is a privacy cost as much as a disk one.
+/// Unretried audio left in Application Support is a privacy cost as much as a
+/// disk one, so retention is bounded rather than indefinite.
 public enum RetainedAudioRetentionPolicy {
     public static let retentionPeriod: TimeInterval = 30 * 24 * 60 * 60
 
@@ -808,13 +748,9 @@ public extension AppPhase {
 
     /// What the outcome was, in the vocabulary the window's toast stack already
     /// speaks, so the two surfaces cannot tint the same outcome differently.
-    ///
-    /// Nothing maps to `.failure`: every phase that could claim red is
-    /// recoverable in place, from the pill, without losing the transcript.
-    ///
-    /// Cancelling is the one recoverable outcome that stays neutral. The user
-    /// asked for it, so amber would be the app disagreeing with a deliberate
-    /// choice; the Undo button carries the recovery on its own.
+    /// Nothing maps to `.failure` — every phase that could claim red is
+    /// recoverable in place, from the pill. Cancelling stays neutral, because the
+    /// user asked for it and the Undo button carries the recovery on its own.
     var pillTone: ToastTone {
         switch self {
         case .dictationCopied: .success
@@ -825,16 +761,12 @@ public extension AppPhase {
         }
     }
 
-    /// What clicking the pill body does, decided per phase before the gesture
-    /// exists rather than after someone lands one by accident.
-    ///
-    /// No case here transcribes, cancels, or discards. Retry and Undo spend API
-    /// credit and stay on their buttons, where reaching them is deliberate.
+    /// What clicking the pill body does, decided per phase. No case here
+    /// transcribes, cancels, or discards: Retry and Undo spend API credit and
+    /// stay on their buttons, where reaching them is deliberate.
     func pillDefaultAction(isPresented: Bool) -> PillDefaultAction {
         guard isPresented else { return .none }
         return switch self {
-        // The transcript in the copied result is selectable; a body tap would
-        // fight the selection it sits on.
         case .idle, .recording, .transcribing, .cancelledTranscript: .none
         // The transcript is selectable, so a body tap fights the selection it sits on.
         case .dictationCopied: .none
@@ -885,18 +817,13 @@ public enum KeyboardFocusRedirectPolicy {
     /// the frontmost one.
     ///
     /// An accessory (`LSUIElement`) app can present a nonactivating panel that
-    /// takes keyboard focus without ever becoming frontmost. Raycast's command
-    /// bar does this, and so does Scriber's own pill. Typing follows keyboard
-    /// focus, so dictation must too — otherwise the transcript lands in the
-    /// window the user visibly left behind.
+    /// takes keyboard focus without ever becoming frontmost — Raycast's command
+    /// bar does, and so does Scriber's own pill. Typing follows keyboard focus,
+    /// so dictation must too.
     ///
-    /// Redirection is deliberately narrow. It requires a different process that
-    /// genuinely exposes a focused text input, so an ordinary app whose focus and
-    /// frontmost status agree is never affected.
-    ///
-    /// Scriber never redirects to itself. That keeps the pill from becoming its
-    /// own paste target without blocking Scriber's ordinary windows, which are
-    /// frontmost when focused and therefore need no redirect.
+    /// Keep it narrow: a different process that genuinely exposes a focused text
+    /// input, and never Scriber itself, which would make the pill its own paste
+    /// target.
     public static func redirects(
         focusOwnerPID: Int32,
         frontmostPID: Int32,
@@ -918,13 +845,11 @@ public enum PasteConfirmationPolicy {
     }
 
     /// Accessibility state only counts as evidence when it was observed on a focus
-    /// that genuinely looks like text input.
-    ///
-    /// A live web page with no focused text box changes its own accessibility
-    /// state through carets, timers, and streaming content. Watching an unrelated
-    /// focused element therefore manufactures confirmations at random, which is
-    /// worse than having no Accessibility evidence at all: a failed paste is
-    /// reported as delivered and the transcript is never offered for recovery.
+    /// that genuinely looks like text input. A live web page with no focused text
+    /// box changes its own state through carets, timers, and streaming content, so
+    /// watching an unrelated element manufactures confirmations at random — worse
+    /// than no evidence at all, because a failed paste is then reported as
+    /// delivered and the transcript is never offered for recovery.
     public static func qualifiesAsAccessibilityEvidence(
         focusContainsTextInput: Bool,
         mutationObserved: Bool
@@ -1019,11 +944,9 @@ public struct ShortcutTapOutcome: Equatable, Sendable {
 }
 
 /// Every decision the global shortcut tap makes, with no CoreGraphics in reach.
-///
-/// It lives here and not beside the tap because that tap is head-inserted at the
-/// HID level: the whole machine's event stream advances only when its callback
-/// replies, so a wrong decision there wedges the Mac rather than misbehaving
-/// quietly. Separating the decision from the C API is what lets a test reach it.
+/// Kept apart from the tap because that tap is head-inserted at the HID level:
+/// the whole machine's event stream advances only when its callback replies, so
+/// a wrong decision there wedges the Mac rather than misbehaving quietly.
 public struct ShortcutTapMachine: Sendable {
     public private(set) var mode: ShortcutMonitorMode = .idle
     public private(set) var holdLatched = false
@@ -1126,11 +1049,9 @@ public struct ShortcutTapMachine: Sendable {
     private mutating func handleKeyDown(_ input: ShortcutTapInput) -> ShortcutTapOutcome {
         if matcher.dictation.keyCode != nil,
            matcher.matches(modifiers: input.modifiers, keyCode: input.keyCode) {
-            // The dictation chord is Scriber's in every mode, so it returns here
-            // rather than falling through. Falling through let the chord's own
-            // auto-repeat read as the user typing, which cancelled the recording
-            // and cleared the latch, so the next repeat started another one — and
-            // leaked the character to the app in front on the way past.
+            // Return here rather than falling through: the chord is Scriber's in
+            // every mode, and falling through lets its own auto-repeat read as the
+            // user typing, which cancels the recording and leaks the character.
             suppressedKeyCodes.insert(input.keyCode)
             guard !input.isRepeat, !holdLatched else { return .suppressed }
             holdLatched = true
@@ -1154,13 +1075,12 @@ public struct ShortcutTapMachine: Sendable {
             return ShortcutTapOutcome(suppressesEvent: false, effects: [.action(.pressed)])
         }
 
-        // Latch-driven rather than mode-driven. The press reaches the coordinator
-        // a run-loop turn before the mode comes back, and a release landing in
-        // that window used to be dropped on the `.idle` branch — leaving a
-        // recording running that nothing was going to stop. A keyed chord releases
-        // here too, when one of its modifiers goes up before its key does, and a
-        // sided one when one of its own keys does — a twin held down keeps that
-        // flag set, so watching the flag alone would never see the release.
+        // Latch-driven rather than mode-driven: the press reaches the coordinator a
+        // run-loop turn before the mode comes back, and a release landing in that
+        // window is otherwise dropped, leaving a recording nothing will stop. A
+        // keyed chord releases here too, when a modifier goes up before its key,
+        // and a sided one when one of its own keys does — a twin held down keeps
+        // the flag set, so watching the flag alone never sees the release.
         let released = !matcher.stillHeld(modifiers: input.modifiers, heldKeys: heldKeys.keys)
         if holdLatched, released {
             let action = release(at: input.timestamp)
@@ -1181,14 +1101,10 @@ public struct ShortcutTapMachine: Sendable {
 /// what it matches, system-wide. A shortcut bound to ⌘C does not merely conflict
 /// with copy, it replaces copy in every application on the Mac.
 public enum ReservedShortcuts {
-    /// Every key that may be bound held on its own, best first.
-    ///
-    /// Shift alone is how every capital is typed, and Control, Option, and
-    /// Command are each held as the first half of most shortcuts on the system —
-    /// but with the left hand. Nothing starts a shortcut with the right-hand
-    /// twin, which is what makes those two safe and what makes them the closest
-    /// thing to `fn` on a keyboard that has no `fn` macOS can see. `fn` itself
-    /// leads: macOS gives it no role beyond the function keys.
+    /// Every key that may be bound held on its own, best first. `fn` leads
+    /// because macOS gives it no role beyond the function keys. The right-hand
+    /// twins follow: nothing on the Mac starts a shortcut with them, while Shift
+    /// alone types capitals and the left-hand twins open most shortcuts.
     public static let bindableAlone: [ShortcutChord] = [
         .defaultDictation,
         ShortcutChord(modifiers: [.command], keyCode: nil, modifierSide: .right),
