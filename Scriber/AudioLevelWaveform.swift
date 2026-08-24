@@ -1,11 +1,9 @@
 import SwiftUI
 
 /// A live level, published on its own rather than from whatever produces it.
-///
 /// `ObservableObject` publishes per object, so a level on a wide-reaching object
-/// re-renders every view observing that object ten times a second — for a number
-/// only the meter draws. Kept here, the only views invalidated are the ones that
-/// asked for it. The recording pill already does this with `PillModel`.
+/// re-renders every view observing it ten times a second, for a number only the
+/// meter draws. Keep it here, where only the views that asked for it are hit.
 @MainActor
 final class AudioLevelSource: ObservableObject {
     @Published private(set) var level: Float = -160
@@ -27,11 +25,10 @@ struct AudioLevelMeter: View {
 
 /// A live microphone level, drawn as a scrolling history of bars.
 ///
-/// Two features depend on this — the pill and the microphone test — so it takes a
-/// `Presentation` rather than raw numbers. Sharing the view alone was not enough
-/// to stop the two from drifting apart: each call site chose its own frame,
-/// colour and backing, and one of them stretched the bars until a quiet signal
-/// looked like no signal at all.
+/// The pill and the microphone test both draw it, so it takes a `Presentation`
+/// rather than raw numbers. Sharing the view alone is not enough to stop the two
+/// drifting: left to choose its own frame, colour and backing, a call site can
+/// stretch the bars until a quiet signal looks like no signal at all.
 struct AudioLevelWaveform: View {
     /// Where this meter is being drawn, which decides everything about how it
     /// looks. Add a case rather than passing numbers; the sizes below are a

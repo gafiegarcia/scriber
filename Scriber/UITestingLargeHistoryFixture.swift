@@ -4,18 +4,14 @@ import SwiftData
 
 /// Several hundred synthetic Dictation records for `--ui-testing-seed-history-large`.
 ///
-/// `UITestingHistoryFixture` is hand-curated for interface checks and stays that
-/// way; this fixture exists only to make history-list scrolling performance
-/// reproducible and measurable, which needs a history far longer than 23 rows.
-/// Not used by any existing check — `AUTOMATED_CHECKS.md`'s "22 dictations"
-/// assertion depends on the other fixture and must keep passing unchanged.
+/// For measuring history-list scrolling, which needs far more than the 23 rows
+/// `UITestingHistoryFixture` curates for interface checks. No existing check uses
+/// it — `AUTOMATED_CHECKS.md`'s "22 dictations" assertion belongs to the other
+/// fixture and must keep passing unchanged.
 ///
-/// These records carry no retained audio: `pendingAudioRelativePath` stays nil,
-/// so `AppCoordinator.delete` skips file removal and `expireRetainedAudio` skips
-/// the record entirely — neither can reach one of Gaf's real recordings.
-/// `UITestingHistoryFixture` namespaces its `ui-testing-fixture-*.m4a` filenames
-/// precisely because it seeds retryable failures that do reference audio; these
-/// scroll-performance rows never do.
+/// These records carry no retained audio: `pendingAudioRelativePath` stays nil, so
+/// `AppCoordinator.delete` skips file removal and `expireRetainedAudio` skips the
+/// record, and neither can reach one of Gaf's real recordings.
 @MainActor
 enum UITestingLargeHistoryFixture {
     private static let dayCount = 29

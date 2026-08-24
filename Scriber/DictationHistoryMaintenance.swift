@@ -48,20 +48,15 @@ final class DictationHistoryMaintenance {
         try? modelContext.save()
     }
 
-    /// Removes retained dictation audio older than the retention period.
-    ///
-    /// Only the recording goes. The history row, its transcript, and why it failed
-    /// are preserved, so the user keeps the record of what happened and loses only
-    /// the ability to retry a month-old dictation.
+    /// Removes retained dictation audio older than the retention period. Only the
+    /// recording goes — the history row, its transcript, and why it failed are all
+    /// preserved, so only the ability to retry is lost.
     func expireRetainedAudio(ifEnabled isEnabled: Bool) {
-        // Never from a test build. `PendingAudio` is a single real directory that
-        // `--ui-testing` does not isolate, while the history store under it *is*
-        // in-memory — so the orphan sweep below sees every one of Gaf's genuinely
-        // retained recordings as referenced by nothing and deletes the expired
-        // ones. The launch call site is already gated; the retention-preference
-        // sink is not, so this guard must cover every entry point.
-        //
-        // `servicesAllowed` is true in Release, so shipped behaviour is unchanged.
+        // Never from a test build. `PendingAudio` is one real directory that
+        // `--ui-testing` does not isolate while the history store under it *is*
+        // in-memory, so the sweep below sees every one of Gaf's genuinely retained
+        // recordings as referenced by nothing and deletes the expired ones. This
+        // guard has to cover every entry point, not just the launch call site.
         guard servicesAllowed, isEnabled,
               let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
 

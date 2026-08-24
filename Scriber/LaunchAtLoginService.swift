@@ -9,12 +9,10 @@ import ScriberCore
 /// Whether macOS started Scriber as a login item, rather than the user opening it.
 ///
 /// `SMAppService` reports whether the login item is registered and nothing about
-/// the launch in progress, so the only signal is the Apple event AppKit is
-/// handling while it starts. That event is readable only while AppKit is
-/// handling it, so this samples it at both startup moments and keeps the first
-/// answer that is not "nothing was there" — sampling once was how a launch that
-/// carries the marker later than expected would look identical to one that never
-/// carries it at all.
+/// the launch in progress, so the only signal is the Apple event AppKit is handling
+/// while it starts — readable only during that handling. Sample at both startup
+/// moments and keep the first answer that is not "nothing was there": sample once
+/// and a launch carrying the marker late looks like one that never carries it.
 @MainActor
 enum LoginItemLaunch {
     enum Reading: String {

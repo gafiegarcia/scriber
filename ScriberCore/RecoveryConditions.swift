@@ -41,22 +41,15 @@ public struct RecoveryCondition: Identifiable, Equatable, Sendable {
 }
 
 public enum RecoveryConditions {
-    /// Every unresolved condition, worst first.
+    /// Every unresolved condition, worst first — all of them, always. The floating
+    /// pill shows one recovery at a time, and what makes that acceptable is the
+    /// window showing every condition at once, so do not collapse this to one entry.
     ///
-    /// All of them, always: the floating pill shows one recovery at a time, and
-    /// what makes that acceptable is the window showing every condition at once.
-    /// Collapsing this to a single entry would leave the second one with nowhere
-    /// to appear.
-    ///
-    /// Missing permissions outrank an unusable credential, matching the pill:
-    /// without Microphone or Accessibility there is nothing for a working key to
-    /// do.
-    ///
-    /// Unfinished setup outranks both and replaces them, because setup is where
-    /// all of them get resolved and listing its parts separately would offer
-    /// three routes to one place. It reports at all because the setup window can
-    /// be closed with ⌘W: whoever does that has nothing granted and, without
-    /// this, nothing on screen saying why dictation does nothing.
+    /// Missing permissions outrank an unusable credential, matching the pill: with
+    /// no Microphone or Accessibility there is nothing for a working key to do.
+    /// Unfinished setup outranks both and replaces them, since setup is where all
+    /// of them get resolved. It reports at all because the setup window can be
+    /// closed with ⌘W, leaving nothing granted and nothing saying why.
     public static func current(
         onboardingComplete: Bool,
         permission: PermissionReadiness,
