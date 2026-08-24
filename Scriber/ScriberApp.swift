@@ -27,10 +27,8 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-missing-permissions")
     }
 
-    /// Fills the in-memory history so the Dictation list can be checked at all.
-    /// Empty is the honest default for a test store, but it left every history
-    /// interface check reachable only through Gaf's real entries. See
-    /// `UITestingHistoryFixture`.
+    /// Fills the in-memory history so the Dictation list can be checked without
+    /// touching Gaf's real entries. See `UITestingHistoryFixture`.
     static var seedsDictationHistory: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-history")
     }
@@ -44,19 +42,15 @@ enum AppLaunchConfiguration {
     }
 
     /// Opens onboarding under `--ui-testing`, which otherwise marks setup
-    /// complete so every other check starts in the app proper. Without it the
-    /// onboarding window is reachable only by resetting Gaf's real preferences.
+    /// complete so every other check starts in the app proper.
     static var showsOnboarding: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding")
     }
 
-    /// Lets every setup step be advanced past without satisfying its gate.
-    ///
-    /// Four of the seven steps gate on a real grant, a real microphone signal, or
-    /// a real keypress, so without this the later steps can only be looked at by
-    /// granting permissions to a Debug build — which writes that build's identity
-    /// into the Mac's privacy lists. The gates themselves still render; only the
-    /// Continue button stops obeying them.
+    /// Lets every setup step be advanced past without satisfying its gate, so the
+    /// later steps can be reached without granting permissions to a Debug build —
+    /// which writes that build's identity into the Mac's privacy lists. The gates
+    /// still render; only the Continue button stops obeying them.
     static var unlocksOnboardingSteps: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding-unlocked")
     }
@@ -111,11 +105,8 @@ enum AppLaunchConfiguration {
         return !UserDefaults.standard.bool(forKey: "onboardingComplete")
     }
 
-    /// Whether SwiftUI should build and show the main window at launch.
-    ///
-    /// Suppressed during setup so the two do not stack, which left the main
-    /// window visible around the edges of a window the user cannot act on yet.
-    /// `finish()` opens it once setup is done.
+    /// Whether SwiftUI should build and show the main window at launch. Suppressed
+    /// during setup so the two do not stack; `finish()` opens it once setup is done.
     @MainActor
     static var presentsMainWindowAtLaunch: Bool { !startsInBackground && !launchesIntoOnboarding }
 
@@ -126,20 +117,16 @@ enum AppLaunchConfiguration {
     }
 }
 
-/// Where the rest of the app borrows SwiftUI's window-opening action.
-///
-/// Only a SwiftUI view holds it, and at a login launch there is no window whose
-/// view could offer it — which is the situation that needs it most. The menu bar
-/// icon is the one piece of Scriber that macOS does draw at login, so that is
-/// where it comes from.
+/// Where the rest of the app borrows SwiftUI's window-opening action. Only a
+/// SwiftUI view holds it, and a login launch has no window whose view could offer
+/// it — so it comes from the menu bar icon, the one piece of Scriber macOS draws
+/// at login.
 @MainActor
 final class SceneOpeners {
     static let shared = SceneOpeners()
 
     var openMainWindow: (() -> Void)?
-    /// Setup is no longer opened by the main window appearing, because the main
-    /// window no longer appears during setup. This is how the launch poller asks
-    /// for it without one.
+    /// How the launch poller reaches setup, which no main window is around to open.
     var openOnboardingWindow: (() -> Void)?
 }
 
@@ -175,8 +162,7 @@ enum AppWindowIdentity {
 
     /// Scene identifier first, title second, matching `isMainWindow`. A tabbed
     /// pane is free to retitle its window after the selected tab the way Safari's
-    /// does, and the title alone is what fronting, Command-Shift-W, and the
-    /// activation-policy count all used to match Settings on.
+    /// does, so the title alone is not enough to match Settings on.
     static func isSettingsWindow(_ window: NSWindow) -> Bool {
         guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
         return window.identifier?.rawValue == "settings" || window.title == settingsTitle
@@ -260,12 +246,10 @@ final class AppRuntime: ObservableObject {
             }
         }
 
-        // Synchronously, here, before anything can render. Deferring this to a
-        // `Task { @MainActor … }` the way the pill flags do would insert into a
-        // context `@Query` has already read from — a value changing inside an
-        // update, which is the failure the comment further down this file records
-        // AttributeGraph aborting the process for. Running inside `init` means the
-        // store is already populated the first time any view fetches.
+        // Seed synchronously, before anything renders. Deferring to a
+        // `Task { @MainActor … }` inserts into a context `@Query` has already read
+        // from, which is a value changing inside an update — AttributeGraph aborts
+        // the process for that.
 #if DEBUG
         if AppLaunchConfiguration.seedsDictationHistory {
             UITestingHistoryFixture.seed(into: container.mainContext)
@@ -302,9 +286,8 @@ final class AppRuntime: ObservableObject {
             }
             if AppLaunchConfiguration.simulatesMissingPermissions {
                 Task { @MainActor [coordinator] in
-                    // Exercise a post-render toolbar update. This is deliberately
-                    // later than initial window construction so the fixture runs
-                    // after SwiftUI has installed its toolbar observers.
+                    // Later than initial window construction on purpose, so this
+                    // runs after SwiftUI has installed its toolbar observers.
                     try? await Task.sleep(for: .seconds(1))
                     coordinator.presentPermissionRecoveryPillForUITesting()
                 }
@@ -313,34 +296,23 @@ final class AppRuntime: ObservableObject {
         // Nested `ObservableObject`s do not propagate, so views reading
         // `runtime.coordinator.x` need this fan-out to update at all.
         //
-        // Known and unfixed: it also means any coordinator change invalidates
-        // this whole `App` body, so SwiftUI reinstalls the main menu. Starting a
-        // dictation while the Window menu is open therefore prunes it of the
-        // items AppKit contributes from the key window. Undoing the fan-out
-        // means every view observing the coordinator directly — a wide change
-        // whose failure mode is a view that silently stops updating, which is
-        // worse than the menu blink it would buy.
+        // Known and unfixed: any coordinator change therefore invalidates this
+        // whole `App` body, so SwiftUI reinstalls the main menu — starting a
+        // dictation with the Window menu open prunes the items AppKit contributes
+        // from the key window. Undoing the fan-out means every view observing the
+        // coordinator directly, which risks views that silently stop updating.
         preferences.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
         coordinator.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
-        // Deferred by one main-actor turn rather than called directly.
-        //
-        // `@StateObject` builds this object lazily, in the middle of SwiftUI's
-        // scene-graph update. `startServices` refreshes permissions, and when a
-        // permission is missing it presents the recovery pill immediately — which
-        // resizes an AppKit panel and provokes a nested SwiftUI render. That is a
-        // value being set while the graph is mid-update, and AttributeGraph aborts
-        // the process for it.
-        //
-        // It only reproduces when a permission is genuinely missing at launch, so
-        // the installed app never showed it while a freshly built binary — which
-        // macOS has not granted Accessibility — crashed on every run.
-        //
-        // `startServices` is already re-entrant; `MenuBarContent.onAppear` calls it
-        // too. Waiting for the current update to finish costs nothing.
+        // Deferred by one main-actor turn, never called directly. `@StateObject`
+        // builds this object in the middle of SwiftUI's scene-graph update, and
+        // `startServices` can present the recovery pill, which resizes an AppKit
+        // panel and provokes a nested render — a value set mid-update, which
+        // AttributeGraph aborts the process for. Only reproduces when a permission
+        // is genuinely missing. `startServices` is re-entrant, so the wait is free.
         if !isUITesting {
             Task { @MainActor [coordinator] in coordinator.startServices() }
         }
@@ -359,11 +331,9 @@ struct ScriberApp: App {
                 .modelContainer(runtime.container)
                 .task { await promoteApplicationForVisibleWindow(isStartupWindow: true) }
         }
-        // Said outright rather than waited for. Left to itself SwiftUI creates this
-        // window at launch only when there is a saved one to restore, so a login
-        // that followed a session ending with the window closed produced nothing
-        // for the startup poll to find, and Scriber came up with no window at all
-        // however the settings were set.
+        // Said outright rather than waited for: left to itself SwiftUI creates this
+        // window at launch only when there is a saved one to restore, so a session
+        // that ended with the window closed comes up with no window at all.
         .defaultLaunchBehavior(AppLaunchConfiguration.presentsMainWindowAtLaunch ? .presented : .suppressed)
         .defaultSize(width: 900, height: 640)
         // Hides the title text only. `window.title` and `.titled` both survive,
@@ -420,10 +390,8 @@ struct ScriberApp: App {
 
         MenuBarExtra(
             isInserted: Binding(
-                // `--ui-testing` launches (the smoke check included) never show a menu
-                // bar icon: the throwaway defaults suite always starts `showInMenuBar`
-                // true, and nothing under automated launch reads the icon, so it would
-                // only sit as a second, unexplained mark next to the real app's.
+                // `--ui-testing` launches never show a menu bar icon, which would
+                // otherwise sit as a second mark beside the real app's.
                 get: { runtime.preferences.showInMenuBar && !AppLaunchConfiguration.isUITesting },
                 set: { isInserted in
                     Task { @MainActor in
@@ -439,13 +407,8 @@ struct ScriberApp: App {
         }
     }
 
-    /// The icon reports configuration problems and nothing else.
-    ///
-    /// It used to track the dictation phase, but the pill and the sounds already
-    /// narrate a dictation, and a menu bar icon that animates through every
-    /// recording is a distraction rather than information. What the menu bar is
-    /// good at is the state the user cannot otherwise see: Scriber is installed,
-    /// running, and unable to work until something is fixed.
+    /// The icon reports configuration problems and nothing else. It does not track
+    /// the dictation phase — the pill and the sounds already narrate that.
     private var menuBarLabel: some View {
         MenuBarLabel(
             image: needsAttention ? Self.warningImage : Self.markImage,
@@ -453,34 +416,18 @@ struct ScriberApp: App {
         )
     }
 
-    /// Height of the mark in the menu bar. The single knob worth turning.
-    ///
-    /// 15 rather than 17 after looking at it next to real neighbours: the mark is
-    /// tall and narrow, so matching a square symbol's height makes it read as the
-    /// biggest thing in the bar. Two points down sits it in the row rather than
-    /// above it.
+    /// Height of the mark in the menu bar. The single knob worth turning: the mark
+    /// is tall and narrow, so matching a square symbol's 17 makes it read as the
+    /// biggest thing in the bar. Two points down sits it in the row.
     private static let menuBarIconHeight: CGFloat = 15
 
-    /// **A menu bar item measures `NSImage.size`, not the SwiftUI frame around
-    /// it.** Two builds were spent on the frame before that was established, and
-    /// both failed in the same direction the artwork pointed:
+    /// **A menu bar item measures `NSImage.size`, not the SwiftUI frame around it.**
+    /// Setting a frame does nothing; the item takes the image's own size, and the
+    /// asset's intrinsic size is 414 x 602, wide enough to push every other status
+    /// item into the overflow. So set the size on the image, once, here.
     ///
-    /// - Build 16 handed it the app-icon artwork on its 1024 square. The mark is
-    ///   414 x 602 of that canvas, so whatever size the item took, 59% of it was
-    ///   the mark and the rest was transparency. It looked far too small.
-    /// - Build 17 cropped the asset to its ink and set a 17pt frame. The frame
-    ///   was ignored, the item took the image's own size, and at 414 points wide
-    ///   it ate the menu bar — every other status item was pushed into the
-    ///   overflow. Loading the compiled asset confirms the intrinsic size is
-    ///   exactly 414 x 602, and the other items returned the moment this sizing
-    ///   landed.
-    ///
-    /// So the size is set on the image, once, here. `Image(nsImage:)` then hands
-    /// AppKit an image that already knows how big it is, and there is no SwiftUI
-    /// layout in the path to be honoured or ignored. The width is left fractional
-    /// so the ratio matches the source exactly — the asset is vector-backed, so
-    /// AppKit re-rasterizes at whatever size it's given rather than scaling a
-    /// fixed bitmap.
+    /// The width is left fractional so the ratio matches the source exactly — the
+    /// asset is vector-backed, so AppKit re-rasterizes rather than scaling a bitmap.
     private static func menuBarImage(_ image: NSImage) -> NSImage {
         let ratio = image.size.height > 0 ? image.size.width / image.size.height : 1
         image.size = NSSize(
@@ -495,10 +442,9 @@ struct ScriberApp: App {
 
     private static let markImage: NSImage = menuBarImage(NSImage(resource: .menuBarIcon))
 
-    /// Deliberately the same height as the mark, so the item does not resize
-    /// when Scriber starts or stops needing attention. The symbol is square, so
-    /// the width still changes by a few points; matching height is what stops it
-    /// reading as a jump.
+    /// The same height as the mark, so the item does not resize when Scriber starts
+    /// or stops needing attention. The symbol is square, so the width still moves by
+    /// a few points; matching height is what stops that reading as a jump.
     private static let warningImage: NSImage = menuBarImage(
         NSImage(
             systemSymbolName: "exclamationmark.circle",
@@ -519,11 +465,9 @@ struct ScriberApp: App {
     @MainActor
     private func promoteApplicationForVisibleWindow(isStartupWindow: Bool = false) async {
         guard !AppLaunchConfiguration.launchesWithoutActivating else { return }
-        // The main window's first appearance is the one SwiftUI makes at launch,
-        // and promoting there is what would put Scriber in front of whatever the
-        // user is doing. Every later route into this window — the menu bar item,
-        // the pill's Open button, Command-comma — asks for activation itself, so
-        // nothing else loses its Dock icon by this.
+        // Promoting on the main window's first appearance is what would put Scriber
+        // in front of whatever the user is doing. Every later route in — menu bar
+        // item, the pill's Open button, Command-comma — asks for activation itself.
         guard !(isStartupWindow && AppLaunchConfiguration.startsInBackground) else { return }
         NSApp.setActivationPolicy(.regular)
         await Task.yield()
@@ -583,17 +527,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Escape closes Settings when nothing in it has a better use for the key.
     ///
-    /// Installed here and for the app's lifetime rather than by `SettingsView`,
-    /// because a SwiftUI `Window` scene does not reliably run `onAppear` when its
-    /// window is re-shown, so a monitor tied to that had nothing keeping it alive.
-    /// `onExitCommand` is no use either: it fires only for a view that holds
-    /// focus, and a pane of toggles and pickers never does.
+    /// Installed here for the app's lifetime rather than by `SettingsView`: a
+    /// SwiftUI `Window` scene does not reliably run `onAppear` when its window is
+    /// re-shown, so a monitor tied to that has nothing keeping it alive.
+    /// `onExitCommand` fires only for a view that holds focus, which a pane of
+    /// toggles and pickers never does.
     ///
-    /// Standing aside is explicit rather than positional. A shortcut recorder
-    /// mid-capture has already promised the user that Escape cancels it, and the
-    /// order two local monitors run in is not defined, so this asks rather than
-    /// assuming it loses the race. A confirmation gets the key in its own window,
-    /// which is not the one this matches.
+    /// Stand aside explicitly rather than positionally: the order two local
+    /// monitors run in is undefined, so ask whether a shortcut recorder is
+    /// mid-capture rather than assuming this loses the race.
     ///
     /// Known and unfixed: this could not be verified from an injected key event.
     /// The monitor demonstrably runs and reports the right window for ordinary
@@ -714,10 +656,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Everything else macOS says about this launch, beside the Apple event.
-    ///
-    /// Written on every launch on purpose: a launch decides behaviour before
-    /// anyone can watch it, and the alternative to recording it is restarting the
-    /// Mac once per guess.
+    /// Written every launch on purpose: a launch decides behaviour before anyone
+    /// can watch it, and the alternative is restarting the Mac once per guess.
     private func logLaunchContext(_ notification: Notification) {
         let isDefaultLaunch = notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool
         let userInfoKeys = (notification.userInfo?.keys.map { "\($0)" } ?? []).sorted().joined(separator: ",")
@@ -758,32 +698,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Brings onboarding forward for a Redo Setup request.
-    ///
-    /// Polls, because the scene may not exist yet: unlike the main window,
-    /// onboarding is usually never instantiated in a session that started with
-    /// setup already complete, and `showWindow` can only order a window that
-    /// AppKit has actually created. The caller's `openWindow(id:)` is what creates
-    /// it; this waits for it to appear and then does the ordering and activation.
-    /// Stops Control-C standing in for Enter on the setup window, and hands the
-    /// key to the menu instead — which is where it was always meant to go.
+    /// Stops Control-C standing in for Enter on the setup window, handing the key
+    /// to the main menu instead.
     ///
     /// AppKit resolves Control-C to `NSEnterCharacter` (0x03), the character the
     /// Enter key sends, so a window's default button answers to it and answers
-    /// first. Window ▸ Center never sees ⌃🌐C, though clicking that same item
-    /// works. The two keys are only separable before that resolution, where Enter
+    /// first. The two keys are only separable before that resolution, where Enter
     /// reports 0x03 with no modifier and Control-C reports "c" with Control held.
     ///
-    /// Offering the event to the main menu rather than centring the window here
-    /// is what makes the shortcut behave exactly like the menu item: same
-    /// animation, same resting place. `NSWindow.center` is not that command — it
-    /// rests a window above centre by design, and moves it in one jump. Anything
-    /// the menu declines is swallowed, because Control-C is not a command in this
-    /// window either way.
+    /// Offer the event to the menu rather than centring the window here, so the
+    /// shortcut matches the menu item exactly — `NSWindow.center` rests a window
+    /// above centre and moves it in one jump, which is not that command.
     ///
-    /// App-lifetime, beside the Settings escape monitor and for the same reason:
-    /// a SwiftUI `Window` scene does not reliably run `onAppear` when its window
-    /// is re-shown, so a monitor tied to that has nothing keeping it alive.
+    /// App-lifetime, for the same reason as the Settings escape monitor above.
     private func installOnboardingCentreMonitor() {
         onboardingCentreMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard event.modifierFlags.contains(.control),
@@ -797,6 +724,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Brings onboarding forward for a Redo Setup request. Polls, because the
+    /// caller's `openWindow(id:)` is what creates the scene and `showWindow` can
+    /// only order a window AppKit has actually made.
     private func showOnboardingWindow() {
         // Setup is presented in front of whatever asked for it, so the windows it
         // replaces go first — through `performClose`, the same route as Command-W
@@ -818,27 +748,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Fits onboarding to the screen itself rather than trusting AppKit's frame.
-    ///
-    /// The scene sizes setup from its content, so this only has to place it.
-    /// AppKit's own frame is not trusted to: opened while the main window is up
-    /// it gets cascaded down until it runs under the Dock, and reopened in a
-    /// later session it gets a restored frame that `.contentSize` resizability
-    /// never re-derives — which is how it once came back stuck small.
     /// Holds Settings at its fixed size, and keeps Window ▸ Center working there.
     ///
     /// `.contentSize` resizability sizes a window from its content but never
     /// re-derives a frame AppKit restored from an earlier session, so a Mac that
-    /// resized Settings while it still could reopens it at whatever size it was
-    /// left at. Pinning both limits and setting the size corrects that on the way
-    /// in, and leaves the saved position alone — a settings window that jumps
-    /// across the screen on every open is worse than one that opens where it was.
+    /// resized Settings while it still could reopens it at that size. Pinning both
+    /// limits corrects it on the way in; the saved position is left alone.
     ///
-    /// The resizable mask is claimed for the reason `fitOnboardingWindow` gives:
-    /// macOS disables Window ▸ Center and Fill for a window that cannot be
-    /// resized, a disabled item does not consume its key, and ⌃🌐C then reaches
-    /// the app as `NSEnterCharacter` and fires the default button. Here that is
-    /// whichever button a confirmation is resting on.
+    /// The resizable mask is claimed for the reason `fitOnboardingWindow` gives.
     private func fitSettingsWindow(_ window: NSWindow) {
         guard fittedSettingsWindows.insert(ObjectIdentifier(window)).inserted else { return }
         let size = NSSize(width: SettingsWindowLayout.width, height: SettingsWindowLayout.height)
@@ -852,14 +769,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func fitOnboardingWindow(_ window: NSWindow) {
         guard fittedOnboardingWindows.insert(ObjectIdentifier(window)).inserted else { return }
         window.isRestorable = false
-        // macOS disables its own Window ▸ Center and Fill for a window that
-        // cannot be resized, and a disabled menu item does not consume its key —
-        // so ⌃🌐C fell through to the app, where AppKit reads Control-C as the
-        // Enter character (`NSEnterCharacter` is 0x03) and fires the default
-        // button. Someone reaching for Center advanced a step instead.
-        //
-        // Claiming the resizable mask while pinning both size limits to the
-        // fixed frame enables those commands and still leaves nothing to drag.
+        // macOS disables Window ▸ Center and Fill for a window that cannot be
+        // resized, and a disabled menu item does not consume its key — so ⌃🌐C
+        // falls through to the app, where AppKit reads Control-C as the Enter
+        // character (0x03) and fires the default button, advancing a step.
+        // Claiming the resizable mask while pinning both size limits enables those
+        // commands and still leaves nothing to drag.
         let size = NSSize(
             width: OnboardingLayout.windowWidth,
             height: OnboardingLayout.windowHeight
@@ -867,16 +782,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.styleMask.insert(.resizable)
         window.contentMinSize = size
         window.contentMaxSize = size
-        // The mask is claimed for Center alone. Left as it comes, a resizable
-        // window is also a full-screen one, and this window's content is pinned
-        // to the size above — so full screen would strand the page in the middle
-        // of an empty display.
+        // The mask is claimed for Center alone. A resizable window is also a
+        // full-screen one, and this content is pinned to the size above, so full
+        // screen would strand the page in the middle of an empty display.
         window.collectionBehavior.insert(.fullScreenNone)
         window.center()
-        // The main window is created alongside this one on a first run and, being
-        // created second, ends up in front of the one the user is supposed to be
-        // reading. Ordering happens here rather than at the open call because the
-        // window does not exist yet when setup asks for it.
+        // On a first run the main window is created second and lands in front of
+        // the one the user is meant to read. Order here rather than at the open
+        // call, because the window does not exist yet when setup asks for it.
         window.makeKeyAndOrderFront(nil)
     }
 
@@ -906,9 +819,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if showWindow(titled: title) { return }
             try? await Task.sleep(for: .milliseconds(50))
         }
-        // Names what was there instead. "Exhausted" alone could not tell a window
-        // that arrived late from one that was never built, which is the difference
-        // between waiting longer and asking for it.
+        // Name what was there instead: "exhausted" alone cannot tell a window that
+        // arrived late from one that was never built.
         let present = NSApp.windows
             .map { window in
                 let name = window.title.isEmpty ? "untitled" : window.title
@@ -972,18 +884,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 """
             )
             window.makeKeyAndOrderFront(nil)
-            // The app begins as an accessory so a launch with no visible window stays
-            // out of the Dock. Reassert regular mode only after the startup window is
-            // visible: AppKit can otherwise process its initial resign-key transition
-            // after the earlier promotion and leave a visible window without a Dock icon.
+            // Reassert regular mode only after the startup window is visible: AppKit
+            // can otherwise process its initial resign-key transition after the
+            // earlier promotion, leaving a visible window with no Dock icon.
             self.reconcileActivationPolicy()
 
             try? await Task.sleep(for: .milliseconds(50))
             guard !Task.isCancelled else { return }
             // A window closed between the two activation attempts must stay closed.
-            // Without this visibility check the retry orders a just-dismissed window
-            // back on screen, and the reconcile below then sees it and holds the
-            // process in regular activation policy.
+            // Without this check the retry orders a just-dismissed window back on
+            // screen, and the reconcile below then holds regular activation policy.
             if window.isVisible, !currentApplication.isActive {
                 Self.windowLog.notice("retry: reactivating a still-visible startup window")
                 _ = currentApplication.activate(options: [.activateAllWindows])
@@ -1007,11 +917,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             applyActivationPolicy(.regular)
             return
         }
-        // Demoting waits a beat. A window that closes to hand over to another —
-        // setup finishing into the main window — leaves a moment with nothing
-        // visible, and dropping to accessory only to be promoted straight back is
-        // what leaves a second Dock tile behind, pointing at the same app. The
-        // gap is a handover, not an empty app; a quarter second tells them apart.
+        // Demoting waits a beat. A window closing to hand over to another — setup
+        // finishing into the main window — leaves a moment with nothing visible,
+        // and dropping to accessory only to be promoted straight back leaves a
+        // second Dock tile pointing at the same app. A quarter second tells a
+        // handover apart from an empty app.
         guard accessoryDemotionTask == nil else { return }
         accessoryDemotionTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(250))
