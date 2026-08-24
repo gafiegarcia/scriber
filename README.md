@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="Branding/ScriberIcon-BlackBackground.svg" width="90px">
+    <img src="Branding/ScriberIcon-macOS-Dark.png" width="90px">
     <h1>Scriber</h1>
     <a href="#install">Install</a>
 </div>
