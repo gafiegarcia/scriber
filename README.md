@@ -1,7 +1,8 @@
 <div align="center">
     <img src="Branding/ScriberIcon-macOS-Dark.png" width="90px">
     <h1>Scriber</h1>
-    <a href="#install">Install</a>
+    <a href="#install"><b>Install ↓</b></a><br>
+    <sub><i>macOS 26+</i></sub>
 </div>
 <br />
 
