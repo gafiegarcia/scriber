@@ -1,11 +1,7 @@
 <div align="center">
     <img src="Branding/ScriberIcon-BlackBackground.svg" width="90px">
     <h1>Scriber</h1>
-    <a href="#download">Download</a>
-    <span> • </span>
-    <a href="#repository">Repo layout</a>
-    <span> • </span>
-    <a href="#build-it-yourself">Build</a>
+    <a href="#install">Install</a>
 </div>
 <br />
 
@@ -42,7 +38,7 @@ I'm on a base model macbook. Running a local model means:
 
 ## (Better) Alternatives...
 
-I've been using Scriber for weeks, and it fits my simple needs just fine. While I might keep maintaining it (read: report bugs and ask for features & improvements to the clankers), I most likely don't have enough tokens to squash bugs and fulfill requests as much/as quick as an actual project with an actual dev. You might want to check out these personal recommendations of mine + open source options I discovered:
+I've been using Scriber for weeks, and it fits my simple needs just fine. While I might keep maintaining it (read: report bugs and ask for features & improvements to the clankers), I most likely don't have enough tokens to squash bugs and fulfill requests as much/as quick as an actual project with an actual dev. So here are my recommended alternatives and open source options you might want to also check out:
 
 <details>
     <summary><strong>Alternatives</strong></summary>
@@ -53,21 +49,20 @@ Seriously, if you're okay with its privacy policy (just got updated after the ne
 
 - it's a trend-setter and used by many for a reason
 - great ux, great onboarding, easy to use
-- good accuracy+speed combo
-- built-in cleanup post-processing is reliable
+- good accuracy+speed combo, plus reliable cleanup post-processing
 - free users get 2000 words/week on desktop, 1000 words/week on mobile. more than enough for many
-- and yes, fully-functional iOS and Android apps (and afaik, syncs with all your devices if you subscribe); even though some secure (mobile banking) apps can't be accessed while its accessibility access is active
+- iOS and Android apps available (and afaik, syncs with all your devices if you subscribe); even though on Android, some secure (mobile banking) apps can't be accessed while its accessibility access is active (which is needed)
 - aside from the word limit, most features (except for the history sync, command mode and synced scratchpad, afaik) are *not paywalled*.
-- app-aware output style customization: email format, casual/formal/original style (lowercase for chats, polished grammar and capitalization for email/the rest, etc.), etc. and very easy to understand and configure
-- now also has a meeting transcription feature called "Notetaker" with real-time notes, speaker diarization, and summary notes (which I believe includes your real-time jotted down notes as well)
+- app-aware output style customization: email format, casual/formal style etc. — very easy to understand and configure
+- now also has a meeting transcription + notes feature called "Notetaker"
 
 ### [Spokenly](https://spokenly.app/)
 
 - supports numerous hosted, BYOK, and local models
-- good UX (arguably better than Wispr Flow in some parts): smart paste, hold + toggle in one shortcut, etc. (Scriber v0.9.0 also has these now)
+- good UX; smart paste, hold + toggle in one shortcut, etc. (Scriber v0.9.0 also has these now)
 - defaults to ElevenLabs Scribe v2 (biased...)
 - only uses ~150MB ram (on my mac)
-- app-aware formatting, with a different approach to Wispr Flow: it lets users add and configure the "templates", customize where each one triggers, manually select it during/after dictating, and set a custom prompt for the post-processing, in contrast to Wispr Flow's approach of ready-made configs (can be confusing for normies or semi-normies like me, while Wispr Flow's settings are so easy to understand that your non-tech-y friends and family might be able to fully use and configure it given enough time)
+- app-aware formatting, with a different, more customizable approach to Wispr Flow
 - live mode (using realtime models)
 - claude code & cowork, cursor, and codex integration via mcp (what?)
 - cli
@@ -75,18 +70,15 @@ Seriously, if you're okay with its privacy policy (just got updated after the ne
 Ofc it comes with some caveats:
 
 - unfamiliar settings UI
-- so many features are not paywalled, except for the one I want to enable the most. it's sad that I must subscribe to select the option to have the dictation interface on the notch
-- shipped with sane defaults, but you'll need to spend some time to learn all features and possible options/configurations
-- *closed source*. I can't learn how it works (read: can't steal ideas from its code)
-- It works almost in any app people mostly use, but not everywhere; can't paste into some text fields, like ~~Zed editor~~ and VS Code's new experimental markdown editor. I presume it's trying to determine the exact text field via AX tree or something, and when it can't find one, it just cannot paste it there, neither the first auto attempt nor the drag-to-insert works (even though it successfully detected which app). Update 2026-08-07: the dev updated it to work in Zed, but I found it not working in Raycast too, I suppose due to their strategy of not blindly pasting and making sure a text field exists and has focus first
-
-I might go back to this if they made changes that let me use it in those apps (or all apps for that matter, like how Scriber is designed)
+- while most features are free, notch interface is paywalled
+- shipped with sane defaults, but you'll need to spend some time to learn all features and options/configurations
+- still have some rough edges (paste failure in some apps), but gets updated often and has gotten better
 
 ### [Cloudless Voice](https://www.cloudless.so/) (previously Onit)
 
 - offline first
 - has been around for a while, and I remember the guys being very helpful and responsive on Discord
-- non-intrusive indicator pill (like Wispr Flow, but at the side)
+- non-intrusive indicator pill (like Wispr Flow, at the side)
 
 </details>
 
@@ -123,18 +115,17 @@ here are the ones I found; only really tested some. you can just check them out:
 
 ---
 
-## Download
+## Install
 
-### Requirements
-
+Requirements:
 - **macOS 26 Tahoe or newer** with **Apple silicon.**
 - An [ElevenLabs](https://elevenlabs.io/app/sign-up) API key.
-
-[**Download the latest DMG**](https://github.com/gafiegarcia/scriber/releases/latest), open it, and drag Scriber to Applications. Or:
 
 ```bash
 brew install --cask gafiegarcia/scriber/scriber
 ```
+
+Or [**download the latest release**](https://github.com/gafiegarcia/scriber/releases/latest), open the disk image, and drag Scriber to Applications.
 
 Scriber is signed and notarized. Once opened, follow the setup.
 
