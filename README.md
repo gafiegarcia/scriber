@@ -1,19 +1,26 @@
-<img src="Branding/ScriberIcon-BlackBackground.svg" width="65px" align="left">
+<div align="center">
+    <img src="Branding/ScriberIcon-BlackBackground.svg" width="90px">
+    <h1>Scriber</h1>
+    <a href="#download">Download</a>
+    <span> • </span>
+    <a href="#repository">Repo layout</a>
+    <span> • </span>
+    <a href="#build-it-yourself">Build</a>
+</div>
+<br />
 
-# Scriber
+If you're looking for a macOS dictation app to daily-drive, you may be interested in checking out [these alternatives I've listed below](#better-alternatives).
 
-**Skip to:** [Download](#download) · [Build it yourself](#build-it-yourself) · [Repository layout](#repository)
+## About
 
-If you're looking for a dictation app for macOS to daily-drive, you might be interested to check out [these alternatives I listed below](#better-alternatives) too.
-
-I asked Codex and Claude to build a Wispr Flow alternative (didn't like its RAM usage). It's good enough that I uninstalled the other for the time being.
+I asked Codex and Claude to build a Wispr Flow alternative (didn't like its RAM usage). It turns out to be good enough that I uninstalled the others for the time being.
 
 Scriber is a native macOS dictation app that lives in the menu bar by default, built with Swift, SwiftUI, and AppKit. Let me rephrase: Scriber is an ElevenLabs Scribe v2 API wrapper written in Swift that works just like Wispr Flow (kinda).
 
 - ~100MB of idle RAM usage, <5MB of bundle size (native Swift app)
 - BYOK (only supports ElevenLabs, for now)
 - Auto-paste with paste-fail detection (jargon-y enough?)
-- (currently) Does one job: record -> transcribe -> paste; that's it.
+- (currently) Does one job: Dictation (record -> transcribe -> paste); that's it.
 
 ## Why ElevenLabs?
 
@@ -37,6 +44,9 @@ I'm on a base model macbook. Running a local model means:
 
 I've been using Scriber for weeks, and it fits my simple needs just fine. While I might keep maintaining it (read: report bugs and ask for features & improvements to the clankers), I most likely don't have enough tokens to squash bugs and fulfill requests as much/as quick as an actual project with an actual dev. You might want to check out these personal recommendations of mine + open source options I discovered:
 
+<details>
+    <summary><strong>Alternatives</strong></summary>
+    
 ### [Wispr Flow](https://wisprflow.ai/)
 
 Seriously, if you're okay with its privacy policy (just got updated after the new Notetaker feature shipped; and not bothered with its current contro), and how it may use >400MB of your RAM, just use Wispr Flow
@@ -78,28 +88,47 @@ I might go back to this if they made changes that let me use it in those apps (o
 - has been around for a while, and I remember the guys being very helpful and responsive on Discord
 - non-intrusive indicator pill (like Wispr Flow, but at the side)
 
-### Open source alternatives
+</details>
+
+<details>
+    <summary><strong>Open Source!</strong></summary>
 
 here are the ones I found; only really tested some. you can just check them out:
 
-1. Blazing-fast local-first new-comer: [Talkify](https://usetalkify.app)
-    - Uses macOS built-in speech recognition (comes with its quirks, although latest macOS local asr has noticeably improved esp. the auto-punctuation)
-    - The dev boasted its speed, having the lowest latency, and IT DELIVERS
-2. paid-turned-open-source: [https://github.com/Beingpax/VoiceInk](https://github.com/Beingpax/VoiceInk)
-3. [freeflow](https://github.com/zachlatta/freeflow)
-4. [unramble](https://github.com/mrinalwadhwa/unramble)
+### [Talkify](https://usetalkify.app): Blazing-fast local-first new-comer
+
+- Uses macOS built-in speech recognition (comes with its quirks, although latest macOS local asr has noticeably improved esp. the auto-punctuation)
+- The dev boasted its speed, having the lowest latency, and IT DELIVERS
+- Indicator is on the notch with interesting particle effects
+
+### [VoiceInk](https://github.com/Beingpax/VoiceInk)
+
+- paid-turned-open-source
+- haven't really tested this one
+
+### [freeflow](https://github.com/zachlatta/freeflow)
+
+- Works on all Macs (Apple Silicon + Intel)
+- haven't really tested this one
+
+### [unramble](https://github.com/mrinalwadhwa/unramble)
+
+</details>
+
+<div align="right"><a href="#scriber">Back to top ↑</a></div>
 
 ---
 
-=========== BELOW IS AI SLOP ===========
+<div align="center">=== BELOW IS AI SLOP ===</div>
+
+---
 
 ## Download
 
 ### Requirements
 
-- **macOS 26 Tahoe or newer.**
-- **Apple silicon.**
-- A free [ElevenLabs](https://elevenlabs.io/app/sign-up) account, for the API key Scriber asks for during setup.
+- **macOS 26 Tahoe or newer** with **Apple silicon.**
+- An [ElevenLabs](https://elevenlabs.io/app/sign-up) API key.
 
 [**Download the latest DMG**](https://github.com/gafiegarcia/scriber/releases/latest), open it, and drag Scriber to Applications. Or:
 
@@ -107,9 +136,9 @@ here are the ones I found; only really tested some. you can just check them out:
 brew install --cask gafiegarcia/scriber/scriber
 ```
 
-macOS will say Scriber was downloaded from the internet the first time you open it. That prompt is normal for anything not installed from the App Store. Scriber is signed with a Developer ID certificate and notarized by Apple, so you should never see a warning that it cannot be opened or that the developer cannot be verified — if you do, something is wrong and it is worth opening an issue.
+Scriber is signed and notarized. Once opened, follow the setup.
 
-Setup then asks for your ElevenLabs key, Microphone access, and Accessibility access. Scriber needs Accessibility because its whole job is typing into whatever app you are already in.
+Setup will ask for your ElevenLabs key, Microphone access, and Accessibility access. Scriber needs Accessibility because its whole job is typing into whatever app you are already in.
 
 Scriber checks GitHub once a day for a newer version and tells you in the menu bar. It never installs anything on its own, and you can switch the check off in Settings → General.
 
@@ -129,7 +158,7 @@ The Xcode project is the source of truth for the bundle build number. See the [c
 
 ## Build it yourself
 
-You don't have to — [the download](#download) is the easy path. But if you want to build it yourself, you need Xcode 27 beta and a **free** Apple ID; a paid developer account is not required to build. Create `Signing.local.xcconfig` in root with your own team identifier, then build the **Debug** configuration:
+You need Xcode 27 beta and a **free** Apple ID; a paid developer account is not required to build. Create `Signing.local.xcconfig` in root with your own team identifier, then build the **Debug** configuration:
 
 ```text
 DEVELOPMENT_TEAM = ABCDE12345
@@ -158,8 +187,8 @@ The bundle identifier `com.gafiegarcia.scriber` is hardcoded in more places than
 
 ## Issues and contributions
 
-Bug reports and ideas are welcome. Development is real but slow — this is one person's daily-driver tool, built with a $20 token budget rather than a team, so expect slow progress. Fork freely.
+Bug reports and ideas are welcome. This is one person's daily-driver tool, built with a $20 token budget, so expect slow progress. Fork freely.
 
 ## License
 
-[MIT](LICENSE), copyright © 2026 Gafie Garcia. The app declares no third-party dependency: it uses only Apple's own frameworks.
+[MIT](LICENSE), copyright © 2026 Gafie Garcia.
