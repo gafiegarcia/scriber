@@ -633,6 +633,12 @@ final class AppCoordinator: ObservableObject {
     /// grants, and history stay, and onboarding reads current state, so each step
     /// presents as already satisfied rather than asking again.
     func restartOnboarding() {
+        // Clearing the flag stops the shortcut tap, and that tap carries `Escape`
+        // as well as the dictation chord — so a hands-free recording running at
+        // this moment loses every keyboard way out and sits until the duration cap.
+        // Settings' button is disabled for the same reason; this covers the
+        // confirmation it raises, which the disabled state does not reach.
+        guard !phase.isBusy else { return }
         isRedoingSetup = true
         preferences.onboardingComplete = false
         // A redo is a fresh run, not a resumption of the one that finished.
@@ -1022,7 +1028,7 @@ final class AppCoordinator: ObservableObject {
 
     func openSettingsWindow(destination: MainWindowDestination) {
         selectMainWindowDestination(destination)
-        endDictationBeforeOpeningAWindow()
+        dismissRestingNoticeBeforeOpeningAWindow()
         NSApp.setActivationPolicy(.regular)
         // The opener creates the scene if it does not exist yet; the
         // notification is what orders an existing window front and carries the
@@ -1033,7 +1039,7 @@ final class AppCoordinator: ObservableObject {
 
     private func openMainWindow(destination: MainWindowDestination) {
         selectMainWindowDestination(destination)
-        endDictationBeforeOpeningAWindow()
+        dismissRestingNoticeBeforeOpeningAWindow()
         NSApp.setActivationPolicy(.regular)
         NotificationCenter.default.post(name: .openScriberMainWindow, object: nil)
         // Every pill action arrives from a nonactivating panel, so Scriber has no
@@ -1622,16 +1628,19 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    /// `returnToIdle` takes the pill down but leaves the recorder alone, which is
-    /// right everywhere the recording has already been resolved and wrong here:
-    /// a dictation the gate still holds would keep the microphone open behind the
-    /// window, and answer the next press by transcribing it.
-    private func endDictationBeforeOpeningAWindow() {
-        if gate.isIdle {
-            returnToIdle()
-        } else {
-            apply(gate.apply(.cancelRequested))
-        }
+    /// Takes down a notice about a dictation that already ended, for the routes
+    /// that open a window to resolve what the notice reports.
+    ///
+    /// A dictation still in flight is deliberately left running, so do not add a
+    /// branch for it. Delivery reads the frontmost app when the transcript is
+    /// ready rather than when the window opens, so a trip into Scriber and back
+    /// loses nothing, and ending the recording here would be the app deciding the
+    /// user had abandoned it. `returnToIdle` must not be reached in that state
+    /// either: it takes the pill down and leaves the recorder running, and the
+    /// next press then stops and transcribes the orphan.
+    private func dismissRestingNoticeBeforeOpeningAWindow() {
+        guard gate.isIdle else { return }
+        returnToIdle()
     }
 
     /// When the press that began this dictation arrived.

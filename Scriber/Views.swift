@@ -500,8 +500,13 @@ private struct GeneralSettingsPane: View {
                     // current state, so a step already satisfied is presented as
                     // satisfied — but it does replace the window in front of you,
                     // so it asks.
+                    //
+                    // Disabled during a dictation: it stops the shortcut tap, which
+                    // carries `Escape` as well as the chord. `restartOnboarding`
+                    // refuses for the same reason and says why.
                     Button("Redo Setup…") { confirmRestartSetup = true }
                         .accessibilityIdentifier("restart-onboarding")
+                        .disabled(runtime.coordinator.phase.isBusy)
                 }
                 .padding(.top, SettingsPaneLayout.pageActionGap)
             }
@@ -783,7 +788,8 @@ private struct SoundSettingsPane: View {
                     } else {
                         Button("Check Input Level") { runtime.coordinator.startMicrophoneTest() }
                             .accessibilityIdentifier("microphone-level-test-button")
-                            .disabled(!runtime.coordinator.microphoneGranted)
+                            .disabled(!runtime.coordinator.microphoneGranted
+                                || runtime.coordinator.phase.isBusy)
                     }
 
                     if let microphoneTestError = runtime.coordinator.microphoneTestError {
