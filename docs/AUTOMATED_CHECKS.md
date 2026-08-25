@@ -65,6 +65,35 @@ Four things must hold, and each has caught a real mistake:
 - The entitlements are exactly `com.apple.security.device.audio-input`. An entitlement Scriber does not use is a notarization rejection waiting to happen; a missing one takes the microphone away at runtime rather than at build time.
 - No provisioning profile is embedded. Scriber uses no entitlement that requires one, so a profile appearing means something turned on automatic signing.
 
+## The published cask
+
+Run after publishing a release. Nothing else checks the tap's `Casks/scriber.rb`: it lives in another repository, is not compiled, is not tested, and does not run until someone types the install command — so a wrong `sha256`, a `version` that builds a URL to nothing, a mis-set `depends_on`, or an artifact name that does not match what is inside the disk image all fail silently until a stranger meets them.
+
+`--appdir` is what makes it runnable here. Installing the cask the ordinary way would put the release over the development build in `/Applications` and hand Homebrew that app to manage again; sent to a throwaway directory, the whole real path still runs — fetch, checksum, architecture and OS gates, mount, artifact placement — against the copy nobody is using.
+
+```bash
+APPDIR="$(mktemp -d)"
+brew install --cask --appdir="$APPDIR" gafiegarcia/scriber/scriber
+APP="$APPDIR/Scriber.app"
+
+/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist"
+codesign --verify --strict --verbose=2 "$APP"
+xcrun stapler validate "$APP"
+spctl -a -vvv --type open --context context:primary-signature "$APP"
+
+brew uninstall --cask scriber
+brew list --cask | grep scriber || echo "no longer tracked"
+```
+
+The version and build must be the release just published, the signature must verify, the ticket must validate, and `spctl` must report `source=Notarized Developer ID`.
+
+**The uninstall quits the running Scriber**, wherever it was installed from: the cask carries `uninstall quit: "com.gafiegarcia.scriber"`, and that acts on the bundle identifier rather than on the copy being removed. Expect it, and reopen afterwards.
+
+On a beta macOS, Homebrew prints `Warning: You are using macOS 27. We do not provide support for this pre-release version.` That is Homebrew talking about the OS, not about this cask.
+
+The app itself needs no separate proof here. The cask fetches the same release asset already tested by hand and verifies it against the checksum computed when it was published, so what lands is byte-for-byte what was installed and used. What this check covers is the recipe.
+
 ## Launch smoke check
 
 Run after any change to startup, the pill, or an `NSViewRepresentable`.
