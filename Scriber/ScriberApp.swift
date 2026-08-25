@@ -55,6 +55,22 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding-unlocked")
     }
 
+    /// An update offer to put in preferences before the coordinator is built,
+    /// which is where a stored offer is checked against the running version and
+    /// dropped when it no longer names an update.
+    ///
+    /// Seeded because the state cannot occur in a test launch: the throwaway
+    /// suite is wiped at every launch, and an offer only lands after a check
+    /// that runs later. Pass a version at or below this build's to exercise the
+    /// discard, above it to prove an offer that still stands is left alone.
+    static var seededUpdateOffer: String? {
+        guard isUITesting else { return nil }
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flag = arguments.firstIndex(of: "--ui-testing-seed-update-offer"),
+              arguments.index(after: flag) < arguments.endIndex else { return nil }
+        return arguments[arguments.index(after: flag)]
+    }
+
     /// Shows the menu bar item on a `--ui-testing` launch, which otherwise never
     /// does. Its mark is identical to the installed app's and nothing in the menu
     /// says which is which, so **quit the installed Scriber first** — and never
@@ -294,6 +310,20 @@ final class AppRuntime: ObservableObject {
             let inputDevices = AudioRecorder.availableInputDevices()
             preferences = Preferences(defaultAudioInputSelection: .initialSelection(from: inputDevices))
         }
+
+#if DEBUG
+        // Before the coordinator, which is the only thing that reads a stored
+        // offer back. Assigned rather than written to defaults: the published
+        // property persists itself, and this has to land while preferences
+        // exists and the coordinator does not.
+        if let version = AppLaunchConfiguration.seededUpdateOffer {
+            let releases = "https://github.com/gafiegarcia/scriber/releases"
+            preferences.availableUpdate = AvailableUpdate(
+                version: version,
+                url: URL(string: "\(releases)/tag/v\(version)") ?? URL(string: releases)!
+            )
+        }
+#endif
 
         coordinator = AppCoordinator(
             preferences: preferences,

@@ -243,6 +243,23 @@ Both directions are worth running, and the second is the one no test can show in
 
 The version shown in the Version row is the pretended one, which is what says a run is simulated.
 
+#### An offer that has already been taken
+
+`--ui-testing-seed-update-offer <version>` puts an offer in preferences before the coordinator is built, which is the only thing that reads a stored one back. That state cannot occur here otherwise — the throwaway suite is wiped at every launch, and an offer only lands after a check that runs later — so without the flag the discard has nothing to act on and goes unexercised.
+
+Pass no pretend version with it. The build then runs as itself, and no check runs to overwrite what was seeded, which is what isolates the discard from the check. Read the result from the throwaway suite rather than the screen:
+
+```bash
+defaults read com.gafiegarcia.scriber.ui-testing availableUpdate
+```
+
+Three runs, and the third is the one that stops a passing result meaning nothing:
+
+- Seeded at the running version — discarded. This is the real case: the offer was taken, and the version it named is the one now running.
+- Seeded below the running version — discarded.
+- Seeded above the running version — **kept**. An offer that still stands must survive, or a discard that deletes everything would pass the first two.
+
+
 ### Simulated recovery
 
 Use the Debug app and the same `before_pid`/absolute-`APP_PATH`/guarded-`kill` pattern above. Launch with `--ui-testing --ui-testing-missing-permissions` to inspect missing-permission recovery without changing real macOS grants.
