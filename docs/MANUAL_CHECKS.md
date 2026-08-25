@@ -17,8 +17,9 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 ## When recording shortcuts or the pill change
 
 - Cancel a dictation of a few seconds, once with Escape and once with the pill's Cancel. Tink plays, **Cancelled** appears, and — having run over a second with speech in it — the dictation is in history with its audio retained, offering a retry. A cancel under a quarter second stays silent instead, with no message and no history row.
-- Start a hands-free dictation, open a Scriber window mid-dictation, keep talking, switch back to where the text is going, and stop. The recording survives the window opening and the whole transcript lands at the cursor, including what was said while the window came up. Try each route: Command-comma, the menu bar item, and the toolbar's warning control.
-- Start a hands-free dictation and, **while it is still running**, open Settings with Command-comma. Look before you stop it, in three places: General's **Shortcut** card, where every preset, the recorded chord, and **Record** are greyed; General's footer, where **Redo Setup** is greyed; and the Sound tab, where **Check Input Level** is greyed. None of them answers a click. Only then stop the dictation, and watch all of them come back. Escape ends it without reaching transcription, so this one spends no API credit and is free to repeat.
+- Start a hands-free dictation and open Settings with Command-comma while it runs. **Look before you stop it:** on General, every preset, the recorded chord, **Record**, and **Redo Setup** are greyed, and on Sound, **Check Input Level** is; none of them answers a click. Press **Redo Setup…**, and with the confirmation on screen check that its own **Redo Setup** refuses too — nothing opens, nothing flashes, and the pill's timer and waveform stay smooth. Only then stop the dictation, and watch every control come back. Escape ends it before transcription, so this spends no API credit.
+- Then do the same with the other routes into Scriber — the menu bar item and the toolbar's warning control — and this time keep talking, switch back to where the text is going, and stop. The recording survives whichever window opened, and the whole transcript lands at the cursor, including what was said while the window came up. **Spends API credit.** Opening Settings is what historically cancelled a dictation, which is why the routes are checked one at a time rather than trusted together.
+- Pick each preset in turn: the chosen one is tinted and the others are not, and the shortcut takes effect without any confirm step. Record a custom chord, switch to a preset, and switch back — the recorded chord is still offered as its own button.
 - With a resting pill on screen — a copied result, **No words detected**, or a cancelled dictation offering Undo — open a Scriber window by Command-comma and again from the menu bar. The pill stays up both times: a route that is not the pill's own action must not throw the offer away. Then click the pill's own action, and it goes.
 - Hold a dictation for several seconds, then type. It survives: the first-second window for a stray key has long passed. Start another and type immediately, and that one is discarded without a sound.
 - Tap the dictation shortcut as fast as possible several times in a row, then hold it and dictate normally. Every dictation after the burst still works, nothing freezes, and the burst itself says nothing — no pill message, no **No sound from the microphone**, and no **Still transcribing** on the hold that follows. A tap pair too short to have held speech closes the way a misclick does. The burst puts a start, a stop, and a cancel inside the time the capture stack needs to close a recording, and both a recorder that refuses every later start and a deadlock between the capture queue and the main thread have reached Gaf this way. If it does freeze, run `sample Scriber 3` before quitting it: the main thread's stack and the capture queue's stack name the deadlock between them, and nothing recovered afterwards will.
@@ -64,8 +65,6 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - Turn **Mute other audio while dictating** on and confirm the explanation appears before the toggle moves, that cancelling leaves it off, and that the caption's link lands on Screen & System Audio Recording rather than the top of Privacy & Security. Then dictate with music playing.
 - With the release published, open Settings → General → Updates and choose **Check for Updates**. It reports the running version as current. This reaches GitHub but spends no API credit.
 
-- Pick each preset in turn: the chosen one is tinted and the others are not, and the shortcut takes effect without any confirm step. Record a custom chord, switch to a preset, and switch back — the recorded chord is still offered as its own button.
-
 ## When setup changes
 
 Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a Debug launch to reach the gated steps without granting anything to that build. The gates still render; only Continue stops obeying them, so anything below that tests a gate has to be run without it.
@@ -77,7 +76,6 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - Press a sided shortcut's left twin. It refuses to confirm, the same as any other wrong key — setup's test and the global shortcut have to agree about which key counts, or setup passes a binding that then does nothing.
 - Record a custom shortcut, confirm it, and finish. The recorder still refuses a reserved chord, and the chord that reaches Settings afterwards is the one that was tested.
 - On the shortcut step, press Tab and Return. Focus moves and Continue fires. The step watches for keys the whole time it is open, and a watcher that swallows them takes the keyboard with it.
-- Start a dictation on the **Try it!** step and press **Back** while it is still running. Every preset, the recorded chord, and **Record** are greyed on the shortcut step, the same as in Settings, and stay that way until the dictation ends. Back is offered during a dictation, which is what makes this step reachable mid-recording. Escape ends the dictation, so this spends no API credit.
 - Watch the step while nothing is pressed. Nothing on it changes height on its own: the presets are always showing, so the card cannot resize under the page centred beneath the title.
 
 ### Its permissions step
@@ -116,8 +114,8 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 ### Its dictation step
 
 - Reach it straight after choosing the shortcut. It is where the two ways to press it are taught, and the first place either can be tried.
-
 - Reach the dictation step and dictate into its box. **This spends API credit; ask first.** The words land in the box itself rather than the clipboard — no other app has ever been the target here, so this is the one place that says whether Scriber can paste into its own window.
+- Start a dictation on the **Try it!** step and leave the step without stopping it, once with **Back** and once with **Skip**. The dictation is cancelled as the step goes: the pill says **Cancelled**, no recording carries into the step you land on, and nothing is inserted into the box you left. This is setup's rule alone — everywhere else in Scriber a dictation survives whatever the user opens. Spends no API credit.
 - Close setup on the dictation step without dictating. Setup counts as finished, the shortcut works everywhere, and the login item matches what the final step's checkbox would have applied.
 
 ## When permissions or global-shortcut lifecycle change
@@ -128,15 +126,12 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 - With Bluetooth headphones connected and playing, hold the shortcut and immediately type into a text field. Every character appears as it is typed, with no stall. Opening the microphone drags the headset into call mode, and this is the check that says whether Scriber is waiting for that on the thread every keystroke goes through.
 - Revoking Accessibility while Scriber runs never stalls the machine. The shortcut monitor sits in front of every system event, so a monitor that will not stand down takes the pointer, clicks, and keyboard with it.
 - Hold still starts a recording after the lid has been closed and reopened and after a long idle. macOS disables event taps across sleep, so this is where a shortcut monitor that fails to recover becomes visible.
-
 - Turn **Mute other audio while dictating** on with System Audio Recording not yet granted, and answer the macOS prompt that follows the **Turn On** button. It arrives immediately, not during the next dictation, and Scriber stays responsive while it is on screen. This needs Scriber's row removed from System Settings → Privacy & Security → Screen & System Audio Recording first: `tccutil reset ScreenCapture com.gafiegarcia.scriber` reports success and changes nothing there, and while the row exists no prompt is raised at all.
-
 - Dictate with music playing, on the built-in speakers and again on Bluetooth headphones. The music returns cleanly both times, and the pause before it returns is short enough to go unnoticed. Then quit Scriber immediately after a dictation, and switch the setting off immediately after one: both bring the sound straight back rather than leaving the Mac silent.
 
 ## When audio capture or transcription outcomes change
 
 - Watch Scriber in Activity Monitor through a dictation, and again with Settings' input test running. Both sit near the cost of the capture itself — a few percent — not tens of percent. Two things put it there before: a level published on `AppCoordinator`, which republishes the whole object and so re-renders every open window and the menu bar ten times a second, and an implicit animation interpolating every bar of the meter between ticks. Neither shows up as the meter in a profile; both read as SwiftUI layout.
-
 - Set input volume to zero and dictate. Where the built-in microphone is the Mac's only input, the waveform stays healthy for five to seven seconds before flattening — macOS keeps sending signal at a level the slider reads as zero — so hold past that to reach **“No sound from the microphone”**. Connect any second input device, even one Scriber is not set to use, and the same test flattens from the first moment instead. Both are worth running: the second input is what makes this look like it behaves. Costs no credit; restore the input volume afterward.
 - Submit audio with no recognisable words. **This spends API credit; ask first.** Scriber reports no words and leaves no history row behind.
 

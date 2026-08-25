@@ -632,13 +632,17 @@ final class AppCoordinator: ObservableObject {
     /// Sends the user back through onboarding. Only the flag is cleared — the key,
     /// grants, and history stay, and onboarding reads current state, so each step
     /// presents as already satisfied rather than asking again.
+    /// Whether setup can be walked again right now.
+    ///
+    /// Restarting clears `onboardingComplete`, which stops the shortcut tap, and
+    /// that tap carries `Escape` as well as the dictation chord — so a hands-free
+    /// recording running at this moment loses every keyboard way out and sits
+    /// until the duration cap. Every control that offers a restart reads this, so
+    /// the disabled state and the refusal below cannot drift apart.
+    var canRestartOnboarding: Bool { !phase.isBusy }
+
     func restartOnboarding() {
-        // Clearing the flag stops the shortcut tap, and that tap carries `Escape`
-        // as well as the dictation chord — so a hands-free recording running at
-        // this moment loses every keyboard way out and sits until the duration cap.
-        // Settings' button is disabled for the same reason; this covers the
-        // confirmation it raises, which the disabled state does not reach.
-        guard !phase.isBusy else { return }
+        guard canRestartOnboarding else { return }
         isRedoingSetup = true
         preferences.onboardingComplete = false
         // A redo is a fresh run, not a resumption of the one that finished.
@@ -918,6 +922,14 @@ final class AppCoordinator: ObservableObject {
         } else {
             apply(gate.apply(.stopRequested))
         }
+    }
+
+    /// Cancels a running dictation the way the pill's own Cancel does, for a
+    /// caller that is taking the surface it belongs to off screen. Transcription
+    /// already in flight is left alone: `HandsFreePillAction` permits cancelling
+    /// only while recording, and the audio is spent by then.
+    func cancelDictationInProgress() {
+        handleHandsFreePillAction(.cancel)
     }
 
     private func handleHandsFreePillAction(_ action: HandsFreePillAction) {

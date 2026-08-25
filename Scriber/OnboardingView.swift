@@ -221,12 +221,29 @@ struct OnboardingView: View {
         // to start until setup is complete, so it cannot be demonstrated before
         // this point.
         if next == .tryIt { completeSetup() }
+        endTryItDictation()
         move(to: next, advancing: true)
     }
 
     private func goBack() {
         guard let previous = OnboardingStep(rawValue: step.rawValue - 1) else { return }
+        endTryItDictation()
         move(to: previous, advancing: false)
+    }
+
+    /// A dictation belongs to the step that invited it, and does not outlive it.
+    ///
+    /// Try it is the only step that can have one running: every step before it has
+    /// the shortcut switched off, so a recording carried backwards arrives on
+    /// controls that are disabled while it runs and a microphone meter that
+    /// refuses to start. It also has nowhere left to land — the field it was aimed
+    /// at goes with the step.
+    ///
+    /// Setup only. Everywhere else a recording survives whatever the user opens,
+    /// which is what `PRODUCT_SPEC` requires of a window.
+    private func endTryItDictation() {
+        guard step == .tryIt else { return }
+        runtime.coordinator.cancelDictationInProgress()
     }
 
     private func move(to next: OnboardingStep, advancing: Bool) {

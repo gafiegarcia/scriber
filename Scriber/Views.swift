@@ -501,23 +501,32 @@ private struct GeneralSettingsPane: View {
                     // satisfied — but it does replace the window in front of you,
                     // so it asks.
                     //
-                    // Disabled during a dictation: it stops the shortcut tap, which
-                    // carries `Escape` as well as the chord. `restartOnboarding`
-                    // refuses for the same reason and says why.
+                    // Disabled during a dictation, for the reason
+                    // `canRestartOnboarding` gives.
                     Button("Redo Setup…") { confirmRestartSetup = true }
                         .accessibilityIdentifier("restart-onboarding")
-                        .disabled(runtime.coordinator.phase.isBusy)
+                        .disabled(!runtime.coordinator.canRestartOnboarding)
                 }
                 .padding(.top, SettingsPaneLayout.pageActionGap)
             }
         }
         .confirmationDialog("Go through setup again?", isPresented: $confirmRestartSetup) {
             Button("Redo Setup") {
+                // Both halves have to refuse together. Creating the scene while
+                // `restartOnboarding` declines leaves a window for a setup that
+                // never restarted, which `OnboardingView.prepare` dismisses on
+                // sight and SwiftUI builds again on the next appearance — a loop
+                // that starves the dictation it is racing. The disabled state
+                // below cannot be relied on alone: an alert already on screen
+                // does not always redraw a button that became unavailable under
+                // it.
+                guard runtime.coordinator.canRestartOnboarding else { return }
                 // Create the scene first, then let the coordinator order it
                 // front — it waits for the window to exist.
                 openWindow(id: "onboarding")
                 runtime.coordinator.restartOnboarding()
             }
+            .disabled(!runtime.coordinator.canRestartOnboarding)
         } message: {
             Text("Your key, permissions, and history are kept. Setup shows each step's current state.")
         }
