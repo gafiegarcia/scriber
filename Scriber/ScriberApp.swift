@@ -407,6 +407,19 @@ struct ScriberApp: App {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             }
+            // SwiftUI puts one item per `Window` scene here, present whether or
+            // not the window is open, and each opens its scene directly. Every
+            // route Scriber writes itself either checks that setup is unfinished
+            // or clears the flag on the way in; these items do neither, so the
+            // setup one wedges the main thread on any Mac whose setup is already
+            // done — `OnboardingView.prepare` dismisses a finished setup on sight
+            // and SwiftUI presents it again. Scriber's windows are reached from
+            // the menu bar item, ⌘-comma, and the pill.
+            //
+            // `isExcludedFromWindowsMenu` does not remove these: that property
+            // governs the menu's list of already-open windows, which is a
+            // different list from this one.
+            CommandGroup(replacing: .singleWindowList) {}
             CommandGroup(after: .windowArrangement) {
                 Button("Close All Windows") { closeAllNormalWindows() }
                     .keyboardShortcut("w", modifiers: [.command, .shift])
@@ -431,6 +444,9 @@ struct ScriberApp: App {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             }
+            // Each scene contributes its own Window-menu item and drops it here;
+            // the main window's copy of this carries the reasoning.
+            CommandGroup(replacing: .singleWindowList) {}
         }
 
         Window("Set Up Scriber", id: "onboarding") {
@@ -447,6 +463,9 @@ struct ScriberApp: App {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             }
+            // The item this drops is the one that hung the Mac. See the main
+            // window's copy.
+            CommandGroup(replacing: .singleWindowList) {}
         }
 
         MenuBarExtra(
@@ -655,12 +674,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 guard AppWindowIdentity.isManagedWindow(window) else { return }
                 window.isReleasedWhenClosed = false
-                // The system Window menu lists every titled `Window` scene by
-                // default, onboarding included — a route with none of the
-                // dictation-in-progress guards `restartOnboarding()` has. Picking
-                // it while a dictation runs reopens the setup window straight
-                // into the same build-dismiss-rebuild loop `3933a2f` closed off
-                // for the Settings button, which pins the main thread.
+                // Keeps an open window out of the Window menu's open-window list.
+                // The items that open a scene are a separate list, dropped as
+                // `.singleWindowList` where the scenes declare their commands.
                 window.isExcludedFromWindowsMenu = true
                 NSApp.setActivationPolicy(.regular)
                 if window.title == AppWindowIdentity.onboardingTitle { self?.fitOnboardingWindow(window) }
