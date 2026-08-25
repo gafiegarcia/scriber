@@ -991,18 +991,22 @@ final class AppCoordinator: ObservableObject {
     }
 
     func openMainWindow() {
+        retireRestingNotice()
         openMainWindow(destination: .dictation)
     }
 
     func openAPIKeySettings() {
+        retireRestingNotice()
         openSettingsWindow(destination: .apiKey)
     }
 
     func openUsageSettings() {
+        retireRestingNotice()
         openSettingsWindow(destination: .usage)
     }
 
     func openPermissionSettings() {
+        retireRestingNotice()
         openSettingsWindow(destination: .permissions)
     }
 
@@ -1028,7 +1032,6 @@ final class AppCoordinator: ObservableObject {
 
     func openSettingsWindow(destination: MainWindowDestination) {
         selectMainWindowDestination(destination)
-        dismissRestingNoticeBeforeOpeningAWindow()
         NSApp.setActivationPolicy(.regular)
         // The opener creates the scene if it does not exist yet; the
         // notification is what orders an existing window front and carries the
@@ -1039,7 +1042,6 @@ final class AppCoordinator: ObservableObject {
 
     private func openMainWindow(destination: MainWindowDestination) {
         selectMainWindowDestination(destination)
-        dismissRestingNoticeBeforeOpeningAWindow()
         NSApp.setActivationPolicy(.regular)
         NotificationCenter.default.post(name: .openScriberMainWindow, object: nil)
         // Every pill action arrives from a nonactivating panel, so Scriber has no
@@ -1341,6 +1343,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func openMicrophoneInputSettings() {
+        retireRestingNotice()
         openSettingsWindow(destination: .microphone)
     }
 
@@ -1628,17 +1631,19 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    /// Takes down a notice about a dictation that already ended, for the routes
-    /// that open a window to resolve what the notice reports.
+    /// Takes down a notice about a dictation that already ended, because the
+    /// action it offered has just been taken and the window answers it from here.
     ///
-    /// A dictation still in flight is deliberately left running, so do not add a
-    /// branch for it. Delivery reads the frontmost app when the transcript is
-    /// ready rather than when the window opens, so a trip into Scriber and back
-    /// loses nothing, and ending the recording here would be the app deciding the
-    /// user had abandoned it. `returnToIdle` must not be reached in that state
-    /// either: it takes the pill down and leaves the recorder running, and the
+    /// Only the pill's own actions reach this. Command-comma, the menu bar item,
+    /// and the toolbar's warning open the same windows and leave the pill alone:
+    /// opening a window says nothing about the dictation a notice reports, and a
+    /// cancelled-dictation pill would otherwise have its Undo thrown away by a
+    /// trip to Settings.
+    ///
+    /// A dictation still in flight is never ended here, so do not drop the guard.
+    /// `returnToIdle` takes the pill down and leaves the recorder running, and the
     /// next press then stops and transcribes the orphan.
-    private func dismissRestingNoticeBeforeOpeningAWindow() {
+    private func retireRestingNotice() {
         guard gate.isIdle else { return }
         returnToIdle()
     }
