@@ -5,10 +5,6 @@ import SwiftUI
 import ScriberCore
 #endif
 
-enum MainPageLayout {
-    static let maxContentWidth: CGFloat = 640
-}
-
 /// Settings is fixed at this size. The scene derives its frame from it and the
 /// window layer pins both limits to it, so the two have to read the same number.
 enum SettingsWindowLayout {
@@ -118,6 +114,14 @@ private enum SettingsPaneLayout {
     /// a button that answers to none of them.
     static let pageActionGap: CGFloat = 12
 
+    /// Between the scrolling form and the window's side edges. The grouped form
+    /// draws its own row inset inside this, so a card's edge sits further in again.
+    static let paneMargin: CGFloat = 26
+
+    /// Between the scrolling form and the window's top and bottom edges. At the
+    /// top it is added to the toolbar's height, which the form scrolls under.
+    static let paneEdgeGap: CGFloat = 16
+
     /// A caption inside a card. AppKit draws its own under a toggle's title and
     /// reports the font to no API, so this is measured against it: both ink
     /// 10.5pt, where SwiftUI's `.caption` inks 9.5 and reads a size small beside
@@ -195,8 +199,13 @@ private struct SettingsToggle: View {
     }
 }
 
-/// The shape every tab's content takes: one grouped form, capped so a wide
-/// window leaves margins rather than stretching every control across it.
+/// The shape every tab's content takes: one grouped form, inset so the cards
+/// leave margins rather than stretching from edge to edge.
+///
+/// Inset with content margins, never with padding around the form. A scroll view
+/// padded off the window's edges stops running under the toolbar, and AppKit
+/// fills the titlebar with an opaque band the moment it does — which is what a
+/// card scrolled up into it then disappears behind.
 private struct SettingsPane<Content: View>: View {
     let accessibilityIdentifier: String
     @ViewBuilder let content: Content
@@ -205,8 +214,8 @@ private struct SettingsPane<Content: View>: View {
         Form { content }
             .formStyle(.grouped)
             .accessibilityIdentifier(accessibilityIdentifier)
-            .padding()
-            .frame(maxWidth: MainPageLayout.maxContentWidth, maxHeight: .infinity)
+            .contentMargins(.horizontal, SettingsPaneLayout.paneMargin, for: .scrollContent)
+            .contentMargins(.vertical, SettingsPaneLayout.paneEdgeGap, for: .scrollContent)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
