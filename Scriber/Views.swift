@@ -562,12 +562,9 @@ private struct GeneralSettingsPane: View {
             }
             Button("Close", role: .cancel) {}
         } message: {
-            Text(
-                "Update it from the terminal:\n\n"
-                    + HomebrewInstall.upgradeCommand
-                    + "\n\nInstalling a download over it by hand would leave Homebrew "
-                    + "describing an app it no longer manages."
-            )
+            // The command and nothing else. Someone who installed with Homebrew
+            // does not need telling that Homebrew is how they update.
+            Text("Update it from the terminal:\n\n" + HomebrewInstall.upgradeCommand)
         }
         .confirmationDialog("Go through setup again?", isPresented: $confirmRestartSetup) {
             Button("Redo Setup") {
