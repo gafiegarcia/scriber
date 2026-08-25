@@ -43,6 +43,7 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 
 - With a window whose size is fixed, confirm **Window ▸ Center** is enabled rather than greyed, and that ⌃🌐C centres it. macOS disables Center and Fill for a window that cannot be resized, a disabled menu item does not consume its key, and AppKit reads Control-C as the Enter character — so the shortcut reaches the window and presses whatever its default button is. Do it with a confirmation on screen, where that button is the one that confirms.
 - Both appearances read comfortably in the window: the toolbar, the titlebar's day strip, the warning control, day cards, separators, and the copy toast. Switch appearance only. The window is opaque and its translucent parts sample the app's own background, so the desktop behind it cannot reach them and changing wallpaper proves nothing about any of these.
+- Scroll a Settings tab that is taller than the window — General is one. The content passes under the toolbar and stays readable through its glass, with no opaque band cutting it off below the tabs, and the scroll indicator rides the window's right edge. Check both appearances, and check each tab's cards keep an even margin from the window's sides.
 - Both appearances read comfortably over both a light and a dark desktop for the pill, which is a borderless panel floating on the desktop rather than in a window. Wallpaper is a real variable here and nowhere else.
 - The app icon looks right in the Dock and Finder.
 
