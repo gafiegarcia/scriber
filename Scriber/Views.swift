@@ -236,6 +236,12 @@ struct SettingsView: View {
     /// `@FocusState` write SwiftUI cannot satisfy yet is dropped, not queued.
     @State private var pendingKeyFieldFocus = false
     @State private var refusalResetToken = 0
+    /// Changes once per visit, and is every pane's identity. SwiftUI keeps a
+    /// `Window` scene alive after its window closes — the same `NSScrollView`
+    /// comes back on the next opening, still holding the offset it was left at,
+    /// so a tab that scrolls would reopen mid-content. A new identity is a new
+    /// scroll view, which starts at its top.
+    @State private var visitToken = 0
 
     init(onShortcutConfigurationCaptureChanged: @escaping (Bool) -> Void = { _ in }) {
         self.onShortcutConfigurationCaptureChanged = onShortcutConfigurationCaptureChanged
@@ -248,16 +254,19 @@ struct SettingsView: View {
                     activeShortcutRecorderID: $activeShortcutRecorderID,
                     refusalResetToken: refusalResetToken
                 )
+                .id(visitToken)
             } label: {
                 tabLabel(.general)
             }
             Tab(value: SettingsTab.dictation) {
                 DictationSettingsPane()
+                    .id(visitToken)
             } label: {
                 tabLabel(.dictation)
             }
             Tab(value: SettingsTab.sound) {
                 SoundSettingsPane()
+                    .id(visitToken)
             } label: {
                 tabLabel(.sound)
             }
@@ -266,11 +275,13 @@ struct SettingsView: View {
                     apiKey: $apiKey,
                     pendingKeyFieldFocus: $pendingKeyFieldFocus
                 )
+                .id(visitToken)
             } label: {
                 tabLabel(.elevenLabs)
             }
             Tab(value: SettingsTab.permissions) {
                 PermissionsSettingsPane()
+                    .id(visitToken)
             } label: {
                 tabLabel(.permissions)
             }
@@ -324,6 +335,7 @@ struct SettingsView: View {
             runtime.coordinator.stopMicrophoneTest()
             onShortcutConfigurationCaptureChanged(false)
             refusalResetToken += 1
+            visitToken += 1
         }
     }
 
