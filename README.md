@@ -132,7 +132,7 @@ Requirements:
 brew install --cask gafiegarcia/scriber/scriber
 ```
 
-Or [**download the latest release**](https://github.com/gafiegarcia/scriber/releases/latest), open the disk image, and drag Scriber to Applications.
+Or [**download the latest release**](https://github.com/gafiegarcia/scriber/releases/latest) (scroll to "Assets", and click the .dmg link to download), open the downloaded .dmg file, then drag Scriber to Applications to install.
 
 Scriber is signed and notarized. Once opened, follow the setup.
 
