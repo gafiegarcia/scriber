@@ -516,19 +516,25 @@ private struct GeneralSettingsPane: View {
                 // `restartOnboarding` declines leaves a window for a setup that
                 // never restarted, which `OnboardingView.prepare` dismisses on
                 // sight and SwiftUI builds again on the next appearance — a loop
-                // that starves the dictation it is racing. The disabled state
-                // below cannot be relied on alone: an alert already on screen
-                // does not always redraw a button that became unavailable under
-                // it.
+                // that starves the dictation it is racing. Reached only if a
+                // dictation starts in the same frame as the press; otherwise the
+                // box has already closed.
                 guard runtime.coordinator.canRestartOnboarding else { return }
                 // Create the scene first, then let the coordinator order it
                 // front — it waits for the window to exist.
                 openWindow(id: "onboarding")
                 runtime.coordinator.restartOnboarding()
             }
-            .disabled(!runtime.coordinator.canRestartOnboarding)
         } message: {
             Text("Your key, permissions, and history are kept. Setup shows each step's current state.")
+        }
+        // The question stops being answerable the moment a dictation starts, so
+        // the box goes rather than standing there with a prominent button that
+        // dismisses and does nothing. Disabling that button cannot serve: macOS
+        // does not redraw an alert's button that became unavailable underneath
+        // it, and the box can only have been opened while no dictation ran.
+        .onChange(of: runtime.coordinator.canRestartOnboarding) { _, canRestart in
+            if !canRestart { confirmRestartSetup = false }
         }
     }
 
