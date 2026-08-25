@@ -15,6 +15,7 @@
 - **Checking the running app is encouraged.** Use a computer-use tool when available. If you are Claude, do not start one before asking for explicit permission; Claude's computer-use tool moves the real pointer so it will get interrupted by the user if you don't give a heads-up.
 - **Do not add a UI test suite.** Not because the project lacks one by accident — the bar is a specific regression a package test cannot catch.
 - **List out manual checks the user needs to do to verify the work before concluding the session.** Name the few items from `docs/MANUAL_CHECKS.md` that match what actually changed.
+- **A check that reads the menu bar starts by quitting every Scriber.** The installed app and any test build put identical marks up there with nothing to tell them apart, so a check can be run against the wrong one. Say so whenever you propose one — the command is in both checks documents.
 - **Finish native work by shipping it.** Refer to the `/wrap-up` skill. Bump the build, build Release, install to `/Applications`, then run the sweep in `docs/BUILDING.md`. Scriber is in daily use; do not leave a verified change in a build directory.
 
 ## Workflow

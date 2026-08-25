@@ -203,7 +203,15 @@ Use this same isolated launch for the window, toolbar, Settings, and history int
 
 `--ui-testing-menu-bar` shows the menu bar item, which a `--ui-testing` launch otherwise never does. Without it the item is not inserted at all, so nothing in that menu can be read — a check that reads the menu has no way to run against a Debug build, and reaching it through the installed app means disturbing real state.
 
-**Quit the installed Scriber first.** The test build's mark is identical to the real one and nothing in the menu distinguishes them, so with both running there is no way to tell which you are clicking. Never drag a test build's item out of the menu bar either: the list macOS keeps is per bundle identifier and shared with the installed app, and removal writes back to the preference.
+**Quit every running Scriber first** — the installed app, and any test build left over from an earlier check. Their marks are identical and nothing in the menu distinguishes them, so with more than one running there is no way to tell which you are clicking.
+
+```bash
+osascript -e 'quit app "Scriber"' 2>/dev/null
+pkill -x Scriber 2>/dev/null
+pgrep -x Scriber || echo "nothing running"
+```
+
+Never drag a test build's item out of the menu bar either: the list macOS keeps is per bundle identifier and shared with the installed app, and removal writes back to the preference.
 
 Do not combine it with `--ui-testing-no-activate`, which is for launches nobody is watching.
 

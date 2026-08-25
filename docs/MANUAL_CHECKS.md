@@ -140,6 +140,16 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 
 ## When installed-app lifecycle or menu-bar behavior changes
 
+Every check below reads the actual menu bar, so **quit every running Scriber first** — the installed app, and any test build left over from an earlier check. Two instances put two identical marks up there with nothing to tell them apart, so a check can be run against the wrong one and pass or fail for the wrong reason.
+
+```bash
+osascript -e 'quit app "Scriber"' 2>/dev/null
+pkill -x Scriber 2>/dev/null
+pgrep -x Scriber || echo "nothing running"
+```
+
+Never drag a test build's item out of the menu bar: the list macOS keeps is per bundle identifier and shared with the installed app.
+
 - With **Show in Dock** on, Scriber remains in the Dock and app switcher without an open window. Turning it off never closes a visible window. Restore the preferred setting afterward.
 - The menu-bar icon remains steady through dictation and switches to the warning symbol when the real key is unusable. Exercise the warning only with an already unusable or disposable key; never disable the sole working key to manufacture it. Inspect the actual menu bar; do not diagnose this from `defaults`.
 - Launch at login works in both directions across a macOS restart. Quit Scriber before restarting and clear **Reopen windows when logging back in** in the restart dialog, or the result means nothing: that feature relaunches whatever was running, so Scriber comes back whether or not the login item fired. Tell the two apart in the log — a real login launch reports `loginItem=true`, a restored one reports `loginItem=false`. Restore the preferred setting afterward.
