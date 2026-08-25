@@ -264,11 +264,17 @@ struct OnboardingView: View {
     /// SwiftUI keeps a `Window` scene's `@State` alive after the window closes, so
     /// a second run of setup starts holding the first run's answers. Clear
     /// everything the flow accumulates here rather than trusting it to be fresh.
+    ///
+    /// Nothing here closes the window, whatever `onboardingComplete` says.
+    /// Dismissing on appearance is what wedged the Mac: SwiftUI answers a scene
+    /// that dismissed itself by presenting it again, and the two spin on the main
+    /// thread until the app is force-quit. Every appearance converges here, so
+    /// this is the one place that can promise that loop cannot start — a promise
+    /// no arrangement of guards at the call sites can make on behalf of a route
+    /// nobody has written yet. Setup shown when none was needed is harmless by
+    /// comparison: `completeSetup` refuses to run twice, so walking it changes
+    /// nothing.
     private func prepare() {
-        guard !runtime.preferences.onboardingComplete else {
-            dismissWindow(id: "onboarding")
-            return
-        }
         apiKey = ""
         keyFeedback = nil
         isCheckingAPIKey = false
@@ -281,10 +287,13 @@ struct OnboardingView: View {
         error = nil
         didApplyLaunchAtLogin = false
         didClampAfterValidation = false
-        // On for a first run, which is the recommendation. A Redo Setup starts
-        // from what macOS has, so the step cannot offer to turn on something that
-        // is already on — or quietly re-enable what the user has since turned off.
-        launchAtLogin = LaunchAtLoginService.state.isOn || !runtime.coordinator.isRedoingSetup
+        // On for a first run, which is the recommendation, and only for a first
+        // run: anything else starts from what macOS has, so the step cannot offer
+        // to turn on something already on — or quietly re-enable what the user has
+        // since turned off. A finished setup counts as answered too, since this
+        // view no longer closes itself when one appears over it.
+        let alreadyAnswered = runtime.coordinator.isRedoingSetup || runtime.preferences.onboardingComplete
+        launchAtLogin = LaunchAtLoginService.state.isOn || !alreadyAnswered
         runtime.coordinator.refreshPermissions(source: .onboarding)
         runtime.coordinator.validateStoredAPIKey()
         step = resumedStep

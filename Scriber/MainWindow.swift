@@ -191,6 +191,13 @@ struct MainWindowView: View {
         Task { @MainActor in searchFocused = true }
     }
 
+    /// Resumes an unfinished setup. The guard is this method's meaning, not a
+    /// ritual to be hoisted into the opener: it runs on every appearance of the
+    /// main window and on every change of the flag, so a version that cleared
+    /// `onboardingComplete` the way `restartOnboarding` does would restart setup
+    /// each time the window came up. Resuming and restarting are different asks
+    /// and only the second may touch the flag — clearing it stops the shortcut
+    /// monitor, and that shortcut carries `Escape`.
     private func openOnboardingIfNeeded() {
         guard !runtime.preferences.onboardingComplete else { return }
         NSApp.setActivationPolicy(.regular)
