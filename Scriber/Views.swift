@@ -423,7 +423,7 @@ private struct GeneralSettingsPane: View {
                     chord: $runtime.preferences.dictationShortcut,
                     customChord: $runtime.preferences.customShortcut,
                     activeRecorderID: $activeShortcutRecorderID,
-                    isCaptureAllowed: !runtime.coordinator.phase.isBusy,
+                    isEditable: !runtime.coordinator.phase.isBusy,
                     refusalResetToken: refusalResetToken
                 )
             } header: {

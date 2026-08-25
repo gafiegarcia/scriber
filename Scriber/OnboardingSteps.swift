@@ -478,7 +478,7 @@ struct ShortcutStep: View {
                         chord: $runtime.preferences.dictationShortcut,
                         customChord: $runtime.preferences.customShortcut,
                         activeRecorderID: $activeRecorderID,
-                        isCaptureAllowed: true,
+                        isEditable: !runtime.coordinator.phase.isBusy,
                         refusalResetToken: 0
                     )
                     .accessibilityIdentifier("onboarding-shortcut-alternatives")

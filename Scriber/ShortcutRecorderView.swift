@@ -13,7 +13,7 @@ struct ShortcutPicker: View {
     @Binding var chord: ShortcutChord
     @Binding var customChord: ShortcutChord?
     @Binding var activeRecorderID: String?
-    let isCaptureAllowed: Bool
+    let isEditable: Bool
     let refusalResetToken: Int
 
     var body: some View {
@@ -36,7 +36,7 @@ struct ShortcutPicker: View {
                         }
                     ),
                     activeRecorderID: $activeRecorderID,
-                    isCaptureAllowed: isCaptureAllowed,
+                    isCaptureAllowed: isEditable,
                     refusalResetToken: refusalResetToken
                 )
             }
@@ -62,10 +62,16 @@ struct ShortcutPicker: View {
     /// Filled rather than tinted. A tint on a bordered button is a wash of accent
     /// over an almost transparent background, which does not read as chosen next
     /// to the plain buttons beside it.
+    ///
+    /// Refused while a dictation runs, along with **Record**. Rebinding calls
+    /// `ShortcutTapMachine.reconfigure`, whose `reset` forgets every key believed
+    /// to be down — so a recording started by *holding* the old chord never sees
+    /// its release and never stops from the keyboard.
     @ViewBuilder
     private func choice(_ candidate: ShortcutChord) -> some View {
         let button = Button(candidate.displayName) { chord = candidate }
             .accessibilityIdentifier("shortcut-choice-\(candidate.displayName)")
+            .disabled(!isEditable)
         if candidate == chord {
             button
                 .buttonStyle(.borderedProminent)
