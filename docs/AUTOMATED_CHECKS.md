@@ -106,6 +106,8 @@ kill "$pid"
 
 This launch suppresses activation, Dock presence, and the menu-bar item, but still creates and renders the window. A process that stays at high CPU or never idles is an app failure worth sampling before blaming the harness.
 
+It creates and renders a window once. It cannot put a closed one back on screen: after a window closes under this flag, `openWindow(id:)` and the front-ordering path both leave `isVisible == false`, and the `window-lifecycle` log still reports `showWindow: ordering front`, so the log agrees with a reopening that did not happen. Nothing that depends on a window being presented a second time can be measured here — `onAppear`, `didBecomeKey`, and any routing that selects a Settings tab on the way in all go quiet, and read as broken. Take reopening behaviour to an activating launch or to Gaf, never to this flag.
+
 ```bash
 /usr/bin/log show --last 5m --predicate 'subsystem == "com.gafiegarcia.scriber"' --style compact
 ```
