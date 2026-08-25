@@ -30,6 +30,7 @@
 		A10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */; };
 		A10000000000000000000033 /* ../ScriberCore/Toasts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000033 /* ../ScriberCore/Toasts.swift */; };
 		A10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift */; };
+		A10000000000000000000052 /* ../ScriberCore/HomebrewInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000052 /* ../ScriberCore/HomebrewInstall.swift */; };
 		A10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift */; };
 		A10000000000000000000051 /* ../ScriberCore/RecordingStartGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000051 /* ../ScriberCore/RecordingStartGate.swift */; };
 		A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */; };
@@ -74,6 +75,7 @@
 		B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/RecoveryConditions.swift; sourceTree = "<group>"; };
 		B10000000000000000000033 /* ../ScriberCore/Toasts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/Toasts.swift; sourceTree = "<group>"; };
 		B10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/UpdateCheck.swift; sourceTree = "<group>"; };
+		B10000000000000000000052 /* ../ScriberCore/HomebrewInstall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/HomebrewInstall.swift; sourceTree = "<group>"; };
 		B10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/RecorderLifecycle.swift; sourceTree = "<group>"; };
 		B10000000000000000000051 /* ../ScriberCore/RecordingStartGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/RecordingStartGate.swift; sourceTree = "<group>"; };
 		B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CoreModels.swift; sourceTree = "<group>"; };
@@ -124,6 +126,7 @@
 				B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */,
 				B10000000000000000000033 /* ../ScriberCore/Toasts.swift */,
 				B10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift */,
+				B10000000000000000000052 /* ../ScriberCore/HomebrewInstall.swift */,
 				B10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift */,
 				B10000000000000000000051 /* ../ScriberCore/RecordingStartGate.swift */,
 				B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */,
@@ -263,6 +266,7 @@
 				A10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift in Sources */,
 				A10000000000000000000033 /* ../ScriberCore/Toasts.swift in Sources */,
 				A10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift in Sources */,
+				A10000000000000000000052 /* ../ScriberCore/HomebrewInstall.swift in Sources */,
 				A10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift in Sources */,
 				A10000000000000000000051 /* ../ScriberCore/RecordingStartGate.swift in Sources */,
 				A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */,

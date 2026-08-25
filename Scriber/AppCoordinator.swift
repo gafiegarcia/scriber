@@ -25,6 +25,10 @@ enum MainWindowDestination: Hashable {
     /// tab and leaves the one already showing alone: a route that exists to fix
     /// something lands on the tab that owns it, an ordinary opening does not.
     case permissions
+    /// Settings, on the General tab, where the Updates section lives. The route
+    /// a Homebrew install takes instead of the release page — the command it
+    /// needs is there and nowhere else.
+    case updates
 }
 
 struct MainWindowRequest: Equatable {
@@ -741,6 +745,12 @@ final class AppCoordinator: ObservableObject {
     /// what GitHub shows to anyone who follows an offer. Display only — the bare
     /// string is what the update check compares and what the User-Agent sends.
     static func displayVersion(_ version: String) -> String { "v\(version)" }
+
+    /// Whether Homebrew installed this copy, which changes what taking an update
+    /// means: a manual install over a cask leaves Homebrew's record describing an
+    /// app it no longer put there. Read once — an install cannot move while it
+    /// runs.
+    static let isHomebrewManaged = HomebrewInstall.manages(bundlePath: Bundle.main.bundlePath)
 
     /// Shown beside the version because two installs can share a version and
     /// differ, which is exactly the pair a bug report has to tell apart.

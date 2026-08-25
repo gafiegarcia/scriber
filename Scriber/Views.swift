@@ -91,6 +91,7 @@ extension MainWindowDestination {
         case .apiKey, .usage: .elevenLabs
         case .microphone: .sound
         case .permissions: .permissions
+        case .updates: .general
         }
     }
 }
@@ -365,6 +366,7 @@ private struct GeneralSettingsPane: View {
     @Binding var activeShortcutRecorderID: String?
     let refusalResetToken: Int
     @State private var confirmRestartSetup = false
+    @State private var showingHomebrewUpdate = false
     @State private var launchAtLoginError: String?
     /// Set only by a request that macOS refused. Switching Scriber off under
     /// Background App Activity is a decision the user is allowed to make, so
@@ -495,12 +497,22 @@ private struct GeneralSettingsPane: View {
                         // side by side. No ellipsis: it opens the release page,
                         // which is the action finishing, not asking for anything.
                         if let update = runtime.preferences.availableUpdate {
-                            Link(
-                                "Get \(AppCoordinator.displayVersion(update.version))",
-                                destination: update.url
-                            )
-                            .buttonStyle(.borderedProminent)
-                            .accessibilityIdentifier("download-update")
+                            // A Homebrew install takes its update from Homebrew,
+                            // so the button opens the command rather than the
+                            // release page — and earns its ellipsis by doing it,
+                            // where "Get" only ever opened a page.
+                            if AppCoordinator.isHomebrewManaged {
+                                Button("Update…") { showingHomebrewUpdate = true }
+                                    .buttonStyle(.borderedProminent)
+                                    .accessibilityIdentifier("download-update")
+                            } else {
+                                Link(
+                                    "Get \(AppCoordinator.displayVersion(update.version))",
+                                    destination: update.url
+                                )
+                                .buttonStyle(.borderedProminent)
+                                .accessibilityIdentifier("download-update")
+                            }
                         }
                     }
                 }
@@ -540,6 +552,22 @@ private struct GeneralSettingsPane: View {
                 }
                 .padding(.top, SettingsPaneLayout.pageActionGap)
             }
+        }
+        // An alert rather than a confirmation: it answers a question rather than
+        // asking one, and nothing here is destructive enough to confirm.
+        .alert("Scriber was installed with Homebrew", isPresented: $showingHomebrewUpdate) {
+            Button("Copy Command") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(HomebrewInstall.upgradeCommand, forType: .string)
+            }
+            Button("Close", role: .cancel) {}
+        } message: {
+            Text(
+                "Update it from the terminal:\n\n"
+                    + HomebrewInstall.upgradeCommand
+                    + "\n\nInstalling a download over it by hand would leave Homebrew "
+                    + "describing an app it no longer manages."
+            )
         }
         .confirmationDialog("Go through setup again?", isPresented: $confirmRestartSetup) {
             Button("Redo Setup") {

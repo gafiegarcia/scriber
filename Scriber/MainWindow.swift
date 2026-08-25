@@ -338,7 +338,7 @@ struct MenuBarContent: View {
         switch destination {
         case .dictation:
             openWindow(id: "main")
-        case .settings, .apiKey, .usage, .microphone, .permissions:
+        case .settings, .apiKey, .usage, .microphone, .permissions, .updates:
             openWindow(id: "settings")
         }
         NSApp.activate(ignoringOtherApps: true)
