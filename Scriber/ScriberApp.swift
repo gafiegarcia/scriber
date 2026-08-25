@@ -55,6 +55,15 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding-unlocked")
     }
 
+    /// Shows the menu bar item on a `--ui-testing` launch, which otherwise never
+    /// does. Its mark is identical to the installed app's and nothing in the menu
+    /// says which is which, so **quit the installed Scriber first** — and never
+    /// drag a test build's item out of the menu bar, because the list macOS keeps
+    /// is per bundle identifier and shared with the real app.
+    static var showsMenuBarWhileUITesting: Bool {
+        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-menu-bar")
+    }
+
     /// A version to run as, so the update-available state can be reached without
     /// a release newer than this build. `--ui-testing-pretend-version 0.8.0` makes
     /// the live 0.9.0 read as an update; a value above the latest release proves
@@ -412,9 +421,14 @@ struct ScriberApp: App {
 
         MenuBarExtra(
             isInserted: Binding(
-                // `--ui-testing` launches never show a menu bar icon, which would
-                // otherwise sit as a second mark beside the real app's.
-                get: { runtime.preferences.showInMenuBar && !AppLaunchConfiguration.isUITesting },
+                // A `--ui-testing` launch shows no menu bar icon unless asked: it
+                // would otherwise sit as a second mark beside the real app's, with
+                // nothing to tell them apart.
+                get: {
+                    runtime.preferences.showInMenuBar
+                        && (!AppLaunchConfiguration.isUITesting
+                            || AppLaunchConfiguration.showsMenuBarWhileUITesting)
+                },
                 set: { isInserted in
                     Task { @MainActor in
                         guard runtime.preferences.showInMenuBar != isInserted else { return }

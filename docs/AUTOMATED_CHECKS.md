@@ -199,6 +199,16 @@ Use this same isolated launch for the window, toolbar, Settings, and history int
 - Every tab is reachable and usable, and the window cannot be resized on either axis. A pane taller than the window scrolls, which is expected; what is not is a control that cannot be reached at all.
 - Start recording a shortcut binding on the General tab, then switch tabs. The capture ends: typing works everywhere in Scriber again, and the recorder shows its stored binding rather than a live one. A stranded recorder swallows every keystroke and suspends global shortcut matching until the window closes, and neither symptom names its own cause.
 
+### The menu bar item
+
+`--ui-testing-menu-bar` shows the menu bar item, which a `--ui-testing` launch otherwise never does. Without it the item is not inserted at all, so nothing in that menu can be read — a check that reads the menu has no way to run against a Debug build, and reaching it through the installed app means disturbing real state.
+
+**Quit the installed Scriber first.** The test build's mark is identical to the real one and nothing in the menu distinguishes them, so with both running there is no way to tell which you are clicking. Never drag a test build's item out of the menu bar either: the list macOS keeps is per bundle identifier and shared with the installed app, and removal writes back to the preference.
+
+Do not combine it with `--ui-testing-no-activate`, which is for launches nobody is watching.
+
+This shows the menu and what is in it. It proves nothing about menu-bar *behaviour* that depends on real state — the warning symbol tracking a real key, or the recording indicator — which stays on the installed app.
+
 ### An update being available
 
 `--ui-testing-pretend-version <version>` runs the app as that version, so the check compares it against the real latest release on GitHub. It is the only way to reach the update-available state: the state depends on a release newer than the running build, and no build can produce one for itself. Throwaway defaults hold the result, so an offer raised here never reaches the installed app — which matters, because a bogus `availableUpdate` in the real suite would be shown by it.
