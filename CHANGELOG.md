@@ -2,6 +2,14 @@
 
 This file records intentionally identified Scriber releases and prerelease snapshots. Ordinary development builds belong in Git history, not here.
 
+## Unreleased
+
+### Fixed
+
+- **Opening a Scriber window no longer throws away what you were saying.** Pressing `⌘,` during a dictation cancelled the recording — and cancelled it while opening nothing at all when Settings or the main window was already in front. You can now start a dictation, open Scriber to look something up, keep talking, switch back to where the text is going, and stop: the whole transcript lands there, including what you said while the window came up. Where the text goes is decided when the transcript is ready rather than when a window opens, so the trip costs nothing.
+- **A notice about a finished dictation now stays until you answer it.** Pressing `⌘,` took the pill down on the way to Settings — including a cancelled dictation's offer to undo, which was simply lost. Opening Settings from the menu bar left the same pill alone, so the two routes disagreed about the same window. Only the pill's own buttons retire it now, however a window is opened.
+- **Redo Setup** and **Check Input Level** are greyed out while a dictation is running, alongside the shortcut recorder's **Record**. All three refused a click in silence before. Redo Setup is the one that mattered: it switches the dictation shortcut off, and that shortcut carries `Escape` as well, so a hands-free recording was left with no way to stop it from the keyboard.
+
 ## 0.9.0 — 2026-08-24
 
 Native bundle build 217, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
