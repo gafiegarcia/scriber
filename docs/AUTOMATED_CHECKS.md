@@ -273,6 +273,27 @@ Both directions are worth running, and the second is the one no test can show in
 
 The version shown in the Version row is the pretended one, which is what says a run is simulated.
 
+#### The Homebrew route
+
+Scriber offers a Homebrew install the `brew upgrade` command instead of the release page, and recognises one by resolving the Caskroom's symlink against its own bundle. Reaching that state on a Mac whose Scriber is not Homebrew-managed means building the link by hand, pointed at **the Debug build**, which is what will be running:
+
+```bash
+DEBUG_APP="$(git rev-parse --show-toplevel)/.build/xcode-debug/Build/Products/Debug/Scriber.app"
+mkdir -p /opt/homebrew/Caskroom/scriber/0.9.0
+ln -sfn "$DEBUG_APP" /opt/homebrew/Caskroom/scriber/0.9.0/Scriber.app
+```
+
+Launch with `--ui-testing-pretend-version 0.8.0`. The button reads **Update…**, opens a dialog carrying `brew upgrade --cask scriber`, and **Copy Command** writes it to the real pasteboard. In the menu bar, the update item opens Settings rather than a browser. Remove the link, relaunch, and the button must go back to **Get v0.9.0** opening the release page — without that half, a detector stuck at yes would pass.
+
+**Clean up, and treat it as required rather than tidy:**
+
+```bash
+trash /opt/homebrew/Caskroom/scriber
+brew list --cask | grep scriber || echo "no longer listed"
+```
+
+That directory alone is enough for `brew list --cask` to report scriber as installed, with none of the metadata a real install leaves. It is harmless while the cask's version matches what the folder claims and becomes an upgrade Homebrew will attempt once the published cask moves ahead of it — which is a bad surprise on a Mac that runs `brew upgrade` on a schedule.
+
 #### An offer that has already been taken
 
 `--ui-testing-seed-update-offer <version>` puts an offer in preferences before the coordinator is built, which is the only thing that reads a stored one back. That state cannot occur here otherwise — the throwaway suite is wiped at every launch, and an offer only lands after a check that runs later — so without the flag the discard has nothing to act on and goes unexercised.
