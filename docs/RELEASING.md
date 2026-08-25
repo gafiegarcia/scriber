@@ -117,6 +117,8 @@ Merge to `main` fast-forward only and tag there, never on the branch. Then:
 
 Take the release notes from the version's [changelog](../CHANGELOG.md) section, whose opening line names the build and the requirements. Keep that line: someone who follows a link straight to the release page never sees the README, and the disk image gives them no warning until macOS refuses to open the app.
 
+Open them with what taking the update requires, above the changelog. The in-app offer lands here, and the reader arriving from it is about to meet the one step nothing on screen has told them: **Scriber is running, and a running app cannot be replaced.** Say to quit it from the menu bar first, then drag. Write for that reader alone — a Homebrew install is answered inside Scriber, which offers it `brew upgrade --cask scriber` rather than sending it here, so notes addressing both audiences would be half wrong for each.
+
 ```bash
 shasum -a 256 ".build/Scriber-$VERSION.dmg"
 gh release create "v$VERSION" ".build/Scriber-$VERSION.dmg" --title "v$VERSION" --notes-file <(…requirements, then changelog section…)
