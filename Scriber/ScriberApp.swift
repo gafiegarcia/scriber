@@ -55,6 +55,23 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding-unlocked")
     }
 
+    /// A version to run as, so the update-available state can be reached without
+    /// a release newer than this build. `--ui-testing-pretend-version 0.8.0` makes
+    /// the live 0.9.0 read as an update; a value above the latest release proves
+    /// the opposite case. Until a second release existed there was no way to see
+    /// either, and the running version is what the check compares.
+    ///
+    /// Reads the argument after the flag, so it carries a value where every other
+    /// `--ui-testing` flag is a switch. Gated on `isUITesting`, which is false in
+    /// Release, so the shipped app always reports its real version.
+    static var pretendedVersion: String? {
+        guard isUITesting else { return nil }
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flag = arguments.firstIndex(of: "--ui-testing-pretend-version"),
+              arguments.index(after: flag) < arguments.endIndex else { return nil }
+        return arguments[arguments.index(after: flag)]
+    }
+
     /// The launch smoke check's flag. The app still builds and renders its window —
     /// that is the path the check exists to exercise — but never activates, so it
     /// does not steal the front from whatever Gaf is doing. Only the smoke check
@@ -315,6 +332,11 @@ final class AppRuntime: ObservableObject {
         // is genuinely missing. `startServices` is re-entrant, so the wait is free.
         if !isUITesting {
             Task { @MainActor [coordinator] in coordinator.startServices() }
+        } else if AppLaunchConfiguration.pretendedVersion != nil {
+            // `startServices` is what checks for updates, and a `--ui-testing`
+            // launch never runs it. Ask directly, so the offer is already on
+            // screen when the window opens rather than waiting for a button.
+            Task { @MainActor [coordinator] in coordinator.checkForUpdates() }
         }
     }
 }

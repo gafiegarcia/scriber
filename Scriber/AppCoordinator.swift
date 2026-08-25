@@ -724,18 +724,29 @@ final class AppCoordinator: ObservableObject {
     }
 
     static let runningVersion =
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+        AppLaunchConfiguration.pretendedVersion
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+            ?? "0.0.0"
 
     /// Shown beside the version because two installs can share a version and
     /// differ, which is exactly the pair a bug report has to tell apart.
     static let runningBuild =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
 
-    /// `force` is the Check for Updates button: it ignores the once-a-day interval but
-    /// not the `servicesAllowed` gate, so a `--ui-testing` launch reaches no
-    /// network from either path.
+    /// Lifted for the update check alone, and only for a launch carrying a
+    /// pretend version: reaching the update-available state needs a real answer
+    /// from GitHub, which `servicesAllowed` otherwise withholds. Nil in Release,
+    /// so the gate is unchanged there. This spends no API credit — the releases
+    /// endpoint is GitHub's, not ElevenLabs'.
+    private var updateChecksAllowed: Bool {
+        servicesAllowed || AppLaunchConfiguration.pretendedVersion != nil
+    }
+
+    /// `force` is the Check for Updates button: it ignores the once-a-day interval
+    /// but not the gate above, so an ordinary `--ui-testing` launch still reaches
+    /// no network from either path.
     func checkForUpdates(force: Bool = false) {
-        guard servicesAllowed else { return }
+        guard updateChecksAllowed else { return }
         guard force || preferences.automaticUpdateChecks else { return }
         guard force || (UpdateChecker.isDue(lastCheck: preferences.lastUpdateCheck)
             && UpdateChecker.isDue(lastCheck: lastUpdateAttempt)) else { return }

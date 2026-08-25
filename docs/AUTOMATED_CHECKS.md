@@ -199,6 +199,32 @@ Use this same isolated launch for the window, toolbar, Settings, and history int
 - Every tab is reachable and usable, and the window cannot be resized on either axis. A pane taller than the window scrolls, which is expected; what is not is a control that cannot be reached at all.
 - Start recording a shortcut binding on the General tab, then switch tabs. The capture ends: typing works everywhere in Scriber again, and the recorder shows its stored binding rather than a live one. A stranded recorder swallows every keystroke and suspends global shortcut matching until the window closes, and neither symptom names its own cause.
 
+### An update being available
+
+`--ui-testing-pretend-version <version>` runs the app as that version, so the check compares it against the real latest release on GitHub. It is the only way to reach the update-available state: the state depends on a release newer than the running build, and no build can produce one for itself. Throwaway defaults hold the result, so an offer raised here never reaches the installed app — which matters, because a bogus `availableUpdate` in the real suite would be shown by it.
+
+The launch performs the check itself, so the offer is on screen when the window opens rather than waiting for a button. It reaches GitHub and spends no API credit.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+before_pid="$(pgrep -n -x Scriber || true)"
+APP_PATH="$REPO_ROOT/.build/xcode-debug/Build/Products/Debug/Scriber.app"
+
+open -n -a "$APP_PATH" --args --ui-testing --ui-testing-pretend-version 0.8.0
+sleep 6
+pid="$(pgrep -n -x Scriber || true)"
+[ -n "$pid" ] && [ "$pid" != "$before_pid" ] || { echo "REFUSING: never launched" >&2; exit 1; }
+# … inspect, then …
+kill "$pid"
+```
+
+Both directions are worth running, and the second is the one no test can show in the app itself:
+
+- Below the latest release — `0.8.0` — offers it. Settings' Updates section reads **Scriber 0.9.0 is available.** with **Get 0.9.0…** beside the Version row, the menu bar menu carries **Update to 0.9.0…**, and both open the release page. **Check for Updates** ignores the once-a-day interval, so pressing it repeats the check rather than doing nothing.
+- Above it — `0.10.0` — offers nothing, and the status reads **This is the latest version.** That is the ordering the app depends on: compared as text, `0.10.0` sorts below `0.9.0`, and Scriber would go on offering an update to a version older than itself.
+
+The version shown in the Version row is the pretended one, which is what says a run is simulated.
+
 ### Simulated recovery
 
 Use the Debug app and the same `before_pid`/absolute-`APP_PATH`/guarded-`kill` pattern above. Launch with `--ui-testing --ui-testing-missing-permissions` to inspect missing-permission recovery without changing real macOS grants.
