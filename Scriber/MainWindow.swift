@@ -269,21 +269,29 @@ struct MenuBarContent: View {
             if runtime.preferences.onboardingComplete {
                 Button("Open Scriber") { openMain(destination: .dictation) }
                 Button("Settings") { openMain(destination: .settings) }
-                if !runtime.coordinator.permissionReadiness.isReady {
-                    Divider()
-                    Button { openMain(destination: .permissions) } label: {
-                        Label("Permissions Required…", systemImage: "exclamationmark.triangle.fill")
-                    }
-                }
+                // One divider for the whole group, not one per item. A separator
+                // says a group of commands has ended; drawn above each warning it
+                // says the two are different kinds of thing, when they are the
+                // same kind and the user has two of them.
+                let permissionsNeedAttention = !runtime.coordinator.permissionReadiness.isReady
                 let credentials = runtime.coordinator.credentialReadiness
-                if !credentials.isReady {
+                if permissionsNeedAttention || !credentials.isReady {
                     Divider()
-                    Button {
-                        openMain(destination: credentials.resolvesInUsageSettings ? .usage : .apiKey)
-                    } label: {
-                        Label("\(credentials.title)…", systemImage: "exclamationmark.triangle.fill")
+                    if permissionsNeedAttention {
+                        Button { openMain(destination: .permissions) } label: {
+                            Label("Permissions Required…", systemImage: "exclamationmark.triangle.fill")
+                        }
+                    }
+                    if !credentials.isReady {
+                        Button {
+                            openMain(destination: credentials.resolvesInUsageSettings ? .usage : .apiKey)
+                        } label: {
+                            Label("\(credentials.title)…", systemImage: "exclamationmark.triangle.fill")
+                        }
                     }
                 }
+                // Its own group: an offer is not a warning. Nothing is wrong
+                // with an install that has an update waiting.
                 if let update = runtime.preferences.availableUpdate {
                     Divider()
                     Button {
