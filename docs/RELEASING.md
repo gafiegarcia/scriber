@@ -22,7 +22,7 @@ The `.p8` is needed only for that one command. Delete the local copy afterwards 
 
 ## 1. Version
 
-Increment `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in **both** configurations of the Scriber target, and move the `Unreleased` entries in [`CHANGELOG.md`](../CHANGELOG.md) under the new version.
+Increment `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in **both** configurations of the Scriber target, and compose the `Unreleased` entries in [`CHANGELOG.md`](../CHANGELOG.md) into the new version's section: merge the bullets that describe one change, drop any a later session superseded, and sort what remains under Added, Changed, Fixed, and Removed. Sessions append to `Unreleased` as they go, so this is the first time the section is read as a whole and the only place it is written as one.
 
 ## 2. Build and verify the signature
 
