@@ -646,12 +646,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installSettingsEscapeMonitor()
         installOnboardingCentreMonitor()
         let center = NotificationCenter.default
-        NSApp.windows.filter(AppWindowIdentity.isManagedWindow).forEach { $0.isReleasedWhenClosed = false }
+        NSApp.windows.filter(AppWindowIdentity.isManagedWindow).forEach {
+            $0.isReleasedWhenClosed = false
+            $0.isExcludedFromWindowsMenu = true
+        }
         observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] note in
             guard let window = note.object as? NSWindow else { return }
             Task { @MainActor in
                 guard AppWindowIdentity.isManagedWindow(window) else { return }
                 window.isReleasedWhenClosed = false
+                // The system Window menu lists every titled `Window` scene by
+                // default, onboarding included — a route with none of the
+                // dictation-in-progress guards `restartOnboarding()` has. Picking
+                // it while a dictation runs reopens the setup window straight
+                // into the same build-dismiss-rebuild loop `3933a2f` closed off
+                // for the Settings button, which pins the main thread.
+                window.isExcludedFromWindowsMenu = true
                 NSApp.setActivationPolicy(.regular)
                 if window.title == AppWindowIdentity.onboardingTitle { self?.fitOnboardingWindow(window) }
                 if AppWindowIdentity.isSettingsWindow(window) { self?.fitSettingsWindow(window) }
