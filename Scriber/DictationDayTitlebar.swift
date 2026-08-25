@@ -47,6 +47,12 @@ struct DictationDayTitlebarInstaller: NSViewRepresentable {
             // `.automatic` is the whole point: AppKit hides the separator until
             // content actually scrolls under the titlebar, so the strip reads as
             // one surface with the toolbar while the list is at rest.
+            //
+            // Known and unfixed: macOS 26 does not honour it. No separator is
+            // drawn at any scroll position, so the day label there can appear to
+            // touch the transcript passing under it. Forcing `.line` on 26 alone
+            // is the untried fix, and it trades the difference rather than
+            // removing it — 26 would then show a line at rest where 27 shows none.
             window.titlebarSeparatorStyle = .automatic
 
             let controller = NSTitlebarAccessoryViewController()
