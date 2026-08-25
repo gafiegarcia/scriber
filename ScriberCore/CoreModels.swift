@@ -965,13 +965,6 @@ public struct ShortcutTapMachine: Sendable {
         matcher = ShortcutMatcher(dictation: dictation)
     }
 
-    /// Known and unfixed: rebinding while the old chord is physically held loses
-    /// that hold. `reset` forgets every key believed to be down, so the release
-    /// matches nothing and a held recording never stops from the keyboard —
-    /// `Escape` or the duration cap is the way out. Reaching it means keeping one
-    /// hand on the chord while the other picks a preset in Settings, and hands-free
-    /// is unaffected: `mode` survives, so the new chord stops the recording, which
-    /// is what someone who just rebound it would expect.
     public mutating func reconfigure(dictation: ShortcutChord) {
         matcher = ShortcutMatcher(dictation: dictation)
         reset()
