@@ -4,6 +4,7 @@
 
 - Never contact ElevenLabs, consume API credit, read the real Keychain, or mutate real SwiftData.
 - Never use a plain full-screen `screencapture`; it can expose unrelated windows and files.
+- Every `--ui-testing` flag is **Debug only**. `isUITesting` is compiled out of Release, so an installed app takes the arguments, ignores them silently, and runs exactly as itself — a check aimed at `/Applications` looks like the feature is broken when nothing was ever switched on. Launch these from `.build/xcode-debug/Build/Products/Debug/Scriber.app`.
 - A `--ui-testing` launch uses throwaway defaults, an in-memory history store, disabled external services, and no real Keychain. It can prove presentation, interaction, and routing, but never real credential validity or storage, service access, permissions, dictation, insertion, global shortcuts, or menu-bar behavior.
 
 ## Routine pass
