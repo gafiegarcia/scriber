@@ -289,7 +289,13 @@ struct MenuBarContent: View {
                     Button {
                         NSWorkspace.shared.open(update.url)
                     } label: {
-                        Label("Update to \(update.version)…", systemImage: "arrow.down.circle")
+                        // No ellipsis, matching Settings: both open the release
+                        // page, which finishes the action rather than asking for
+                        // anything more.
+                        Label(
+                            "Update to \(AppCoordinator.displayVersion(update.version))",
+                            systemImage: "arrow.down.circle"
+                        )
                     }
                 }
             }

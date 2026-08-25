@@ -728,6 +728,11 @@ final class AppCoordinator: ObservableObject {
             ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
             ?? "0.0.0"
 
+    /// Carries the `v` that tags and releases carry, so what Scriber says matches
+    /// what GitHub shows to anyone who follows an offer. Display only — the bare
+    /// string is what the update check compares and what the User-Agent sends.
+    static func displayVersion(_ version: String) -> String { "v\(version)" }
+
     /// Shown beside the version because two installs can share a version and
     /// differ, which is exactly the pair a bug report has to tell apart.
     static let runningBuild =

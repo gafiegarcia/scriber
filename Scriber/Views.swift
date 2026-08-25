@@ -464,25 +464,20 @@ private struct GeneralSettingsPane: View {
             Section {
                 VStack(alignment: .leading, spacing: SettingsPaneLayout.captionGap) {
                     HStack(spacing: 10) {
-                        Text("Version")
-                        Spacer(minLength: 0)
-                        Text("\(AppCoordinator.runningVersion) (\(AppCoordinator.runningBuild))")
-                            .foregroundStyle(.secondary)
+                        // Anchored to the leading edge, which is what lets the
+                        // button opposite change width without moving it.
+                        Text("Scriber \(AppCoordinator.displayVersion(AppCoordinator.runningVersion)) (\(AppCoordinator.runningBuild))")
                             .monospacedDigit()
                             .accessibilityLabel(
-                                "Version \(AppCoordinator.runningVersion), build \(AppCoordinator.runningBuild)"
+                                "Scriber version \(AppCoordinator.runningVersion), build \(AppCoordinator.runningBuild)"
                             )
-                        if let update = runtime.preferences.availableUpdate {
-                            Link("Get \(update.version)…", destination: update.url)
-                                .buttonStyle(.borderedProminent)
-                                .accessibilityIdentifier("download-update")
-                        }
+                        Spacer(minLength: 0)
                         Button(action: { runtime.coordinator.checkForUpdates(force: true) }) {
                             HStack(spacing: 6) {
-                                // Beside the title rather than replacing it. A
-                                // button that swaps its title for "Checking…"
-                                // resizes while it works, moving itself out from
-                                // under the pointer that just pressed it.
+                                // Before the title, not replacing it, and the
+                                // button is against the trailing edge: the spinner
+                                // grows the button leftwards into the spacer while
+                                // the title, being last, does not move at all.
                                 if runtime.coordinator.isCheckingForUpdates {
                                     ProgressView().controlSize(.small)
                                 }
@@ -492,7 +487,22 @@ private struct GeneralSettingsPane: View {
                         .disabled(runtime.coordinator.isCheckingForUpdates)
                         .accessibilityIdentifier("check-for-updates")
                     }
-                    updateStatus
+                    HStack(spacing: 10) {
+                        updateStatus
+                        Spacer(minLength: 0)
+                        // On the line that announces the offer rather than in the
+                        // row above, which carried two buttons of different weight
+                        // side by side. No ellipsis: it opens the release page,
+                        // which is the action finishing, not asking for anything.
+                        if let update = runtime.preferences.availableUpdate {
+                            Link(
+                                "Get \(AppCoordinator.displayVersion(update.version))",
+                                destination: update.url
+                            )
+                            .buttonStyle(.borderedProminent)
+                            .accessibilityIdentifier("download-update")
+                        }
+                    }
                 }
                 SettingsToggle(
                     "Check for updates automatically",
@@ -568,17 +578,33 @@ private struct GeneralSettingsPane: View {
 
     /// Never claims to be current on the strength of a check that has not
     /// happened: an install that has never reached GitHub says so.
+    ///
+    /// The current state carries when the check last ran, because otherwise
+    /// pressing Check for Updates on an install that is already current changes
+    /// nothing on screen and cannot be told from a button that does nothing.
     private var updateStatusText: String {
         if let error = runtime.coordinator.updateCheckError {
             return error
         }
         if let update = runtime.preferences.availableUpdate {
-            return "Scriber \(update.version) is available."
+            return "Scriber \(AppCoordinator.displayVersion(update.version)) is available."
         }
-        if runtime.preferences.lastUpdateCheck == nil {
+        guard let lastCheck = runtime.preferences.lastUpdateCheck else {
             return "No check has run yet."
         }
-        return "This is the latest version."
+        return "You're on the latest version. Last checked: \(Self.lastCheckedDescription(lastCheck))."
+    }
+
+    /// Relative, and "just now" under a minute — `.relative` renders that span as
+    /// "in 0 seconds", which reads as a check that has not happened yet.
+    ///
+    /// Not live: nothing redraws this while Settings sits open, so a window left
+    /// up goes on saying "just now". Each visit rebuilds the pane and recomputes
+    /// it, which is the moment anyone reads it.
+    private static func lastCheckedDescription(_ date: Date) -> String {
+        Date().timeIntervalSince(date) < 60
+            ? "just now"
+            : date.formatted(.relative(presentation: .named))
     }
 }
 
