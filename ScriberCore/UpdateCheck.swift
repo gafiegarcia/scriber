@@ -100,6 +100,22 @@ public struct UpdateChecker: Sendable {
         return now.timeIntervalSince(lastCheck) >= checkInterval
     }
 
+    /// Whether an offer read back from storage still describes an update.
+    ///
+    /// Taking an offer is what makes the stored one wrong. It is cleared only by
+    /// a check that comes back with nothing, checks run at most once a day, and
+    /// the check that produced the offer ran minutes before the user acted on it
+    /// — so without this the freshly installed version goes on offering itself
+    /// for the rest of the day. A version that cannot be read is not an update.
+    public static func stillDescribesAnUpdate(
+        _ offer: AvailableUpdate,
+        currentVersion: String
+    ) -> Bool {
+        guard let current = ReleaseVersion(currentVersion),
+              let offered = ReleaseVersion(offer.version) else { return false }
+        return current < offered
+    }
+
     /// `nil` when the running version is already the newest released one.
     public static func newerRelease(
         currentVersion: String,

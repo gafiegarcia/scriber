@@ -67,6 +67,7 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - After the first launch of a build signed with a new certificate, confirm Microphone and Accessibility survive a restart. A changed signing identity is a different app to macOS, and a stale entry has to be removed and re-added rather than toggled.
 - Turn **Mute other audio while dictating** on and confirm the explanation appears before the toggle moves, that cancelling leaves it off, and that the caption's link lands on Screen & System Audio Recording rather than the top of Privacy & Security. Then dictate with music playing.
 - With the release published, open Settings → General → Updates and choose **Check for Updates**. It reports the running version as current. This reaches GitHub but spends no API credit.
+- Take the update itself, then reopen Settings. The offer is gone and the row reports the new version as current — in the menu bar too. Nothing clears a stored offer except a check that comes back empty, and the one that produced the offer ran minutes earlier, so a version that goes on offering itself is what a regression here looks like. This is only reachable at a real release, which is why it waits for one.
 
 ## When setup changes
 

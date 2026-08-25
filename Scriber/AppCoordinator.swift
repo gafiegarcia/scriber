@@ -161,6 +161,15 @@ final class AppCoordinator: ObservableObject {
         )
         shortcuts = GlobalShortcutService(dictation: preferences.dictationShortcut)
 
+        // Before anything reads it. A stored offer survives the update it
+        // describes: only a check that comes back empty clears one, and the
+        // check that found it ran minutes before the user installed it, so the
+        // once-a-day interval leaves the new version offering itself.
+        if let offer = preferences.availableUpdate,
+           !UpdateChecker.stillDescribesAnUpdate(offer, currentVersion: Self.runningVersion) {
+            preferences.availableUpdate = nil
+        }
+
         shortcuts.onAction = { [weak self] action in self?.handle(action) }
         // A query, not the dismissal: the tap asks this while the key is passing,
         // and the dismissal itself arrives as an ordinary `.cancel` action.

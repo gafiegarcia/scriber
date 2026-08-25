@@ -148,3 +148,47 @@ struct UpdateCheckScheduleTests {
         #expect(UpdateChecker.isDue(lastCheck: tomorrow, now: tomorrow.addingTimeInterval(UpdateChecker.checkInterval)))
     }
 }
+
+@Suite("A stored offer")
+struct StoredOfferTests {
+    private func offer(_ version: String) -> AvailableUpdate {
+        AvailableUpdate(
+            version: version,
+            url: URL(string: "https://github.com/gafiegarcia/scriber/releases/tag/v\(version)")!
+        )
+    }
+
+    /// The case the whole check exists for: the offer was taken, and the version
+    /// it named is now the one running.
+    @Test("An offer for the running version is discarded")
+    func discardsOfferAlreadyInstalled() {
+        #expect(!UpdateChecker.stillDescribesAnUpdate(offer("0.9.1"), currentVersion: "0.9.1"))
+    }
+
+    @Test("An offer older than the running version is discarded")
+    func discardsOlderOffer() {
+        #expect(!UpdateChecker.stillDescribesAnUpdate(offer("0.9.0"), currentVersion: "0.9.1"))
+    }
+
+    @Test("An offer newer than the running version stands")
+    func keepsNewerOffer() {
+        #expect(UpdateChecker.stillDescribesAnUpdate(offer("0.9.1"), currentVersion: "0.9.0"))
+    }
+
+    /// Ordered numerically here too, or taking the 0.10.0 update would leave
+    /// 0.10.0 offering itself — the same bug, reached by the same comparison
+    /// that ranks releases.
+    @Test("A double-digit minor is not mistaken for an older version")
+    func ordersDoubleDigitsNumerically() {
+        #expect(!UpdateChecker.stillDescribesAnUpdate(offer("0.9.0"), currentVersion: "0.10.0"))
+        #expect(UpdateChecker.stillDescribesAnUpdate(offer("0.10.0"), currentVersion: "0.9.0"))
+    }
+
+    /// Neither side is trusted when it cannot be read: showing an offer that
+    /// cannot be compared is worse than showing none.
+    @Test("An unreadable version on either side discards the offer")
+    func discardsUnreadableVersions() {
+        #expect(!UpdateChecker.stillDescribesAnUpdate(offer("banana"), currentVersion: "0.9.0"))
+        #expect(!UpdateChecker.stillDescribesAnUpdate(offer("0.9.1"), currentVersion: "banana"))
+    }
+}
