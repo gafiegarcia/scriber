@@ -156,6 +156,18 @@ The flag skips the preferences the real path consults, so it holds whatever Star
 
 Every launch also writes `launchEvent:` twice and one `launchContext:` line, recording what macOS said about who started the app. That is what tells a launch marker arriving late from one that never arrives, and it is the only evidence available after a real login, where nothing can be attached to watch.
 
+## Reading a menu without computer-use
+
+What a menu contains is readable from the accessibility tree, so assert it here rather than describing it to Gaf or inferring it from the source. A build succeeding says nothing about what the menu bar ended up holding: SwiftUI contributes items no Scriber file names, and a change aimed at one of them can compile, install, and alter nothing.
+
+Quit every Scriber first, for the reason `MANUAL_CHECKS.md` gives — the process is addressed by name, so a second one makes the answer arbitrary. Then launch the build under test and read the menu by name:
+
+```bash
+osascript -e 'tell application "System Events" to tell process "Scriber" to get name of every menu item of (menu 1 of menu bar item "Window" of menu bar 1)'
+```
+
+Swap `"Window"` for any other menu title. Items report `missing value` for a separator. This needs Accessibility permission for whatever runs `osascript` — usually the terminal — and reports `-1728` when the named process is not running.
+
 ## Inspecting a running Debug build
 
 ### Visual and interaction inspection
