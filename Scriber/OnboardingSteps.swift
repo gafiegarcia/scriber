@@ -424,15 +424,10 @@ struct DataUseGuideSheet: View {
     /// coming to rest half-covered by it.
     private static let headerBarHeight: CGFloat = 40
     private static let footerBarHeight: CGFloat = 48
-    /// Added to each bar's height. Clearing the glass by a hair leaves the first
-    /// line and the last looking tucked under it; this is the gap that reads as
-    /// the content having room rather than as it having just escaped.
+    /// Added to the header bar's height, so the first line clears the glass by
+    /// enough to read as having room rather than as having just escaped. The
+    /// footer takes no equivalent: its inset is the bar's height exactly.
     private static let barClearance: CGFloat = 22
-    /// How close to the end the scroll gets before the footer's glass goes. The
-    /// content clears the bar well before the scroll stops, because of the
-    /// padding above, so holding the bar to the last pixel leaves it drawn over
-    /// nothing.
-    private static let footerRetreat: CGFloat = 14
 
     /// The screenshot is 862×1120 pixels. Both dimensions of its frame are stated
     /// because `.frame(maxHeight:)` alone leaves the frame as wide as the column,
@@ -476,14 +471,20 @@ struct DataUseGuideSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.top, Self.headerBarHeight + Self.barClearance)
-            .padding(.bottom, Self.footerBarHeight + Self.barClearance)
+            // The footer bar's own height, and stated as that rather than as a
+            // number beside it. The bars are overlays and take no layout space,
+            // so this is not a gap between the picture and the footer — it is the
+            // gap between the picture and the sheet's bottom edge, left on screen
+            // once the scroll ends and the glass goes. Matching the bar means the
+            // picture comes to rest exactly where the glass was.
+            .padding(.bottom, Self.footerBarHeight)
         }
         .scrollBounceBehavior(.basedOnSize)
         .onScrollGeometryChange(for: ScrollEdges.self) { geometry in
             ScrollEdges(
                 underTop: geometry.contentOffset.y > 1,
                 underBottom: geometry.contentOffset.y + geometry.containerSize.height
-                    < geometry.contentSize.height - Self.footerRetreat
+                    < geometry.contentSize.height - 1
             )
         } action: { _, updated in
             withAnimation(.easeInOut(duration: 0.15)) { edges = updated }
