@@ -74,6 +74,30 @@ enum OnboardingType {
     static let lineSpacing: CGFloat = 3
 }
 
+/// A numbered instruction. One recipe, so the two places that walk a reader
+/// through ElevenLabs' own interface cannot number their steps differently.
+struct OnboardingNumberedStep: View {
+    let number: Int
+    let text: LocalizedStringKey
+
+    init(_ number: Int, _ text: LocalizedStringKey) {
+        self.number = number
+        self.text = text
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("\(number).")
+                .font(OnboardingType.body.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 16, alignment: .trailing)
+            Text(text)
+                .font(OnboardingType.body)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
 /// The plate a step's controls sit on. One recipe, so no step invents its own.
 struct OnboardingCard<Content: View>: View {
     @ViewBuilder let content: Content
@@ -144,12 +168,12 @@ struct APIKeyStep: View {
                 // them off the same plate the field sits on made them look like
                 // part of it.
                 VStack(alignment: .leading, spacing: 10) {
-                    numbered(1, "[Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up) if you do not have one.")
+                    OnboardingNumberedStep(1, "[Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up) if you do not have one.")
                     // ElevenLabs' own labels, capitalised as their dashboard
                     // capitalises them, so the words on this step are the words
                     // to look for on the page it sends people to.
-                    numbered(2, "[Create an API key](https://elevenlabs.io/app/developers/api-keys). If you turn **Restrict Key** on (recommended), enable **Speech to Text** under Endpoints, and **User** under Administration if you want Scriber to show your remaining credits.")
-                    numbered(3, "Paste the key below.")
+                    OnboardingNumberedStep(2, "[Create an API key](https://elevenlabs.io/app/developers/api-keys). If you turn **Restrict Key** on (recommended), enable **Speech to Text** under Endpoints, and **User** under Administration if you want Scriber to show your remaining credits.")
+                    OnboardingNumberedStep(3, "Paste the key below.")
                 }
                 OnboardingCard {
                     VStack(alignment: .leading, spacing: 12) {
@@ -198,18 +222,6 @@ struct APIKeyStep: View {
         // revoked on ElevenLabs' side, so the badge is only as true as its last
         // look — and this step is where it is claimed.
         .onAppear { runtime.coordinator.validateStoredAPIKey() }
-    }
-
-    private func numbered(_ number: Int, _ text: LocalizedStringKey) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("\(number).")
-                .font(OnboardingType.body.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 16, alignment: .trailing)
-            Text(text)
-                .font(OnboardingType.body)
-                .fixedSize(horizontal: false, vertical: true)
-        }
     }
 
     @ViewBuilder private var status: some View {
@@ -310,31 +322,103 @@ struct DataUseStep: View {
 /// hand-drawn scrim: a sheet already dims what is behind it, keeps its buttons
 /// in normal control colours against the window rather than against a dark
 /// wash, answers Escape, and cannot cover the footer it is presented from.
+///
+/// The steps are numbered to match the marks drawn on the screenshot, so the
+/// dashboard is a lead-in line rather than a step of its own — a reader looking
+/// between the two must not find text step 2 against a picture marked 1.
 struct DataUseGuideSheet: View {
     let dismiss: () -> Void
 
+    /// The two glass strips. Content is inset by these so the first line and the
+    /// last can each be scrolled clear of the bar they pass under, rather than
+    /// coming to rest half-covered by it.
+    private static let headerBarHeight: CGFloat = 40
+    private static let footerBarHeight: CGFloat = 48
+
+    /// The screenshot is 862×1120 pixels. Both dimensions of its frame are stated
+    /// because `.frame(maxHeight:)` alone leaves the frame as wide as the column,
+    /// and the rounded border then draws around the empty space beside the
+    /// picture rather than clipping the picture's own corners.
+    private static let menuImageHeight: CGFloat = 420
+    private static let menuImageWidth: CGFloat = (menuImageHeight * 862 / 1120).rounded()
+
     var body: some View {
-        VStack(spacing: 14) {
-            Text("Where to find it")
-                .font(.headline)
-            Image(.elevenLabsDataUseMenu)
-                .resizable()
-                .scaledToFit()
-                .frame(maxHeight: 500)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Open your ElevenLabs dashboard at [elevenlabs.io/app](https://elevenlabs.io/app), then:")
+                    .font(OnboardingType.body)
+                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 8) {
+                    OnboardingNumberedStep(1, "Click your profile icon, top right.")
+                    OnboardingNumberedStep(2, "Hover over **Terms and privacy**.")
+                    OnboardingNumberedStep(3, "Click **Data use**.")
+                    // The switch is only half of it. The modal keeps its own
+                    // confirm button, so someone who flips it and closes the
+                    // window has changed nothing.
+                    OnboardingNumberedStep(4, "Switch **Improve the models for everyone** off, then click **Update your choice**.")
                 }
-                .accessibilityLabel("The ElevenLabs profile menu. One, the profile button at the top right. Two, Terms and privacy near the bottom of the menu. Three, Data use in the submenu that opens beside it.")
-            HStack {
-                Spacer()
-                Button("Done", action: dismiss)
-                    .keyboardShortcut(.defaultAction)
+                Image(.elevenLabsDataUseMenu)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: Self.menuImageWidth, height: Self.menuImageHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                    }
+                    .accessibilityLabel("The ElevenLabs profile menu. One, the profile button at the top right. Two, Terms and privacy near the bottom of the menu. Three, Data use in the submenu that opens beside it.")
+                    // Centred against the column while the prose stays ranged
+                    // left. Safe to place the picture with a frame now that it
+                    // carries its own size: this is where it sits, not how big
+                    // it is.
+                    .frame(maxWidth: .infinity)
             }
+            .lineSpacing(OnboardingType.lineSpacing)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, Self.headerBarHeight + 8)
+            .padding(.bottom, Self.footerBarHeight + 8)
         }
-        .padding(20)
+        .scrollBounceBehavior(.basedOnSize)
+        // The scroll view takes the sheet's whole width rather than sitting
+        // inside its padding, so the scroll indicator rides the sheet's own edge
+        // instead of floating in from it. The inset moved to the content above.
         .frame(width: 520)
+        .frame(maxHeight: Self.maximumScrollHeight)
+        .overlay(alignment: .top) { headerBar }
+        .overlay(alignment: .bottom) { footerBar }
+    }
+
+    private var headerBar: some View {
+        Text("Where to find it")
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.headerBarHeight)
+            .glassEffect(.regular, in: .rect)
+    }
+
+    /// Glass rather than a fade over the content. A gradient reads as a shadow
+    /// cast on whatever ends up beneath it — on a screenshot, as a badly
+    /// developed picture — while a bar the content visibly slides under says the
+    /// same thing about there being more, and says it the way the main window's
+    /// and Settings' top bars already do.
+    private var footerBar: some View {
+        HStack {
+            Spacer()
+            Button("Done", action: dismiss)
+                .keyboardShortcut(.defaultAction)
+        }
+        .padding(.horizontal, 20)
+        .frame(height: Self.footerBarHeight)
+        .glassEffect(.regular, in: .rect)
+    }
+
+    /// The sheet has to fit the window it is presented from, and that window is
+    /// never taller than the screen — which is as much as a sheet can find out
+    /// about its host.
+    private static var maximumScrollHeight: CGFloat {
+        let visible = NSScreen.main?.visibleFrame.height ?? OnboardingLayout.windowHeight
+        return max(220, min(520, visible - 200))
     }
 }
 

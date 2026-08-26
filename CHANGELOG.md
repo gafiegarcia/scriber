@@ -4,6 +4,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Added
+
+- **Setup's "Where to find it" now spells the route out.** It showed a screenshot of ElevenLabs' menu and left you to read the numbered marks off the picture. It now gives the steps in words above it — including the last one, switching the setting off and then pressing **Update your choice**, which the screenshot never covered and which is where someone flips the switch, closes the window, and changes nothing. The panel scrolls, so it still works when setup is running on a short screen, and its **Done** button stays put at the bottom rather than scrolling away with the content.
+
 ### Fixed
 
 - **Setup now fits a screen too short for it.** Its window was a fixed 700 points tall and could not be resized, so on the most scaled display settings — the ones people choose to make everything bigger — the bottom of the window fell past the edge of the screen, taking the button that moves to the next step with it, and setup could not be finished at all. It now opens at the tallest height the display can actually show, and its bottom edge can be dragged shorter still. A step's content scrolls rather than being squeezed, and the buttons stay where they are at the bottom. Changing your display while setup is open resizes it to fit too, rather than leaving it at the height the old display could take. The width never changes.
