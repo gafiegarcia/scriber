@@ -683,6 +683,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if AppWindowIdentity.isSettingsWindow(window) { self?.fitSettingsWindow(window) }
             }
         })
+        observers.append(center.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.shrinkOnboardingWindowsToFitScreens() }
+        })
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self] note in
             guard let window = note.object as? NSWindow else { return }
             // Record the dismissal synchronously. `willCloseNotification` is posted on
@@ -858,19 +865,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.collectionBehavior.insert(.fullScreenNone)
     }
 
-    /// The height setup opens at: its designed height, or as much of it as this
-    /// display can show. `visibleFrame` already excludes the menu bar and the
-    /// Dock, and the title bar comes off on top of that, because what has to stay
-    /// on screen is the footer holding the step's only way forward.
-    private func onboardingOpeningHeight(for window: NSWindow) -> CGFloat {
+    /// The tallest content this window's display can show, floored at the minimum.
+    /// `visibleFrame` already excludes the menu bar and the Dock, and the title bar
+    /// comes off on top of that, because what has to stay on screen is the footer
+    /// holding the step's only way forward.
+    private func onboardingMaximumHeight(for window: NSWindow) -> CGFloat {
         guard let visibleHeight = (window.screen ?? NSScreen.main)?.visibleFrame.height else {
             return OnboardingLayout.windowHeight
         }
         let chrome = window.frameRect(forContentRect: .zero).height
-        return min(
-            OnboardingLayout.windowHeight,
-            max(OnboardingLayout.minimumWindowHeight, visibleHeight - chrome)
-        )
+        return max(OnboardingLayout.minimumWindowHeight, visibleHeight - chrome)
+    }
+
+    /// The height setup opens at: its designed height, or as much of it as this
+    /// display can show.
+    private func onboardingOpeningHeight(for window: NSWindow) -> CGFloat {
+        min(OnboardingLayout.windowHeight, onboardingMaximumHeight(for: window))
+    }
+
+    /// Shrinks an open setup window that a display change has left taller than the
+    /// screen. `fitOnboardingWindow` runs once per window, so nothing else revisits
+    /// the question — and switching to a scaled resolution while setup is open is
+    /// exactly how someone arrives at a window whose footer is off the bottom edge.
+    /// Only ever shrinks: a window deliberately dragged taller on a display that
+    /// can show it is left where it was put.
+    private func shrinkOnboardingWindowsToFitScreens() {
+        for window in NSApp.windows
+        where window.title == AppWindowIdentity.onboardingTitle && window.isVisible {
+            let maximum = onboardingMaximumHeight(for: window)
+            let current = window.contentRect(forFrameRect: window.frame).height
+            guard current > maximum + 1 else { continue }
+            window.setContentSize(NSSize(width: OnboardingLayout.windowWidth, height: maximum))
+            window.center()
+        }
     }
 
     private func fitOnboardingWindow(_ window: NSWindow) {
