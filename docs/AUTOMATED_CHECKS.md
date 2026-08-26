@@ -156,21 +156,69 @@ The flag skips the preferences the real path consults, so it holds whatever Star
 
 Every launch also writes `launchEvent:` twice and one `launchContext:` line, recording what macOS said about who started the app. That is what tells a launch marker arriving late from one that never arrives, and it is the only evidence available after a real login, where nothing can be attached to watch.
 
-## Reading a menu without computer-use
+## Driving the app without computer-use
 
-What a menu contains is readable from the accessibility tree, so assert it here rather than describing it to Gaf or inferring it from the source. A build succeeding says nothing about what the menu bar ended up holding: SwiftUI contributes items no Scriber file names, and a change aimed at one of them can compile, install, and alter nothing.
+Most of what an inspection needs is readable, and pressable, from the accessibility tree. Reach for this before asking for computer-use or for Gaf: a build succeeding says nothing about what the app ended up showing, and SwiftUI contributes menu items, sizes, and defaults that no Scriber file names.
 
-Quit every Scriber first, for the reason `MANUAL_CHECKS.md` gives — the process is addressed by name, so a second one makes the answer arbitrary. Then launch the build under test and read the menu by name:
+What this reaches: menu bar contents and menu items, window titles, sizes and positions, resize limits, tab selection, buttons and links by accessibility identifier, sheets and their contents, scroll areas and the geometry of anything inside them. What it does not: colour, translucency, glass, spacing judged by eye, and anything about appearance — those still need a computer-use tool or Gaf.
+
+Needs Accessibility permission for whatever runs `osascript`, usually the terminal.
+
+### Address the process by pid, not by name
+
+`process "Scriber"` is ambiguous the moment a second Scriber exists, and the installed app is usually running. Capture the pid at launch with the `before_pid` guard and address that instead, which lets the build under test be inspected without quitting Gaf's copy:
 
 ```bash
-osascript -e 'tell application "System Events" to tell process "Scriber" to get name of every menu item of (menu 1 of menu bar item "Window" of menu bar 1)'
+before_pid="$(pgrep -n -x Scriber || true)"
+open -n -a "$PWD/.build/xcode-debug/Build/Products/Debug/Scriber.app" --args --ui-testing
+sleep 6
+pid="$(pgrep -n -x Scriber || true)"
+[ -n "$pid" ] && [ "$pid" != "$before_pid" ] || { echo "REFUSING: never launched" >&2; exit 1; }
 ```
 
-Swap `"Window"` for any other menu title. Items report `missing value` for a separator. This needs Accessibility permission for whatever runs `osascript` — usually the terminal — and reports `-1728` when the named process is not running.
+```bash
+osascript -e "tell application \"System Events\" to tell (first process whose unix id is $pid) to get name of every menu item of (menu 1 of menu bar item \"Window\" of menu bar 1)"
+```
+
+Swap `"Window"` for any other menu title; separators report `missing value`. A named process that is not running reports `-1728`.
+
+### Reading and pressing
+
+Reference elements inline. Binding one to a variable across statements fails intermittently with `-1728` even while the window is open, so `set g to UI element 1 of window 1` and then using `g` is unreliable where the same expression written out works:
+
+```bash
+osascript <<OSA
+tell application "System Events"
+  tell (first process whose unix id is $pid)
+    repeat with e in (UI elements of (item 1 of (UI elements of window 1)))
+      set ep to position of e
+      set es to size of e
+      set idv to ""
+      try
+        set idv to (value of attribute "AXIdentifier" of e) as string
+      end try
+      log (role of e) & " y=" & (item 2 of ep) & " h=" & (item 2 of es) & " id='" & idv & "'"
+    end repeat
+  end tell
+end tell
+OSA
+```
+
+Assign `position` and `size` to variables before reading their items; concatenating them inline raises `-1700`. Press a control by its accessibility identifier rather than its index, which changes as a view does:
+
+```bash
+osascript -e "tell application \"System Events\" to tell (first process whose unix id is $pid) to perform action \"AXPress\" of (item 4 of (UI elements of (item 1 of (UI elements of (item 1 of (UI elements of (toolbar 1 of window \"Settings\")))))))"
+```
+
+`AXPress` sends the action rather than moving the pointer, so it does not disturb whatever Gaf is doing. `set size of window 1 to {w, h}` then reading the size back is how a window's own limits are measured — what it settles on is what the app allowed, not what was asked for.
+
+Anything a Debug build should expose to this needs an `accessibilityIdentifier`. A glyph-only button reports its SF Symbol name instead, which reads as an identifier and is not one.
 
 ## Inspecting a running Debug build
 
 ### Visual and interaction inspection
+
+Try **Driving the app without computer-use** first. Much of what follows was written before the accessibility tree was used this way, and asks for a computer-use tool to establish something readable — a window's size, which tab is selected, what a sheet contains. Reach for computer-use for what is genuinely visual: colour, translucency, glass, spacing judged by eye.
 
 Use a computer-use tool with the capture restricted to **Scriber**, so no other application appears.
 
