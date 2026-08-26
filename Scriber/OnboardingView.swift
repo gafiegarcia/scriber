@@ -2,12 +2,19 @@ import AppKit
 import SwiftUI
 
 enum OnboardingLayout {
-    /// The window is fixed at this size and the scene derives its frame from it,
-    /// so every step is laid out against a page that never changes shape. Sitting
-    /// between Settings (660×520) and the main window (900×640) keeps setup
-    /// recognisably part of the same app.
+    /// The width the window is pinned to, and the height it opens at. Width never
+    /// changes, so every step is laid out against a column that never changes
+    /// shape; height gives way on a display too short to show it. Sitting between
+    /// Settings (660×520) and the main window (900×640) keeps setup recognisably
+    /// part of the same app.
     static let windowWidth: CGFloat = 660
     static let windowHeight: CGFloat = 700
+    /// The shortest the window may be dragged to, and the height it opens at on a
+    /// display that cannot fit `windowHeight`. The footer carries the only control
+    /// that advances a step, so a window taller than the screen strands it past the
+    /// bottom edge — which is what the most scaled display settings do, and those
+    /// are the ones someone picks for their eyesight.
+    static let minimumWindowHeight: CGFloat = 460
     static let pageMargin: CGFloat = 40
     /// The single column everything on a step is set in — cards, images, and
     /// prose alike. Two widths is what made captions stop short of the card
@@ -17,6 +24,8 @@ enum OnboardingLayout {
     /// What is left for a step once the footer and its rule are taken out. A
     /// step fills it and hangs from the top of it, so its title lands in the
     /// same place on every step rather than moving with the content below it.
+    /// It stays the page's minimum in a shorter window, which is what makes a
+    /// step scroll rather than compress.
     static let pageHeight: CGFloat = windowHeight - footerHeight - 1
     static let cardCornerRadius: CGFloat = 12
 }
@@ -70,7 +79,13 @@ struct OnboardingView: View {
             Divider()
             footer
         }
-        .frame(width: OnboardingLayout.windowWidth, height: OnboardingLayout.windowHeight)
+        .frame(
+            minWidth: OnboardingLayout.windowWidth,
+            maxWidth: OnboardingLayout.windowWidth,
+            minHeight: OnboardingLayout.minimumWindowHeight,
+            idealHeight: OnboardingLayout.windowHeight,
+            maxHeight: .infinity
+        )
         .background(Color(nsColor: .windowBackgroundColor))
         .sheet(isPresented: $showsDataUseGuide) {
             DataUseGuideSheet { showsDataUseGuide = false }

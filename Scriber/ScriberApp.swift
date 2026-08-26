@@ -858,25 +858,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.collectionBehavior.insert(.fullScreenNone)
     }
 
+    /// The height setup opens at: its designed height, or as much of it as this
+    /// display can show. `visibleFrame` already excludes the menu bar and the
+    /// Dock, and the title bar comes off on top of that, because what has to stay
+    /// on screen is the footer holding the step's only way forward.
+    private func onboardingOpeningHeight(for window: NSWindow) -> CGFloat {
+        guard let visibleHeight = (window.screen ?? NSScreen.main)?.visibleFrame.height else {
+            return OnboardingLayout.windowHeight
+        }
+        let chrome = window.frameRect(forContentRect: .zero).height
+        return min(
+            OnboardingLayout.windowHeight,
+            max(OnboardingLayout.minimumWindowHeight, visibleHeight - chrome)
+        )
+    }
+
     private func fitOnboardingWindow(_ window: NSWindow) {
         guard fittedOnboardingWindows.insert(ObjectIdentifier(window)).inserted else { return }
         window.isRestorable = false
         // macOS disables Window ▸ Center and Fill for a window that cannot be
         // resized, and a disabled menu item does not consume its key — so ⌃🌐C
         // falls through to the app, where AppKit reads Control-C as the Enter
-        // character (0x03) and fires the default button, advancing a step.
-        // Claiming the resizable mask while pinning both size limits enables those
-        // commands and still leaves nothing to drag.
-        let size = NSSize(
-            width: OnboardingLayout.windowWidth,
-            height: OnboardingLayout.windowHeight
-        )
+        // character (0x03) and fires the default button, advancing a step. Height
+        // is genuinely draggable now, which keeps those commands enabled; width
+        // stays pinned by giving both limits the same one.
         window.styleMask.insert(.resizable)
-        window.contentMinSize = size
-        window.contentMaxSize = size
-        // The mask is claimed for Center alone. A resizable window is also a
-        // full-screen one, and this content is pinned to the size above, so full
-        // screen would strand the page in the middle of an empty display.
+        window.contentMinSize = NSSize(
+            width: OnboardingLayout.windowWidth,
+            height: OnboardingLayout.minimumWindowHeight
+        )
+        window.contentMaxSize = NSSize(
+            width: OnboardingLayout.windowWidth,
+            height: .greatestFiniteMagnitude
+        )
+        window.setContentSize(NSSize(
+            width: OnboardingLayout.windowWidth,
+            height: onboardingOpeningHeight(for: window)
+        ))
+        // Full screen stays off. The column inside is a fixed width, so a
+        // full-screen setup is the same page stranded in the middle of an empty
+        // display; someone who needs more room needs it taller, and the bottom
+        // edge gives them that.
         window.collectionBehavior.insert(.fullScreenNone)
         window.center()
         // On a first run the main window is created second and lands in front of
