@@ -725,13 +725,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if AppWindowIdentity.isSettingsWindow(window) { self?.fitSettingsWindow(window) }
             }
         })
-        observers.append(center.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.shrinkPageWindowsToFitScreens() }
-        })
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self] note in
             guard let window = note.object as? NSWindow else { return }
             // Record the dismissal synchronously. `willCloseNotification` is posted on
@@ -917,23 +910,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let chrome = window.frameRect(forContentRect: .zero).height
         return max(OnboardingLayout.minimumWindowHeight, visibleHeight - chrome)
-    }
-
-    /// Shrinks an open setup window that a display change has left taller than the
-    /// screen. `fitPageWindow` runs once per window, so nothing else revisits
-    /// the question — and switching to a scaled resolution while setup is open is
-    /// exactly how someone arrives at a window whose footer is off the bottom edge.
-    /// Only ever shrinks: a window deliberately dragged taller on a display that
-    /// can show it is left where it was put.
-    private func shrinkPageWindowsToFitScreens() {
-        for window in NSApp.windows
-        where AppWindowIdentity.isPageWindow(window) && window.isVisible {
-            let maximum = pageWindowMaximumHeight(for: window)
-            let current = window.contentRect(forFrameRect: window.frame).height
-            guard current > maximum + 1 else { continue }
-            window.setContentSize(NSSize(width: OnboardingLayout.windowWidth, height: maximum))
-            window.center()
-        }
     }
 
     private func fitPageWindow(_ window: NSWindow) {
