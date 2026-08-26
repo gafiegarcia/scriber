@@ -32,7 +32,7 @@ Before producing a distinct installable candidate, increment `CURRENT_PROJECT_VE
 
 Put it in `Scriber/` or `ScriberCore/` and build. Both are file-system synchronized groups, so the target compiles whatever the folder holds and `project.pbxproj` never names a source file — a commit that adds one touches no project file at all.
 
-Two files inside `Scriber/` are deliberately not members: `Info.plist` and `Scriber.entitlements`, which the target reads through `INFOPLIST_FILE` and `CODE_SIGN_ENTITLEMENTS`. They are listed in the target's exception set. Anything else you add to either folder ships, including a file meant only for tests — `ScriberCore` is compiled into the app as well as into the package, so there is no such thing there as a test-only helper.
+Two files inside `Scriber/` are deliberately not members: `Info.plist` and `Scriber.entitlements`, which the target reads through `INFOPLIST_FILE` and `CODE_SIGN_ENTITLEMENTS`. They are listed in the target's exception set. Anything else you put in either folder is compiled into the app on the next build, whether or not you meant it to be. That includes a helper written only for tests: `ScriberCore` is built into the app as well as into the package, so a test-only file there is dead code inside the app people download. Put those in `ScriberCoreTests/`, which the app target does not read.
 
 ## Build with Xcode
 
