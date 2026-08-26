@@ -21,12 +21,6 @@ enum OnboardingLayout {
     /// above them, with nothing to say why one edge sat inside the other.
     static let contentWidth: CGFloat = windowWidth - pageMargin * 2
     static let footerHeight: CGFloat = 64
-    /// What is left for a step once the footer and its rule are taken out. A
-    /// step fills it and hangs from the top of it, so its title lands in the
-    /// same place on every step rather than moving with the content below it.
-    /// It stays the page's minimum in a shorter window, which is what makes a
-    /// step scroll rather than compress.
-    static let pageHeight: CGFloat = windowHeight - footerHeight - 1
     static let cardCornerRadius: CGFloat = 12
 }
 

@@ -469,6 +469,11 @@ struct ScriberApp: App {
                 .task { await promoteApplicationForVisibleWindow() }
         }
         .defaultPosition(.center)
+        // The size the window opens at. A content `idealHeight` does not decide
+        // it — with nothing persisted to restore, the scene fell back to the
+        // minimum instead — and the frame is no longer corrected after the window
+        // is on screen, which is what made the size visibly jump.
+        .defaultSize(width: OnboardingLayout.windowWidth, height: OnboardingLayout.windowHeight)
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
         .commands {
@@ -488,6 +493,11 @@ struct ScriberApp: App {
                 .task { await promoteApplicationForVisibleWindow() }
         }
         .defaultPosition(.center)
+        // The size the window opens at. A content `idealHeight` does not decide
+        // it — with nothing persisted to restore, the scene fell back to the
+        // minimum instead — and the frame is no longer corrected after the window
+        // is on screen, which is what made the size visibly jump.
+        .defaultSize(width: OnboardingLayout.windowWidth, height: OnboardingLayout.windowHeight)
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
         .commands {
@@ -909,12 +919,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return max(OnboardingLayout.minimumWindowHeight, visibleHeight - chrome)
     }
 
-    /// The height setup opens at: its designed height, or as much of it as this
-    /// display can show.
-    private func pageWindowOpeningHeight(for window: NSWindow) -> CGFloat {
-        min(OnboardingLayout.windowHeight, pageWindowMaximumHeight(for: window))
-    }
-
     /// Shrinks an open setup window that a display change has left taller than the
     /// screen. `fitPageWindow` runs once per window, so nothing else revisits
     /// the question — and switching to a scaled resolution while setup is open is
@@ -950,10 +954,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             width: OnboardingLayout.windowWidth,
             height: .greatestFiniteMagnitude
         )
-        window.setContentSize(NSSize(
-            width: OnboardingLayout.windowWidth,
-            height: pageWindowOpeningHeight(for: window)
-        ))
+        // SwiftUI persists a frame per scene id and restores it before the window
+        // is shown, so a window once dragged shorter came back that way and was
+        // corrected here — visibly, a beat after it was already on screen.
+        // Dropping the autosave and the stored frame leaves nothing to restore
+        // and nothing to correct: the scene's own size decides, and the resize
+        // below runs only when the display genuinely cannot show it.
+        window.setFrameAutosaveName("")
+        UserDefaults.standard.removeObject(forKey: "NSWindow Frame \(window.identifier?.rawValue ?? window.title)")
+        let maximum = pageWindowMaximumHeight(for: window)
+        if window.contentRect(forFrameRect: window.frame).height > maximum {
+            window.setContentSize(NSSize(width: OnboardingLayout.windowWidth, height: maximum))
+        }
         // Full screen stays off. The column inside is a fixed width, so a
         // full-screen setup is the same page stranded in the middle of an empty
         // display; someone who needs more room needs it taller, and the bottom

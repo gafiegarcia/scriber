@@ -20,35 +20,43 @@ struct OnboardingPage<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        ScrollView {
-            // Title, sentence and controls travel as one block, centred in the
-            // page. Pinning the title holds it still between steps but strands
-            // every short step's content against the bottom of a half-empty page.
-            // Only the column is centred; its contents stay ranged left.
-            VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(title)
-                        .font(.title.bold())
-                        // Announced as a heading rather than as another line of
-                        // text, so VoiceOver can move between steps by heading
-                        // instead of reading each page from the top.
-                        .accessibilityAddTraits(.isHeader)
-                    if let subtitle { prose(subtitle) }
-                    if let subtitleDetail { prose(subtitleDetail) }
+        // The page fills the height it is given, measured rather than computed
+        // from the window's. `.hiddenTitleBar` lets content draw under the title
+        // bar but still lays out inside it, so a height derived from the window
+        // overstated the viewport by that inset and every step scrolled by it.
+        // Measuring is also what keeps this right once the window can be resized.
+        GeometryReader { viewport in
+            ScrollView {
+                // Title, sentence and controls travel as one block, centred in
+                // the page. Pinning the title holds it still between steps but
+                // strands every short step's content against the bottom of a
+                // half-empty page. Only the column is centred; its contents stay
+                // ranged left.
+                VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(title)
+                            .font(.title.bold())
+                            // Announced as a heading rather than as another line
+                            // of text, so VoiceOver can move between steps by
+                            // heading instead of reading each page from the top.
+                            .accessibilityAddTraits(.isHeader)
+                        if let subtitle { prose(subtitle) }
+                        if let subtitleDetail { prose(subtitleDetail) }
+                    }
+                    content
                 }
-                content
+                // Set here rather than on each block of prose. It descends to
+                // every `Text` below, so a step cannot forget it — which is how
+                // the numbered lists ended up tighter than the sentence above
+                // them while both claimed the same design.
+                .lineSpacing(OnboardingType.lineSpacing)
+                .frame(width: OnboardingLayout.contentWidth, alignment: .leading)
+                .padding(.horizontal, OnboardingLayout.pageMargin)
+                .padding(.vertical, 32)
+                .frame(maxWidth: .infinity, minHeight: viewport.size.height)
             }
-            // Set here rather than on each block of prose. It descends to
-            // every `Text` below, so a step cannot forget it — which is how the
-            // numbered lists ended up tighter than the sentence above them while
-            // both claimed the same design.
-            .lineSpacing(OnboardingType.lineSpacing)
-            .frame(width: OnboardingLayout.contentWidth, alignment: .leading)
-            .padding(.horizontal, OnboardingLayout.pageMargin)
-            .padding(.vertical, 32)
-            .frame(maxWidth: .infinity, minHeight: OnboardingLayout.pageHeight)
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .scrollBounceBehavior(.basedOnSize)
     }
 
     private func prose(_ text: LocalizedStringKey) -> some View {
@@ -119,33 +127,35 @@ struct OnboardingCard<Content: View>: View {
 
 struct WelcomeStep: View {
     var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .frame(width: 96, height: 96)
-                    .accessibilityHidden(true)
-                Text("Welcome to Scriber")
-                    .font(.largeTitle.bold())
-                    .accessibilityAddTraits(.isHeader)
-                Text("Press a key, talk, and your words appear wherever your cursor is.")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                Text("Your audio goes only to ElevenLabs, and your history stays on this Mac.")
-                    .font(OnboardingType.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 2)
+        GeometryReader { viewport in
+            ScrollView {
+                VStack(spacing: 18) {
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .frame(width: 96, height: 96)
+                        .accessibilityHidden(true)
+                    Text("Welcome to Scriber")
+                        .font(.largeTitle.bold())
+                        .accessibilityAddTraits(.isHeader)
+                    Text("Press a key, talk, and your words appear wherever your cursor is.")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Text("Your audio goes only to ElevenLabs, and your history stays on this Mac.")
+                        .font(OnboardingType.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                }
+                .lineSpacing(OnboardingType.lineSpacing)
+                .frame(maxWidth: OnboardingLayout.contentWidth)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 44)
+                .frame(maxWidth: .infinity, minHeight: viewport.size.height)
             }
-            .lineSpacing(OnboardingType.lineSpacing)
-            .frame(maxWidth: OnboardingLayout.contentWidth)
-            .padding(.horizontal, 32)
-            .padding(.vertical, 44)
-            .frame(maxWidth: .infinity, minHeight: OnboardingLayout.pageHeight)
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .scrollBounceBehavior(.basedOnSize)
     }
 }
 
