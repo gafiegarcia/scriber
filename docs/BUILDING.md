@@ -30,7 +30,9 @@ Before producing a distinct installable candidate, increment `CURRENT_PROJECT_VE
 
 ## Adding a source file
 
-The Xcode target lists every file explicitly, including the `ScriberCore` sources it compiles in, so a new file is invisible to `xcodebuild` until `project.pbxproj` names it in four places: `PBXBuildFile`, `PBXFileReference`, the group's `children`, and the target's `Sources` phase. Both identifiers must be unused. Reusing a pair silently evicts the file that already owned it, and the build fails pointing at whatever that file defined rather than at anything you touched — `grep` the identifier before choosing it. `swift build` and the parse checks all pass meanwhile, because the package builds `ScriberCore` from the directory and never reads the project file.
+Put it in `Scriber/` or `ScriberCore/` and build. Both are file-system synchronized groups, so the target compiles whatever the folder holds and `project.pbxproj` never names a source file — a commit that adds one touches no project file at all.
+
+Two files inside `Scriber/` are deliberately not members: `Info.plist` and `Scriber.entitlements`, which the target reads through `INFOPLIST_FILE` and `CODE_SIGN_ENTITLEMENTS`. They are listed in the target's exception set. Anything else you add to either folder ships, including a file meant only for tests — `ScriberCore` is compiled into the app as well as into the package, so there is no such thing there as a test-only helper.
 
 ## Build with Xcode
 

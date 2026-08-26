@@ -3,93 +3,46 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000000000000000000001 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* AppCoordinator.swift */; };
-		A10000000000000000000002 /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* AudioRecorder.swift */; };
-		A10000000000000000000003 /* GlobalShortcutService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000003 /* GlobalShortcutService.swift */; };
-		A10000000000000000000004 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000004 /* KeychainStore.swift */; };
-		A10000000000000000000005 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000005 /* LaunchAtLoginService.swift */; };
-		A10000000000000000000006 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* Models.swift */; };
-		A10000000000000000000007 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* PasteService.swift */; };
-		A10000000000000000000008 /* PillController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000008 /* PillController.swift */; };
-		A10000000000000000000009 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* Preferences.swift */; };
-		A1000000000000000000000A /* ../ScriberCore/ScribeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000A /* ../ScriberCore/ScribeClient.swift */; };
-		A1000000000000000000000B /* ScriberApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000B /* ScriberApp.swift */; };
-		A1000000000000000000000C /* ShortcutRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* ShortcutRecorderView.swift */; };
-		A10000000000000000000030 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000030 /* MainWindow.swift */; };
-		A10000000000000000000031 /* DictationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000031 /* DictationHistory.swift */; };
-		A10000000000000000000034 /* ToastStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000034 /* ToastStack.swift */; };
-		A1000000000000000000000D /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* Views.swift */; };
-		A1000000000000000000060 /* AudioLevelWaveform.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000060 /* AudioLevelWaveform.swift */; };
-		A1000000000000000000061 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000061 /* OnboardingView.swift */; };
-		A1000000000000000000062 /* OnboardingSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000062 /* OnboardingSteps.swift */; };
-		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* Assets.xcassets */; };
-		A10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */; };
-		A10000000000000000000033 /* ../ScriberCore/Toasts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000033 /* ../ScriberCore/Toasts.swift */; };
-		A10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift */; };
-		A10000000000000000000052 /* ../ScriberCore/HomebrewInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000052 /* ../ScriberCore/HomebrewInstall.swift */; };
-		A10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift */; };
-		A10000000000000000000051 /* ../ScriberCore/RecordingStartGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000051 /* ../ScriberCore/RecordingStartGate.swift */; };
-		A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */; };
-		A10000000000000000000010 /* ../ScriberCore/CredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */; };
-		A10000000000000000000011 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* AppIcon.icon */; };
-		A10000000000000000000012 /* DictationFeedbackSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* DictationFeedbackSound.swift */; };
-		A10000000000000000000013 /* OtherAudioMuteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* OtherAudioMuteService.swift */; };
-		A10000000000000000000014 /* UITestingHistoryFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000018 /* UITestingHistoryFixture.swift */; };
-		A10000000000000000000015 /* Workspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* Workspace.swift */; };
-		A10000000000000000000016 /* DictationHistoryMaintenance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001A /* DictationHistoryMaintenance.swift */; };
-		A10000000000000000000040 /* DictationDayTitlebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000040 /* DictationDayTitlebar.swift */; };
-		A10000000000000000000041 /* UITestingLargeHistoryFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000041 /* UITestingLargeHistoryFixture.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		B10000000000000000000001 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
-		B10000000000000000000002 /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
-		B10000000000000000000003 /* GlobalShortcutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcutService.swift; sourceTree = "<group>"; };
-		B10000000000000000000004 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
-		B10000000000000000000005 /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
-		B10000000000000000000006 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
-		B10000000000000000000007 /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
-		B10000000000000000000008 /* PillController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillController.swift; sourceTree = "<group>"; };
-		B10000000000000000000009 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
-		B1000000000000000000000A /* ../ScriberCore/ScribeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/ScribeClient.swift; sourceTree = "<group>"; };
-		B1000000000000000000000B /* ScriberApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriberApp.swift; sourceTree = "<group>"; };
-		B1000000000000000000000C /* ShortcutRecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderView.swift; sourceTree = "<group>"; };
-		B10000000000000000000030 /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
-		B10000000000000000000031 /* DictationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationHistory.swift; sourceTree = "<group>"; };
-		B10000000000000000000034 /* ToastStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastStack.swift; sourceTree = "<group>"; };
-		B1000000000000000000000D /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
-		B1000000000000000000060 /* AudioLevelWaveform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelWaveform.swift; sourceTree = "<group>"; };
-		B1000000000000000000061 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
-		B1000000000000000000062 /* OnboardingSteps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSteps.swift; sourceTree = "<group>"; };
-		B1000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		B1000000000000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B10000000000000000000010 /* Scriber.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Scriber.entitlements; sourceTree = "<group>"; };
 		B10000000000000000000011 /* Scriber.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scriber.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/RecoveryConditions.swift; sourceTree = "<group>"; };
-		B10000000000000000000033 /* ../ScriberCore/Toasts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/Toasts.swift; sourceTree = "<group>"; };
-		B10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/UpdateCheck.swift; sourceTree = "<group>"; };
-		B10000000000000000000052 /* ../ScriberCore/HomebrewInstall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/HomebrewInstall.swift; sourceTree = "<group>"; };
-		B10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/RecorderLifecycle.swift; sourceTree = "<group>"; };
-		B10000000000000000000051 /* ../ScriberCore/RecordingStartGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/RecordingStartGate.swift; sourceTree = "<group>"; };
-		B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CoreModels.swift; sourceTree = "<group>"; };
-		B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ScriberCore/CredentialStore.swift; sourceTree = "<group>"; };
-		B10000000000000000000014 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
-		B10000000000000000000015 /* DictationFeedbackSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationFeedbackSound.swift; sourceTree = "<group>"; };
-		B10000000000000000000016 /* OtherAudioMuteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OtherAudioMuteService.swift; sourceTree = "<group>"; };
 		B10000000000000000000017 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
-		B10000000000000000000018 /* UITestingHistoryFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestingHistoryFixture.swift; sourceTree = "<group>"; };
-		B10000000000000000000019 /* Workspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workspace.swift; sourceTree = "<group>"; };
-		B1000000000000000000001A /* DictationHistoryMaintenance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationHistoryMaintenance.swift; sourceTree = "<group>"; };
-		B10000000000000000000040 /* DictationDayTitlebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationDayTitlebar.swift; sourceTree = "<group>"; };
-		B10000000000000000000041 /* UITestingLargeHistoryFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestingLargeHistoryFixture.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D10000000000000000000005 /* Exceptions for "Scriber" folder in "Scriber" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				Scriber.entitlements,
+			);
+			target = E10000000000000000000001 /* Scriber */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		D10000000000000000000002 /* Scriber */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D10000000000000000000005 /* Exceptions for "Scriber" folder in "Scriber" target */,
+			);
+			path = Scriber;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000004 /* ScriberCore */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ScriberCore;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		C10000000000000000000001 /* Frameworks */ = {
@@ -106,54 +59,10 @@
 			isa = PBXGroup;
 			children = (
 				D10000000000000000000002 /* Scriber */,
+				D10000000000000000000004 /* ScriberCore */,
 				B10000000000000000000017 /* Signing.xcconfig */,
 				D10000000000000000000003 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		D10000000000000000000002 /* Scriber */ = {
-			isa = PBXGroup;
-			children = (
-				B1000000000000000000000B /* ScriberApp.swift */,
-				B10000000000000000000019 /* Workspace.swift */,
-				B10000000000000000000001 /* AppCoordinator.swift */,
-				B1000000000000000000001A /* DictationHistoryMaintenance.swift */,
-				B10000000000000000000040 /* DictationDayTitlebar.swift */,
-				B10000000000000000000002 /* AudioRecorder.swift */,
-				B10000000000000000000016 /* OtherAudioMuteService.swift */,
-				B10000000000000000000015 /* DictationFeedbackSound.swift */,
-				B10000000000000000000003 /* GlobalShortcutService.swift */,
-				B10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift */,
-				B10000000000000000000033 /* ../ScriberCore/Toasts.swift */,
-				B10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift */,
-				B10000000000000000000052 /* ../ScriberCore/HomebrewInstall.swift */,
-				B10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift */,
-				B10000000000000000000051 /* ../ScriberCore/RecordingStartGate.swift */,
-				B10000000000000000000012 /* ../ScriberCore/CoreModels.swift */,
-				B10000000000000000000013 /* ../ScriberCore/CredentialStore.swift */,
-				B10000000000000000000004 /* KeychainStore.swift */,
-				B10000000000000000000005 /* LaunchAtLoginService.swift */,
-				B10000000000000000000006 /* Models.swift */,
-				B10000000000000000000007 /* PasteService.swift */,
-				B10000000000000000000008 /* PillController.swift */,
-				B10000000000000000000009 /* Preferences.swift */,
-				B1000000000000000000000A /* ../ScriberCore/ScribeClient.swift */,
-				B1000000000000000000000C /* ShortcutRecorderView.swift */,
-				B10000000000000000000030 /* MainWindow.swift */,
-				B10000000000000000000031 /* DictationHistory.swift */,
-				B10000000000000000000034 /* ToastStack.swift */,
-				B1000000000000000000000D /* Views.swift */,
-				B1000000000000000000060 /* AudioLevelWaveform.swift */,
-				B1000000000000000000061 /* OnboardingView.swift */,
-				B1000000000000000000062 /* OnboardingSteps.swift */,
-				B10000000000000000000018 /* UITestingHistoryFixture.swift */,
-				B10000000000000000000041 /* UITestingLargeHistoryFixture.swift */,
-				B10000000000000000000014 /* AppIcon.icon */,
-				B1000000000000000000000E /* Assets.xcassets */,
-				B1000000000000000000000F /* Info.plist */,
-				B10000000000000000000010 /* Scriber.entitlements */,
-			);
-			path = Scriber;
 			sourceTree = "<group>";
 		};
 		D10000000000000000000003 /* Products */ = {
@@ -178,6 +87,10 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				D10000000000000000000002 /* Scriber */,
+				D10000000000000000000004 /* ScriberCore */,
 			);
 			name = Scriber;
 			productName = Scriber;
@@ -227,8 +140,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000011 /* AppIcon.icon in Resources */,
-				A1000000000000000000000E /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -239,40 +150,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000001 /* AppCoordinator.swift in Sources */,
-				A10000000000000000000016 /* DictationHistoryMaintenance.swift in Sources */,
-				A10000000000000000000040 /* DictationDayTitlebar.swift in Sources */,
-				A10000000000000000000002 /* AudioRecorder.swift in Sources */,
-				A10000000000000000000013 /* OtherAudioMuteService.swift in Sources */,
-				A10000000000000000000012 /* DictationFeedbackSound.swift in Sources */,
-				A10000000000000000000003 /* GlobalShortcutService.swift in Sources */,
-				A10000000000000000000004 /* KeychainStore.swift in Sources */,
-				A10000000000000000000005 /* LaunchAtLoginService.swift in Sources */,
-				A10000000000000000000006 /* Models.swift in Sources */,
-				A10000000000000000000007 /* PasteService.swift in Sources */,
-				A10000000000000000000008 /* PillController.swift in Sources */,
-				A10000000000000000000009 /* Preferences.swift in Sources */,
-				A1000000000000000000000A /* ../ScriberCore/ScribeClient.swift in Sources */,
-				A1000000000000000000000B /* ScriberApp.swift in Sources */,
-				A10000000000000000000015 /* Workspace.swift in Sources */,
-				A1000000000000000000000C /* ShortcutRecorderView.swift in Sources */,
-				A10000000000000000000030 /* MainWindow.swift in Sources */,
-				A10000000000000000000031 /* DictationHistory.swift in Sources */,
-				A10000000000000000000034 /* ToastStack.swift in Sources */,
-				A1000000000000000000000D /* Views.swift in Sources */,
-				A1000000000000000000060 /* AudioLevelWaveform.swift in Sources */,
-				A1000000000000000000061 /* OnboardingView.swift in Sources */,
-				A1000000000000000000062 /* OnboardingSteps.swift in Sources */,
-				A10000000000000000000032 /* ../ScriberCore/RecoveryConditions.swift in Sources */,
-				A10000000000000000000033 /* ../ScriberCore/Toasts.swift in Sources */,
-				A10000000000000000000042 /* ../ScriberCore/UpdateCheck.swift in Sources */,
-				A10000000000000000000052 /* ../ScriberCore/HomebrewInstall.swift in Sources */,
-				A10000000000000000000050 /* ../ScriberCore/RecorderLifecycle.swift in Sources */,
-				A10000000000000000000051 /* ../ScriberCore/RecordingStartGate.swift in Sources */,
-				A1000000000000000000000F /* ../ScriberCore/CoreModels.swift in Sources */,
-				A10000000000000000000010 /* ../ScriberCore/CredentialStore.swift in Sources */,
-				A10000000000000000000014 /* UITestingHistoryFixture.swift in Sources */,
-				A10000000000000000000041 /* UITestingLargeHistoryFixture.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
