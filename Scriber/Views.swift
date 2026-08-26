@@ -1048,17 +1048,12 @@ private struct ElevenLabsSettingsPane: View {
         }
     }
 
-    /// Stated rather than left behind the help button. Anyone who set Scriber up
-    /// before setup had a data-use step has never been told this, and nobody
-    /// clicks a question mark about a thing they do not know exists.
+    /// **Configure Data Use…** carries this on its own. A sentence above it saying
+    /// the same thing was tried and read as nagging rather than as informing —
+    /// the button names the subject, which is what someone who has never heard of
+    /// the setting needs in order to press it.
     private var dataUseFooter: some View {
         VStack(alignment: .leading, spacing: SettingsPaneLayout.pageActionGap) {
-            Text("ElevenLabs uses what you send to train their models until you turn that off.")
-                .font(SettingsPaneLayout.pageCaption)
-                .fontWeight(.regular)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
             HStack {
                 Spacer()
                 Link("Privacy Policy", destination: DataUseGuidance.privacyPolicyURL)

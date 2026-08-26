@@ -418,6 +418,11 @@ struct DataUseGuideSheet: View {
     /// line and the last looking tucked under it; this is the gap that reads as
     /// the content having room rather than as it having just escaped.
     private static let barClearance: CGFloat = 22
+    /// How close to the end the scroll gets before the footer's glass goes. The
+    /// content clears the bar well before the scroll stops, because of the
+    /// padding above, so holding the bar to the last pixel leaves it drawn over
+    /// nothing.
+    private static let footerRetreat: CGFloat = 14
 
     /// The screenshot is 862×1120 pixels. Both dimensions of its frame are stated
     /// because `.frame(maxHeight:)` alone leaves the frame as wide as the column,
@@ -468,7 +473,7 @@ struct DataUseGuideSheet: View {
             ScrollEdges(
                 underTop: geometry.contentOffset.y > 1,
                 underBottom: geometry.contentOffset.y + geometry.containerSize.height
-                    < geometry.contentSize.height - 1
+                    < geometry.contentSize.height - Self.footerRetreat
             )
         } action: { _, updated in
             withAnimation(.easeInOut(duration: 0.15)) { edges = updated }

@@ -54,7 +54,7 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 
 ## When the data-use guidance changes
 
-- Settings ▸ ElevenLabs states, without anything needing to be clicked, that ElevenLabs trains on what you send until you turn it off. **Privacy Policy** opens their policy in a browser, and the help button's popover reads in white rather than grey.
+- Settings ▸ ElevenLabs carries **Privacy Policy**, which opens their policy in a browser, and a help button whose popover reads in white rather than grey and says where recordings go and what stays on the Mac.
 - **Configure Data Use…** opens a window carrying the same wording as setup's step. Press it twice — one window, not two. **Show me where to turn it off** opens the panel from inside it, and **Close** leaves nothing behind. The window does not appear in the Window menu, and Scriber still shows one Dock tile.
 
 ## When credentials, Keychain storage, or usage change
