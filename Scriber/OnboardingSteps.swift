@@ -377,6 +377,15 @@ struct DataUseWindowView: View {
     }
 }
 
+/// **The one hand-built control in Scriber.** Its two bars reimplement what a
+/// window toolbar does for nothing: appear only while content passes under them.
+/// A sheet has no toolbar to ask for that, and the alternative is a third window
+/// carrying a real one. If this ever needs more than it has — a second image, a
+/// title that changes — make it a window and delete `ScrollEdges` and `surface`;
+/// do not grow the hand-built version. Everything it approximates, AppKit does
+/// better, and it stays only because the thing it lives in cannot have the real
+/// one.
+///
 /// The route through ElevenLabs' own interface, as a sheet rather than a
 /// hand-drawn scrim: a sheet already dims what is behind it, keeps its buttons
 /// in normal control colours against the window rather than against a dark
