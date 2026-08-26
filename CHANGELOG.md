@@ -6,6 +6,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Added
 
+- **Settings now tells you about ElevenLabs' training default as well.** Setup has said so since 0.9.0, but anyone who set Scriber up before that step existed — or pressed past it — had nowhere to go back to. The ElevenLabs tab now states it in a line you cannot miss, with **Configure Data Use…** opening the same guidance setup shows, a **Privacy Policy** button, and a help button saying where your recordings go and what stays on your Mac.
 - **Setup's "Where to find it" now spells the route out.** It showed a screenshot of ElevenLabs' menu and left you to read the numbered marks off the picture. It now gives the steps in words above it — including the last one, switching the setting off and then pressing **Update your choice**, which the screenshot never covered and which is where someone flips the switch, closes the window, and changes nothing. The panel scrolls, so it still works when setup is running on a short screen, and its **Done** button stays put at the bottom rather than scrolling away with the content.
 
 ### Fixed

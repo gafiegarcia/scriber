@@ -942,6 +942,7 @@ private struct ElevenLabsSettingsPane: View {
     @State private var isCheckingAPIKey = false
     @State private var isRemovingAPIKey = false
     @State private var confirmRemoveKey = false
+    @State private var showsDataUseHelp = false
     @FocusState private var apiKeyFieldFocused: Bool
 
     var body: some View {
@@ -1024,6 +1025,11 @@ private struct ElevenLabsSettingsPane: View {
                     Text("Remaining credits")
                 }
             }
+            Section {
+                EmptyView()
+            } footer: {
+                dataUseFooter
+            }
         }
         .confirmationDialog("Remove the stored API key?", isPresented: $confirmRemoveKey) {
             Button("Remove API Key", role: .destructive) { removeAPIKey() }
@@ -1039,6 +1045,61 @@ private struct ElevenLabsSettingsPane: View {
             guard pending else { return }
             apiKeyFieldFocused = true
             pendingKeyFieldFocus = false
+        }
+    }
+
+    /// Stated rather than left behind the help button. Anyone who set Scriber up
+    /// before setup had a data-use step has never been told this, and nobody
+    /// clicks a question mark about a thing they do not know exists.
+    private var dataUseFooter: some View {
+        VStack(alignment: .leading, spacing: SettingsPaneLayout.pageActionGap) {
+            Text("ElevenLabs uses what you send to train their models until you turn that off.")
+                .font(SettingsPaneLayout.pageCaption)
+                .fontWeight(.regular)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                Spacer()
+                Link("Privacy Policy", destination: DataUseGuidance.privacyPolicyURL)
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("elevenlabs-privacy-policy")
+                Button("Configure Data Use…") { SceneOpeners.shared.openDataUseWindow?() }
+                    .accessibilityIdentifier("configure-data-use")
+                Button {
+                    showsDataUseHelp = true
+                } label: {
+                    // `.primary` rather than a literal white: the glyph has to
+                    // carry against a translucent background that is dark in one
+                    // appearance and light in the other, and white only works in
+                    // the first.
+                    Image(systemName: "questionmark")
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.bordered)
+                .clipShape(.circle)
+                // A glyph alone announces as its symbol name, and identifies as
+                // one too — this button reported as "questionmark" until it was
+                // named here.
+                .accessibilityLabel("About what Scriber sends and keeps")
+                .accessibilityIdentifier("about-data-use")
+                .popover(isPresented: $showsDataUseHelp) {
+                    // Scriber does keep something: every transcript goes into
+                    // Dictation history on disk. Saying it keeps nothing would be
+                    // the one claim here a sceptical reader could check and
+                    // disprove.
+                    Text("Your recordings go to ElevenLabs to be transcribed, and nowhere else. The transcripts are saved locally on your Mac, in Dictation history.")
+                        .font(.callout)
+                        // A Form footer styles everything inside it as secondary,
+                        // and a popover presented from one inherits that — which
+                        // is why this reads grey where the Keyterms popover, which
+                        // hangs off a section label, reads white.
+                        .foregroundStyle(.primary)
+                        .padding()
+                        .frame(maxWidth: 260)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 

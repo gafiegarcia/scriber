@@ -278,15 +278,31 @@ struct APIKeyStep: View {
 
 // MARK: - 3 · ElevenLabs data use
 
-struct DataUseStep: View {
+/// Everything Scriber has to say about ElevenLabs' training default, in one
+/// place. Setup shows it as a step; Settings opens it in a window of its own,
+/// for anyone who set Scriber up before that step existed or pressed past it.
+///
+/// One view rather than two that look alike. The wording is the whole point of
+/// this screen, and two copies of it would drift the first time either is
+/// edited, with nothing failing to compile to say so.
+struct DataUseGuidance: View {
+    static let title = "One setting worth changing"
+    static let subtitle: LocalizedStringKey = "Every ElevenLabs workspace has **Improve the models for everyone** switched on by default, which lets your recordings train their models."
+    /// Shared with Settings' ElevenLabs tab, which offers the same policy as a
+    /// button. One address, so the two cannot come to point at different pages.
+    static let privacyPolicyURL = URL(string: "https://elevenlabs.io/privacy-policy")!
+
     @Binding var showsGuide: Bool
+    /// Setup's copy is reached from its own step, so it needs no name; the
+    /// window's is reached from Settings and shares a screen with other help.
+    var guideIdentifier: String
 
     var body: some View {
-        OnboardingPage(
-            title: "One setting worth changing",
-            subtitle: "Every ElevenLabs workspace has **Improve the models for everyone** switched on by default, which lets your recordings train their models."
-        ) {
-            VStack(alignment: .leading, spacing: 14) {
+        content
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 14) {
                 Image(.elevenLabsDataUseSetting)
                     .resizable()
                     .scaledToFit()
@@ -297,23 +313,66 @@ struct DataUseStep: View {
                             .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                     }
                     .accessibilityLabel("ElevenLabs' Improve the models for everyone setting, a switch above a link to their privacy policy")
+                Button("Show me where to turn it off") { showsGuide = true }
+                    .buttonStyle(.link)
+                    .accessibilityIdentifier(guideIdentifier)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Turn it off under **profile → Terms and privacy → Data use**, in the workspace your key came from.")
-                        .font(OnboardingType.body)
+                    Text("Switching it off changes what you send from then on. ElevenLabs keeps what it already generated about your voice for up to three years after your last use, or longer where the law requires.")
+                        .font(OnboardingType.caption)
+                        .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Button("Show me where to find it") { showsGuide = true }
-                        .buttonStyle(.link)
-                        .accessibilityIdentifier("onboarding-data-use-guide")
+                    Link("Read their privacy policy", destination: Self.privacyPolicyURL)
+                        .font(OnboardingType.caption)
+                        .accessibilityIdentifier("data-use-privacy-policy")
                 }
-                // The whole call to action sits inside the link, so a wrap
-                // splits one phrase rather than stranding "policy." on a line
-                // of its own.
-                Text("Switching it off changes what you send from then on. ElevenLabs keeps what it already generated about your voice for up to three years after your last use, or longer where the law requires. [Read their privacy policy](https://elevenlabs.io/privacy-policy).")
-                    .font(OnboardingType.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct DataUseStep: View {
+    @Binding var showsGuide: Bool
+
+    var body: some View {
+        OnboardingPage(title: DataUseGuidance.title, subtitle: DataUseGuidance.subtitle) {
+            DataUseGuidance(showsGuide: $showsGuide, guideIdentifier: "onboarding-data-use-guide")
+        }
+    }
+}
+
+/// The same guidance as setup's step, in a window Settings can open. Setup's
+/// container is a step in a flow with a gate in front of it; this one is a page
+/// with a way out. Both sit on `OnboardingPage`, so they cannot drift apart in
+/// margins, column width, or type.
+struct DataUseWindowView: View {
+    @Environment(\.dismissWindow) private var dismissWindow
+    @State private var showsGuide = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            OnboardingPage(title: DataUseGuidance.title, subtitle: DataUseGuidance.subtitle) {
+                DataUseGuidance(showsGuide: $showsGuide, guideIdentifier: "data-use-window-guide")
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Divider()
+            HStack {
+                Spacer()
+                Button("Close") { dismissWindow(id: AppWindowIdentity.dataUseSceneID) }
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("data-use-close")
+            }
+            .padding(.horizontal, OnboardingLayout.pageMargin)
+            .frame(height: OnboardingLayout.footerHeight)
+        }
+        .frame(
+            minWidth: OnboardingLayout.windowWidth,
+            maxWidth: OnboardingLayout.windowWidth,
+            minHeight: OnboardingLayout.minimumWindowHeight,
+            idealHeight: OnboardingLayout.windowHeight,
+            maxHeight: .infinity
+        )
+        .background(Color(nsColor: .windowBackgroundColor))
+        .sheet(isPresented: $showsGuide) {
+            DataUseGuideSheet { showsGuide = false }
         }
     }
 }
@@ -329,11 +388,27 @@ struct DataUseStep: View {
 struct DataUseGuideSheet: View {
     let dismiss: () -> Void
 
+    /// Which edges currently have content passing under them. Settings' toolbar
+    /// shows its surface only while something is beneath it, and a bar that is
+    /// always drawn reads as a panel bolted on rather than as the content's own
+    /// edge — which is also what left a permanent wash on the screenshot at the
+    /// end of the scroll, where there is nothing left to pass under anything.
+    private struct ScrollEdges: Equatable {
+        var underTop = false
+        var underBottom = false
+    }
+
+    @State private var edges = ScrollEdges()
+
     /// The two glass strips. Content is inset by these so the first line and the
     /// last can each be scrolled clear of the bar they pass under, rather than
     /// coming to rest half-covered by it.
     private static let headerBarHeight: CGFloat = 40
     private static let footerBarHeight: CGFloat = 48
+    /// Added to each bar's height. Clearing the glass by a hair leaves the first
+    /// line and the last looking tucked under it; this is the gap that reads as
+    /// the content having room rather than as it having just escaped.
+    private static let barClearance: CGFloat = 22
 
     /// The screenshot is 862×1120 pixels. Both dimensions of its frame are stated
     /// because `.frame(maxHeight:)` alone leaves the frame as wide as the column,
@@ -345,7 +420,7 @@ struct DataUseGuideSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Open your ElevenLabs dashboard at [elevenlabs.io/app](https://elevenlabs.io/app), then:")
+                Text("Open your ElevenLabs dashboard at [elevenlabs.io/app](https://elevenlabs.io/app), in the workspace your key came from. Then:")
                     .font(OnboardingType.body)
                     .fixedSize(horizontal: false, vertical: true)
                 VStack(alignment: .leading, spacing: 8) {
@@ -376,10 +451,19 @@ struct DataUseGuideSheet: View {
             .lineSpacing(OnboardingType.lineSpacing)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
-            .padding(.top, Self.headerBarHeight + 8)
-            .padding(.bottom, Self.footerBarHeight + 8)
+            .padding(.top, Self.headerBarHeight + Self.barClearance)
+            .padding(.bottom, Self.footerBarHeight + Self.barClearance)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .onScrollGeometryChange(for: ScrollEdges.self) { geometry in
+            ScrollEdges(
+                underTop: geometry.contentOffset.y > 1,
+                underBottom: geometry.contentOffset.y + geometry.containerSize.height
+                    < geometry.contentSize.height - 1
+            )
+        } action: { _, updated in
+            withAnimation(.easeInOut(duration: 0.15)) { edges = updated }
+        }
         // The scroll view takes the sheet's whole width rather than sitting
         // inside its padding, so the scroll indicator rides the sheet's own edge
         // instead of floating in from it. The inset moved to the content above.
@@ -394,14 +478,9 @@ struct DataUseGuideSheet: View {
             .font(.headline)
             .frame(maxWidth: .infinity)
             .frame(height: Self.headerBarHeight)
-            .glassEffect(.regular, in: .rect)
+            .background { surface(visible: edges.underTop) }
     }
 
-    /// Glass rather than a fade over the content. A gradient reads as a shadow
-    /// cast on whatever ends up beneath it — on a screenshot, as a badly
-    /// developed picture — while a bar the content visibly slides under says the
-    /// same thing about there being more, and says it the way the main window's
-    /// and Settings' top bars already do.
     private var footerBar: some View {
         HStack {
             Spacer()
@@ -410,7 +489,15 @@ struct DataUseGuideSheet: View {
         }
         .padding(.horizontal, 20)
         .frame(height: Self.footerBarHeight)
-        .glassEffect(.regular, in: .rect)
+        .background { surface(visible: edges.underBottom) }
+    }
+
+    /// The glass itself, faded rather than switched, so a bar arriving as the
+    /// content reaches it does not blink into place.
+    private func surface(visible: Bool) -> some View {
+        Color.clear
+            .glassEffect(.regular, in: .rect)
+            .opacity(visible ? 1 : 0)
     }
 
     /// The sheet has to fit the window it is presented from, and that window is

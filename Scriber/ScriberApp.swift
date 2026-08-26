@@ -170,6 +170,8 @@ final class SceneOpeners {
     var openMainWindow: (() -> Void)?
     /// How the launch poller reaches setup, which no main window is around to open.
     var openOnboardingWindow: (() -> Void)?
+    /// How Settings reaches the data-use guidance, which lives in its own scene.
+    var openDataUseWindow: (() -> Void)?
 }
 
 /// Carries `openWindow` out of SwiftUI, beside drawing the icon. A plain `Image`
@@ -186,6 +188,7 @@ private struct MenuBarLabel: View {
             .task {
                 SceneOpeners.shared.openMainWindow = { openWindow(id: "main") }
                 SceneOpeners.shared.openOnboardingWindow = { openWindow(id: "onboarding") }
+                SceneOpeners.shared.openDataUseWindow = { openWindow(id: AppWindowIdentity.dataUseSceneID) }
             }
     }
 }
@@ -195,6 +198,8 @@ enum AppWindowIdentity {
     static let mainTitle = "Scriber"
     static let onboardingTitle = "Set Up Scriber"
     static let settingsTitle = "Settings"
+    static let dataUseTitle = "Data Use"
+    static let dataUseSceneID = "data-use"
     private static let mainWindowTitles: Set<String> = [mainTitle]
 
     static func isMainWindow(_ window: NSWindow) -> Bool {
@@ -215,6 +220,13 @@ enum AppWindowIdentity {
         return isMainWindow(window)
             || isSettingsWindow(window)
             || window.title == onboardingTitle
+            || window.title == dataUseTitle
+    }
+
+    /// The two windows sized from `OnboardingLayout`: one column, a footer, and a
+    /// height that gives way to the display.
+    static func isPageWindow(_ window: NSWindow) -> Bool {
+        window.title == onboardingTitle || window.title == dataUseTitle
     }
 }
 
@@ -449,6 +461,26 @@ struct ScriberApp: App {
             CommandGroup(replacing: .singleWindowList) {}
         }
 
+        // Opened from Settings' ElevenLabs tab. A window rather than a sheet on
+        // Settings, because the guidance offers a sheet of its own and a sheet
+        // cannot present one.
+        Window(AppWindowIdentity.dataUseTitle, id: AppWindowIdentity.dataUseSceneID) {
+            DataUseWindowView()
+                .task { await promoteApplicationForVisibleWindow() }
+        }
+        .defaultPosition(.center)
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+        .commands {
+            CommandGroup(replacing: .appTermination) {
+                Button("Quit Scriber") { NSApp.terminate(nil) }
+                    .keyboardShortcut("q", modifiers: .command)
+            }
+            // The item this drops is the one that hung the Mac. See the main
+            // window's copy.
+            CommandGroup(replacing: .singleWindowList) {}
+        }
+
         Window("Set Up Scriber", id: "onboarding") {
             OnboardingView()
                 .environmentObject(runtime)
@@ -600,10 +632,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var initialWindowDismissed = false
     private var escapeMonitor: Any?
     private var onboardingCentreMonitor: Any?
-    /// Windows already placed. `fitOnboardingWindow` runs from `didBecomeKey`,
+    /// Windows already placed. `fitPageWindow` runs from `didBecomeKey`,
     /// which fires every time setup is clicked back into — re-centring there
     /// takes the window's position away from whoever moved it.
-    private var fittedOnboardingWindows = Set<ObjectIdentifier>()
+    private var fittedPageWindows = Set<ObjectIdentifier>()
     private var fittedSettingsWindows = Set<ObjectIdentifier>()
 
     // Temporary: traces which path orders the startup window back on screen after
@@ -679,7 +711,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // `.singleWindowList` where the scenes declare their commands.
                 window.isExcludedFromWindowsMenu = true
                 NSApp.setActivationPolicy(.regular)
-                if window.title == AppWindowIdentity.onboardingTitle { self?.fitOnboardingWindow(window) }
+                if AppWindowIdentity.isPageWindow(window) { self?.fitPageWindow(window) }
                 if AppWindowIdentity.isSettingsWindow(window) { self?.fitSettingsWindow(window) }
             }
         })
@@ -688,7 +720,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.shrinkOnboardingWindowsToFitScreens() }
+            Task { @MainActor in self?.shrinkPageWindowsToFitScreens() }
         })
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self] note in
             guard let window = note.object as? NSWindow else { return }
@@ -701,7 +733,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.initialWindowDismissed = true
                 self?.activationRetryTask?.cancel()
                 self?.activationRetryTask = nil
-                self?.fittedOnboardingWindows.remove(ObjectIdentifier(window))
+                self?.fittedPageWindows.remove(ObjectIdentifier(window))
                 self?.fittedSettingsWindows.remove(ObjectIdentifier(window))
             }
             Task { @MainActor [weak self] in
@@ -854,7 +886,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// resized Settings while it still could reopens it at that size. Pinning both
     /// limits corrects it on the way in; the saved position is left alone.
     ///
-    /// The resizable mask is claimed for the reason `fitOnboardingWindow` gives.
+    /// The resizable mask is claimed for the reason `fitPageWindow` gives.
     private func fitSettingsWindow(_ window: NSWindow) {
         guard fittedSettingsWindows.insert(ObjectIdentifier(window)).inserted else { return }
         let size = NSSize(width: SettingsWindowLayout.width, height: SettingsWindowLayout.height)
@@ -869,7 +901,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `visibleFrame` already excludes the menu bar and the Dock, and the title bar
     /// comes off on top of that, because what has to stay on screen is the footer
     /// holding the step's only way forward.
-    private func onboardingMaximumHeight(for window: NSWindow) -> CGFloat {
+    private func pageWindowMaximumHeight(for window: NSWindow) -> CGFloat {
         guard let visibleHeight = (window.screen ?? NSScreen.main)?.visibleFrame.height else {
             return OnboardingLayout.windowHeight
         }
@@ -879,20 +911,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The height setup opens at: its designed height, or as much of it as this
     /// display can show.
-    private func onboardingOpeningHeight(for window: NSWindow) -> CGFloat {
-        min(OnboardingLayout.windowHeight, onboardingMaximumHeight(for: window))
+    private func pageWindowOpeningHeight(for window: NSWindow) -> CGFloat {
+        min(OnboardingLayout.windowHeight, pageWindowMaximumHeight(for: window))
     }
 
     /// Shrinks an open setup window that a display change has left taller than the
-    /// screen. `fitOnboardingWindow` runs once per window, so nothing else revisits
+    /// screen. `fitPageWindow` runs once per window, so nothing else revisits
     /// the question — and switching to a scaled resolution while setup is open is
     /// exactly how someone arrives at a window whose footer is off the bottom edge.
     /// Only ever shrinks: a window deliberately dragged taller on a display that
     /// can show it is left where it was put.
-    private func shrinkOnboardingWindowsToFitScreens() {
+    private func shrinkPageWindowsToFitScreens() {
         for window in NSApp.windows
-        where window.title == AppWindowIdentity.onboardingTitle && window.isVisible {
-            let maximum = onboardingMaximumHeight(for: window)
+        where AppWindowIdentity.isPageWindow(window) && window.isVisible {
+            let maximum = pageWindowMaximumHeight(for: window)
             let current = window.contentRect(forFrameRect: window.frame).height
             guard current > maximum + 1 else { continue }
             window.setContentSize(NSSize(width: OnboardingLayout.windowWidth, height: maximum))
@@ -900,8 +932,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func fitOnboardingWindow(_ window: NSWindow) {
-        guard fittedOnboardingWindows.insert(ObjectIdentifier(window)).inserted else { return }
+    private func fitPageWindow(_ window: NSWindow) {
+        guard fittedPageWindows.insert(ObjectIdentifier(window)).inserted else { return }
         window.isRestorable = false
         // macOS disables Window ▸ Center and Fill for a window that cannot be
         // resized, and a disabled menu item does not consume its key — so ⌃🌐C
@@ -920,7 +952,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         window.setContentSize(NSSize(
             width: OnboardingLayout.windowWidth,
-            height: onboardingOpeningHeight(for: window)
+            height: pageWindowOpeningHeight(for: window)
         ))
         // Full screen stays off. The column inside is a fixed width, so a
         // full-screen setup is the same page stranded in the middle of an empty
