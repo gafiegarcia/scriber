@@ -53,17 +53,6 @@ final class PasteService {
     /// case reaches this now — a page Scriber can read, holding no editor — so it
     /// polls harder than it did when every delivery paid for it.
     private static let focusRereadInterval = Duration.milliseconds(75)
-    /// How long a web destination is watched after it reads the clipboard before
-    /// an unchanged page is called a failure.
-    ///
-    /// The request proves the paste reached the destination, so the only question
-    /// left is whether anything came of it. A page that routes a paste into an
-    /// editor it did not have focused shows the text in about 190 ms, and this
-    /// leaves half again as much. A delivery into a real editor never gets here,
-    /// so the window no longer has to cover a slow destination — only a page
-    /// deciding what to do with a paste. It does not apply when nothing read the
-    /// clipboard, because then the paste is not known to have arrived at all.
-    private static let settleAfterClipboardRead = Duration.milliseconds(300)
     private static let clipboardRestoreDelay = Duration.milliseconds(500)
     private static let transientPasteboardTypes = [
         NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
@@ -553,6 +542,14 @@ final class PasteService {
     /// Re-resolving focus rather than watching the original elements is what
     /// catches a paste that moves the cursor into a box that was not focused when
     /// it was sent, which is how claude.ai handles a paste aimed at its page.
+    ///
+    /// It is also what finds an editor a cold browser has not finished publishing.
+    /// Firefox builds a page's accessibility subtree lazily, so a Google Docs cell
+    /// that a probe reads as an `AXTextArea` ten seconds after a click answers
+    /// only as the page's `AXWebArea` a third of a second in. Nothing here stops
+    /// early on a readable page holding no editor: the whole budget is spent
+    /// looking, because that is the one case where looking longer changes the
+    /// answer. Every delivery that can be settled sooner already has been.
     private func waitForDeliveryEvidence(
         _ probe: PasteboardReadProbe,
         target: FocusedTextTarget,
@@ -562,9 +559,7 @@ final class PasteService {
         let clock = ContinuousClock()
         var latest: FocusedTextTarget? = target
         var nextResolve = clock.now
-        var clipboardReadAt: ContinuousClock.Instant?
         while true {
-            if probe.wasRequested, clipboardReadAt == nil { clipboardReadAt = clock.now }
             // Re-resolving is a synchronous round trip into the destination, so
             // it runs on its own slower cadence. Polling it as often as the
             // pasteboard flag would let one unresponsive destination spend the
@@ -588,10 +583,6 @@ final class PasteService {
             // and the delay is what reported a cold-started browser's working
             // paste as copied.
             if probe.wasRequested, !exposesWebDocument || exposesEditor { return latest }
-            if let clipboardReadAt,
-               clock.now >= clipboardReadAt.advanced(by: Self.settleAfterClipboardRead) {
-                return latest
-            }
             guard clock.now < deadline else { return latest }
             try? await Task.sleep(for: .milliseconds(25))
         }
