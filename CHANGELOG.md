@@ -6,7 +6,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 Native bundle build 234, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
 
-If you installed Scriber with Homebrew, take this update with `brew upgrade --cask scriber` rather than the disk image below. Dragging a download over a Homebrew install leaves Homebrew describing an app it no longer put there. From 0.9.1 onward Scriber says so itself; 0.9.0 could not, which is why it is written here.
+If you installed Scriber with Homebrew, take this update with `brew upgrade --cask scriber` rather than the disk image. Dragging a download over a Homebrew install leaves Homebrew describing an app it no longer put there. From 0.9.1 onward Scriber says so itself; 0.9.0 could not, which is why it is written here.
 
 ### Added
 
