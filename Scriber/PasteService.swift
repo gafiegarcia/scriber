@@ -37,15 +37,20 @@ final class PasteService {
     private static let accessibilityMessagingTimeout: Float = 0.2
     private static let maximumInspectedAncestors = 8
     private static let maximumInspectedMenuItems = 256
-    /// A destination may request the promised transcript well after the Paste
-    /// command lands. Waiting longer is strictly better than reporting a false
-    /// failure, and this delay is only ever paid on the failing path.
-    private static let pasteRequestTimeout = Duration.milliseconds(2_500)
-    /// How long one dispatch is given to visibly deliver before another is tried.
-    /// A destination that takes the transcript at all does so quickly — Zen asks
-    /// for the concealed item about 65 ms after a Command-V — so this is
-    /// generous, and it is only ever spent when a dispatch produced nothing.
+    /// The whole budget for showing that delivery worked, measured from the first
+    /// dispatch so that trying a second one cannot extend it.
+    ///
+    /// Every destination measured takes the transcript within 80 ms — Zed 63,
+    /// Safari 64, Zen 68, Claude 76 — including the two that publish no editor
+    /// and can only ever answer by requesting the concealed item. This leaves an
+    /// order of magnitude above that, and it is only ever spent in full when
+    /// delivery genuinely failed.
+    private static let deliveryConfirmationBudget = Duration.milliseconds(1_000)
+    /// How long one dispatch is given to visibly deliver before another is tried,
+    /// carved out of the budget above rather than added to it.
     private static let dispatchHandoverWindow = Duration.milliseconds(250)
+    /// How often focus is re-read while waiting for evidence.
+    private static let focusRereadInterval = Duration.milliseconds(150)
     private static let clipboardRestoreDelay = Duration.milliseconds(500)
     private static let transientPasteboardTypes = [
         NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
@@ -333,16 +338,22 @@ final class PasteService {
         }
         let transcriptChangeCount = pasteboard.changeCount
         try? await Task.sleep(for: .milliseconds(75))
+        let confirmationDeadline = ContinuousClock().now.advanced(by: Self.deliveryConfirmationBudget)
         guard await dispatchPaste(
             to: currentTarget,
             awaiting: pasteboardReadProbe,
-            statesBeforePaste: statesBeforePaste
+            statesBeforePaste: statesBeforePaste,
+            before: confirmationDeadline
         ) else {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
             return .failed("The focused app did not provide a usable Paste command.")
         }
-        await waitForPasteboardRequest(pasteboardReadProbe, timeout: Self.pasteRequestTimeout)
-        let stateAfterPaste = currentFocusedPasteTarget()
+        let stateAfterPaste = await waitForDeliveryEvidence(
+            pasteboardReadProbe,
+            target: currentTarget,
+            comparedTo: statesBeforePaste,
+            until: confirmationDeadline
+        )
         let statesAfterPaste = stateAfterPaste?.pid == currentTarget.pid
             ? observableTextStates(of: stateAfterPaste?.observationElements ?? [])
             : []
@@ -368,29 +379,20 @@ final class PasteService {
         return .inserted
     }
 
-    private func waitForPasteboardRequest(
-        _ probe: PasteboardReadProbe,
-        timeout: Duration
-    ) async {
-        let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: timeout)
-        while !probe.wasRequested, clock.now < deadline {
-            try? await Task.sleep(for: .milliseconds(25))
-        }
-    }
-
-    /// Whether the destination has visibly taken the transcript: it asked for the
-    /// concealed item, or text Scriber can watch changed under it. Polls both,
-    /// because a destination that hides its editor only ever provides the first
-    /// and one that hides nothing may provide the second first.
+    /// Whether one dispatch visibly delivered, so another need not be tried.
+    ///
+    /// Either signal ends this: a destination that hides its editor can only ever
+    /// request the concealed item, and one that hides nothing may show the text
+    /// arrive first. Being wrong here costs a second Paste to a destination that
+    /// already took the first, which inserts the dictation twice — so it accepts
+    /// the weaker signal deliberately.
     private func waitForTranscriptToBeTaken(
         _ probe: PasteboardReadProbe,
         watching elements: [AXUIElement],
         comparedTo statesBeforePaste: [TextElementState],
-        timeout: Duration
+        until deadline: ContinuousClock.Instant
     ) async -> Bool {
         let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: timeout)
         while clock.now < deadline {
             if probe.wasRequested { return true }
             if !elements.isEmpty, observableTextStates(of: elements) != statesBeforePaste { return true }
@@ -398,6 +400,51 @@ final class PasteService {
         }
         return probe.wasRequested
             || (!elements.isEmpty && observableTextStates(of: elements) != statesBeforePaste)
+    }
+
+    /// Waits for the destination to show that the transcript reached a cursor,
+    /// and returns the focus as it stands at the end.
+    ///
+    /// The signal that ends the wait depends on what the destination publishes. A
+    /// destination exposing no document can only request the concealed item, so
+    /// the request ends it. One exposing a web document requests the item within
+    /// about 65 ms whether or not anything was inserted — its page reads the
+    /// clipboard either way — so there the request settles nothing and the wait
+    /// runs until the text visibly arrives or the budget is spent.
+    ///
+    /// Re-resolving focus rather than watching the original elements is what
+    /// catches a paste that moves the cursor into a box that was not focused when
+    /// it was sent, which is how claude.ai handles a paste aimed at its page.
+    private func waitForDeliveryEvidence(
+        _ probe: PasteboardReadProbe,
+        target: FocusedTextTarget,
+        comparedTo statesBeforePaste: [TextElementState],
+        until deadline: ContinuousClock.Instant
+    ) async -> FocusedTextTarget? {
+        let clock = ContinuousClock()
+        var latest: FocusedTextTarget? = target
+        var nextResolve = clock.now
+        while true {
+            // Re-resolving is a synchronous round trip into the destination, so
+            // it runs on its own slower cadence. Polling it as often as the
+            // pasteboard flag would let one unresponsive destination spend the
+            // whole budget on a single answer.
+            if clock.now >= nextResolve {
+                if let resolved = currentFocusedPasteTarget(), resolved.pid == target.pid {
+                    latest = resolved
+                }
+                let statesNow = observableTextStates(of: latest?.observationElements ?? [])
+                if (!statesBeforePaste.isEmpty || !statesNow.isEmpty), statesBeforePaste != statesNow {
+                    return latest
+                }
+                nextResolve = clock.now.advanced(by: Self.focusRereadInterval)
+            }
+            let exposesWebDocument = target.focusExposesWebDocument
+                || (latest?.focusExposesWebDocument ?? false)
+            if probe.wasRequested, !exposesWebDocument { return latest }
+            guard clock.now < deadline else { return latest }
+            try? await Task.sleep(for: .milliseconds(25))
+        }
     }
 
     private func scheduleClipboardRestore(
@@ -418,8 +465,8 @@ final class PasteService {
     ///
     /// A dispatch reporting success proves nothing. `AXUIElementPerformAction`
     /// returns `.success` on Zen's Edit ▸ Paste while pressing it does nothing at
-    /// all, which is why delivery there failed for the whole 2.5-second
-    /// confirmation wait despite an ordinary Command-V working by hand.
+    /// all, which is why delivery there failed for the whole confirmation
+    /// wait despite an ordinary Command-V working by hand.
     ///
     /// Between steps, wait only long enough to see whether the destination took
     /// the transcript. Waiting longer would delay every failing delivery;
@@ -428,7 +475,8 @@ final class PasteService {
     private func dispatchPaste(
         to target: FocusedTextTarget,
         awaiting probe: PasteboardReadProbe,
-        statesBeforePaste: [TextElementState]
+        statesBeforePaste: [TextElementState],
+        before deadline: ContinuousClock.Instant
     ) async -> Bool {
         var step: PasteDispatchStep? = PasteDispatchPolicy.order.first
         var dispatched = false
@@ -440,7 +488,10 @@ final class PasteService {
                     probe,
                     watching: target.observationElements,
                     comparedTo: statesBeforePaste,
-                    timeout: Self.dispatchHandoverWindow
+                    until: min(
+                        ContinuousClock().now.advanced(by: Self.dispatchHandoverWindow),
+                        deadline
+                    )
                 )
             }
             step = PasteDispatchPolicy.nextStep(after: current, transcriptTaken: transcriptTaken)
