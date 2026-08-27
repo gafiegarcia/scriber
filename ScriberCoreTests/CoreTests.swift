@@ -614,11 +614,30 @@ struct PasteDispatchTests {
 
 @Suite("Paste confirmation")
 struct PasteConfirmationTests {
-    @Test("Confirms an observable Accessibility mutation")
+    @Test("Nothing confirms a delivery nobody asked for")
+    func nothingAskedIsNeverInsertion() {
+        // Measured on x.com, two runs done identically seconds apart: the one
+        // where nothing requested the promised transcript reported inserted on
+        // the strength of the watched element disappearing, and nothing had been
+        // pasted. Scriber publishes the transcript only as a promised string, so
+        // a destination that never asked cannot have inserted it.
+        #expect(!PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: true,
+            pasteboardDataRequested: false,
+            destinationExposesWebDocument: false
+        ))
+        #expect(!PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: true,
+            pasteboardDataRequested: false,
+            destinationExposesWebDocument: true
+        ))
+    }
+
+    @Test("Confirms an observable Accessibility mutation on a served transcript")
     func accessibilityMutation() {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: true,
-            pasteboardDataRequested: false,
+            pasteboardDataRequested: true,
             destinationExposesWebDocument: false
         ))
     }

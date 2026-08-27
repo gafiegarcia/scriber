@@ -897,8 +897,14 @@ public enum PasteConfirmationPolicy {
         pasteboardDataRequested: Bool,
         destinationExposesWebDocument: Bool
     ) -> Bool {
-        if accessibilityMutationObserved { return true }
-        return pasteboardDataRequested && !destinationExposesWebDocument
+        // Necessary, not sufficient. The transcript is published only as a lazily
+        // promised string, so nothing can insert it without asking for that
+        // promise. A delivery where nothing asked did not happen, however much the
+        // destination's Accessibility state moved afterwards — losing a focused
+        // element looks identical to gaining text when all that is compared is
+        // whether the watched states differ.
+        guard pasteboardDataRequested else { return false }
+        return accessibilityMutationObserved || !destinationExposesWebDocument
     }
 
     /// Accessibility state only counts as evidence when it was observed on a focus
