@@ -27,7 +27,13 @@ Accessibility requests are synchronous cross-process calls, so each message has 
 
 A lazy data-provider request identifies consumption of the concealed in-flight item; it is not proof that an editor committed the text. A single-page app registers a global paste handler, and that handler reads the clipboard whether or not anything is focused, so the request arrives identically for a paste that inserted nothing. Concealed markers keep clipboard managers from adding a false request of their own, but they do nothing about the destination's own page.
 
-What separates the two is whether the destination published its document. An `AXWebArea` in the focused ancestry means the whole page is readable, so a paste that landed would show as mutation and its absence is meaningful. A destination publishing no document leaves nothing to observe either way, and only there is the request the best evidence available.
+What separates the two is an `AXWebArea` inside the focused element's bounded ancestry. Read that as "focus is sitting near the root of a web page" rather than "the destination published its document", because the ancestor walk stops at eight and a deeply nested editor puts the web area out of reach — `claude.ai`'s composer does exactly that, and reports no web area while focused. The approximation is what makes it useful: focus deep inside an editor is a real text target, focus at the page root is a page with nothing focused in it, and a destination with no web area anywhere leaves nothing to observe either way.
+
+It is an approximation. If a destination is ever judged wrongly, read `webDocument` in the delivery log first and check it against where focus actually was, rather than assuming the rule means what its name suggests.
+
+Mutation means the watched states differ, which includes the watched element disappearing. That is deliberately loose: a destination can take a paste and lose the focus Scriber was watching in the same moment, and refusing there would report a working delivery as failed. It has confirmed a real insertion that produced no other evidence at all.
+
+Where the evidence is ambiguous, refuse. The two errors are not equal: a wrong `copied` leaves the transcript on the clipboard and in history, while a wrong `inserted` restores the previous clipboard and the transcript is gone.
 
 Confirmation therefore re-reads focus rather than watching only the elements focused when the paste was sent. A destination may route a paste aimed at its page into an editor that was not focused — `claude.ai` does — and that arrives as a text focus appearing where there was none.
 
