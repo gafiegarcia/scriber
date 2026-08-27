@@ -152,6 +152,31 @@ final class PasteService {
         Self.diagnosticLog.info("delivery outcome=\(outcome, privacy: .public)")
     }
 
+    /// The inputs to the confirmation decision, so a delivery that was reported
+    /// wrongly can be read back rather than reasoned about. Counts and flags
+    /// only — never the transcript, and never a field's contents.
+    private func logDeliveryEvidence(
+        requested: Bool,
+        mutation: Bool,
+        textFocusBefore: Bool,
+        textFocusAfter: Bool,
+        webDocument: Bool,
+        watchedBefore: Int,
+        watchedAfter: Int,
+        elapsedMilliseconds: Int
+    ) {
+        Self.diagnosticLog.info("""
+        delivery evidence requested=\(requested, privacy: .public) \
+        mutation=\(mutation, privacy: .public) \
+        textFocusBefore=\(textFocusBefore, privacy: .public) \
+        textFocusAfter=\(textFocusAfter, privacy: .public) \
+        webDocument=\(webDocument, privacy: .public) \
+        watchedBefore=\(watchedBefore, privacy: .public) \
+        watchedAfter=\(watchedAfter, privacy: .public) \
+        elapsedMs=\(elapsedMilliseconds, privacy: .public)
+        """)
+    }
+
     private static func identity(of pid: pid_t?) -> String {
         guard let pid, pid != 0 else { return "none" }
         let application = NSRunningApplication(processIdentifier: pid)
@@ -352,7 +377,8 @@ final class PasteService {
         }
         let transcriptChangeCount = pasteboard.changeCount
         try? await Task.sleep(for: .milliseconds(75))
-        let confirmationDeadline = ContinuousClock().now.advanced(by: Self.deliveryConfirmationBudget)
+        let deliveryStarted = ContinuousClock().now
+        let confirmationDeadline = deliveryStarted.advanced(by: Self.deliveryConfirmationBudget)
         guard await dispatchPaste(
             to: currentTarget,
             awaiting: pasteboardReadProbe,
@@ -378,11 +404,22 @@ final class PasteService {
             mutationObserved: (!statesBeforePaste.isEmpty || !statesAfterPaste.isEmpty)
                 && statesBeforePaste != statesAfterPaste
         )
+        let exposesWebDocument = currentTarget.focusExposesWebDocument
+            || (stateAfterPaste?.focusExposesWebDocument ?? false)
+        logDeliveryEvidence(
+            requested: pasteboardDataRequested,
+            mutation: statesBeforePaste != statesAfterPaste,
+            textFocusBefore: currentTarget.focusContainsTextInput,
+            textFocusAfter: stateAfterPaste?.focusContainsTextInput ?? false,
+            webDocument: exposesWebDocument,
+            watchedBefore: statesBeforePaste.count,
+            watchedAfter: statesAfterPaste.count,
+            elapsedMilliseconds: deliveryStarted.duration(to: ContinuousClock().now).milliseconds
+        )
         guard PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: accessibilityConfirmed,
             pasteboardDataRequested: pasteboardDataRequested,
-            destinationExposesWebDocument: currentTarget.focusExposesWebDocument
-                || (stateAfterPaste?.focusExposesWebDocument ?? false)
+            destinationExposesWebDocument: exposesWebDocument
         ) else {
             return .noEditableTarget("No text box was focused to paste into")
         }
@@ -692,6 +729,12 @@ final class PasteService {
             y: primaryTop - rect.midY
         )
         return NSScreen.screens.first { $0.frame.contains(center) }
+    }
+}
+
+private extension Duration {
+    var milliseconds: Int {
+        Int(components.seconds * 1_000 + components.attoseconds / 1_000_000_000_000_000)
     }
 }
 
