@@ -2,6 +2,18 @@
 
 This file records intentionally identified Scriber releases and prerelease snapshots. Ordinary development builds belong in Git history, not here.
 
+## Unreleased
+
+### Added
+
+- **You can now have every dictation copied to the clipboard.** Scriber puts a transcript on the clipboard only when it could not deliver it, and takes it straight back off once it could — so a dictation that worked leaves nothing behind to paste again. **Always copy dictation to the clipboard**, on Settings' Dictation tab, makes dictation behave like pressing Command-C as well: the transcript stays on the clipboard every time, ready to paste wherever you like, and your clipboard manager keeps it. Off by default. Dictation in flight is still hidden from clipboard managers whichever way this is set; only what is left behind afterwards changes. With it on, a dictation that could not be delivered says **Copied** briefly instead of handing you the transcript to recover, because the clipboard is where it was going anyway.
+
+### Fixed
+
+- **Dictation now lands in the Claude prompt box in Zen.** It failed there while typing, Command-V, and macOS's own dictation all worked, and the pill said no text box was focused. Scriber was asking Zen's own **Edit ▸ Paste** menu item to paste; Zen reports that the item worked and does nothing at all, so no paste was ever sent, and Scriber then spent three seconds waiting for text that was never going anywhere. It now asks in the way an ordinary Command-V does, and only falls back to the menu if nothing arrives — and it no longer believes an app that says it pasted without pasting. Other apps that answer the same way are fixed by the same change.
+- **A dictation with nothing focused no longer disappears.** Click a search field on a page, click away from it, then dictate: the pill reported the transcript delivered, and it was nowhere — not in the page, and not on the clipboard either, because Scriber puts back your previous clipboard once it believes a paste worked. The transcript was gone. Web pages read the clipboard whenever anything pastes, whether or not there is somewhere to put it, and Scriber was reading that as proof. It now waits to see the text actually arrive on a page it can read, so this reports **Copied** and keeps the transcript.
+- **A dictation that cannot be delivered says so about three times sooner.** The wait before Scriber gave up was set when no destination had been timed; every one measured since answers within a tenth of a second, including the editors the long wait existed for. A failed delivery now reports in about a second rather than close to three, and a successful one is unaffected — it never waited.
+
 ## 0.9.1 — 2026-08-27
 
 Native bundle build 234, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
