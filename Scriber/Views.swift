@@ -221,6 +221,27 @@ private struct SettingsPane<Content: View>: View {
     }
 }
 
+/// The controls that answer to a whole tab rather than to any group in it,
+/// trailing-aligned below the last card. Carried in a `Section` with no rows, so
+/// the form draws no card around them and they scroll with the content.
+///
+/// One recipe, because the gap above them is the whole point of the shape: it is
+/// what says these are the tab's and not the card's, and a tab that writes its
+/// own gets it wrong quietly. Do not reach for `VStack(spacing:)` around a single
+/// row — spacing needs two children to sit between, so it adds nothing and the
+/// row lands hard against the card above.
+private struct SettingsPageActions<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack {
+            Spacer()
+            content
+        }
+        .padding(.top, SettingsPaneLayout.pageActionGap)
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject private var runtime: AppRuntime
     let onShortcutConfigurationCaptureChanged: (Bool) -> Void
@@ -237,7 +258,7 @@ struct SettingsView: View {
     /// `@FocusState` write SwiftUI cannot satisfy yet is dropped, not queued.
     @State private var pendingKeyFieldFocus = false
     @State private var refusalResetToken = 0
-    /// Changes once per visit, and is every pane's identity. SwiftUI keeps a
+    /// Changes once per visit, and is the tab picker's identity. SwiftUI keeps a
     /// `Window` scene alive after its window closes — the same `NSScrollView`
     /// comes back on the next opening, still holding the offset it was left at,
     /// so a tab that scrolls would reopen mid-content. A new identity is a new
@@ -255,19 +276,16 @@ struct SettingsView: View {
                     activeShortcutRecorderID: $activeShortcutRecorderID,
                     refusalResetToken: refusalResetToken
                 )
-                .id(visitToken)
             } label: {
                 tabLabel(.general)
             }
             Tab(value: SettingsTab.dictation) {
                 DictationSettingsPane()
-                    .id(visitToken)
             } label: {
                 tabLabel(.dictation)
             }
             Tab(value: SettingsTab.sound) {
                 SoundSettingsPane()
-                    .id(visitToken)
             } label: {
                 tabLabel(.sound)
             }
@@ -276,17 +294,18 @@ struct SettingsView: View {
                     apiKey: $apiKey,
                     pendingKeyFieldFocus: $pendingKeyFieldFocus
                 )
-                .id(visitToken)
             } label: {
                 tabLabel(.elevenLabs)
             }
             Tab(value: SettingsTab.permissions) {
                 PermissionsSettingsPane()
-                    .id(visitToken)
             } label: {
                 tabLabel(.permissions)
             }
         }
+        // Once, on the whole picker, rather than on each tab's content: a sixth
+        // tab must not be able to arrive without it.
+        .id(visitToken)
         .accessibilityIdentifier("settings-view")
         // The size, not a floor: the window is fixed, so a tab is seen at the
         // size it was designed at whatever else is in Settings, and a tab with
@@ -525,15 +544,10 @@ private struct GeneralSettingsPane: View {
             } header: {
                 Text("Updates")
             }
-            // A section with no rows draws no card, so its footer is the one slot
-            // a grouped form has for something that belongs to the tab rather than
-            // to any group in it: below the last card, outside every card, and
-            // scrolling with the content.
             Section {
                 EmptyView()
             } footer: {
-                HStack {
-                    Spacer()
+                SettingsPageActions {
                     if let issuesURL = Self.issuesURL {
                         Link("Report a Bug…", destination: issuesURL)
                             .buttonStyle(.bordered)
@@ -550,7 +564,6 @@ private struct GeneralSettingsPane: View {
                         .accessibilityIdentifier("restart-onboarding")
                         .disabled(!runtime.coordinator.canRestartOnboarding)
                 }
-                .padding(.top, SettingsPaneLayout.pageActionGap)
             }
         }
         // An alert rather than a confirmation: it answers a question rather than
@@ -568,17 +581,16 @@ private struct GeneralSettingsPane: View {
         }
         .confirmationDialog("Go through setup again?", isPresented: $confirmRestartSetup) {
             Button("Redo Setup") {
-                // Both halves have to refuse together. Creating the scene while
-                // `restartOnboarding` declines leaves a window for a setup that
-                // never restarted, which `OnboardingView.prepare` dismisses on
-                // sight and SwiftUI builds again on the next appearance — a loop
-                // that starves the dictation it is racing. Reached only if a
-                // dictation starts in the same frame as the press; otherwise the
-                // box has already closed.
+                // Both halves have to refuse together: creating the scene while
+                // `restartOnboarding` declines opens setup over a dictation it
+                // did not restart for, and setup is where the shortcut carrying
+                // `Escape` is switched off. Reached only if a dictation starts in
+                // the same frame as the press; otherwise the box has already
+                // closed.
                 guard runtime.coordinator.canRestartOnboarding else { return }
                 // Create the scene first, then let the coordinator order it
                 // front — it waits for the window to exist.
-                openWindow(id: "onboarding")
+                openWindow(id: AppWindowIdentity.onboardingSceneID)
                 runtime.coordinator.restartOnboarding()
             }
         } message: {
@@ -936,6 +948,7 @@ private struct SoundSettingsPane: View {
 
 private struct ElevenLabsSettingsPane: View {
     @EnvironmentObject private var runtime: AppRuntime
+    @Environment(\.openWindow) private var openWindow
     @Binding var apiKey: String
     @Binding var pendingKeyFieldFocus: Bool
     @State private var keyFeedback: KeySaveFeedback?
@@ -1028,7 +1041,7 @@ private struct ElevenLabsSettingsPane: View {
             Section {
                 EmptyView()
             } footer: {
-                dataUseFooter
+                pageActions
             }
         }
         .confirmationDialog("Remove the stored API key?", isPresented: $confirmRemoveKey) {
@@ -1048,52 +1061,53 @@ private struct ElevenLabsSettingsPane: View {
         }
     }
 
-    /// **Configure Data Use…** carries this on its own. A sentence above it saying
-    /// the same thing was tried and read as nagging rather than as informing —
-    /// the button names the subject, which is what someone who has never heard of
-    /// the setting needs in order to press it.
-    private var dataUseFooter: some View {
-        VStack(alignment: .leading, spacing: SettingsPaneLayout.pageActionGap) {
-            HStack {
-                Spacer()
-                Link("Privacy Policy", destination: DataUseGuidance.privacyPolicyURL)
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("elevenlabs-privacy-policy")
-                Button("Configure Data Use…") { SceneOpeners.shared.openDataUseWindow?() }
-                    .accessibilityIdentifier("configure-data-use")
-                Button {
-                    showsDataUseHelp = true
-                } label: {
-                    // `.primary` rather than a literal white: the glyph has to
-                    // carry against a translucent background that is dark in one
-                    // appearance and light in the other, and white only works in
-                    // the first.
-                    Image(systemName: "questionmark")
-                        .foregroundStyle(.primary)
-                }
+    /// The tab's own controls, not the credits card's — they answer to the whole
+    /// ElevenLabs tab, and only happen to be about what it sends.
+    ///
+    /// **Configure Data Use…** carries its subject on its own. A sentence above it
+    /// saying the same thing was tried and read as nagging rather than as
+    /// informing — the button names the subject, which is what someone who has
+    /// never heard of the setting needs in order to press it.
+    private var pageActions: some View {
+        SettingsPageActions {
+            Link("Privacy Policy", destination: DataUseGuidance.privacyPolicyURL)
                 .buttonStyle(.bordered)
-                .clipShape(.circle)
-                // A glyph alone announces as its symbol name, and identifies as
-                // one too — this button reported as "questionmark" until it was
-                // named here.
-                .accessibilityLabel("About what Scriber sends and keeps")
-                .accessibilityIdentifier("about-data-use")
-                .popover(isPresented: $showsDataUseHelp) {
-                    // Scriber does keep something: every transcript goes into
-                    // Dictation history on disk. Saying it keeps nothing would be
-                    // the one claim here a sceptical reader could check and
-                    // disprove.
-                    Text("Your recordings go to ElevenLabs to be transcribed, and nowhere else. The transcripts are saved locally on your Mac, in Dictation history.")
-                        .font(.callout)
-                        // A Form footer styles everything inside it as secondary,
-                        // and a popover presented from one inherits that — which
-                        // is why this reads grey where the Keyterms popover, which
-                        // hangs off a section label, reads white.
-                        .foregroundStyle(.primary)
-                        .padding()
-                        .frame(maxWidth: 260)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                .accessibilityIdentifier("elevenlabs-privacy-policy")
+            // `openWindow` from this pane's own environment, not a closure parked
+            // by the menu bar icon: that icon is absent whenever **Show in menu
+            // bar** is off, and a button wired through it would silently do
+            // nothing.
+            Button("Configure Data Use…") { openWindow(id: AppWindowIdentity.dataUseSceneID) }
+                .accessibilityIdentifier("configure-data-use")
+            Button {
+                showsDataUseHelp = true
+            } label: {
+                // `.primary` rather than a literal white: the glyph has to carry
+                // against a translucent background that is dark in one appearance
+                // and light in the other, and white only works in the first.
+                Image(systemName: "questionmark")
+                    .foregroundStyle(.primary)
+            }
+            .buttonStyle(.bordered)
+            .clipShape(.circle)
+            // A glyph alone announces as its symbol name, and identifies as one
+            // too — this button reported as "questionmark" until it was named here.
+            .accessibilityLabel("About what Scriber sends and keeps")
+            .accessibilityIdentifier("about-data-use")
+            .popover(isPresented: $showsDataUseHelp) {
+                // Scriber does keep something: every transcript goes into
+                // Dictation history on disk. Saying it keeps nothing would be the
+                // one claim here a sceptical reader could check and disprove.
+                Text("Your recordings go to ElevenLabs to be transcribed, and nowhere else. The transcripts are saved locally on your Mac, in Dictation history.")
+                    .font(.callout)
+                    // A Form footer styles everything inside it as secondary, and
+                    // a popover presented from one inherits that — which is why
+                    // this reads grey where the Keyterms popover, which hangs off
+                    // a section label, reads white.
+                    .foregroundStyle(.primary)
+                    .padding()
+                    .frame(maxWidth: 260)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
