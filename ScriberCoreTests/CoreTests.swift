@@ -607,7 +607,8 @@ struct PasteConfirmationTests {
     func accessibilityMutation() {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: true,
-            pasteboardDataRequested: false
+            pasteboardDataRequested: false,
+            destinationExposesWebDocument: false
         ))
     }
 
@@ -615,7 +616,8 @@ struct PasteConfirmationTests {
     func pasteboardRequest() {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
-            pasteboardDataRequested: true
+            pasteboardDataRequested: true,
+            destinationExposesWebDocument: false
         ))
     }
 
@@ -623,7 +625,8 @@ struct PasteConfirmationTests {
     func noConsumptionOrMutation() {
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
-            pasteboardDataRequested: false
+            pasteboardDataRequested: false,
+            destinationExposesWebDocument: false
         ))
     }
 
@@ -643,6 +646,45 @@ struct PasteConfirmationTests {
         ))
     }
 
+    @Test("A page reading the clipboard is not insertion when the page is visible")
+    func webDocumentRequestWithoutMutation() {
+        // Measured on x.com in both Safari and Zen: click a search field, click
+        // empty space, paste. The page's own global paste handler reads the
+        // clipboard about 65ms later — identically to a real insertion — and
+        // nothing is inserted anywhere. The destination published an AXWebArea,
+        // so a paste that landed would have shown as mutation; it did not.
+        #expect(!PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: false,
+            pasteboardDataRequested: true,
+            destinationExposesWebDocument: true
+        ))
+    }
+
+    @Test("An editor that publishes no document is still confirmed by the request")
+    func opaqueEditorRequestStillConfirms() {
+        // Zed reports a bare AXWindow and VS Code reports no focused element at
+        // all, so neither can ever produce mutation. Both take the paste and both
+        // request the concealed item. Requiring mutation here would refuse every
+        // successful delivery into them.
+        #expect(PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: false,
+            pasteboardDataRequested: true,
+            destinationExposesWebDocument: false
+        ))
+    }
+
+    @Test("A web destination that visibly took the text is confirmed")
+    func webDocumentWithMutationConfirms() {
+        // claude.ai in Zen: the prompt box goes from 1 character to 17 as the
+        // transcript lands. Mutation confirms regardless of the page being
+        // visible to Accessibility.
+        #expect(PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: true,
+            pasteboardDataRequested: true,
+            destinationExposesWebDocument: true
+        ))
+    }
+
     @Test("A live page with no focused text box is still a failed paste")
     func livePageWithoutTextBoxStillFails() {
         // Observed live on claude.ai in Zen: the page reports a focused element
@@ -655,7 +697,8 @@ struct PasteConfirmationTests {
         )
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: accessibilityEvidence,
-            pasteboardDataRequested: false
+            pasteboardDataRequested: false,
+            destinationExposesWebDocument: false
         ))
     }
 }

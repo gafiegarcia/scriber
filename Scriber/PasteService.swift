@@ -128,7 +128,8 @@ final class PasteService {
         focusedElement=\(Self.identity(of: focusedElementPID), privacy: .public) \
         role=\(role, privacy: .public) subrole=\(subrole, privacy: .public) \
         chosen=\(Self.identity(of: chosen?.pid), privacy: .public) \
-        qualifiedTextFocus=\(chosen?.focusContainsTextInput ?? false, privacy: .public)
+        qualifiedTextFocus=\(chosen?.focusContainsTextInput ?? false, privacy: .public) \
+        webDocument=\(chosen?.focusExposesWebDocument ?? false, privacy: .public)
         """)
     }
 
@@ -152,16 +153,17 @@ final class PasteService {
         // A destination may keep its real editor outside the Accessibility tree.
         // An empty inspection set is expected there, and process-level paste stays
         // safe because success is confirmed independently by the pasteboard probe.
-        let inspected = focusedTextAncestry(in: application, pid: pid)
+        let focus = focusedTextAncestry(in: application, pid: pid)
         // A focused secure field is the one case Scriber positively refuses:
         // dictation must never be pasted into a password box.
-        guard !inspected.contains(where: isSecureTextElement) else { return nil }
-        let observationElements = inspected.filter(isEditableTextElement)
+        guard !focus.textAncestry.contains(where: isSecureTextElement) else { return nil }
+        let observationElements = focus.textAncestry.filter(isEditableTextElement)
         return FocusedTextTarget(
             application: application,
             pid: pid,
             observationElements: observationElements,
-            focusContainsTextInput: !observationElements.isEmpty
+            focusContainsTextInput: !observationElements.isEmpty,
+            focusExposesWebDocument: focus.exposesWebDocument
         )
     }
 
@@ -203,18 +205,42 @@ final class PasteService {
     /// An empty result is not a failure. Delivery still dispatches Paste, and
     /// confirmation falls to the pasteboard probe alone, which is the documented
     /// path for destinations that hide their editor from Accessibility.
-    private func focusedTextAncestry(in application: AXUIElement, pid: pid_t) -> [AXUIElement] {
+    private func focusedTextAncestry(in application: AXUIElement, pid: pid_t) -> FocusInspection {
+        var exposesWebDocument = false
         if let focused = elementAttribute(application, named: kAXFocusedUIElementAttribute) {
             let ancestry = ancestry(of: focused)
-            if containsTextInput(ancestry) { return ancestry }
+            exposesWebDocument = containsWebDocument(ancestry)
+            if containsTextInput(ancestry) {
+                return FocusInspection(textAncestry: ancestry, exposesWebDocument: exposesWebDocument)
+            }
         }
         let systemWide = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemWide, Self.accessibilityMessagingTimeout)
-        guard let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) else { return [] }
+        guard let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) else {
+            return FocusInspection(textAncestry: [], exposesWebDocument: exposesWebDocument)
+        }
         var focusedPID: pid_t = 0
-        guard AXUIElementGetPid(focused, &focusedPID) == .success, focusedPID == pid else { return [] }
+        guard AXUIElementGetPid(focused, &focusedPID) == .success, focusedPID == pid else {
+            return FocusInspection(textAncestry: [], exposesWebDocument: exposesWebDocument)
+        }
         let ancestry = ancestry(of: focused)
-        return containsTextInput(ancestry) ? ancestry : []
+        exposesWebDocument = exposesWebDocument || containsWebDocument(ancestry)
+        return FocusInspection(
+            textAncestry: containsTextInput(ancestry) ? ancestry : [],
+            exposesWebDocument: exposesWebDocument
+        )
+    }
+
+    /// Whether the focused ancestry sits inside a web document.
+    ///
+    /// This is what separates "Scriber cannot see the editor" from "Scriber can
+    /// see the page and there is no editor in it". A destination publishing an
+    /// `AXWebArea` has handed its whole document to Accessibility, so a paste
+    /// that lands is visible; one that publishes nothing — Zed, VS Code — leaves
+    /// Scriber blind, and only there is a pasteboard request the best available
+    /// evidence.
+    private func containsWebDocument(_ ancestry: [AXUIElement]) -> Bool {
+        ancestry.contains { stringAttribute($0, named: kAXRoleAttribute) == "AXWebArea" }
     }
 
     private func containsTextInput(_ ancestry: [AXUIElement]) -> Bool {
@@ -329,7 +355,9 @@ final class PasteService {
         )
         guard PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: accessibilityConfirmed,
-            pasteboardDataRequested: pasteboardDataRequested
+            pasteboardDataRequested: pasteboardDataRequested,
+            destinationExposesWebDocument: currentTarget.focusExposesWebDocument
+                || (stateAfterPaste?.focusExposesWebDocument ?? false)
         ) else {
             return .noEditableTarget("No text box was focused to paste into")
         }
@@ -599,6 +627,13 @@ private struct TextElementState: Equatable {
     var hasObservableValue: Bool { value != nil || selectedRange != nil || characterCount != nil }
 }
 
+private struct FocusInspection {
+    /// Empty unless the focus genuinely looks like text input.
+    let textAncestry: [AXUIElement]
+    /// Recorded from the full ancestry, including one that was discarded above.
+    let exposesWebDocument: Bool
+}
+
 private struct FocusedTextTarget {
     let application: AXUIElement
     let pid: pid_t
@@ -606,6 +641,9 @@ private struct FocusedTextTarget {
     /// False when macOS reported a focused element that is not text input, which
     /// disqualifies any state change observed on it from counting as evidence.
     let focusContainsTextInput: Bool
+    /// True when the focus sits inside an `AXWebArea`, meaning the destination
+    /// publishes its document to Accessibility and a landed paste would show.
+    let focusExposesWebDocument: Bool
 }
 
 private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider, @unchecked Sendable {

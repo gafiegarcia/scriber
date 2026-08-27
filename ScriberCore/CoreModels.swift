@@ -870,11 +870,28 @@ public enum PasteDispatchPolicy {
 }
 
 public enum PasteConfirmationPolicy {
+    /// Whether the transcript reached a text cursor.
+    ///
+    /// Observed Accessibility mutation always confirms. A request for the
+    /// concealed item is weaker: a single-page app registers its own global paste
+    /// handler, and that handler reads the clipboard whether or not anything is
+    /// focused, so the request arrives identically for a paste that inserted
+    /// nothing.
+    ///
+    /// What separates the two is whether the destination published its document.
+    /// A destination exposing an `AXWebArea` handed its whole page to
+    /// Accessibility, so a paste that landed there would have shown as mutation;
+    /// the request alone, with nothing changed, means the page read the clipboard
+    /// and dropped it. A destination exposing no document at all — Zed, VS Code —
+    /// leaves nothing to observe either way, and there the request is the best
+    /// evidence available and is accepted.
     public static func confirmsInsertion(
         accessibilityMutationObserved: Bool,
-        pasteboardDataRequested: Bool
+        pasteboardDataRequested: Bool,
+        destinationExposesWebDocument: Bool
     ) -> Bool {
-        accessibilityMutationObserved || pasteboardDataRequested
+        if accessibilityMutationObserved { return true }
+        return pasteboardDataRequested && !destinationExposesWebDocument
     }
 
     /// Accessibility state only counts as evidence when it was observed on a focus
