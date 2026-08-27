@@ -117,7 +117,16 @@ Merge to `main` fast-forward only and tag there, never on the branch. Then:
 
 Take the release notes from the version's [changelog](../CHANGELOG.md) section, whose opening line names the build and the requirements. Keep that line: someone who follows a link straight to the release page never sees the README, and the disk image gives them no warning until macOS refuses to open the app.
 
-Open them with what taking the update requires, above the changelog. The in-app offer lands here, and the reader arriving from it is about to meet the one step nothing on screen has told them: **Scriber is running, and a running app cannot be replaced.** Say to quit it from the menu bar first, then drag. Write for that reader alone — a Homebrew install is answered inside Scriber, which offers it `brew upgrade --cask scriber` rather than sending it here, so notes addressing both audiences would be half wrong for each.
+Open them with what taking the update requires, above the changelog, as a numbered list in the order the reader meets it. The in-app offer lands here, and every step but the last is one nothing on screen has told them:
+
+1. **Where the download is.** GitHub puts Assets below the notes, so a release with anything to say buries its own disk image under prose. Name the file and say it is at the bottom of the page. This leads because a reader who cannot find the download cannot use any instruction that follows it.
+2. **Quit Scriber first** — a running app cannot be replaced, and the offer was pressed from inside the running app.
+3. **Drag, and choose Replace.** macOS asks whether to keep both, replace, or stop, and only one of those is right; a reader who picks Keep Both ends up with two Scribers.
+4. **The first launch is challenged.** macOS asks them to confirm an app downloaded from the internet. Say so, or a signed and notarized build reads as a warning about itself.
+
+Then say the key, permissions, history and shortcut all survive, so nobody weighs the update against losing their setup.
+
+Write for that reader alone — a Homebrew install is answered inside Scriber, which offers it `brew upgrade --cask scriber` rather than sending it here, so notes addressing both audiences would be half wrong for each. The one exception was 0.9.1, which shipped that routing: a 0.9.0 install runs 0.9.0's menu bar and is sent here regardless, so those notes carried the `brew upgrade` line as well.
 
 ```bash
 shasum -a 256 ".build/Scriber-$VERSION.dmg"
