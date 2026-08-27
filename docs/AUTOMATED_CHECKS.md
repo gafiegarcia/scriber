@@ -328,10 +328,10 @@ kill "$pid"
 
 Both directions are worth running, and the second is the one no test can show in the app itself:
 
-- Below the latest release — `0.8.0` — offers it. Settings' Updates section reads **Scriber 0.9.0 is available.** with **Get 0.9.0…** beside the Version row, the menu bar menu carries **Update to 0.9.0…**, and both open the release page. **Check for Updates** ignores the once-a-day interval, so pressing it repeats the check rather than doing nothing.
-- Above it — `0.10.0` — offers nothing, and the status reads **This is the latest version.** That is the ordering the app depends on: compared as text, `0.10.0` sorts below `0.9.0`, and Scriber would go on offering an update to a version older than itself.
+- Below the latest release — `0.8.0` — offers it. Settings' Updates section reads **Scriber v0.9.0 is available.** with **Get v0.9.0** beside it, the menu bar menu carries **Update to v0.9.0**, and both open the release page. **Check for Updates** ignores the once-a-day interval, so pressing it repeats the check rather than doing nothing.
+- Above it — `0.10.0` — offers nothing, and the status reads **You're on the latest version.** followed by when the check last ran. That is the ordering the app depends on: compared as text, `0.10.0` sorts below `0.9.0`, and Scriber would go on offering an update to a version older than itself.
 
-The version shown in the Version row is the pretended one, which is what says a run is simulated.
+The version shown in the **Scriber v0.8.0 (232)** line is the pretended one, which is what says a run is simulated.
 
 #### The Homebrew route
 
@@ -343,7 +343,7 @@ mkdir -p /opt/homebrew/Caskroom/scriber/0.9.0
 ln -sfn "$DEBUG_APP" /opt/homebrew/Caskroom/scriber/0.9.0/Scriber.app
 ```
 
-Launch with `--ui-testing-pretend-version 0.8.0`. The button reads **Update…**, opens a dialog carrying `brew upgrade --cask scriber`, and **Copy Command** writes it to the real pasteboard. In the menu bar, the update item opens Settings rather than a browser. Remove the link, relaunch, and the button must go back to **Get v0.9.0** opening the release page — without that half, a detector stuck at yes would pass.
+Launch with `--ui-testing-pretend-version 0.8.0`. The button reads **Update…**, opens a dialog carrying `brew upgrade --cask scriber`, and **Copy Command** writes it to the real pasteboard. In the menu bar, the item reads **Update to v0.9.0…** and opens Settings rather than a browser. Remove the link, relaunch, and the button must go back to **Get v0.9.0** opening the release page, with the menu bar's item losing its ellipsis and opening it too — without that half, a detector stuck at yes would pass.
 
 **Clean up, and treat it as required rather than tidy:**
 

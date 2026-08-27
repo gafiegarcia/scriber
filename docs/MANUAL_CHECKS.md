@@ -44,6 +44,7 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 - With a window whose size is fixed, confirm **Window ▸ Center** is enabled rather than greyed, and that ⌃🌐C centres it. macOS disables Center and Fill for a window that cannot be resized, a disabled menu item does not consume its key, and AppKit reads Control-C as the Enter character — so the shortcut reaches the window and presses whatever its default button is. Do it with a confirmation on screen, where that button is the one that confirms.
 - Both appearances read comfortably in the window: the toolbar, the titlebar's day strip, the warning control, day cards, separators, and the copy toast. Switch appearance only. The window is opaque and its translucent parts sample the app's own background, so the desktop behind it cannot reach them and changing wallpaper proves nothing about any of these.
 - Scroll a Settings tab that is taller than the window — General is one. The content passes under the toolbar and stays readable through its glass, with no opaque band cutting it off below the tabs, and the scroll indicator rides the window's right edge. Check both appearances, and check each tab's cards keep an even margin from the window's sides.
+- Compare the end-of-tab buttons on General and ElevenLabs side by side. Both sit the same distance below the last card, and on each tab that distance reads as separating them from it rather than attaching them to it — they answer to the tab, not to the group above. Compare against System Settings, where the same shape appears at the bottom of a pane. Reading each tab on its own hides this: the gap only looks wrong beside a correct one.
 - Both appearances read comfortably over both a light and a dark desktop for the pill, which is a borderless panel floating on the desktop rather than in a window. Wallpaper is a real variable here and nowhere else.
 - The app icon looks right in the Dock and Finder.
 
@@ -56,6 +57,7 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 
 - Settings ▸ ElevenLabs carries **Privacy Policy**, which opens their policy in a browser, and a help button whose popover reads in white rather than grey and says where recordings go and what stays on the Mac.
 - **Configure Data Use…** opens a window carrying the same wording as setup's step. Press it twice — one window, not two. **Show me where to turn it off** opens **Where to find it** from inside it, and **Close** leaves nothing behind. The window does not appear in the Window menu, and Scriber still shows one Dock tile.
+- Switch **Show in menu bar** off on the General tab, then press **Configure Data Use…** again. It still opens the window. A button that reaches a window through the menu bar icon rather than through its own view stops working exactly here, and does it silently.
 
 ## When credentials, Keychain storage, or usage change
 
@@ -124,7 +126,7 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 
 - Reach it straight after choosing the shortcut. It is where the two ways to press it are taught, and the first place either can be tried.
 - Reach the dictation step and dictate into its box. **This spends API credit; ask first.** The words land in the box itself rather than the clipboard — no other app has ever been the target here, so this is the one place that says whether Scriber can paste into its own window.
-- Start a dictation on the **Try it!** step and leave the step without stopping it, once with **Back** and once with **Skip**. The dictation is cancelled as the step goes: the pill says **Cancelled**, no recording carries into the step you land on, and nothing is inserted into the box you left. This is setup's rule alone — everywhere else in Scriber a dictation survives whatever the user opens. Spends no API credit.
+- Start a dictation on the **Try it!** step and leave the step without stopping it, once with **Back**, once with **Skip**, and once by closing the window with `⌘W`. The dictation is cancelled as the step goes: the pill says **Cancelled**, no recording carries into the step you land on, and nothing is inserted into the box you left. Take all three — the two buttons share a route the close does not, so a fix that reaches only them passes on the buttons alone. This is setup's rule alone — everywhere else in Scriber a dictation survives whatever the user opens. Spends no API credit.
 - Close setup on the dictation step without dictating. Setup counts as finished, the shortcut works everywhere, and the login item matches what the final step's checkbox would have applied.
 
 ## When permissions or global-shortcut lifecycle change
