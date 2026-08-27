@@ -624,12 +624,14 @@ struct PasteConfirmationTests {
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: true,
             pasteboardDataRequested: false,
-            destinationExposesWebDocument: false
+            destinationExposesWebDocument: false,
+            focusExposesEditor: false
         ))
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: true,
             pasteboardDataRequested: false,
-            destinationExposesWebDocument: true
+            destinationExposesWebDocument: true,
+            focusExposesEditor: false
         ))
     }
 
@@ -638,7 +640,8 @@ struct PasteConfirmationTests {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: true,
             pasteboardDataRequested: true,
-            destinationExposesWebDocument: false
+            destinationExposesWebDocument: false,
+            focusExposesEditor: false
         ))
     }
 
@@ -647,7 +650,8 @@ struct PasteConfirmationTests {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
             pasteboardDataRequested: true,
-            destinationExposesWebDocument: false
+            destinationExposesWebDocument: false,
+            focusExposesEditor: false
         ))
     }
 
@@ -656,7 +660,8 @@ struct PasteConfirmationTests {
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
             pasteboardDataRequested: false,
-            destinationExposesWebDocument: false
+            destinationExposesWebDocument: false,
+            focusExposesEditor: false
         ))
     }
 
@@ -686,7 +691,8 @@ struct PasteConfirmationTests {
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
             pasteboardDataRequested: true,
-            destinationExposesWebDocument: true
+            destinationExposesWebDocument: true,
+            focusExposesEditor: false
         ))
     }
 
@@ -699,7 +705,57 @@ struct PasteConfirmationTests {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: false,
             pasteboardDataRequested: true,
-            destinationExposesWebDocument: false
+            destinationExposesWebDocument: false,
+            focusExposesEditor: false
+        ))
+    }
+
+    @Test("A real editor needs no text to be watched arriving")
+    func editorConfirmsWithoutMutation() {
+        // claude.ai's composer is an AXTextArea and Raycast's bar an AXTextField;
+        // both name themselves as editors before any paste. A cold-started
+        // Google Docs took the transcript and showed nothing for the settle
+        // window, and was reported copied while the text landed afterwards.
+        // Where a real editor holds the cursor there is nothing left to decide.
+        #expect(PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: false,
+            pasteboardDataRequested: true,
+            destinationExposesWebDocument: true,
+            focusExposesEditor: true
+        ))
+    }
+
+    @Test("An element that only counts its characters is not an editor")
+    func characterCountIsNotAnEditor() {
+        // x.com after a search field is clicked and left: an AXGroup reporting
+        // zero characters, no editable role, no settable selection. Watchable,
+        // but not somewhere a cursor is.
+        #expect(!TextInputTargetPolicy.acceptsAsEditor(
+            role: "AXGroup",
+            subrole: nil,
+            selectedTextSettable: false,
+            enabled: true
+        ))
+        #expect(TextInputTargetPolicy.accepts(
+            role: "AXGroup",
+            subrole: nil,
+            selectedTextSettable: false,
+            exposesCharacterCount: true,
+            enabled: true
+        ))
+        for role in ["AXTextArea", "AXTextField", "AXComboBox"] {
+            #expect(TextInputTargetPolicy.acceptsAsEditor(
+                role: role,
+                subrole: nil,
+                selectedTextSettable: false,
+                enabled: true
+            ))
+        }
+        #expect(!TextInputTargetPolicy.acceptsAsEditor(
+            role: "AXTextField",
+            subrole: "AXSecureTextField",
+            selectedTextSettable: true,
+            enabled: true
         ))
     }
 
@@ -711,7 +767,8 @@ struct PasteConfirmationTests {
         #expect(PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: true,
             pasteboardDataRequested: true,
-            destinationExposesWebDocument: true
+            destinationExposesWebDocument: true,
+            focusExposesEditor: false
         ))
     }
 
@@ -728,7 +785,8 @@ struct PasteConfirmationTests {
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: accessibilityEvidence,
             pasteboardDataRequested: false,
-            destinationExposesWebDocument: false
+            destinationExposesWebDocument: false,
+            focusExposesEditor: false
         ))
     }
 }

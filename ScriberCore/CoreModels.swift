@@ -817,6 +817,34 @@ public enum TextInputTargetPolicy {
             || explicitlyEditable
             || role.map(recognizedRoles.contains) == true
     }
+
+    /// Whether the element is an editor rather than something that merely counts
+    /// its characters.
+    ///
+    /// A bare character count is enough to *watch* an element, and `accepts`
+    /// keeps taking it for that. It is not enough to believe a cursor is there:
+    /// an `AXGroup` reporting `AXNumberOfCharacters` of zero, with no editable
+    /// role and no settable selection, is what a web page presents after a text
+    /// field is clicked and then left. A real editor names itself — `AXTextArea`
+    /// on claude.ai, `AXTextField` in Raycast — or lets its selected text be set.
+    ///
+    /// This is the difference between "there is somewhere to paste" and "there is
+    /// something here", and it is readable before the paste rather than inferred
+    /// from what happens after it.
+    public static func acceptsAsEditor(
+        role: String?,
+        subrole: String?,
+        selectedTextSettable: Bool,
+        explicitlyEditable: Bool = false,
+        enabled: Bool?
+    ) -> Bool {
+        guard role != "AXSecureTextField",
+              subrole != "AXSecureTextField",
+              enabled != false else { return false }
+        return selectedTextSettable
+            || explicitlyEditable
+            || role.map(recognizedRoles.contains) == true
+    }
 }
 
 public enum KeyboardFocusRedirectPolicy {
@@ -895,7 +923,8 @@ public enum PasteConfirmationPolicy {
     public static func confirmsInsertion(
         accessibilityMutationObserved: Bool,
         pasteboardDataRequested: Bool,
-        destinationExposesWebDocument: Bool
+        destinationExposesWebDocument: Bool,
+        focusExposesEditor: Bool
     ) -> Bool {
         // Necessary, not sufficient. The transcript is published only as a lazily
         // promised string, so nothing can insert it without asking for that
@@ -904,6 +933,11 @@ public enum PasteConfirmationPolicy {
         // element looks identical to gaining text when all that is compared is
         // whether the watched states differ.
         guard pasteboardDataRequested else { return false }
+        // A real editor had the cursor and the destination took the transcript.
+        // Nothing is gained by waiting to watch text appear in it, and waiting is
+        // what made a slow destination — a cold-started browser — report a
+        // working paste as copied.
+        if focusExposesEditor { return true }
         return accessibilityMutationObserved || !destinationExposesWebDocument
     }
 

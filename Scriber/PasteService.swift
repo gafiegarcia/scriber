@@ -49,17 +49,21 @@ final class PasteService {
     /// How long one dispatch is given to visibly deliver before another is tried,
     /// carved out of the budget above rather than added to it.
     private static let dispatchHandoverWindow = Duration.milliseconds(250)
-    /// How often focus is re-read while waiting for evidence.
-    private static let focusRereadInterval = Duration.milliseconds(150)
+    /// How often focus is re-read while waiting for evidence. Only the ambiguous
+    /// case reaches this now — a page Scriber can read, holding no editor — so it
+    /// polls harder than it did when every delivery paid for it.
+    private static let focusRereadInterval = Duration.milliseconds(75)
     /// How long a web destination is watched after it reads the clipboard before
     /// an unchanged page is called a failure.
     ///
     /// The request proves the paste reached the destination, so the only question
-    /// left is whether anything came of it. `claude.ai` answers that in 188 ms;
-    /// this is twice that, and it halves what a failed delivery costs. It does
-    /// not apply when nothing read the clipboard, because then the paste is not
-    /// known to have arrived at all and the full budget is the only safe answer.
-    private static let settleAfterClipboardRead = Duration.milliseconds(400)
+    /// left is whether anything came of it. A page that routes a paste into an
+    /// editor it did not have focused shows the text in about 190 ms, and this
+    /// leaves half again as much. A delivery into a real editor never gets here,
+    /// so the window no longer has to cover a slow destination — only a page
+    /// deciding what to do with a paste. It does not apply when nothing read the
+    /// clipboard, because then the paste is not known to have arrived at all.
+    private static let settleAfterClipboardRead = Duration.milliseconds(300)
     private static let clipboardRestoreDelay = Duration.milliseconds(500)
     private static let transientPasteboardTypes = [
         NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
@@ -172,6 +176,7 @@ final class PasteService {
         webDocument: Bool,
         watchedBefore: Int,
         watchedAfter: Int,
+        editor: Bool,
         askedCount: Int,
         elapsedMilliseconds: Int
     ) {
@@ -183,6 +188,7 @@ final class PasteService {
         webDocument=\(webDocument, privacy: .public) \
         watchedBefore=\(watchedBefore, privacy: .public) \
         watchedAfter=\(watchedAfter, privacy: .public) \
+        editor=\(editor, privacy: .public) \
         asked=\(askedCount, privacy: .public) \
         elapsedMs=\(elapsedMilliseconds, privacy: .public)
         """)
@@ -214,7 +220,8 @@ final class PasteService {
             pid: pid,
             observationElements: observationElements,
             focusContainsTextInput: !observationElements.isEmpty,
-            focusExposesWebDocument: focus.exposesWebDocument
+            focusExposesWebDocument: focus.exposesWebDocument,
+            focusExposesEditor: focus.textAncestry.contains(where: isEditorElement)
         )
     }
 
@@ -325,6 +332,33 @@ final class PasteService {
             || stringAttribute(element, named: kAXSubroleAttribute) == "AXSecureTextField"
     }
 
+    /// Whether the element is an editor, not merely something Scriber can watch.
+    /// Read before the paste, and the reason delivery into a real text box needs
+    /// no waiting at all.
+    private func isEditorElement(_ element: AXUIElement) -> Bool {
+        let role = stringAttribute(element, named: kAXRoleAttribute)
+        let subrole = stringAttribute(element, named: kAXSubroleAttribute)
+        var selectedTextSettable = DarwinBoolean(false)
+        let selectedTextStatus = AXUIElementIsAttributeSettable(
+            element,
+            kAXSelectedTextAttribute as CFString,
+            &selectedTextSettable
+        )
+        var enabledValue: CFTypeRef?
+        let enabledStatus = AXUIElementCopyAttributeValue(
+            element,
+            kAXEnabledAttribute as CFString,
+            &enabledValue
+        )
+        return TextInputTargetPolicy.acceptsAsEditor(
+            role: role,
+            subrole: subrole,
+            selectedTextSettable: selectedTextStatus == .success && selectedTextSettable.boolValue,
+            explicitlyEditable: boolAttribute(element, named: "AXIsEditable") == true,
+            enabled: enabledStatus == .success ? enabledValue as? Bool : nil
+        )
+    }
+
     private func isEditableTextElement(_ element: AXUIElement) -> Bool {
         let role = stringAttribute(element, named: kAXRoleAttribute)
         let subrole = stringAttribute(element, named: kAXSubroleAttribute)
@@ -417,6 +451,8 @@ final class PasteService {
         )
         let exposesWebDocument = currentTarget.focusExposesWebDocument
             || (stateAfterPaste?.focusExposesWebDocument ?? false)
+        let exposesEditor = currentTarget.focusExposesEditor
+            || (stateAfterPaste?.focusExposesEditor ?? false)
         logDeliveryEvidence(
             requested: pasteboardDataRequested,
             mutation: statesBeforePaste != statesAfterPaste,
@@ -425,13 +461,15 @@ final class PasteService {
             webDocument: exposesWebDocument,
             watchedBefore: statesBeforePaste.count,
             watchedAfter: statesAfterPaste.count,
+            editor: exposesEditor,
             askedCount: pasteboardReadProbe.requestCount,
             elapsedMilliseconds: deliveryStarted.duration(to: ContinuousClock().now).milliseconds
         )
         guard PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: accessibilityConfirmed,
             pasteboardDataRequested: pasteboardDataRequested,
-            destinationExposesWebDocument: exposesWebDocument
+            destinationExposesWebDocument: exposesWebDocument,
+            focusExposesEditor: exposesEditor
         ) else {
             return .noEditableTarget("No text box was focused to paste into")
         }
@@ -507,7 +545,13 @@ final class PasteService {
             }
             let exposesWebDocument = target.focusExposesWebDocument
                 || (latest?.focusExposesWebDocument ?? false)
-            if probe.wasRequested, !exposesWebDocument { return latest }
+            let exposesEditor = target.focusExposesEditor
+                || (latest?.focusExposesEditor ?? false)
+            // A real editor holds the cursor and the destination has taken the
+            // transcript. Watching for the text to appear adds nothing but delay,
+            // and the delay is what reported a cold-started browser's working
+            // paste as copied.
+            if probe.wasRequested, !exposesWebDocument || exposesEditor { return latest }
             if let clipboardReadAt,
                clock.now >= clipboardReadAt.advanced(by: Self.settleAfterClipboardRead) {
                 return latest
@@ -781,6 +825,9 @@ private struct FocusedTextTarget {
     /// True when the focus sits inside an `AXWebArea`, meaning the destination
     /// publishes its document to Accessibility and a landed paste would show.
     let focusExposesWebDocument: Bool
+    /// True when one of the focused elements is an editor rather than something
+    /// that merely reports a character count.
+    let focusExposesEditor: Bool
 }
 
 private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider, @unchecked Sendable {
