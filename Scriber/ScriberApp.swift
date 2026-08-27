@@ -437,6 +437,12 @@ struct ScriberApp: App {
             // `isExcludedFromWindowsMenu` does not remove these: that property
             // governs the menu's list of already-open windows, which is a
             // different list from this one.
+            //
+            // One per scene, and all four are load-bearing: this replaces the
+            // declaring scene's own contribution and nothing else. Measured —
+            // with only this one the menu still offers Settings, Data Use, and
+            // **Set Up Scriber**, whichever window is frontmost. It reads as
+            // three redundant copies and is not.
             CommandGroup(replacing: .singleWindowList) {}
             CommandGroup(after: .windowArrangement) {
                 Button("Close All Windows") { closeAllNormalWindows() }
@@ -462,7 +468,7 @@ struct ScriberApp: App {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             }
-            // Each scene contributes its own Window-menu item and drops it here;
+            // This scene's own Window-menu item, dropped where the scene declares it;
             // the main window's copy of this carries the reasoning.
             CommandGroup(replacing: .singleWindowList) {}
         }
@@ -487,7 +493,7 @@ struct ScriberApp: App {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             }
-            // Each scene contributes its own Window-menu item and drops it here;
+            // This scene's own Window-menu item, dropped where the scene declares it;
             // the main window's copy of this carries the reasoning.
             CommandGroup(replacing: .singleWindowList) {}
         }
@@ -511,7 +517,7 @@ struct ScriberApp: App {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             }
-            // Each scene contributes its own Window-menu item and drops it here;
+            // This scene's own Window-menu item, dropped where the scene declares it;
             // the main window's copy of this carries the reasoning.
             CommandGroup(replacing: .singleWindowList) {}
         }
