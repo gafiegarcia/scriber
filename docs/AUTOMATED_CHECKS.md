@@ -328,10 +328,12 @@ kill "$pid"
 
 Both directions are worth running, and the second is the one no test can show in the app itself:
 
-- Below the latest release — `0.8.0` — offers it. Settings' Updates section reads **Scriber v0.9.0 is available.** with **Get v0.9.0** beside it, the menu bar menu carries **Update to v0.9.0**, and both open the release page. **Check for Updates** ignores the once-a-day interval, so pressing it repeats the check rather than doing nothing.
-- Above it — `0.10.0` — offers nothing, and the status reads **You're on the latest version.** followed by when the check last ran. That is the ordering the app depends on: compared as text, `0.10.0` sorts below `0.9.0`, and Scriber would go on offering an update to a version older than itself.
+Both are written against whatever release is currently newest, called `LATEST` here — the check compares against GitHub, so it stops naming a fixed version the moment one ships.
 
-The version shown in the **Scriber v0.8.0 (232)** line is the pretended one, which is what says a run is simulated.
+- Below `LATEST` — `0.8.0` serves until a release passes it — offers it. Settings' Updates section reads **Scriber vLATEST is available.** with **Get vLATEST** beside it, the menu bar menu carries **Update to vLATEST**, and both open the release page. Every version on screen carries the `v` that tags carry. **Check for Updates** ignores the once-a-day interval, so pressing it repeats the check rather than doing nothing.
+- Above `LATEST` — raise the minor, so `0.10.0` against a `0.9.x` release — offers nothing, and the status reads **You're on the latest version.** followed by when the check last ran. Pick the pretended version so it sorts *below* `LATEST` as text while being above it numerically, which is what `0.10.0` against `0.9.x` does: that is the ordering the app depends on, and a string comparison fails it by going on offering an update to a version older than itself.
+
+The version in the **Scriber v0.8.0 (build)** line is the pretended one, which is what says a run is simulated. The build number beside it is the real one.
 
 #### The Homebrew route
 
@@ -339,11 +341,13 @@ Scriber offers a Homebrew install the `brew upgrade` command instead of the rele
 
 ```bash
 DEBUG_APP="$(git rev-parse --show-toplevel)/.build/xcode-debug/Build/Products/Debug/Scriber.app"
-mkdir -p /opt/homebrew/Caskroom/scriber/0.9.0
-ln -sfn "$DEBUG_APP" /opt/homebrew/Caskroom/scriber/0.9.0/Scriber.app
+mkdir -p /opt/homebrew/Caskroom/scriber/0.0.0-fake
+ln -sfn "$DEBUG_APP" /opt/homebrew/Caskroom/scriber/0.0.0-fake/Scriber.app
 ```
 
-Launch with `--ui-testing-pretend-version 0.8.0`. The button reads **Update…**, opens a dialog carrying `brew upgrade --cask scriber`, and **Copy Command** writes it to the real pasteboard. In the menu bar, the item reads **Update to v0.9.0…** and opens Settings rather than a browser. Remove the link, relaunch, and the button must go back to **Get v0.9.0** opening the release page, with the menu bar's item losing its ellipsis and opening it too — without that half, a detector stuck at yes would pass.
+The version folder is named arbitrarily above: detection searches every version folder a cask holds and matches on the resolved path, never on the folder's name, so a name that could not be a real release makes it obvious the layout is hand-built.
+
+Launch with `--ui-testing-pretend-version 0.8.0`. The button reads **Update…**, opens a dialog carrying `brew upgrade --cask scriber`, and **Copy Command** writes it to the real pasteboard. In the menu bar, the item reads **Update to vLATEST…** and opens Settings rather than a browser. Remove the link, relaunch, and the button must go back to **Get vLATEST** opening the release page, with the menu bar's item losing its ellipsis and opening it too — without that half, a detector stuck at yes would pass.
 
 **Clean up, and treat it as required rather than tidy:**
 

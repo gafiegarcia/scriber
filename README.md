@@ -64,7 +64,7 @@ Seriously, if you're okay with its privacy policy (just got updated after the ne
 ### [Spokenly](https://spokenly.app/)
 
 - supports numerous hosted, BYOK, and local models
-- good UX; smart paste, hold + toggle in one shortcut, etc. (Scriber v0.9.0 also has these now)
+- good UX; smart paste, hold + toggle in one shortcut, etc. (Scriber has these too now)
 - defaults to ElevenLabs Scribe v2 (biased...)
 - only uses ~150MB ram (on my mac)
 - app-aware formatting, with a different, more customizable approach to Wispr Flow
@@ -132,7 +132,7 @@ Requirements:
 brew install --cask gafiegarcia/scriber/scriber
 ```
 
-Or [**download the latest release**](https://github.com/gafiegarcia/scriber/releases/latest) (scroll to "Assets", and click the .dmg link to download), open the downloaded .dmg file, then drag Scriber to Applications to install.
+Or [**download the latest release**](https://github.com/gafiegarcia/scriber/releases/latest), where the disk image is linked at the top of the notes. Open it, then drag Scriber to Applications.
 
 Scriber is signed and notarized. Once opened, follow the setup.
 
