@@ -177,6 +177,8 @@ final class PasteService {
         watchedBefore: Int,
         watchedAfter: Int,
         editor: Bool,
+        chainSource: String,
+        chainRole: String,
         askedCount: Int,
         elapsedMilliseconds: Int
     ) {
@@ -189,6 +191,7 @@ final class PasteService {
         watchedBefore=\(watchedBefore, privacy: .public) \
         watchedAfter=\(watchedAfter, privacy: .public) \
         editor=\(editor, privacy: .public) \
+        chain=\(chainSource, privacy: .public)/\(chainRole, privacy: .public) \
         asked=\(askedCount, privacy: .public) \
         elapsedMs=\(elapsedMilliseconds, privacy: .public)
         """)
@@ -221,7 +224,9 @@ final class PasteService {
             observationElements: observationElements,
             focusContainsTextInput: !observationElements.isEmpty,
             focusExposesWebDocument: focus.exposesWebDocument,
-            focusExposesEditor: focus.textAncestry.contains(where: isEditorElement)
+            focusExposesEditor: focus.textAncestry.contains(where: isEditorElement),
+            focusChainSource: focus.chainSource,
+            focusedRole: focus.textAncestry.first.flatMap { stringAttribute($0, named: kAXRoleAttribute) } ?? "-"
         )
     }
 
@@ -264,28 +269,39 @@ final class PasteService {
     /// confirmation falls to the pasteboard probe alone, which is the documented
     /// path for destinations that hide their editor from Accessibility.
     private func focusedTextAncestry(in application: AXUIElement, pid: pid_t) -> FocusInspection {
-        var exposesWebDocument = false
+        var candidates: [[AXUIElement]] = []
         if let focused = elementAttribute(application, named: kAXFocusedUIElementAttribute) {
-            let ancestry = ancestry(of: focused)
-            exposesWebDocument = containsWebDocument(ancestry)
-            if containsTextInput(ancestry) {
-                return FocusInspection(textAncestry: ancestry, exposesWebDocument: exposesWebDocument)
-            }
+            candidates.append(ancestry(of: focused))
         }
         let systemWide = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemWide, Self.accessibilityMessagingTimeout)
-        guard let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) else {
-            return FocusInspection(textAncestry: [], exposesWebDocument: exposesWebDocument)
+        if let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) {
+            var focusedPID: pid_t = 0
+            if AXUIElementGetPid(focused, &focusedPID) == .success, focusedPID == pid {
+                candidates.append(ancestry(of: focused))
+            }
         }
-        var focusedPID: pid_t = 0
-        guard AXUIElementGetPid(focused, &focusedPID) == .success, focusedPID == pid else {
-            return FocusInspection(textAncestry: [], exposesWebDocument: exposesWebDocument)
+
+        let exposesWebDocument = candidates.contains(where: containsWebDocument)
+        // Prefer a chain holding an actual editor over one holding something
+        // merely watchable. The two disagree: Google Docs answers the application
+        // element with a chain whose only qualifying node is a character-counting
+        // group, while the system-wide element names the AXTextArea the caret is
+        // really in. Taking the first chain that qualified reported no editor
+        // where there plainly was one, and refused a paste that worked.
+        var chainSource = "none"
+        var chosen: [AXUIElement] = []
+        if let index = candidates.firstIndex(where: { $0.contains(where: isEditorElement) }) {
+            chosen = candidates[index]
+            chainSource = index == 0 ? "app-editor" : "system-editor"
+        } else if let index = candidates.firstIndex(where: containsTextInput) {
+            chosen = candidates[index]
+            chainSource = index == 0 ? "app-watchable" : "system-watchable"
         }
-        let ancestry = ancestry(of: focused)
-        exposesWebDocument = exposesWebDocument || containsWebDocument(ancestry)
         return FocusInspection(
-            textAncestry: containsTextInput(ancestry) ? ancestry : [],
-            exposesWebDocument: exposesWebDocument
+            textAncestry: chosen,
+            exposesWebDocument: exposesWebDocument,
+            chainSource: chainSource
         )
     }
 
@@ -462,6 +478,8 @@ final class PasteService {
             watchedBefore: statesBeforePaste.count,
             watchedAfter: statesAfterPaste.count,
             editor: exposesEditor,
+            chainSource: (stateAfterPaste ?? currentTarget).focusChainSource,
+            chainRole: (stateAfterPaste ?? currentTarget).focusedRole,
             askedCount: pasteboardReadProbe.requestCount,
             elapsedMilliseconds: deliveryStarted.duration(to: ContinuousClock().now).milliseconds
         )
@@ -813,6 +831,10 @@ private struct FocusInspection {
     let textAncestry: [AXUIElement]
     /// Recorded from the full ancestry, including one that was discarded above.
     let exposesWebDocument: Bool
+    /// Which focused element the chain came from, and why it was preferred.
+    /// Named in the delivery log, because the two disagree in exactly the cases
+    /// that get judged wrongly.
+    let chainSource: String
 }
 
 private struct FocusedTextTarget {
@@ -828,6 +850,10 @@ private struct FocusedTextTarget {
     /// True when one of the focused elements is an editor rather than something
     /// that merely reports a character count.
     let focusExposesEditor: Bool
+    /// Which focused element supplied the chain, for the delivery log.
+    let focusChainSource: String
+    /// The role of the element the chain starts at, for the delivery log.
+    let focusedRole: String
 }
 
 private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider, @unchecked Sendable {
