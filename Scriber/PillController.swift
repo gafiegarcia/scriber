@@ -228,6 +228,12 @@ final class PillController {
         // it.
         case .dictationCopied, .transcriptCopied:
             5
+        // Brief on purpose. With every dictation copied by choice, the clipboard
+        // is where this one was always going, so there is no outcome to read and
+        // no decision to make — only a confirmation, which the quick "Cancelled"
+        // notice already sets the length for.
+        case .dictationCopiedBriefly:
+            1.5
         case .cancelledTranscript, .noSpeechDetected:
             5
         case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
@@ -685,7 +691,7 @@ private struct PillView: View {
             AudioLevelWaveform(level: level, presentation: .pill)
         case .transcribing:
             ProgressView().controlSize(.small)
-        case .dictationCopied, .transcriptCopied:
+        case .dictationCopied, .transcriptCopied, .dictationCopiedBriefly:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(toneAccent)
         case .noSpeechDetected, .noAudioSignal:
             Image(systemName: "mic.slash.fill").foregroundStyle(toneAccent)
@@ -711,7 +717,7 @@ private struct PillView: View {
         // expanded and titles itself there. The two say different things on
         // purpose — a History retry reaching the clipboard is the intended result,
         // so this one must not read like the apology the expanded pill is making.
-        case .dictationCopied, .transcriptCopied: "Copied"
+        case .dictationCopied, .transcriptCopied, .dictationCopiedBriefly: "Copied"
         case .cancelledTranscript: "You can recover your cancelled transcript"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title

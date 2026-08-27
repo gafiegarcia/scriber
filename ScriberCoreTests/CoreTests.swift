@@ -380,10 +380,21 @@ private let everyPhase: [AppPhase] = [
 
 @Suite("Pill tone")
 struct PillToneTests {
-    @Test("Only the two copied phases report success")
+    @Test("Every copied phase reports success")
     func success() {
         #expect(AppPhase.dictationCopied(text: "hi", message: "No target").pillTone == .success)
         #expect(AppPhase.transcriptCopied.pillTone == .success)
+        #expect(AppPhase.dictationCopiedBriefly.pillTone == .success)
+    }
+
+    /// The brief notice says the same thing as the recovery pill and must not be
+    /// tinted as though it were a different outcome, nor read as a dictation
+    /// still in flight.
+    @Test("The brief copied notice is an outcome, not a dictation in flight")
+    func briefCopiedIsAnOutcome() {
+        #expect(!AppPhase.dictationCopiedBriefly.isBusy)
+        #expect(AppPhase.dictationCopiedBriefly.acceptsRecordingStart)
+        #expect(AppPhase.dictationCopiedBriefly.pillDismissalAction(isPresented: true) == .dismiss)
     }
 
     @Test("Recoverable outcomes warn")

@@ -527,6 +527,12 @@ public enum AppPhase: Equatable, Sendable {
     /// retry rather than from a failed paste. Its own phase rather than a
     /// `.message`, which is too brief for an outcome the user has to act on.
     case transcriptCopied
+    /// The same outcome as `.dictationCopied`, said briefly, for someone who set
+    /// every dictation to be copied. The clipboard is then where the transcript
+    /// was always going, so this confirms an expectation rather than reporting a
+    /// failure to recover from — there is nothing here to read, and the longer
+    /// dwell the recovery pill needs would only be in the way.
+    case dictationCopiedBriefly
     case message(String)
 
     public var isBusy: Bool {
@@ -742,7 +748,7 @@ public extension AppPhase {
         case .transcribing: .hideTranscription
         case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
-             .transcriptCopied, .message: .dismiss
+             .transcriptCopied, .dictationCopiedBriefly, .message: .dismiss
         }
     }
 
@@ -754,7 +760,7 @@ public extension AppPhase {
     var pillTone: ToastTone {
         switch self {
         case .dictationCopied: .success
-        case .transcriptCopied: .success
+        case .transcriptCopied, .dictationCopiedBriefly: .success
         case .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .noAudioSignal: .warning
         case .idle, .recording, .transcribing, .cancelledTranscript, .message: .neutral
@@ -771,6 +777,7 @@ public extension AppPhase {
         // The transcript is selectable, so a body tap fights the selection it sits on.
         case .dictationCopied: .none
         case .transcriptCopied, .transcriptionFailed: .openMainWindow
+        case .dictationCopiedBriefly: .dismiss
         case .permissionsRequired: .openPermissionSettings
         case .credentialsUnusable: .openCredentialSettings
         case .noSpeechDetected, .noAudioSignal: .openInputSettings

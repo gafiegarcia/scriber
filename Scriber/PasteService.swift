@@ -76,7 +76,13 @@ final class PasteService {
         targetScreen = nil
     }
 
-    func insert(_ text: String) async -> PasteResult {
+    /// - Parameter leavingTranscriptOnClipboard: when true, a confirmed insertion
+    ///   leaves the transcript on the clipboard as ordinary text instead of
+    ///   putting back what was there before. The paste itself is unchanged: it
+    ///   still travels as a concealed, promised item, so clipboard managers
+    ///   cannot take a copy of dictation in flight and cannot fake the request
+    ///   that confirms delivery. Only what is left behind afterwards differs.
+    func insert(_ text: String, leavingTranscriptOnClipboard: Bool = false) async -> PasteResult {
         guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
         let target = currentFocusedPasteTarget()
         logDeliveryContext(chosen: target)
@@ -84,7 +90,11 @@ final class PasteService {
             logDeliveryOutcome("noEditableTarget-noTarget")
             return .noEditableTarget(PasteResult.noEditableTargetMessage)
         }
-        let result = await pasteAtCurrentSelection(text, into: target)
+        let result = await pasteAtCurrentSelection(
+            text,
+            into: target,
+            leavingTranscriptOnClipboard: leavingTranscriptOnClipboard
+        )
         switch result {
         case .inserted: logDeliveryOutcome("inserted")
         case .noEditableTarget: logDeliveryOutcome("noEditableTarget")
@@ -313,7 +323,11 @@ final class PasteService {
 
     // MARK: - Delivery
 
-    private func pasteAtCurrentSelection(_ text: String, into currentTarget: FocusedTextTarget) async -> PasteResult {
+    private func pasteAtCurrentSelection(
+        _ text: String,
+        into currentTarget: FocusedTextTarget,
+        leavingTranscriptOnClipboard: Bool
+    ) async -> PasteResult {
         // Re-resolve rather than comparing against the frontmost app: when focus
         // sits in a nonactivating panel the target is deliberately not frontmost.
         guard currentTargetPID() == currentTarget.pid else {
@@ -372,10 +386,11 @@ final class PasteService {
         ) else {
             return .noEditableTarget("No text box was focused to paste into")
         }
-        scheduleClipboardRestore(
-            snapshot,
-            expectedChangeCount: transcriptChangeCount
-        )
+        if leavingTranscriptOnClipboard {
+            publishTranscriptAsOrdinaryText(text, expectedChangeCount: transcriptChangeCount)
+        } else {
+            scheduleClipboardRestore(snapshot, expectedChangeCount: transcriptChangeCount)
+        }
         return .inserted
     }
 
@@ -445,6 +460,16 @@ final class PasteService {
             guard clock.now < deadline else { return latest }
             try? await Task.sleep(for: .milliseconds(25))
         }
+    }
+
+    /// Replaces the concealed in-flight item with a plain one, so the transcript
+    /// behaves exactly as it would had the user copied it themselves — a
+    /// clipboard manager keeps it, and pasting it again works.
+    private func publishTranscriptAsOrdinaryText(_ text: String, expectedChangeCount: Int) {
+        let pasteboard = NSPasteboard.general
+        guard pasteboard.changeCount == expectedChangeCount else { return }
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
     }
 
     private func scheduleClipboardRestore(

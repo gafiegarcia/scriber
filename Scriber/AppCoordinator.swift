@@ -318,7 +318,7 @@ final class AppCoordinator: ObservableObject {
         case .recording: "Recording"
         case .transcribing: "Transcribing"
         case .cancelledTranscript: "Cancelled"
-        case .dictationCopied, .transcriptCopied: "Copied"
+        case .dictationCopied, .transcriptCopied, .dictationCopiedBriefly: "Copied"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"
@@ -1331,7 +1331,11 @@ final class AppCoordinator: ObservableObject {
             try modelContext.save()
 
             if delivery == .automaticPaste {
-                let delivery = await paste.insert(transcript)
+                let alwaysCopy = preferences.alwaysCopyDictation
+                let delivery = await paste.insert(
+                    transcript,
+                    leavingTranscriptOnClipboard: alwaysCopy
+                )
                 switch delivery {
                 case .inserted:
                     record.deliveryState = .pasted
@@ -1342,7 +1346,14 @@ final class AppCoordinator: ObservableObject {
                     record.errorMessage = message
                     try modelContext.save()
                     playFeedback(.cancellationOrCopyFallback)
-                    setPhase(.dictationCopied(text: transcript, message: message))
+                    // Copying every dictation makes the clipboard the expected
+                    // destination rather than a recovery, so say so and get out of
+                    // the way instead of presenting a transcript to act on.
+                    setPhase(
+                        alwaysCopy
+                            ? .dictationCopiedBriefly
+                            : .dictationCopied(text: transcript, message: message)
+                    )
                 }
             } else {
                 copy(record)

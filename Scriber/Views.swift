@@ -744,6 +744,16 @@ private struct DictationSettingsPane: View {
                 }
             }
             Section {
+                // Its own group: what happens to a transcript on the way out is a
+                // different setting from how it was transcribed above, and from
+                // what is kept on disk below.
+                Toggle(
+                    "Always copy dictation to the clipboard",
+                    isOn: $runtime.preferences.alwaysCopyDictation
+                )
+                .accessibilityIdentifier("always-copy-dictation-toggle")
+            }
+            Section {
                 SettingsToggle(
                     "Delete unused recordings after 30 days",
                     caption: "Failed and cancelled dictations keep their audio so you can retry them. Transcripts and history entries are always kept; only the unused recording is removed.",
