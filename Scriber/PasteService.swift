@@ -172,6 +172,7 @@ final class PasteService {
         webDocument: Bool,
         watchedBefore: Int,
         watchedAfter: Int,
+        askedCount: Int,
         elapsedMilliseconds: Int
     ) {
         Self.diagnosticLog.info("""
@@ -182,6 +183,7 @@ final class PasteService {
         webDocument=\(webDocument, privacy: .public) \
         watchedBefore=\(watchedBefore, privacy: .public) \
         watchedAfter=\(watchedAfter, privacy: .public) \
+        asked=\(askedCount, privacy: .public) \
         elapsedMs=\(elapsedMilliseconds, privacy: .public)
         """)
     }
@@ -423,6 +425,7 @@ final class PasteService {
             webDocument: exposesWebDocument,
             watchedBefore: statesBeforePaste.count,
             watchedAfter: statesAfterPaste.count,
+            askedCount: pasteboardReadProbe.requestCount,
             elapsedMilliseconds: deliveryStarted.duration(to: ContinuousClock().now).milliseconds
         )
         guard PasteConfirmationPolicy.confirmsInsertion(
@@ -784,6 +787,7 @@ private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider,
     private let textData: Data
     private let lock = NSLock()
     private var requested = false
+    private var calls = 0
 
     init(text: String) {
         textData = Data(text.utf8)
@@ -793,11 +797,20 @@ private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider,
         lock.withLock { requested }
     }
 
+    /// How many times a destination asked for the promised transcript, whether or
+    /// not serving it succeeded. Separating this from `wasRequested` distinguishes
+    /// "nobody asked" from "somebody asked and Scriber failed to answer" — the two
+    /// look identical otherwise, and they call for opposite fixes.
+    var requestCount: Int {
+        lock.withLock { calls }
+    }
+
     func pasteboard(
         _ pasteboard: NSPasteboard?,
         item: NSPasteboardItem,
         provideDataForType type: NSPasteboard.PasteboardType
     ) {
+        lock.withLock { calls += 1 }
         if item.setData(textData, forType: type) {
             lock.withLock { requested = true }
         }
