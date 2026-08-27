@@ -932,12 +932,13 @@ public enum PasteConfirmationPolicy {
         // destination's Accessibility state moved afterwards — losing a focused
         // element looks identical to gaining text when all that is compared is
         // whether the watched states differ.
-        guard pasteboardDataRequested else { return false }
-        // A real editor had the cursor and the destination took the transcript.
-        // Nothing is gained by waiting to watch text appear in it, and waiting is
-        // what made a slow destination — a cold-started browser — report a
-        // working paste as copied.
+        // A real editor held the caret when the paste was sent. That is the
+        // question the rest of this was trying to infer, and it is answerable
+        // before the paste rather than after it. A cold-started browser can take
+        // longer than the whole budget to read the clipboard, and refusing there
+        // reported a working paste as copied.
         if focusExposesEditor { return true }
+        guard pasteboardDataRequested else { return false }
         return accessibilityMutationObserved || !destinationExposesWebDocument
     }
 

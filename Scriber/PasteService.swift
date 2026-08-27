@@ -271,14 +271,14 @@ final class PasteService {
     private func focusedTextAncestry(in application: AXUIElement, pid: pid_t) -> FocusInspection {
         var candidates: [[AXUIElement]] = []
         if let focused = elementAttribute(application, named: kAXFocusedUIElementAttribute) {
-            candidates.append(ancestry(of: focused))
+            candidates.append(ancestry(of: deepestFocus(from: focused)))
         }
         let systemWide = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemWide, Self.accessibilityMessagingTimeout)
         if let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) {
             var focusedPID: pid_t = 0
             if AXUIElementGetPid(focused, &focusedPID) == .success, focusedPID == pid {
-                candidates.append(ancestry(of: focused))
+                candidates.append(ancestry(of: deepestFocus(from: focused)))
             }
         }
 
@@ -303,6 +303,24 @@ final class PasteService {
             exposesWebDocument: exposesWebDocument,
             chainSource: chainSource
         )
+    }
+
+    /// Follows focus downwards to the element that actually holds the caret.
+    ///
+    /// An application can answer `AXFocusedUIElement` with a container that
+    /// answers the same question again — Zen names the page's `AXWebArea`, which
+    /// names the editor inside it. `ancestry(of:)` only ever walks upwards, so
+    /// stopping at the container meant standing on the document while the text
+    /// area was underneath: the chain qualified only through the web area's
+    /// character count, reported no editor, and refused pastes that worked.
+    private func deepestFocus(from element: AXUIElement) -> AXUIElement {
+        var current = element
+        for _ in 0..<Self.maximumInspectedAncestors {
+            guard let next = elementAttribute(current, named: kAXFocusedUIElementAttribute),
+                  !CFEqual(next, current) else { break }
+            current = next
+        }
+        return current
     }
 
     /// Whether the focused ancestry sits inside a web document.

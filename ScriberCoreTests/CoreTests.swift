@@ -627,6 +627,7 @@ struct PasteConfirmationTests {
             destinationExposesWebDocument: false,
             focusExposesEditor: false
         ))
+        // Still refused with no editor, whatever the page did to itself.
         #expect(!PasteConfirmationPolicy.confirmsInsertion(
             accessibilityMutationObserved: true,
             pasteboardDataRequested: false,
@@ -707,6 +708,20 @@ struct PasteConfirmationTests {
             pasteboardDataRequested: true,
             destinationExposesWebDocument: false,
             focusExposesEditor: false
+        ))
+    }
+
+    @Test("A real editor confirms even when nothing read the clipboard")
+    func editorConfirmsWithoutRequest() {
+        // A cold-started browser can take longer than the whole budget to read
+        // the clipboard — every asked=0 delivery logged this session came from
+        // one — and the text still lands. Where an editor held the caret when the
+        // paste was sent, that is the answer, and it was knowable beforehand.
+        #expect(PasteConfirmationPolicy.confirmsInsertion(
+            accessibilityMutationObserved: false,
+            pasteboardDataRequested: false,
+            destinationExposesWebDocument: true,
+            focusExposesEditor: true
         ))
     }
 
