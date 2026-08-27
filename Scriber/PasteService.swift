@@ -51,6 +51,15 @@ final class PasteService {
     private static let dispatchHandoverWindow = Duration.milliseconds(250)
     /// How often focus is re-read while waiting for evidence.
     private static let focusRereadInterval = Duration.milliseconds(150)
+    /// How long a web destination is watched after it reads the clipboard before
+    /// an unchanged page is called a failure.
+    ///
+    /// The request proves the paste reached the destination, so the only question
+    /// left is whether anything came of it. `claude.ai` answers that in 188 ms;
+    /// this is twice that, and it halves what a failed delivery costs. It does
+    /// not apply when nothing read the clipboard, because then the paste is not
+    /// known to have arrived at all and the full budget is the only safe answer.
+    private static let settleAfterClipboardRead = Duration.milliseconds(400)
     private static let clipboardRestoreDelay = Duration.milliseconds(500)
     private static let transientPasteboardTypes = [
         NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
@@ -476,7 +485,9 @@ final class PasteService {
         let clock = ContinuousClock()
         var latest: FocusedTextTarget? = target
         var nextResolve = clock.now
+        var clipboardReadAt: ContinuousClock.Instant?
         while true {
+            if probe.wasRequested, clipboardReadAt == nil { clipboardReadAt = clock.now }
             // Re-resolving is a synchronous round trip into the destination, so
             // it runs on its own slower cadence. Polling it as often as the
             // pasteboard flag would let one unresponsive destination spend the
@@ -494,6 +505,10 @@ final class PasteService {
             let exposesWebDocument = target.focusExposesWebDocument
                 || (latest?.focusExposesWebDocument ?? false)
             if probe.wasRequested, !exposesWebDocument { return latest }
+            if let clipboardReadAt,
+               clock.now >= clipboardReadAt.advanced(by: Self.settleAfterClipboardRead) {
+                return latest
+            }
             guard clock.now < deadline else { return latest }
             try? await Task.sleep(for: .milliseconds(25))
         }

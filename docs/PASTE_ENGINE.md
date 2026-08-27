@@ -21,7 +21,7 @@ Accessibility requests are synchronous cross-process calls, so each message has 
    - `de.petermaurer.TransientPasteboardType`
 3. Dispatch a PID-targeted Command-V. If nothing takes the transcript within 250 ms, press the destination's own Paste menu item as well. A dispatch reporting success is never a reason to stop: `AXUIElementPerformAction` answers `.success` on a Paste menu item that does nothing.
 4. Confirm insertion from what the destination publishes. A destination exposing an `AXWebArea` has handed its document to Accessibility, so require observed text mutation. One exposing no document can only ever answer by requesting the concealed string, and there that request confirms.
-5. Give the whole confirmation one second, measured from the first dispatch so a second dispatch spends that budget rather than extending it. Merely dispatching Paste is never success.
+5. Give the whole confirmation one second, measured from the first dispatch so a second dispatch spends that budget rather than extending it. Stop sooner once a web destination has read the clipboard and then shown nothing for 400 ms: the read proves the paste arrived, so an unchanged page after that is a failure rather than a slow success. A destination that never read the clipboard gets the full second, because the paste is not known to have arrived at all. Merely dispatching Paste is never success.
 6. On timeout or an uneditable target, preserve the saved history entry, republish the transcript as ordinary clipboard text, and show copied-result recovery.
 7. After confirmed insertion, restore the previous clipboard after 500 ms only if neither the user nor another process has changed the transaction's pasteboard state. When **Always copy dictation to the clipboard** is on, leave the transcript there as ordinary text instead of restoring.
 
@@ -39,7 +39,7 @@ Confirmation therefore re-reads focus rather than watching only the elements foc
 
 A focus that is positively non-text contributes no Accessibility observation. Live pages mutate their own Accessibility state through timers and content updates, so observing a non-text page can manufacture false success. A hidden or opaque editor still receives the paste attempt and relies on the concealed-item request.
 
-Every destination measured takes the transcript inside 80 ms, including both editors that publish nothing. That is where the one-second budget comes from; it is not a guess about slow destinations.
+Every destination measured takes the transcript inside 80 ms, including both editors that publish nothing. That is where the one-second budget comes from; it is not a guess about slow destinations. A web destination is slower to answer because its evidence is the text arriving rather than the clipboard being read — `claude.ai` shows it 188 ms in — which is what the 400 ms settle window is set against.
 
 ## Diagnostics
 
