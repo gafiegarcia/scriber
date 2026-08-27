@@ -302,13 +302,23 @@ struct MenuBarContent: View {
                 if let update = runtime.preferences.availableUpdate {
                     Divider()
                     Button {
-                        NSWorkspace.shared.open(update.url)
+                        // A Homebrew install goes to Settings, which is where the
+                        // `brew upgrade` command lives; a download dragged over
+                        // such an install leaves Homebrew describing an app it no
+                        // longer put there.
+                        if AppCoordinator.isHomebrewManaged {
+                            openMain(destination: .updates)
+                        } else {
+                            NSWorkspace.shared.open(update.url)
+                        }
                     } label: {
-                        // No ellipsis, matching Settings: both open the release
-                        // page, which finishes the action rather than asking for
-                        // anything more.
+                        // The ellipsis follows the route, as it does in Settings:
+                        // the release page finishes the action, while Settings is
+                        // where the command still has to be copied from.
                         Label(
-                            "Update to \(AppCoordinator.displayVersion(update.version))",
+                            AppCoordinator.isHomebrewManaged
+                                ? "Update to \(AppCoordinator.displayVersion(update.version))…"
+                                : "Update to \(AppCoordinator.displayVersion(update.version))",
                             systemImage: "arrow.down.circle"
                         )
                     }
