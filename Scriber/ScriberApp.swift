@@ -64,11 +64,20 @@ enum AppLaunchConfiguration {
     /// that runs later. Pass a version at or below this build's to exercise the
     /// discard, above it to prove an offer that still stands is left alone.
     static var seededUpdateOffer: String? {
+        value(after: "--ui-testing-seed-update-offer")
+    }
+
+    /// The argument after a flag that carries one, where every other
+    /// `--ui-testing` flag is a switch. A value beginning `--` is the next flag
+    /// rather than this one's value: taking it would run the app as a version
+    /// nothing can parse and swallow the flag that was mistyped past.
+    private static func value(after flag: String) -> String? {
         guard isUITesting else { return nil }
         let arguments = ProcessInfo.processInfo.arguments
-        guard let flag = arguments.firstIndex(of: "--ui-testing-seed-update-offer"),
-              arguments.index(after: flag) < arguments.endIndex else { return nil }
-        return arguments[arguments.index(after: flag)]
+        guard let index = arguments.firstIndex(of: flag) else { return nil }
+        let next = arguments.index(after: index)
+        guard next < arguments.endIndex, !arguments[next].hasPrefix("--") else { return nil }
+        return arguments[next]
     }
 
     /// Shows the menu bar item on a `--ui-testing` launch, which otherwise never
@@ -86,15 +95,10 @@ enum AppLaunchConfiguration {
     /// the opposite case. Until a second release existed there was no way to see
     /// either, and the running version is what the check compares.
     ///
-    /// Reads the argument after the flag, so it carries a value where every other
-    /// `--ui-testing` flag is a switch. Gated on `isUITesting`, which is false in
-    /// Release, so the shipped app always reports its real version.
+    /// Reads the argument after the flag. Gated on `isUITesting`, which is false
+    /// in Release, so the shipped app always reports its real version.
     static var pretendedVersion: String? {
-        guard isUITesting else { return nil }
-        let arguments = ProcessInfo.processInfo.arguments
-        guard let flag = arguments.firstIndex(of: "--ui-testing-pretend-version"),
-              arguments.index(after: flag) < arguments.endIndex else { return nil }
-        return arguments[arguments.index(after: flag)]
+        value(after: "--ui-testing-pretend-version")
     }
 
     /// The launch smoke check's flag. The app still builds and renders its window —
@@ -170,8 +174,6 @@ final class SceneOpeners {
     var openMainWindow: (() -> Void)?
     /// How the launch poller reaches setup, which no main window is around to open.
     var openOnboardingWindow: (() -> Void)?
-    /// How Settings reaches the data-use guidance, which lives in its own scene.
-    var openDataUseWindow: (() -> Void)?
 }
 
 /// Carries `openWindow` out of SwiftUI, beside drawing the icon. A plain `Image`
@@ -188,7 +190,6 @@ private struct MenuBarLabel: View {
             .task {
                 SceneOpeners.shared.openMainWindow = { openWindow(id: "main") }
                 SceneOpeners.shared.openOnboardingWindow = { openWindow(id: "onboarding") }
-                SceneOpeners.shared.openDataUseWindow = { openWindow(id: AppWindowIdentity.dataUseSceneID) }
             }
     }
 }
@@ -200,6 +201,7 @@ enum AppWindowIdentity {
     static let settingsTitle = "Settings"
     static let dataUseTitle = "Data Use"
     static let dataUseSceneID = "data-use"
+    static let onboardingSceneID = "onboarding"
     private static let mainWindowTitles: Set<String> = [mainTitle]
 
     static func isMainWindow(_ window: NSWindow) -> Bool {
@@ -217,16 +219,21 @@ enum AppWindowIdentity {
 
     static func isManagedWindow(_ window: NSWindow) -> Bool {
         guard !(window is NSPanel), window.styleMask.contains(.titled) else { return false }
-        return isMainWindow(window)
-            || isSettingsWindow(window)
-            || window.title == onboardingTitle
-            || window.title == dataUseTitle
+        return isMainWindow(window) || isSettingsWindow(window) || isPageWindow(window)
     }
 
     /// The two windows sized from `OnboardingLayout`: one column, a footer, and a
     /// height that gives way to the display.
+    ///
+    /// Scene identifier first, title second, for the reason `isSettingsWindow`
+    /// gives: a title is free to move, and matching on it alone would silently
+    /// stop these windows being fitted, excluded from the Window menu, or counted
+    /// for the activation policy.
     static func isPageWindow(_ window: NSWindow) -> Bool {
-        window.title == onboardingTitle || window.title == dataUseTitle
+        if let identifier = window.identifier?.rawValue {
+            if identifier == onboardingSceneID || identifier == dataUseSceneID { return true }
+        }
+        return window.title == onboardingTitle || window.title == dataUseTitle
     }
 }
 
@@ -423,10 +430,9 @@ struct ScriberApp: App {
             // not the window is open, and each opens its scene directly. Every
             // route Scriber writes itself either checks that setup is unfinished
             // or clears the flag on the way in; these items do neither, so the
-            // setup one wedges the main thread on any Mac whose setup is already
-            // done — `OnboardingView.prepare` dismisses a finished setup on sight
-            // and SwiftUI presents it again. Scriber's windows are reached from
-            // the menu bar item, ⌘-comma, and the pill.
+            // setup one puts a redo nobody asked for over whatever is in front.
+            // Scriber's windows are reached from the menu bar item, ⌘-comma,
+            // and the pill.
             //
             // `isExcludedFromWindowsMenu` does not remove these: that property
             // governs the menu's list of already-open windows, which is a
@@ -481,12 +487,12 @@ struct ScriberApp: App {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             }
-            // The item this drops is the one that hung the Mac. See the main
-            // window's copy.
+            // Each scene contributes its own Window-menu item and drops it here;
+            // the main window's copy of this carries the reasoning.
             CommandGroup(replacing: .singleWindowList) {}
         }
 
-        Window("Set Up Scriber", id: "onboarding") {
+        Window("Set Up Scriber", id: AppWindowIdentity.onboardingSceneID) {
             OnboardingView()
                 .environmentObject(runtime)
                 .modelContainer(runtime.container)
@@ -505,8 +511,8 @@ struct ScriberApp: App {
                 Button("Quit Scriber") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
             }
-            // The item this drops is the one that hung the Mac. See the main
-            // window's copy.
+            // Each scene contributes its own Window-menu item and drops it here;
+            // the main window's copy of this carries the reasoning.
             CommandGroup(replacing: .singleWindowList) {}
         }
 
@@ -933,11 +939,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // SwiftUI persists a frame per scene id and restores it before the window
         // is shown, so a window once dragged shorter came back that way and was
         // corrected here — visibly, a beat after it was already on screen.
-        // Dropping the autosave and the stored frame leaves nothing to restore
-        // and nothing to correct: the scene's own size decides, and the resize
-        // below runs only when the display genuinely cannot show it.
+        // Dropping the stored frame and then the autosave leaves nothing to
+        // restore and nothing to correct: the scene's own size decides, and the
+        // resize below runs only when the display genuinely cannot show it.
+        //
+        // Ask the window for its autosave name rather than rebuilding the
+        // defaults key from the scene id: a guessed key that does not match
+        // deletes nothing and says nothing about having failed.
+        let autosaveName = window.frameAutosaveName
+        if !autosaveName.isEmpty { NSWindow.removeFrame(usingName: autosaveName) }
         window.setFrameAutosaveName("")
-        UserDefaults.standard.removeObject(forKey: "NSWindow Frame \(window.identifier?.rawValue ?? window.title)")
         let maximum = pageWindowMaximumHeight(for: window)
         if window.contentRect(forFrameRect: window.frame).height > maximum {
             window.setContentSize(NSSize(width: OnboardingLayout.windowWidth, height: maximum))

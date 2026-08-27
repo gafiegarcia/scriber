@@ -642,9 +642,6 @@ final class AppCoordinator: ObservableObject {
         refreshCredentialRecovery(force: true)
     }
 
-    /// Sends the user back through onboarding. Only the flag is cleared — the key,
-    /// grants, and history stay, and onboarding reads current state, so each step
-    /// presents as already satisfied rather than asking again.
     /// Whether setup can be walked again right now.
     ///
     /// Restarting clears `onboardingComplete`, which stops the shortcut tap, and
@@ -654,6 +651,9 @@ final class AppCoordinator: ObservableObject {
     /// the disabled state and the refusal below cannot drift apart.
     var canRestartOnboarding: Bool { !phase.isBusy }
 
+    /// Sends the user back through onboarding. Only the flag is cleared — the key,
+    /// grants, and history stay, and onboarding reads current state, so each step
+    /// presents as already satisfied rather than asking again.
     func restartOnboarding() {
         guard canRestartOnboarding else { return }
         isRedoingSetup = true
