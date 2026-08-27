@@ -115,26 +115,48 @@ Only the three things step 7 produces can still be wrong after tagging, and none
 
 Merge to `main` fast-forward only and tag there, never on the branch. Then:
 
-Take the release notes from the version's [changelog](../CHANGELOG.md) section, whose opening line names the build and the requirements. Keep that line: someone who follows a link straight to the release page never sees the README, and the disk image gives them no warning until macOS refuses to open the app.
+Release notes are their own document, not the changelog pasted in. Take the version's Added/Fixed lists from the [changelog](../CHANGELOG.md) and nothing else from it — the build number and signing state belong in the changelog and the tag message, where someone is looking for them, and read as ceremony on a page whose job is to get an app onto a Mac.
 
-Open them with how to install, above the changelog, as a numbered list in the order the reader meets it.
+**Two readers arrive here and the notes serve both.** The in-app offer sends someone who already has Scriber, cold, having read nothing else. The README's download link points at `/releases/latest`, which resolves to whatever the newest release is — so the newest notes are also the install page for every newcomer who does not use Homebrew, permanently and without being written for it. Written for the upgrader alone, the newest release tells a first-time reader to quit an app they do not have and to answer a Replace prompt they will never see.
 
-**Two readers arrive on this page and the notes serve both.** The in-app offer sends someone who already has Scriber, cold, having read nothing else. The README's download link points at `/releases/latest`, which resolves to whatever the newest release is — so the newest notes are also the install page for every newcomer who does not use Homebrew, permanently and without being written for it. Written for the upgrader alone, the newest release tells a first-time reader to quit an app they do not have and to answer a Replace prompt they will never see.
+This shape serves both by letting each skip what is not theirs, in one pass down the page:
 
-They diverge on two steps out of four, so this is one list with those two written as conditions, not two lists:
+```markdown
+> **Installed with Homebrew?** Upgrade with `brew upgrade --cask scriber` instead. …why…
 
-1. **Where the download is.** GitHub puts Assets below the notes, so a release with anything to say buries its own disk image under prose. Name the file and say it is at the bottom of the page. This leads because a reader who cannot find the download cannot use any instruction that follows it.
-2. **If Scriber is already running, quit it** — a running app cannot be replaced, and the upgrader pressed the offer from inside it. Conditional, because a newcomer has nothing to quit.
-3. **Drag, and choose Replace if asked.** macOS asks whether to keep both, replace, or stop, and only one of those is right; a reader who picks Keep Both ends up with two Scribers. Conditional, because a newcomer is never asked.
-4. **The first launch is challenged.** macOS asks them to confirm an app downloaded from the internet. Say so, or a signed and notarized build reads as a warning about itself.
+## Download
 
-Close with a line for each reader, so neither has to work out which steps were theirs: what setup will ask a newcomer for, and that an upgrader's key, permissions, history and shortcut all survive.
+**[Scriber-X.Y.Z.dmg](direct asset URL)** — Apple silicon, macOS 26 Tahoe or newer.
 
-Homebrew is the one audience these notes do not serve. A Homebrew install is answered inside Scriber, which offers it `brew upgrade --cask scriber` rather than sending it here, so a third path would be dead weight for everyone who reads it. The one exception was 0.9.1, which shipped that routing: a 0.9.0 install runs 0.9.0's menu bar and is sent here regardless, so those notes carried the `brew upgrade` line as well.
+### If you're updating
+
+1. Quit Scriber if it is already running.
+2. Open the downloaded `.dmg` and drag Scriber to **Applications** — choose **Replace**.
+3. Open Scriber.
+
+## What's new
+
+…two or three sentences naming the worst thing fixed…
+
+### Added
+### Fixed
+```
+
+What each part is for, since none of it is decoration:
+
+- **Homebrew leads** because it is the only reader for whom everything below is wrong, and Scriber sends them here anyway until the version that fixed that is the one they are running.
+- **Link the asset directly.** GitHub puts Assets below the notes, so a release with anything to say buries its own disk image under prose. A named link at the top costs a reader no scrolling and no guessing which file is the app.
+- **State the requirements beside the download**, because that link is now the first thing anyone can click and nothing above it mentions them. A Mac that cannot run Scriber says so only when macOS refuses to open it.
+- **Say to quit, and to choose Replace**, under a heading an updater reads and a newcomer skips. Do not say *from the menu bar icon*: that icon can be switched off.
+- **Summarise before the lists.** Someone who came to see what changed should not have to read fourteen bullets to find out whether it matters.
+
+Do not explain that permissions, history and the key survive an update. They do, because the app was built that way; describing seamlessness adds a seam.
 
 ```bash
 shasum -a 256 ".build/Scriber-$VERSION.dmg"
-gh release create "v$VERSION" ".build/Scriber-$VERSION.dmg" --title "v$VERSION" --notes-file <(…requirements, then changelog section…)
+gh release create "v$VERSION" ".build/Scriber-$VERSION.dmg" --title "v$VERSION" --notes-file <(…the shape above…)
 ```
+
+Read the published page back before moving on — `gh release view "v$VERSION" --json body --jq .body | grep '^#'` should print the headings above and no others. Notes assembled by extracting from the changelog can pick up every later version's `### Added` as well, which reads as a normal release page until someone scrolls.
 
 Finally update `Casks/scriber.rb` in the [tap repository](https://github.com/gafiegarcia/homebrew-scriber) with the new `version` and that `sha256`. The cask points at the release asset by version, so it breaks until this lands — do it in the same sitting.
