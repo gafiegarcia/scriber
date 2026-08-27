@@ -33,7 +33,7 @@ It is an approximation. If a destination is ever judged wrongly, read `webDocume
 
 Mutation means the watched states differ, which includes the watched element disappearing. That looseness is why the request is required first: on x.com, two dictations performed identically seconds apart differed only in whether anything read the clipboard, and the one where nothing did reported a successful insertion on the strength of its watched element vanishing, having pasted nothing.
 
-A destination slower than the budget therefore reports `copied` even when the text arrives afterwards — a cold-started Zen does this. That is Scriber saying it does not know, which is the honest answer, and the transcript stays on the clipboard and in history. The alternative costs a transcript every time the guess goes the other way.
+A destination slower than the budget therefore reports `copied` even when the text arrives afterwards — a cold-started Zen does this, and so does Google Docs on a cold start, which reads the clipboard and then shows nothing for the whole settle window. That is Scriber saying it does not know, which is the honest answer, and the transcript stays on the clipboard and in history. The alternative costs a transcript every time the guess goes the other way.
 
 Where the evidence is ambiguous, refuse. The two errors are not equal: a wrong `copied` leaves the transcript on the clipboard and in history, while a wrong `inserted` restores the previous clipboard and the transcript is gone.
 
