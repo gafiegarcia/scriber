@@ -556,6 +556,51 @@ struct KeyboardFocusRedirectPolicyTests {
     }
 }
 
+@Suite("Paste dispatch")
+struct PasteDispatchTests {
+    @Test("The keystroke is tried before the menu command")
+    func keystrokeFirst() {
+        #expect(PasteDispatchPolicy.order == [.targetedKeystroke, .applicationMenuCommand])
+    }
+
+    @Test("A dispatch that delivered nothing hands over to the next one")
+    func handsOverWhenNothingWasTaken() {
+        #expect(PasteDispatchPolicy.nextStep(
+            after: .targetedKeystroke,
+            transcriptTaken: false
+        ) == .applicationMenuCommand)
+    }
+
+    @Test("A destination that took the transcript is never asked twice")
+    func stopsOnceTheTranscriptIsTaken() {
+        #expect(PasteDispatchPolicy.nextStep(
+            after: .targetedKeystroke,
+            transcriptTaken: true
+        ) == nil)
+    }
+
+    @Test("The last step has nothing to hand over to")
+    func lastStepEndsTheSequence() {
+        #expect(PasteDispatchPolicy.nextStep(
+            after: .applicationMenuCommand,
+            transcriptTaken: false
+        ) == nil)
+    }
+
+    @Test("A Paste menu item that reports success but does nothing still hands over")
+    func menuCommandSuccessIsNotDelivery() {
+        // Measured in Zen on claude.ai with an empty prompt box: the Edit menu's
+        // Paste item is found and enabled, AXPress returns .success, and the
+        // concealed transcript is never requested. Treating that return code as
+        // delivery is what made the whole 2.5-second confirmation wait fail while
+        // an ordinary Command-V worked.
+        #expect(PasteDispatchPolicy.nextStep(
+            after: .targetedKeystroke,
+            transcriptTaken: false
+        ) != nil)
+    }
+}
+
 @Suite("Paste confirmation")
 struct PasteConfirmationTests {
     @Test("Confirms an observable Accessibility mutation")

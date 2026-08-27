@@ -836,6 +836,39 @@ public enum KeyboardFocusRedirectPolicy {
     }
 }
 
+/// One way of asking a destination to paste.
+public enum PasteDispatchStep: Equatable, Sendable, CaseIterable {
+    /// A Command-V posted to the target process. This is what a person's own
+    /// Command-V does, and it reaches a nonactivating panel that holds keyboard
+    /// focus without being frontmost.
+    case targetedKeystroke
+    /// Pressing the destination's own Paste menu item through Accessibility.
+    case applicationMenuCommand
+}
+
+public enum PasteDispatchPolicy {
+    /// Attempts are made in this order until one of them visibly delivers.
+    public static let order: [PasteDispatchStep] = [.targetedKeystroke, .applicationMenuCommand]
+
+    /// The step to try next, or `nil` when delivery is done.
+    ///
+    /// The rule that matters: a dispatch reporting success is never a reason to
+    /// stop. `AXUIElementPerformAction` returns `.success` on a Paste menu item
+    /// that does nothing at all — Zen's does, on a page whose editor is empty —
+    /// so only evidence that the destination took the transcript ends the
+    /// sequence. Evidence is the concealed item being requested, or observed
+    /// text mutating; either one is enough, and neither is required to have
+    /// arrived from the step that produced it.
+    public static func nextStep(
+        after step: PasteDispatchStep,
+        transcriptTaken: Bool
+    ) -> PasteDispatchStep? {
+        guard !transcriptTaken else { return nil }
+        guard let index = order.firstIndex(of: step), index + 1 < order.count else { return nil }
+        return order[index + 1]
+    }
+}
+
 public enum PasteConfirmationPolicy {
     public static func confirmsInsertion(
         accessibilityMutationObserved: Bool,

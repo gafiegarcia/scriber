@@ -41,6 +41,11 @@ final class PasteService {
     /// command lands. Waiting longer is strictly better than reporting a false
     /// failure, and this delay is only ever paid on the failing path.
     private static let pasteRequestTimeout = Duration.milliseconds(2_500)
+    /// How long one dispatch is given to visibly deliver before another is tried.
+    /// A destination that takes the transcript at all does so quickly — Zen asks
+    /// for the concealed item about 65 ms after a Command-V — so this is
+    /// generous, and it is only ever spent when a dispatch produced nothing.
+    private static let dispatchHandoverWindow = Duration.milliseconds(250)
     private static let clipboardRestoreDelay = Duration.milliseconds(500)
     private static let transientPasteboardTypes = [
         NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
@@ -302,11 +307,15 @@ final class PasteService {
         }
         let transcriptChangeCount = pasteboard.changeCount
         try? await Task.sleep(for: .milliseconds(75))
-        guard await dispatchPaste(to: currentTarget) else {
+        guard await dispatchPaste(
+            to: currentTarget,
+            awaiting: pasteboardReadProbe,
+            statesBeforePaste: statesBeforePaste
+        ) else {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
             return .failed("The focused app did not provide a usable Paste command.")
         }
-        await waitForPasteboardRequest(pasteboardReadProbe)
+        await waitForPasteboardRequest(pasteboardReadProbe, timeout: Self.pasteRequestTimeout)
         let stateAfterPaste = currentFocusedPasteTarget()
         let statesAfterPaste = stateAfterPaste?.pid == currentTarget.pid
             ? observableTextStates(of: stateAfterPaste?.observationElements ?? [])
@@ -331,12 +340,36 @@ final class PasteService {
         return .inserted
     }
 
-    private func waitForPasteboardRequest(_ probe: PasteboardReadProbe) async {
+    private func waitForPasteboardRequest(
+        _ probe: PasteboardReadProbe,
+        timeout: Duration
+    ) async {
         let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: Self.pasteRequestTimeout)
+        let deadline = clock.now.advanced(by: timeout)
         while !probe.wasRequested, clock.now < deadline {
             try? await Task.sleep(for: .milliseconds(25))
         }
+    }
+
+    /// Whether the destination has visibly taken the transcript: it asked for the
+    /// concealed item, or text Scriber can watch changed under it. Polls both,
+    /// because a destination that hides its editor only ever provides the first
+    /// and one that hides nothing may provide the second first.
+    private func waitForTranscriptToBeTaken(
+        _ probe: PasteboardReadProbe,
+        watching elements: [AXUIElement],
+        comparedTo statesBeforePaste: [TextElementState],
+        timeout: Duration
+    ) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while clock.now < deadline {
+            if probe.wasRequested { return true }
+            if !elements.isEmpty, observableTextStates(of: elements) != statesBeforePaste { return true }
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+        return probe.wasRequested
+            || (!elements.isEmpty && observableTextStates(of: elements) != statesBeforePaste)
     }
 
     private func scheduleClipboardRestore(
@@ -352,11 +385,46 @@ final class PasteService {
         }
     }
 
-    private func dispatchPaste(to target: FocusedTextTarget) async -> Bool {
-        if performApplicationPasteCommand(in: target.application) {
-            return true
+    /// Asks the destination to paste, and keeps asking a different way until one
+    /// of them visibly works.
+    ///
+    /// A dispatch reporting success proves nothing. `AXUIElementPerformAction`
+    /// returns `.success` on Zen's Edit ▸ Paste while pressing it does nothing at
+    /// all, which is why delivery there failed for the whole 2.5-second
+    /// confirmation wait despite an ordinary Command-V working by hand.
+    ///
+    /// Between steps, wait only long enough to see whether the destination took
+    /// the transcript. Waiting longer would delay every failing delivery;
+    /// waiting less risks sending a second Paste to a destination that already
+    /// accepted the first, which inserts the dictation twice.
+    private func dispatchPaste(
+        to target: FocusedTextTarget,
+        awaiting probe: PasteboardReadProbe,
+        statesBeforePaste: [TextElementState]
+    ) async -> Bool {
+        var step: PasteDispatchStep? = PasteDispatchPolicy.order.first
+        var dispatched = false
+        var transcriptTaken = false
+        while let current = step {
+            if await perform(current, on: target) {
+                dispatched = true
+                transcriptTaken = await waitForTranscriptToBeTaken(
+                    probe,
+                    watching: target.observationElements,
+                    comparedTo: statesBeforePaste,
+                    timeout: Self.dispatchHandoverWindow
+                )
+            }
+            step = PasteDispatchPolicy.nextStep(after: current, transcriptTaken: transcriptTaken)
         }
-        return await postPasteShortcut(to: target.pid)
+        return dispatched
+    }
+
+    private func perform(_ step: PasteDispatchStep, on target: FocusedTextTarget) async -> Bool {
+        switch step {
+        case .targetedKeystroke: await postPasteShortcut(to: target.pid)
+        case .applicationMenuCommand: performApplicationPasteCommand(in: target.application)
+        }
     }
 
     private func performApplicationPasteCommand(in application: AXUIElement) -> Bool {
