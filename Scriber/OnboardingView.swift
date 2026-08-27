@@ -56,6 +56,7 @@ struct OnboardingView: View {
     @State private var microphoneSignalObserved = false
     @State private var microphoneTestSkipped = false
     @State private var showsDataUseGuide = false
+    @State private var guideHostHeight = OnboardingLayout.windowHeight
     @State private var tryItText = ""
     @State private var error: String?
     /// Held here rather than in `Preferences`, because nothing is registered
@@ -81,13 +82,19 @@ struct OnboardingView: View {
             maxHeight: .infinity
         )
         .background(Color(nsColor: .windowBackgroundColor))
+        // What the panel's height is capped against. Watched rather than read
+        // once, because this window's height is draggable.
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { guideHostHeight = $0 }
         .sheet(isPresented: $showsDataUseGuide) {
-            DataUseGuideSheet { showsDataUseGuide = false }
+            DataUseGuideSheet(hostHeight: guideHostHeight) { showsDataUseGuide = false }
         }
         .onAppear(perform: prepare)
         .onDisappear {
             runtime.coordinator.stopMicrophoneTest()
             applyLaunchAtLoginOnce()
+            // The window going away ends the step too, so a Try it dictation does
+            // not outlive it on the ⌘W route any more than on Back or Continue.
+            endTryItDictation()
         }
         .onChange(of: runtime.coordinator.isCheckingStoredAPIKey) { _, checking in
             guard !checking, !didClampAfterValidation else { return }
@@ -247,6 +254,9 @@ struct OnboardingView: View {
     /// controls that are disabled while it runs and a microphone meter that
     /// refuses to start. It also has nowhere left to land — the field it was aimed
     /// at goes with the step.
+    ///
+    /// Every way off the step reads this — Back, Continue, and the window closing
+    /// — or the invariant holds on two routes out of three.
     ///
     /// Setup only. Everywhere else a recording survives whatever the user opens,
     /// which is what `PRODUCT_SPEC` requires of a window.

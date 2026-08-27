@@ -308,33 +308,29 @@ struct DataUseGuidance: View {
     var guideIdentifier: String
 
     var body: some View {
-        content
-    }
-
-    private var content: some View {
         VStack(alignment: .leading, spacing: 14) {
-                Image(.elevenLabsDataUseSetting)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: OnboardingLayout.contentWidth)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                    }
-                    .accessibilityLabel("ElevenLabs' Improve the models for everyone setting, a switch above a link to their privacy policy")
-                Button("Show me where to turn it off") { showsGuide = true }
-                    .buttonStyle(.link)
-                    .accessibilityIdentifier(guideIdentifier)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Switching it off changes what you send from then on. ElevenLabs keeps what it already generated about your voice for up to three years after your last use, or longer where the law requires.")
-                        .font(OnboardingType.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Link("Read their privacy policy", destination: Self.privacyPolicyURL)
-                        .font(OnboardingType.caption)
-                        .accessibilityIdentifier("data-use-privacy-policy")
+            Image(.elevenLabsDataUseSetting)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: OnboardingLayout.contentWidth)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                 }
+                .accessibilityLabel("ElevenLabs' Improve the models for everyone setting, a switch above a link to their privacy policy")
+            Button("Show me where to turn it off") { showsGuide = true }
+                .buttonStyle(.link)
+                .accessibilityIdentifier(guideIdentifier)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Switching it off changes what you send from then on. ElevenLabs keeps what it already generated about your voice for up to three years after your last use, or longer where the law requires.")
+                    .font(OnboardingType.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Link("Read their privacy policy", destination: Self.privacyPolicyURL)
+                    .font(OnboardingType.caption)
+                    .accessibilityIdentifier("data-use-privacy-policy")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -357,6 +353,7 @@ struct DataUseStep: View {
 struct DataUseWindowView: View {
     @Environment(\.dismissWindow) private var dismissWindow
     @State private var showsGuide = false
+    @State private var guideHostHeight = OnboardingLayout.windowHeight
 
     var body: some View {
         VStack(spacing: 0) {
@@ -381,8 +378,11 @@ struct DataUseWindowView: View {
             maxHeight: .infinity
         )
         .background(Color(nsColor: .windowBackgroundColor))
+        // What the panel's height is capped against. Watched rather than read
+        // once, because this window's height is draggable.
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { guideHostHeight = $0 }
         .sheet(isPresented: $showsGuide) {
-            DataUseGuideSheet { showsGuide = false }
+            DataUseGuideSheet(hostHeight: guideHostHeight) { showsGuide = false }
         }
     }
 }
@@ -405,6 +405,9 @@ struct DataUseWindowView: View {
 /// dashboard is a lead-in line rather than a step of its own — a reader looking
 /// between the two must not find text step 2 against a picture marked 1.
 struct DataUseGuideSheet: View {
+    /// The content height of the window presenting this, watched by the host so
+    /// it follows a drag. See `maximumScrollHeight`.
+    let hostHeight: CGFloat
     let dismiss: () -> Void
 
     /// Which edges currently have content passing under them. Settings' toolbar
@@ -493,7 +496,7 @@ struct DataUseGuideSheet: View {
         // inside its padding, so the scroll indicator rides the sheet's own edge
         // instead of floating in from it. The inset moved to the content above.
         .frame(width: 520)
-        .frame(maxHeight: Self.maximumScrollHeight)
+        .frame(maxHeight: maximumScrollHeight)
         .overlay(alignment: .top) { headerBar }
         .overlay(alignment: .bottom) { footerBar }
     }
@@ -525,12 +528,17 @@ struct DataUseGuideSheet: View {
             .opacity(visible ? 1 : 0)
     }
 
-    /// The sheet has to fit the window it is presented from, and that window is
-    /// never taller than the screen — which is as much as a sheet can find out
-    /// about its host.
-    private static var maximumScrollHeight: CGFloat {
-        let visible = NSScreen.main?.visibleFrame.height ?? OnboardingLayout.windowHeight
-        return max(220, min(520, visible - 200))
+    /// Left of the host window above and below the panel, so it still reads as a
+    /// sheet on something rather than as the whole window.
+    private static let hostClearance: CGFloat = 40
+
+    /// The panel has to fit the window it is presented from, and that window can
+    /// be dragged down to `OnboardingLayout.minimumWindowHeight`. Measured from
+    /// the host rather than from the screen: the screen's height says nothing
+    /// about how short the window under the panel currently is, and a panel
+    /// taller than its host is exactly what the shortest window produces.
+    private var maximumScrollHeight: CGFloat {
+        max(220, min(520, hostHeight - Self.hostClearance))
     }
 }
 
