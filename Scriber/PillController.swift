@@ -228,10 +228,10 @@ final class PillController {
         // it.
         case .dictationCopied, .transcriptCopied:
             5
-        // Brief on purpose. With every dictation copied by choice, the clipboard
-        // is where this one was always going, so there is no outcome to read and
-        // no decision to make — only a confirmation, which the quick "Cancelled"
-        // notice already sets the length for.
+        // Brief on purpose. The clipboard is where every transcript goes, so this
+        // reports no outcome and asks for no decision — only an acknowledgement,
+        // which the quick "Cancelled" notice already sets the length for. The
+        // recovery pill's five seconds are for a delivery known to have failed.
         case .dictationCopiedBriefly:
             1.5
         case .cancelledTranscript, .noSpeechDetected:

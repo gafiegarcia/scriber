@@ -27,7 +27,6 @@ final class Preferences: ObservableObject {
         static let audioInputSelection = "audioInputSelection"
         static let playDictationFeedbackSounds = "playDictationFeedbackSounds"
         static let muteOtherAudioWhileDictating = "muteOtherAudioWhileDictating"
-        static let alwaysCopyDictation = "alwaysCopyDictation"
         static let deletesExpiredRetainedAudio = "deletesExpiredRetainedAudio"
         static let automaticUpdateChecks = "automaticUpdateChecks"
         static let lastUpdateCheck = "lastUpdateCheck"
@@ -67,9 +66,6 @@ final class Preferences: ObservableObject {
     }
     @Published var muteOtherAudioWhileDictating: Bool {
         didSet { defaults.set(muteOtherAudioWhileDictating, forKey: Keys.muteOtherAudioWhileDictating) }
-    }
-    @Published var alwaysCopyDictation: Bool {
-        didSet { defaults.set(alwaysCopyDictation, forKey: Keys.alwaysCopyDictation) }
     }
     @Published var deletesExpiredRetainedAudio: Bool {
         didSet { defaults.set(deletesExpiredRetainedAudio, forKey: Keys.deletesExpiredRetainedAudio) }
@@ -116,7 +112,6 @@ final class Preferences: ObservableObject {
         // makes macOS demand System Audio Recording, and an opt-out default
         // would spend that prompt during a first dictation.
         muteOtherAudioWhileDictating = defaults.bool(forKey: Keys.muteOtherAudioWhileDictating)
-        alwaysCopyDictation = defaults.bool(forKey: Keys.alwaysCopyDictation)
         deletesExpiredRetainedAudio = defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil
             ? true
             : defaults.bool(forKey: Keys.deletesExpiredRetainedAudio)

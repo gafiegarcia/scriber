@@ -527,11 +527,12 @@ public enum AppPhase: Equatable, Sendable {
     /// retry rather than from a failed paste. Its own phase rather than a
     /// `.message`, which is too brief for an outcome the user has to act on.
     case transcriptCopied
-    /// The same outcome as `.dictationCopied`, said briefly, for someone who set
-    /// every dictation to be copied. The clipboard is then where the transcript
-    /// was always going, so this confirms an expectation rather than reporting a
-    /// failure to recover from — there is nothing here to read, and the longer
-    /// dwell the recovery pill needs would only be in the way.
+    /// The clipboard outcome, said briefly, for a delivery nobody can judge — a
+    /// browser, which reports the same thing for a caret it has not published and
+    /// for no caret at all. The transcript is on the clipboard, as every
+    /// transcript is, and it may well have reached the cursor too. There is
+    /// nothing to read and nothing to decide, so the recovery pill's dwell would
+    /// only be in the way.
     case dictationCopiedBriefly
     case message(String)
 

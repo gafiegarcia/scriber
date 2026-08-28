@@ -1331,36 +1331,31 @@ final class AppCoordinator: ObservableObject {
             try modelContext.save()
 
             if delivery == .automaticPaste {
-                let alwaysCopy = preferences.alwaysCopyDictation
-                let delivery = await paste.insert(
-                    transcript,
-                    leavingTranscriptOnClipboard: alwaysCopy
-                )
+                let delivery = await paste.insert(transcript)
                 switch delivery {
                 case .inserted:
                     record.deliveryState = .pasted
                     try modelContext.save()
                     returnToIdle()
                 case .unconfirmed:
-                    // Say nothing. The transcript is on the clipboard and in
-                    // history either way, so the user loses nothing by not being
-                    // told, and is not interrupted for a paste that worked.
+                    // The transcript reached the clipboard and may well have
+                    // reached the cursor too — a browser cannot say. Acknowledge
+                    // it briefly rather than announcing a failure that probably
+                    // did not happen, or saying nothing about text that may be
+                    // nowhere.
                     copy(record)
                     try modelContext.save()
-                    returnToIdle()
+                    setPhase(.dictationCopiedBriefly)
                 case .noEditableTarget(let message), .failed(let message):
                     copy(record)
                     record.errorMessage = message
                     try modelContext.save()
                     playFeedback(.cancellationOrCopyFallback)
-                    // Copying every dictation makes the clipboard the expected
-                    // destination rather than a recovery, so say so and get out of
-                    // the way instead of presenting a transcript to act on.
-                    setPhase(
-                        alwaysCopy
-                            ? .dictationCopiedBriefly
-                            : .dictationCopied(text: transcript, message: message)
-                    )
+                    // Nothing took the transcript and the destination is one whose
+                    // answer can be trusted, so say so at length: the recovery is
+                    // worth reading, and next time the user knows to put a cursor
+                    // somewhere first.
+                    setPhase(.dictationCopied(text: transcript, message: message))
                 }
             } else {
                 copy(record)

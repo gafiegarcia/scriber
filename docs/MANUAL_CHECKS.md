@@ -172,17 +172,16 @@ Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; its table is the baseline.
 
 - Delivery lands at the cursor in ChatGPT, Notion, Zen, Ghostty, Raycast, VS Code, and Zed, with no two-to-three-second delay at record start. **These dictations spend API credit; ask first.**
 - A target with no focused text field in a **native** app falls back to copied rather than reporting false success — Finder with nothing selected, a desktop app with no editable field.
-- In a **browser**, a dictation that cannot be confirmed says nothing and leaves the transcript on the clipboard. Check both directions: `x.com` with a search field clicked and then left inserts nothing and shows no notice, with the transcript pasteable by hand; and `claude.ai` in a freshly opened browser inserts correctly and also shows no notice. The absence of a notice is the check — a "No text box was focused" pill from any browser is the regression.
+- In a **browser**, a dictation that cannot be confirmed shows the brief green **Copied** notice — the length of the quick cancellation one, not the recovery pill — and leaves the transcript on the clipboard. Check both directions: `x.com` with a search field clicked and then left inserts nothing and shows the brief notice, with the transcript pasteable by hand; `claude.ai` in a freshly opened browser inserts correctly and shows the brief notice too. A full "No text box was focused" recovery pill from any browser is the regression.
 - `claude.ai` in Zen takes a dictation into a prompt box that is empty and has never been clicked, and into one that is not focused at all — the paste moves the cursor there, as an ordinary Command-V does. Quit the browser and reopen it before one of these: a freshly started browser is where delivery used to be reported wrongly.
 - Every web destination that accepts a paste still reports `pasted` rather than `copied`. Confirmation there depends on the text visibly arriving, so a web editor whose value Accessibility cannot read would report a working paste as copied. Check ChatGPT, Notion, Slack in a browser, and Google Docs.
 - Raycast running does not produce false recovery in Xcode, ChatGPT, or Notion.
 - Hold the dictation shortcut past the end of a hands-free dictation and release it late. The paste still arrives as a paste and nothing else fires.
 
-### With **Always copy dictation to the clipboard** on
+### The clipboard
 
-- A delivered dictation leaves the transcript on the clipboard rather than restoring what was there, and pasting it again by hand works. A clipboard manager keeps it, which it does not when the setting is off.
-- A dictation that could not be delivered shows a brief green **Copied** notice rather than the transcript-carrying recovery pill, and the transcript is on the clipboard and in History.
-- Turning the setting back off restores the previous behaviour on the next dictation: the clipboard is put back, and a failure presents the recovery pill.
+- Every finished dictation is on the clipboard afterwards as ordinary text, whatever the outcome, and pasting it again by hand works. A clipboard manager keeps it.
+- Copy a file in Finder, dictate somewhere, then paste in Finder: the dictation replaces the file on the clipboard rather than a mangled version of the file coming back. Nothing tries to put the file selection back.
 
 ## When audio muting changes
 
