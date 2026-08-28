@@ -215,6 +215,7 @@ final class PasteService {
             observationElements: observationElements,
             focusContainsTextInput: !observationElements.isEmpty,
             focusExposesWebDocument: focus.exposesWebDocument,
+            focusPublishedInterface: focus.publishedInterface,
             focusExposesEditor: focus.textAncestry.contains(where: isEditorElement),
             focusChainSource: focus.chainSource,
             focusedRole: focus.textAncestry.first.flatMap { stringAttribute($0, named: kAXRoleAttribute) } ?? "-"
@@ -274,6 +275,16 @@ final class PasteService {
         }
 
         let exposesWebDocument = candidates.contains(where: containsWebDocument)
+        // Whether the destination described any interface at all, rather than the
+        // window and the application it always reports. A browser that has just
+        // started publishes only that shell — no web area to recognise it by — so
+        // without this its silence reads as a confident "nothing is focused".
+        let publishedInterface = candidates.contains { chain in
+            chain.contains { element in
+                let role = stringAttribute(element, named: kAXRoleAttribute)
+                return role != "AXWindow" && role != "AXApplication"
+            }
+        }
         // Prefer a chain holding an actual editor over one holding something
         // merely watchable. The two disagree: Google Docs answers the application
         // element with a chain whose only qualifying node is a character-counting
@@ -292,6 +303,7 @@ final class PasteService {
         return FocusInspection(
             textAncestry: chosen,
             exposesWebDocument: exposesWebDocument,
+            publishedInterface: publishedInterface,
             chainSource: chainSource
         )
     }
@@ -503,7 +515,11 @@ final class PasteService {
             // box" to someone whose text arrived correctly is worse than saying
             // nothing to someone whose did not — they still have it, on the
             // clipboard and in history.
-            return exposesWebDocument ? .unconfirmed : .noEditableTarget("No text box was focused to paste into")
+            let describedItself = currentTarget.focusPublishedInterface
+                || (stateAfterPaste?.focusPublishedInterface ?? false)
+            return exposesWebDocument || !describedItself
+                ? .unconfirmed
+                : .noEditableTarget("No text box was focused to paste into")
         }
         publishTranscriptAsOrdinaryText(text, expectedChangeCount: transcriptChangeCount)
         return .inserted
@@ -830,6 +846,8 @@ private struct FocusInspection {
     let textAncestry: [AXUIElement]
     /// Recorded from the full ancestry, including one that was discarded above.
     let exposesWebDocument: Bool
+    /// False when the destination described nothing but its window and itself.
+    let publishedInterface: Bool
     /// Which focused element the chain came from, and why it was preferred.
     /// Named in the delivery log, because the two disagree in exactly the cases
     /// that get judged wrongly.
@@ -846,6 +864,9 @@ private struct FocusedTextTarget {
     /// True when the focus sits inside an `AXWebArea`, meaning the destination
     /// publishes its document to Accessibility and a landed paste would show.
     let focusExposesWebDocument: Bool
+    /// False when the destination described nothing but its window and itself,
+    /// which is what a browser does before it has published anything.
+    let focusPublishedInterface: Bool
     /// True when one of the focused elements is an editor rather than something
     /// that merely reports a character count.
     let focusExposesEditor: Bool
