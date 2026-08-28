@@ -65,7 +65,7 @@ Changes to target selection, pasteboard handling, or confirmation should preserv
 | `claude.ai` in Zen, prompt empty and never clicked | prompt | no | `pasted` |
 | `claude.ai` in a browser | none | no | `pasted`, into the composer the paste itself focuses |
 | `x.com` after a search field was clicked and left | none | no | brief `Copied`, transcript on the clipboard |
-| `claude.ai` in a freshly started browser, prompt autofocused | prompt | no | `pasted`, silently |
+| `claude.ai` in a freshly started browser, prompt autofocused | prompt | no | `pasted`, reported as the brief `Copied` |
 | ChatGPT | prompt | no | `pasted` |
 | Notion | editor | no | `pasted` |
 | Finder | search or rename | no | `pasted` |
