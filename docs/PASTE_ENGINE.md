@@ -22,7 +22,7 @@ Accessibility requests are synchronous cross-process calls, so each message has 
 3. Dispatch a PID-targeted Command-V. If nothing takes the transcript within 250 ms, press the destination's own Paste menu item as well. A dispatch reporting success is never a reason to stop: `AXUIElementPerformAction` answers `.success` on a Paste menu item that does nothing.
 4. Require the concealed string to have been requested. Nothing else confirms anything on its own: the transcript is published only as a promised string, so a destination that never asked cannot have inserted it. Then ask what held the cursor. An editor — a settable selection, an editable role, `AXIsEditable` — needs nothing further, because the question "is there somewhere to paste" was already answered before the paste. Only where no editor was found does the rest apply: a destination exposing an `AXWebArea` must also show observed text mutation, and one exposing no document at all is confirmed by the request.
 5. Give the whole confirmation one second, measured from the first dispatch so a second dispatch spends that budget rather than extending it. Stop sooner once a web destination has read the clipboard and then shown nothing for 400 ms: the read proves the paste arrived, so an unchanged page after that is a failure rather than a slow success. A destination that never read the clipboard gets the full second, because the paste is not known to have arrived at all. Merely dispatching Paste is never success.
-6. On timeout or an uneditable target, preserve the saved history entry, republish the transcript as ordinary clipboard text, and show copied-result recovery.
+6. When nothing confirms, the outcome depends on whether the destination's answer can be trusted. A destination publishing no web document is believed: preserve the saved history entry, republish the transcript as ordinary clipboard text, and show copied-result recovery. A web page is not: republish the transcript the same way and say nothing at all. A browser reports the same thing whether its caret sits in an editor it has not published or there is no caret anywhere, so a refusal there is a guess, and telling someone their text failed when it arrived is worse than staying quiet when it did not — they keep it either way.
 7. After confirmed insertion, restore the previous clipboard after 500 ms only if neither the user nor another process has changed the transaction's pasteboard state. When **Always copy dictation to the clipboard** is on, leave the transcript there as ordinary text instead of restoring.
 
 A lazy data-provider request identifies consumption of the concealed in-flight item; it is not proof that an editor committed the text. A single-page app registers a global paste handler, and that handler reads the clipboard whether or not anything is focused, so the request arrives identically for a paste that inserted nothing. Concealed markers keep clipboard managers from adding a false request of their own, but they do nothing about the destination's own page.
@@ -35,7 +35,9 @@ Mutation means the watched states differ, which includes the watched element dis
 
 A destination slower than the budget still reports `copied` when nothing read the clipboard inside it — a cold-started Zen does this. A destination that read the clipboard and is merely slow to show the text no longer does, because an editor holding the cursor settles it without watching. That is Scriber saying it does not know, which is the honest answer, and the transcript stays on the clipboard and in history. The alternative costs a transcript every time the guess goes the other way.
 
-Where the evidence is ambiguous, refuse. The two errors are not equal: a wrong `copied` leaves the transcript on the clipboard and in history, while a wrong `inserted` restores the previous clipboard and the transcript is gone.
+Where the evidence is ambiguous, claim nothing. Three outcomes, not two: `inserted` restores the previous clipboard, `copied` keeps the transcript and says so, and unconfirmed keeps the transcript and says nothing. A wrong `inserted` is the only one that loses a transcript, so it stays the one requiring evidence.
+
+A browser is the ambiguous case, and always. It publishes no editor for a caret it does have when it has just started, and publishes the same nothing when there is no caret at all. Nothing distinguishes those from outside — not waiting, not traversing its tree, not asking whether its Paste menu item is enabled, not following focus downwards.
 
 Confirmation therefore re-reads focus rather than watching only the elements focused when the paste was sent. A destination may route a paste aimed at its page into an editor that was not focused — `claude.ai` does — and that arrives as a text focus appearing where there was none.
 
@@ -62,7 +64,8 @@ Changes to target selection, pasteboard handling, or confirmation should preserv
 | `claude.ai` in a browser | prompt | no | `pasted` |
 | `claude.ai` in Zen, prompt empty and never clicked | prompt | no | `pasted` |
 | `claude.ai` in a browser | none | no | `pasted`, into the composer the paste itself focuses |
-| `x.com` after a search field was clicked and left | none | no | `copied` |
+| `x.com` after a search field was clicked and left | none | no | silent, transcript on the clipboard |
+| `claude.ai` in a freshly started browser, prompt autofocused | prompt | no | `pasted`, silently |
 | ChatGPT | prompt | no | `pasted` |
 | Notion | editor | no | `pasted` |
 | Finder | search or rename | no | `pasted` |
@@ -92,6 +95,7 @@ Keep the two separate. Widening `acceptsAsEditor` to accept a character count ag
 - Do not accept a dispatched Paste command or an ordinary clipboard-manager-visible string request as insertion proof.
 - Do not treat `AXUIElementPerformAction` returning `.success` on a Paste menu item as a delivered paste. Zen answers `.success` and does nothing, whatever the editor contains.
 - Do not accept a concealed-item request alone from a destination that published an `AXWebArea`. Its page reads the clipboard either way.
+- Do not tell someone their dictation was not delivered on the word of a browser. Leave the transcript on the clipboard and say nothing.
 - Do not end the confirmation wait at the concealed-item request for such a destination either: the request arrives about 65 ms in, before the text could have landed, so the focus read that follows it is too early.
 - Do not require Accessibility mutation for every successful paste.
 - Do not observe a positively non-text focus or add unproven per-app exceptions.

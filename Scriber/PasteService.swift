@@ -11,6 +11,12 @@ enum PasteResult: Sendable {
     static let noEditableTargetMessage = "No editable text box was focused"
 
     case inserted
+    /// The destination took the transcript but nothing observable proved it
+    /// landed, and the destination is one whose answer cannot be trusted — a web
+    /// page, where a freshly launched browser publishes no editor for a caret it
+    /// does have. Neither an insertion nor a failure, so it claims neither: the
+    /// transcript is left on the clipboard and nothing is said.
+    case unconfirmed
     case noEditableTarget(String)
     case failed(String)
 }
@@ -99,6 +105,7 @@ final class PasteService {
         )
         switch result {
         case .inserted: logDeliveryOutcome("inserted")
+        case .unconfirmed: logDeliveryOutcome("unconfirmed")
         case .noEditableTarget: logDeliveryOutcome("noEditableTarget")
         case .failed: logDeliveryOutcome("failed")
         }
@@ -496,7 +503,13 @@ final class PasteService {
             destinationExposesWebDocument: exposesWebDocument,
             focusExposesEditor: exposesEditor
         ) else {
-            return .noEditableTarget("No text box was focused to paste into")
+            // Only claim a failure where the reading can be trusted. A web page
+            // reports the same thing whether its caret is in an editor Firefox has
+            // not published yet or there is no caret at all, and saying "no text
+            // box" to someone whose text arrived correctly is worse than saying
+            // nothing to someone whose did not — they still have it, on the
+            // clipboard and in history.
+            return exposesWebDocument ? .unconfirmed : .noEditableTarget("No text box was focused to paste into")
         }
         if leavingTranscriptOnClipboard {
             publishTranscriptAsOrdinaryText(text, expectedChangeCount: transcriptChangeCount)

@@ -171,8 +171,9 @@ Never drag a test build's item out of the menu bar: the list macOS keeps is per 
 Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; its table is the baseline.
 
 - Delivery lands at the cursor in ChatGPT, Notion, Zen, Ghostty, Raycast, VS Code, and Zed, with no two-to-three-second delay at record start. **These dictations spend API credit; ask first.**
-- A target with no focused text field falls back to copied rather than reporting false success. Two cases: `x.com` with a search field clicked and then left, in every browser, and Zen on a page with no field at all.
-- `claude.ai` in Zen takes a dictation into a prompt box that is empty and has never been clicked, and into one that is not focused at all — the paste moves the cursor there, as an ordinary Command-V does.
+- A target with no focused text field in a **native** app falls back to copied rather than reporting false success — Finder with nothing selected, a desktop app with no editable field.
+- In a **browser**, a dictation that cannot be confirmed says nothing and leaves the transcript on the clipboard. Check both directions: `x.com` with a search field clicked and then left inserts nothing and shows no notice, with the transcript pasteable by hand; and `claude.ai` in a freshly opened browser inserts correctly and also shows no notice. The absence of a notice is the check — a "No text box was focused" pill from any browser is the regression.
+- `claude.ai` in Zen takes a dictation into a prompt box that is empty and has never been clicked, and into one that is not focused at all — the paste moves the cursor there, as an ordinary Command-V does. Quit the browser and reopen it before one of these: a freshly started browser is where delivery used to be reported wrongly.
 - Every web destination that accepts a paste still reports `pasted` rather than `copied`. Confirmation there depends on the text visibly arriving, so a web editor whose value Accessibility cannot read would report a working paste as copied. Check ChatGPT, Notion, Slack in a browser, and Google Docs.
 - Raycast running does not produce false recovery in Xcode, ChatGPT, or Notion.
 - Hold the dictation shortcut past the end of a hands-free dictation and release it late. The paste still arrives as a paste and nothing else fires.

@@ -1341,6 +1341,13 @@ final class AppCoordinator: ObservableObject {
                     record.deliveryState = .pasted
                     try modelContext.save()
                     returnToIdle()
+                case .unconfirmed:
+                    // Say nothing. The transcript is on the clipboard and in
+                    // history either way, so the user loses nothing by not being
+                    // told, and is not interrupted for a paste that worked.
+                    copy(record)
+                    try modelContext.save()
+                    returnToIdle()
                 case .noEditableTarget(let message), .failed(let message):
                     copy(record)
                     record.errorMessage = message
