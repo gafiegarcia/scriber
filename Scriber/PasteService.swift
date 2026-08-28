@@ -699,8 +699,16 @@ final class PasteService {
         return commandCharacter == "v" && commandModifiers == 0
     }
 
+    /// Command-V, and only Command-V.
+    ///
+    /// The event source is private rather than the combined session state, which
+    /// reflects the keys physically down right now. A modifier still held when
+    /// delivery fires — a hands-free dictation whose chord has not been released,
+    /// or a launcher hotkey — merges into a session-state event and turns this
+    /// into Shift-Command-V or Option-Command-V, which paste differently or not
+    /// at all. A private source carries only the flags set here.
     private func postPasteShortcut(to pid: pid_t) async -> Bool {
-        guard let source = CGEventSource(stateID: .combinedSessionState),
+        guard let source = CGEventSource(stateID: .privateState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else { return false }
         down.flags = .maskCommand
