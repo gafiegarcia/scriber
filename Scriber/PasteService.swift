@@ -352,8 +352,12 @@ final class PasteService {
             snapshot.restore(pasteboard)
             return .failed("The transcription could not be placed on the clipboard.")
         }
+        // No settle before the keystroke. `writeObjects` is synchronous and every
+        // write above is checked, so the pasteboard already holds the transcript
+        // when this line is reached; the Command-V cannot outrun it. A 75 ms sleep
+        // sat here, added by the same undocumented commit as the Paste menu item,
+        // waiting on a step AppKit does not have.
         let transcriptChangeCount = pasteboard.changeCount
-        try? await Task.sleep(for: .milliseconds(75))
         let deliveryStarted = ContinuousClock().now
         guard await postPasteShortcut(to: currentTarget.pid) else {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)

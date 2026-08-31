@@ -536,7 +536,16 @@ private struct PillView: View {
         case .dictationCopied(let text, let message):
             copiedResult(text: text, message: message, title: "Copied to clipboard", symbol: "checkmark.circle.fill")
         case .dictationBlockedBySecureField(let text, let message):
-            copiedResult(text: text, message: message, title: "Not pasted into a secure field", symbol: "lock.fill")
+            // Measured at 374 of the 376 points this row has. If it ever truncates —
+            // a larger system font, another locale — shorten the title rather than
+            // widening the panel: "Secure field — dictation copied to clipboard
+            // instead" says the same in 325.
+            copiedResult(
+                text: text,
+                message: message,
+                title: "Secure field detected, dictation copied to clipboard instead",
+                symbol: "lock.fill"
+            )
         case .cancelledTranscript:
             cancellationRecovery
         default:
@@ -721,7 +730,7 @@ private struct PillView: View {
         // purpose — a History retry reaching the clipboard is the intended result,
         // so this one must not read like the apology the expanded pill is making.
         case .dictationCopied, .transcriptCopied: "Copied"
-        case .dictationBlockedBySecureField: "Not pasted into a secure field"
+        case .dictationBlockedBySecureField: "Secure field"
         case .cancelledTranscript: "You can recover your cancelled transcript"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title

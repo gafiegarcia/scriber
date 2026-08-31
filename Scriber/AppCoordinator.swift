@@ -1356,7 +1356,7 @@ final class AppCoordinator: ObservableObject {
                     playFeedback(.terminalFailure)
                     setPhase(.dictationBlockedBySecureField(
                         text: transcript,
-                        message: "If you meant to dictate into it, you can paste (⌘V) yourself"
+                        message: "Not pasted — you can paste it with ⌘V if you wish"
                     ))
                 case .noEditableTarget(let message), .failed(let message):
                     // Nothing took the transcript, so it is still on the clipboard
