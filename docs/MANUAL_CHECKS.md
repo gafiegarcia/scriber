@@ -176,7 +176,9 @@ Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; it defines the delivery these c
 - Raycast's command bar and Raycast Notes still take a dictation while another app is frontmost. Neither has a menu bar, so Command-V is the only route that can reach them and a regression there is total.
 - A dictation with no text field focused in a native app produces **one** alert sound, not two, then the recovery pill. Calendar with no field focused is the case.
 - Nothing pastes twice. Watch particularly in an app that was slow to respond.
-- Start a hands-free dictation, then keep physically holding the shortcut keys down while it finishes and pastes. The dictation still arrives as an ordinary paste. This guards against a modifier still being held merging into Scriber's Command-V and turning it into Shift-Command-V or Option-Command-V, which paste differently or not at all.
+- Start a hands-free dictation, then keep physically holding the shortcut keys down while it finishes and pastes. The recording still ends and the dictation still arrives as an ordinary paste — that is the whole expectation. Worth repeating with a chord that uses Option or Control, not only the default.
+
+    What this protects: Scriber builds its Command-V from a private event source (`PasteService.swift:447`), so only the flags it sets travel with the keystroke. Built from the combined session state instead, whatever is physically held merges in and Command-V arrives as Option-Command-V or Shift-Command-V — a different command, or none. A failure looks like the dictation not landing, or landing with the wrong formatting, rather than like a crash.
 - Dictating into a password field is still refused, the notice names a secure field as the reason rather than reporting a generic failure, and it sounds the alert. Scriber's own API key field is the easiest one to try.
 
 ### The clipboard
