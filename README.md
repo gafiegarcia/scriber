@@ -20,7 +20,8 @@ Scriber is a native macOS dictation app that lives in the menu bar by default, b
 
 - ~50-200MB of RAM usage, <5MB of bundle size (native Swift app)
 - BYOK (only supports ElevenLabs, for now; not a privacy-focused alternative)
-- Auto-paste with paste-fail detection (jargon-y enough?)
+- Paste-fail detection (jargon-y enough?)
+    - known quirk: [x.com](https://x.com) often consumes pasted text even when no text box is focused, so Scriber often reports false positive a.k.a silent paste failure (Wispr Flow also does, so...)
 - (currently) Does one job: Dictation (record -> transcribe -> paste); that's it.
 
 ## Why ElevenLabs?
