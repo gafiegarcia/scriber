@@ -170,18 +170,25 @@ Never drag a test build's item out of the menu bar: the list macOS keeps is per 
 
 Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; its table is the baseline.
 
-- Delivery lands at the cursor in ChatGPT, Notion, Zen, Ghostty, Raycast, VS Code, and Zed, with no two-to-three-second delay at record start. **These dictations spend API credit; ask first.**
-- A target with no focused text field in a **native** app falls back to copied rather than reporting false success — Finder with nothing selected, a desktop app with no editable field.
-- In a **browser**, a dictation that cannot be confirmed shows the brief green **Copied** notice — the length of the quick cancellation one, not the recovery pill — and leaves the transcript on the clipboard. Check both directions: `x.com` with a search field clicked and then left inserts nothing and shows the brief notice, with the transcript pasteable by hand; `claude.ai` in a freshly opened browser inserts correctly and shows the brief notice too. A full "No text box was focused" recovery pill from any browser is the regression.
-- `claude.ai` in Zen takes a dictation into a prompt box that is empty and has never been clicked, and into one that is not focused at all — the paste moves the cursor there, as an ordinary Command-V does. Quit the browser and reopen it before one of these: a freshly started browser is where delivery used to be reported wrongly.
-- Every web destination that accepts a paste still reports `pasted` rather than `copied`. Confirmation there depends on the text visibly arriving, so a web editor whose value Accessibility cannot read would report a working paste as copied. Check ChatGPT, Notion, Slack in a browser, and Google Docs.
-- Raycast running does not produce false recovery in Xcode, ChatGPT, or Notion.
+- Delivery lands at the cursor in ChatGPT, Notion, Ghostty, Raycast, VS Code, Zed, Apple Notes, TextEdit, and Terminal, with no two-to-three-second delay at record start. **These dictations spend API credit; ask first.**
+- Delivery lands in an app that was *just* opened or just switched to with Command-Tab, before it has settled. Calendar's search bar and Notion are where this failed; both need the freshly-opened case, not only the warm one. Compare against pressing Command-V by hand in the same moment — Scriber should now match it.
+- Delivery lands in a web page: `claude.ai` with the prompt focused, with the prompt empty and never clicked, and with nothing focused at all, plus Google Docs, Slack in a browser, and a browser's own address bar.
+- Raycast's command bar and Raycast Notes still take a dictation while another app is frontmost. Neither has a menu bar, so Command-V is the only route that can reach them and a regression there is total.
+- A dictation with no text field focused in a native app produces **one** alert sound, not two, then the recovery pill. Calendar with no field focused is the case.
+- Nothing pastes twice. Watch particularly in an app that was slow to respond.
 - Hold the dictation shortcut past the end of a hands-free dictation and release it late. The paste still arrives as a paste and nothing else fires.
+- Dictating into a password field is still refused.
 
 ### The clipboard
 
-- Every finished dictation is on the clipboard afterwards as ordinary text, whatever the outcome, and pasting it again by hand works. A clipboard manager keeps it.
-- Copy a file in Finder, dictate somewhere, then paste in Finder: the dictation replaces the file on the clipboard rather than a mangled version of the file coming back. Nothing tries to put the file selection back.
+- Copy something, then dictate somewhere that accepts it. Afterwards the clipboard still holds **what you copied**, not the dictation, and pasting by hand gives you back the original. A clipboard manager shows no new dictation entry.
+- Copy a **file** in Finder, dictate successfully, then paste in Finder: the file arrives as the file, not as data.
+- Dictate with nothing focused so delivery fails. The transcript is now on the clipboard as ordinary text, pasting it by hand works, and the recovery pill is showing.
+
+### The delivery log
+
+- `log show --last 30m --predicate 'subsystem == "com.gafiegarcia.scriber" AND category == "paste-target"' --style compact` returns lines. It returned nothing at all before this was fixed, so an empty result is the regression.
+- On a delivery that worked, `asked` is 1 or more. On one that failed, `asked=0`. A line reporting `outcome=inserted` with `asked=0` is the bug this engine was rebuilt to remove.
 
 ## When audio muting changes
 
