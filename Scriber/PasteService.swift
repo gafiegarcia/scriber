@@ -90,10 +90,10 @@ final class PasteService {
     /// A dictation that does not land stays on the clipboard as ordinary text,
     /// because that is the only place the user can recover it from without
     /// opening a window.
-    /// - Parameter onDispatched: Called the moment the Paste has been sent, before
-    ///   anything is known about whether it landed. Learning that takes up to a
-    ///   second more, and making the user watch a spinner through it is what made
-    ///   delivery feel slow while its total time was unchanged.
+    /// - Parameter onDispatched: Called as the Paste goes out, before anything is
+    ///   known about whether it landed. Learning that takes up to a second more,
+    ///   and making the user watch a spinner through it is what made delivery feel
+    ///   slow while its total time was unchanged.
     func insert(
         _ text: String,
         onDispatched: @MainActor () -> Void = {}
@@ -359,11 +359,18 @@ final class PasteService {
         // waiting on a step AppKit does not have.
         let transcriptChangeCount = pasteboard.changeCount
         let deliveryStarted = ContinuousClock().now
+        // Before the keystroke, not after. Transcription ended when the text came
+        // back, so a pill still saying "Transcribing…" is describing something that
+        // is over — and a destination takes the paste about 13 ms in, faster than
+        // the pill's 0.18 s fade, so dismissing afterwards means text arriving
+        // underneath a pill still on screen. Starting the fade first only begins
+        // the animation; the panel is not removed for another 0.18 s and was never
+        // the key window, so the keystroke cannot be misrouted by it.
+        onDispatched()
         guard await postPasteShortcut(to: currentTarget.pid) else {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
             return .failed("Scriber could not send a Paste command.")
         }
-        onDispatched()
         let requested = await waitForTranscriptToBeTaken(
             pasteboardReadProbe,
             until: deliveryStarted.advanced(by: Self.deliveryConfirmationBudget)

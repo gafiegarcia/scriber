@@ -319,7 +319,7 @@ final class AppCoordinator: ObservableObject {
         case .transcribing: "Transcribing"
         case .cancelledTranscript: "Cancelled"
         case .dictationCopied, .transcriptCopied: "Copied"
-        case .dictationBlockedBySecureField: "Not pasted"
+        case .dictationBlockedBySecureField: "Copied"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"

@@ -534,18 +534,15 @@ private struct PillView: View {
     @ViewBuilder private var content: some View {
         switch model.phase {
         case .dictationCopied(let text, let message):
-            copiedResult(text: text, message: message, title: "Copied to clipboard", symbol: "checkmark.circle.fill")
+            copiedResult(text: text, message: message, symbol: "checkmark.circle.fill")
         case .dictationBlockedBySecureField(let text, let message):
-            // Measured at 374 of the 376 points this row has. If it ever truncates —
-            // a larger system font, another locale — shorten the title rather than
-            // widening the panel: "Secure field — dictation copied to clipboard
-            // instead" says the same in 325.
-            copiedResult(
-                text: text,
-                message: message,
-                title: "Secure field detected, dictation copied to clipboard instead",
-                symbol: "lock.fill"
-            )
+            // Same heading as an ordinary copied result, because the same thing
+            // happened: the transcript is on the clipboard. The lock, the amber
+            // tint and the caption carry what is different. The title row is the
+            // narrowest in the panel — it shares with the icon, countdown and
+            // dismiss button, leaving about 343 points against the caption's 444 —
+            // so detail belongs in the caption, where there is room for it.
+            copiedResult(text: text, message: message, symbol: "lock.fill")
         case .cancelledTranscript:
             cancellationRecovery
         default:
@@ -650,17 +647,12 @@ private struct PillView: View {
         .padding(.vertical, 11)
     }
 
-    private func copiedResult(
-        text: String,
-        message: String,
-        title: String,
-        symbol: String
-    ) -> some View {
+    private func copiedResult(text: String, message: String, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 Image(systemName: symbol)
                     .foregroundStyle(toneAccent)
-                Text(title)
+                Text("Copied to clipboard")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 6)
                 countdown
@@ -730,7 +722,7 @@ private struct PillView: View {
         // purpose — a History retry reaching the clipboard is the intended result,
         // so this one must not read like the apology the expanded pill is making.
         case .dictationCopied, .transcriptCopied: "Copied"
-        case .dictationBlockedBySecureField: "Secure field"
+        case .dictationBlockedBySecureField: "Copied"
         case .cancelledTranscript: "You can recover your cancelled transcript"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
