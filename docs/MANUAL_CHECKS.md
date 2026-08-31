@@ -172,7 +172,7 @@ Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; its table is the baseline.
 
 - Delivery lands at the cursor in ChatGPT, Notion, Ghostty, Raycast, VS Code, Zed, Apple Notes, TextEdit, and Terminal, with no two-to-three-second delay at record start. **These dictations spend API credit; ask first.**
 - Delivery lands in an app that was *just* opened or just switched to with Command-Tab, before it has settled. Calendar's search bar and Notion are where this failed; both need the freshly-opened case, not only the warm one. Compare against pressing Command-V by hand in the same moment — Scriber should now match it.
-- Delivery lands in a web page: `claude.ai` with the prompt focused, with the prompt empty and never clicked, and with nothing focused at all, plus Google Docs, Slack in a browser, and a browser's own address bar.
+- Delivery lands in a web page: `claude.ai` with the prompt focused, with the prompt empty and never clicked, and with nothing focused at all, plus Google Docs including a table cell, and a browser's own address bar.
 - Raycast's command bar and Raycast Notes still take a dictation while another app is frontmost. Neither has a menu bar, so Command-V is the only route that can reach them and a regression there is total.
 - A dictation with no text field focused in a native app produces **one** alert sound, not two, then the recovery pill. Calendar with no field focused is the case.
 - Nothing pastes twice. Watch particularly in an app that was slow to respond.
