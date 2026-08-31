@@ -44,6 +44,19 @@ final class PasteService {
     /// a dictation that goes nowhere, and a delivery that lands pays only the
     /// time the destination actually took.
     private static let deliveryConfirmationBudget = Duration.milliseconds(1_000)
+    /// How long the transcript stays on the clipboard after a destination has
+    /// taken it, before the user's own clipboard goes back.
+    ///
+    /// Requesting the promised string is not the same as having finished pasting.
+    /// A destination may read the pasteboard more than once — once to see what is
+    /// on offer and again to insert — and restoring between those two reads hands
+    /// it the clipboard the user had before, which it then pastes instead of the
+    /// dictation. Google Docs does this in a table cell roughly one time in five.
+    ///
+    /// Nothing waits on this. The pill is already gone and the outcome is already
+    /// decided, so the delay costs the user nothing and only has to outlast a
+    /// destination finishing its own paste.
+    private static let clipboardRestoreDelay = Duration.milliseconds(500)
     private static let transientPasteboardTypes = [
         NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
         NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"),
@@ -365,8 +378,8 @@ final class PasteService {
         }
         // The destination has the transcript, so the user's own clipboard can come
         // back. A dictation that lands leaves no trace on it, the way pressing
-        // Command-V yourself would not.
-        snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
+        // Command-V yourself would not — but not yet, and not on this path.
+        scheduleClipboardRestore(snapshot, expectedChangeCount: transcriptChangeCount)
         return .inserted
     }
 
@@ -396,6 +409,23 @@ final class PasteService {
             try? await Task.sleep(for: .milliseconds(10))
         }
         return probe.wasRequested
+    }
+
+    /// Puts the user's clipboard back once the destination has had time to finish
+    /// pasting, rather than the moment it asked.
+    ///
+    /// `restoreIfUnchanged` is what makes the delay safe: anything writing to the
+    /// clipboard in the meantime — the user copying something, or the next
+    /// dictation — moves the change count, and the restore is abandoned rather
+    /// than overwriting it.
+    private func scheduleClipboardRestore(_ snapshot: PasteboardSnapshot, expectedChangeCount: Int) {
+        Task { @MainActor in
+            try? await Task.sleep(for: Self.clipboardRestoreDelay)
+            snapshot.restoreIfUnchanged(
+                NSPasteboard.general,
+                expectedChangeCount: expectedChangeCount
+            )
+        }
     }
 
     /// Replaces the concealed in-flight item with a plain one, so a transcript
