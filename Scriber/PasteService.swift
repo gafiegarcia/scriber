@@ -388,24 +388,12 @@ final class PasteService {
     /// This is the only thing delivery ever waits on, and the only thing that can
     /// confirm it. The transcript is published as a promise, so it does not exist
     /// until something asks; a destination that never asked cannot have inserted
-    /// it, and one that asked was almost always pasting.
+    /// it, and one that asked was pasting.
     ///
-    /// Known and unfixed: a Raycast Notes window that has just been opened breaks
-    /// the second half of that. It receives the paste and requests the transcript
-    /// 13 ms in, and inserts nothing until the note has been clicked or typed in;
-    /// the delivery is reported as landed because nothing distinguishes it from
-    /// one that did.
-    ///
-    /// It is not the delivery method. Three were measured against that window and
-    /// all three were refused while a real Command-V and other dictation apps
-    /// worked: Command-V posted into the process, Command-V posted at the HID
-    /// level (82b1bdd, reverted — it fixed nothing and broke Google Docs), and
-    /// writing the text straight into the focused element through Accessibility.
-    /// The last is the most telling: Raycast's `AXTextArea` reports
-    /// `AXSelectedText` as settable, `AXUIElementSetAttributeValue` returns
-    /// `.success`, and the character count does not move. Something about a note
-    /// that has not been clicked refuses programmatic input of every kind, and it
-    /// is not reachable from outside. Do not retry any of the three.
+    /// The one destination that ever seemed to break this — Raycast Notes on a
+    /// note that had just been opened, asking and inserting nothing — was asking
+    /// honestly. Its paste was handed the user's previous clipboard, because the
+    /// restore ran before it had finished reading. See `clipboardRestoreDelay`.
     private func waitForTranscriptToBeTaken(
         _ probe: PasteboardReadProbe,
         until deadline: ContinuousClock.Instant
@@ -454,10 +442,12 @@ final class PasteService {
     /// into Shift-Command-V or Option-Command-V, which paste differently or not
     /// at all. A private source carries only the flags set here.
     ///
-    /// This is the only way Scriber asks a destination to paste. Pressing the
-    /// destination's own Edit menu item through Accessibility was tried and
-    /// removed: opening a menu takes keyboard focus off the field being pasted
-    /// into, so the Paste it then performed had nowhere to go.
+    /// This is the only way Scriber asks a destination to paste. Two alternatives
+    /// were tried and must not come back. Pressing the destination's own Edit menu
+    /// item through Accessibility takes keyboard focus off the field being pasted
+    /// into, so the Paste it then performs has nowhere to go. Posting the event at
+    /// the HID level rather than into the target process (82b1bdd) fixed nothing
+    /// and made Google Docs paste the previous clipboard item.
     private func postPasteShortcut(to pid: pid_t) async -> Bool {
         guard let source = CGEventSource(stateID: .privateState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),

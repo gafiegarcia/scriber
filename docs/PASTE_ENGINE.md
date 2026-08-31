@@ -23,7 +23,7 @@ Accessibility requests are synchronous cross-process calls, so each message has 
    - `de.petermaurer.TransientPasteboardType`
 3. Post a PID-targeted Command-V. That is the only way Scriber asks a destination to paste.
 4. Wait up to one second for the destination to request the promised string. That request is the confirmation, and the only thing waited on.
-5. When the request arrives, restore the snapshot: a dictation that landed leaves the clipboard as it found it. When it does not, replace the concealed item with the transcript as ordinary text and present the copied-result recovery pill.
+5. When the request arrives, restore the snapshot half a second later: a dictation that landed leaves the clipboard as it found it. **Not immediately** — a destination may read the pasteboard again to insert what it saw, and restoring between those two reads hands it the user's previous clipboard. That is the same bug in two costumes: Google Docs pastes the old text, and Raycast Notes, which cannot accept an image, pastes nothing at all and looks like a delivery failure. When the request never arrives, replace the concealed item with the transcript as ordinary text and present the copied-result recovery pill.
 
 ## Confirmation
 
@@ -43,6 +43,10 @@ The event source is private rather than the combined session state. A modifier s
 
 Pressing the destination's own Edit ▸ Paste item through Accessibility is not a fallback and must not be reintroduced. Opening a menu takes keyboard focus off the field being pasted into, so the Paste it then performs has nowhere to go. It also blocks the main thread on an app that is still starting, and it makes a failed delivery produce two alert sounds where one is correct.
 
+Posting the event at the HID level rather than into the target process is also refuted. It fixed nothing and made Google Docs paste the previous clipboard item.
+
+Writing the transcript straight into the focused element through Accessibility is not a second delivery route. Almost nothing accepts it — Ghostty publishes an `AXTextArea` of 13,766 characters and refuses, and an Electron app publishes nine nested groups and nothing writable — and where an element does report `AXSelectedText` as settable, setting it can return `.success` and change nothing. It would need its own confirmation layer to fix no known failure.
+
 Raycast and Spotlight have no menu bar at all, so Command-V is the only route that can reach them.
 
 ## Diagnostics
@@ -61,7 +65,9 @@ The level matters: macOS does not persist `info`, so a diagnostic written at tha
 
 Destination-by-destination expectations live in [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md). Also verify that moving focus during transcription delivers to the final cursor.
 
-Two consequences of the confirmation rule are accepted rather than fixed. A web page runs its own paste handler and reads the clipboard whether or not anything was focused, so a page with no cursor reports a successful delivery. Finder with nothing focused pastes a `.textClipping` file and reports success, which is what a paste with no text target means to Finder. Both match what other dictation apps do, and both cost nothing: the user pressed dictate with no cursor.
+One destination once appeared to break the confirmation rule: Raycast Notes on a freshly opened note asked for the transcript and inserted nothing. It was asking honestly, and its paste was handed the user's previous clipboard by a restore that ran too early. The rule has no known exception.
+
+Two consequences of it are accepted rather than fixed. A web page runs its own paste handler and reads the clipboard whether or not anything was focused, so a page with no cursor reports a successful delivery. Finder with nothing focused pastes a `.textClipping` file and reports success, which is what a paste with no text target means to Finder. Both match what other dictation apps do, and both cost nothing: the user pressed dictate with no cursor.
 
 ## The character count is for detection, not for belief
 
