@@ -53,6 +53,14 @@ final class AppCoordinator: ObservableObject {
 
     /// Records only permission booleans, state names, and which refresh path
     /// observed them. No user content passes through here.
+    /// Timing for the handoff between the pill going and the outcome being known.
+    /// Same category as `PasteService`'s lines so one capture shows the whole
+    /// delivery.
+    private static let deliveryLog = Logger(
+        subsystem: "com.gafiegarcia.scriber",
+        category: "paste-target"
+    )
+
     private static let permissionLog = Logger(
         subsystem: "com.gafiegarcia.scriber",
         category: "permissions"
@@ -1332,19 +1340,28 @@ final class AppCoordinator: ObservableObject {
             try modelContext.save()
 
             if delivery == .automaticPaste {
-                let delivery = await paste.insert(transcript) { [weak self] in
-                    // The Paste has been sent. Whether it landed takes up to a
-                    // second more to learn, and a spinner held through that second
-                    // is what made delivery feel slow while its total time was
-                    // unchanged. Dismiss now; the recovery pill returns on its own
-                    // if the transcript turns out not to have arrived.
-                    self?.setPhase(.idle)
-                }
+                // Transcription is over the moment the text comes back, so the pill
+                // reporting it goes now — before target discovery, before the
+                // clipboard is touched, before the keystroke. Everything after this
+                // is delivery, and the user should not watch it. Whichever outcome
+                // follows brings its own pill back.
+                setPhase(.idle)
+                let deliveryStarted = ContinuousClock().now
+                let delivery = await paste.insert(transcript)
+                Self.deliveryLog.notice(
+                    "delivery handoff idleToOutcomeMs=\(deliveryStarted.duration(to: ContinuousClock().now).pillMilliseconds, privacy: .public)"
+                )
                 switch delivery {
                 case .inserted:
                     record.deliveryState = .pasted
-                    try modelContext.save()
                     returnToIdle()
+                    // After the pill, not before. Saving is synchronous on this
+                    // actor and grows with the size of the history, so doing it
+                    // first stalls the dismissal animation mid-fade.
+                    try modelContext.save()
+                    Self.deliveryLog.notice(
+                        "delivery handoff idleToSavedMs=\(deliveryStarted.duration(to: ContinuousClock().now).pillMilliseconds, privacy: .public)"
+                    )
                 case .refusedSecureField:
                     copy(record)
                     try modelContext.save()
@@ -1356,7 +1373,7 @@ final class AppCoordinator: ObservableObject {
                     playFeedback(.terminalFailure)
                     setPhase(.dictationBlockedBySecureField(
                         text: transcript,
-                        message: "Not pasted — you can paste it with ⌘V if you wish"
+                        message: "Secure field detected, not pasted. Paste with ⌘V if you wish."
                     ))
                 case .noEditableTarget(let message), .failed(let message):
                     // Nothing took the transcript, so it is still on the clipboard
@@ -1765,4 +1782,11 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+}
+
+
+private extension Duration {
+    var pillMilliseconds: Int {
+        Int(components.seconds * 1_000 + components.attoseconds / 1_000_000_000_000_000)
+    }
 }

@@ -90,14 +90,7 @@ final class PasteService {
     /// A dictation that does not land stays on the clipboard as ordinary text,
     /// because that is the only place the user can recover it from without
     /// opening a window.
-    /// - Parameter onDispatched: Called as the Paste goes out, before anything is
-    ///   known about whether it landed. Learning that takes up to a second more,
-    ///   and making the user watch a spinner through it is what made delivery feel
-    ///   slow while its total time was unchanged.
-    func insert(
-        _ text: String,
-        onDispatched: @MainActor () -> Void = {}
-    ) async -> PasteResult {
+    func insert(_ text: String) async -> PasteResult {
         guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
         let resolution = resolveTarget()
         logDeliveryContext(chosen: resolution.target)
@@ -109,7 +102,7 @@ final class PasteService {
             logDeliveryOutcome("noEditableTarget-noTarget")
             return .noEditableTarget(PasteResult.noEditableTargetMessage)
         case .target(let target):
-            let result = await pasteAtCurrentSelection(text, into: target, onDispatched: onDispatched)
+            let result = await pasteAtCurrentSelection(text, into: target)
             switch result {
             case .inserted: logDeliveryOutcome("inserted")
             case .refusedSecureField: logDeliveryOutcome("refusedSecureField")
@@ -328,8 +321,7 @@ final class PasteService {
 
     private func pasteAtCurrentSelection(
         _ text: String,
-        into currentTarget: FocusedTextTarget,
-        onDispatched: @MainActor () -> Void
+        into currentTarget: FocusedTextTarget
     ) async -> PasteResult {
         // Re-resolve rather than comparing against the frontmost app: when focus
         // sits in a nonactivating panel the target is deliberately not frontmost.
@@ -359,14 +351,6 @@ final class PasteService {
         // waiting on a step AppKit does not have.
         let transcriptChangeCount = pasteboard.changeCount
         let deliveryStarted = ContinuousClock().now
-        // Before the keystroke, not after. Transcription ended when the text came
-        // back, so a pill still saying "Transcribing…" is describing something that
-        // is over — and a destination takes the paste about 13 ms in, faster than
-        // the pill's 0.18 s fade, so dismissing afterwards means text arriving
-        // underneath a pill still on screen. Starting the fade first only begins
-        // the animation; the panel is not removed for another 0.18 s and was never
-        // the key window, so the keystroke cannot be misrouted by it.
-        onDispatched()
         guard await postPasteShortcut(to: currentTarget.pid) else {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
             return .failed("Scriber could not send a Paste command.")
