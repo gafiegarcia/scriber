@@ -318,7 +318,7 @@ final class AppCoordinator: ObservableObject {
         case .recording: "Recording"
         case .transcribing: "Transcribing"
         case .cancelledTranscript: "Cancelled"
-        case .dictationCopied, .transcriptCopied, .dictationCopiedBriefly: "Copied"
+        case .dictationCopied, .transcriptCopied: "Copied"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"
@@ -1337,24 +1337,14 @@ final class AppCoordinator: ObservableObject {
                     record.deliveryState = .pasted
                     try modelContext.save()
                     returnToIdle()
-                case .unconfirmed:
-                    // The transcript reached the clipboard and may well have
-                    // reached the cursor too — a browser cannot say. Acknowledge
-                    // it briefly rather than announcing a failure that probably
-                    // did not happen, or saying nothing about text that may be
-                    // nowhere.
-                    copy(record)
-                    try modelContext.save()
-                    setPhase(.dictationCopiedBriefly)
                 case .noEditableTarget(let message), .failed(let message):
+                    // Nothing took the transcript, so it is still on the clipboard
+                    // where `PasteService` left it. `copy` records that in history
+                    // and makes the clipboard state explicit rather than implied.
                     copy(record)
                     record.errorMessage = message
                     try modelContext.save()
                     playFeedback(.cancellationOrCopyFallback)
-                    // Nothing took the transcript and the destination is one whose
-                    // answer can be trusted, so say so at length: the recovery is
-                    // worth reading, and next time the user knows to put a cursor
-                    // somewhere first.
                     setPhase(.dictationCopied(text: transcript, message: message))
                 }
             } else {

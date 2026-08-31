@@ -384,17 +384,6 @@ struct PillToneTests {
     func success() {
         #expect(AppPhase.dictationCopied(text: "hi", message: "No target").pillTone == .success)
         #expect(AppPhase.transcriptCopied.pillTone == .success)
-        #expect(AppPhase.dictationCopiedBriefly.pillTone == .success)
-    }
-
-    /// The brief notice says the same thing as the recovery pill and must not be
-    /// tinted as though it were a different outcome, nor read as a dictation
-    /// still in flight.
-    @Test("The brief copied notice is an outcome, not a dictation in flight")
-    func briefCopiedIsAnOutcome() {
-        #expect(!AppPhase.dictationCopiedBriefly.isBusy)
-        #expect(AppPhase.dictationCopiedBriefly.acceptsRecordingStart)
-        #expect(AppPhase.dictationCopiedBriefly.pillDismissalAction(isPresented: true) == .dismiss)
     }
 
     @Test("Recoverable outcomes warn")
@@ -567,242 +556,23 @@ struct KeyboardFocusRedirectPolicyTests {
     }
 }
 
-@Suite("Paste dispatch")
-struct PasteDispatchTests {
-    @Test("The keystroke is tried before the menu command")
-    func keystrokeFirst() {
-        #expect(PasteDispatchPolicy.order == [.targetedKeystroke, .applicationMenuCommand])
-    }
-
-    @Test("A dispatch that delivered nothing hands over to the next one")
-    func handsOverWhenNothingWasTaken() {
-        #expect(PasteDispatchPolicy.nextStep(
-            after: .targetedKeystroke,
-            transcriptTaken: false
-        ) == .applicationMenuCommand)
-    }
-
-    @Test("A destination that took the transcript is never asked twice")
-    func stopsOnceTheTranscriptIsTaken() {
-        #expect(PasteDispatchPolicy.nextStep(
-            after: .targetedKeystroke,
-            transcriptTaken: true
-        ) == nil)
-    }
-
-    @Test("The last step has nothing to hand over to")
-    func lastStepEndsTheSequence() {
-        #expect(PasteDispatchPolicy.nextStep(
-            after: .applicationMenuCommand,
-            transcriptTaken: false
-        ) == nil)
-    }
-
-    @Test("A Paste menu item that reports success but does nothing still hands over")
-    func menuCommandSuccessIsNotDelivery() {
-        // Measured in Zen on claude.ai with an empty prompt box: the Edit menu's
-        // Paste item is found and enabled, AXPress returns .success, and the
-        // concealed transcript is never requested. Treating that return code as
-        // delivery is what made the whole 2.5-second confirmation wait fail while
-        // an ordinary Command-V worked.
-        #expect(PasteDispatchPolicy.nextStep(
-            after: .targetedKeystroke,
-            transcriptTaken: false
-        ) != nil)
-    }
-}
-
 @Suite("Paste confirmation")
 struct PasteConfirmationTests {
     @Test("Nothing confirms a delivery nobody asked for")
     func nothingAskedIsNeverInsertion() {
-        // Measured on x.com, two runs done identically seconds apart: the one
-        // where nothing requested the promised transcript reported inserted on
-        // the strength of the watched element disappearing, and nothing had been
-        // pasted. Scriber publishes the transcript only as a promised string, so
-        // a destination that never asked cannot have inserted it.
-        #expect(!PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: true,
-            pasteboardDataRequested: false,
-            destinationExposesWebDocument: false,
-            focusExposesEditor: false
-        ))
-        // Still refused with no editor, whatever the page did to itself.
-        #expect(!PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: true,
-            pasteboardDataRequested: false,
-            destinationExposesWebDocument: true,
-            focusExposesEditor: false
-        ))
+        // Measured on a freshly opened Calendar, three deliveries in a row: a real
+        // AXSearchField held the cursor, nothing was ever inserted, and nothing
+        // asked for the promised transcript. The engine reported all three as
+        // inserted because the focused field was taken as proof. It is not proof:
+        // focus says where a paste would land, never that one did.
+        #expect(!PasteConfirmationPolicy.confirmsInsertion(pasteboardDataRequested: false))
     }
 
-    @Test("Confirms an observable Accessibility mutation on a served transcript")
-    func accessibilityMutation() {
-        #expect(PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: true,
-            pasteboardDataRequested: true,
-            destinationExposesWebDocument: false,
-            focusExposesEditor: false
-        ))
-    }
-
-    @Test("Confirms a destination requesting the concealed promised text")
-    func pasteboardRequest() {
-        #expect(PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: false,
-            pasteboardDataRequested: true,
-            destinationExposesWebDocument: false,
-            focusExposesEditor: false
-        ))
-    }
-
-    @Test("Rejects a dispatched paste with no data request or observable mutation")
-    func noConsumptionOrMutation() {
-        #expect(!PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: false,
-            pasteboardDataRequested: false,
-            destinationExposesWebDocument: false,
-            focusExposesEditor: false
-        ))
-    }
-
-    @Test("State drift on a non-text focus is not evidence")
-    func rejectsDriftOnNonTextFocus() {
-        #expect(!PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
-            focusContainsTextInput: false,
-            mutationObserved: true
-        ))
-        #expect(PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
-            focusContainsTextInput: true,
-            mutationObserved: true
-        ))
-        #expect(!PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
-            focusContainsTextInput: true,
-            mutationObserved: false
-        ))
-    }
-
-    @Test("A page reading the clipboard is not insertion when the page is visible")
-    func webDocumentRequestWithoutMutation() {
-        // Measured on x.com in both Safari and Zen: click a search field, click
-        // empty space, paste. The page's own global paste handler reads the
-        // clipboard about 65ms later — identically to a real insertion — and
-        // nothing is inserted anywhere. The destination published an AXWebArea,
-        // so a paste that landed would have shown as mutation; it did not.
-        #expect(!PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: false,
-            pasteboardDataRequested: true,
-            destinationExposesWebDocument: true,
-            focusExposesEditor: false
-        ))
-    }
-
-    @Test("An editor that publishes no document is still confirmed by the request")
-    func opaqueEditorRequestStillConfirms() {
-        // Zed reports a bare AXWindow and VS Code reports no focused element at
-        // all, so neither can ever produce mutation. Both take the paste and both
-        // request the concealed item. Requiring mutation here would refuse every
-        // successful delivery into them.
-        #expect(PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: false,
-            pasteboardDataRequested: true,
-            destinationExposesWebDocument: false,
-            focusExposesEditor: false
-        ))
-    }
-
-    @Test("A real editor confirms even when nothing read the clipboard")
-    func editorConfirmsWithoutRequest() {
-        // A cold-started browser can take longer than the whole budget to read
-        // the clipboard — every asked=0 delivery logged this session came from
-        // one — and the text still lands. Where an editor held the caret when the
-        // paste was sent, that is the answer, and it was knowable beforehand.
-        #expect(PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: false,
-            pasteboardDataRequested: false,
-            destinationExposesWebDocument: true,
-            focusExposesEditor: true
-        ))
-    }
-
-    @Test("A real editor needs no text to be watched arriving")
-    func editorConfirmsWithoutMutation() {
-        // claude.ai's composer is an AXTextArea and Raycast's bar an AXTextField;
-        // both name themselves as editors before any paste. A cold-started
-        // Google Docs took the transcript and showed nothing for the settle
-        // window, and was reported copied while the text landed afterwards.
-        // Where a real editor holds the cursor there is nothing left to decide.
-        #expect(PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: false,
-            pasteboardDataRequested: true,
-            destinationExposesWebDocument: true,
-            focusExposesEditor: true
-        ))
-    }
-
-    @Test("An element that only counts its characters is not an editor")
-    func characterCountIsNotAnEditor() {
-        // x.com after a search field is clicked and left: an AXGroup reporting
-        // zero characters, no editable role, no settable selection. Watchable,
-        // but not somewhere a cursor is.
-        #expect(!TextInputTargetPolicy.acceptsAsEditor(
-            role: "AXGroup",
-            subrole: nil,
-            selectedTextSettable: false,
-            enabled: true
-        ))
-        #expect(TextInputTargetPolicy.accepts(
-            role: "AXGroup",
-            subrole: nil,
-            selectedTextSettable: false,
-            exposesCharacterCount: true,
-            enabled: true
-        ))
-        for role in ["AXTextArea", "AXTextField", "AXComboBox"] {
-            #expect(TextInputTargetPolicy.acceptsAsEditor(
-                role: role,
-                subrole: nil,
-                selectedTextSettable: false,
-                enabled: true
-            ))
-        }
-        #expect(!TextInputTargetPolicy.acceptsAsEditor(
-            role: "AXTextField",
-            subrole: "AXSecureTextField",
-            selectedTextSettable: true,
-            enabled: true
-        ))
-    }
-
-    @Test("A web destination that visibly took the text is confirmed")
-    func webDocumentWithMutationConfirms() {
-        // claude.ai in Zen: the prompt box goes from 1 character to 17 as the
-        // transcript lands. Mutation confirms regardless of the page being
-        // visible to Accessibility.
-        #expect(PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: true,
-            pasteboardDataRequested: true,
-            destinationExposesWebDocument: true,
-            focusExposesEditor: false
-        ))
-    }
-
-    @Test("A live page with no focused text box is still a failed paste")
-    func livePageWithoutTextBoxStillFails() {
-        // Observed live on claude.ai in Zen: the page reports a focused element
-        // that is not text input, and its own accessibility state drifts between
-        // the before and after snapshots. Counting that drift reported a paste
-        // that never happened and suppressed the copied-result recovery.
-        let accessibilityEvidence = PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
-            focusContainsTextInput: false,
-            mutationObserved: true
-        )
-        #expect(!PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: accessibilityEvidence,
-            pasteboardDataRequested: false,
-            destinationExposesWebDocument: false,
-            focusExposesEditor: false
-        ))
+    @Test("A destination that took the transcript inserted it")
+    func requestConfirms() {
+        // The transcript is published only as a promised string, so it does not
+        // exist until something asks. Asking is pasting.
+        #expect(PasteConfirmationPolicy.confirmsInsertion(pasteboardDataRequested: true))
     }
 }
 

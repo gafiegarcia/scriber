@@ -527,13 +527,6 @@ public enum AppPhase: Equatable, Sendable {
     /// retry rather than from a failed paste. Its own phase rather than a
     /// `.message`, which is too brief for an outcome the user has to act on.
     case transcriptCopied
-    /// The clipboard outcome, said briefly, for a delivery nobody can judge — a
-    /// browser, which reports the same thing for a caret it has not published and
-    /// for no caret at all. The transcript is on the clipboard, as every
-    /// transcript is, and it may well have reached the cursor too. There is
-    /// nothing to read and nothing to decide, so the recovery pill's dwell would
-    /// only be in the way.
-    case dictationCopiedBriefly
     case message(String)
 
     public var isBusy: Bool {
@@ -749,7 +742,7 @@ public extension AppPhase {
         case .transcribing: .hideTranscription
         case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
-             .transcriptCopied, .dictationCopiedBriefly, .message: .dismiss
+             .transcriptCopied, .message: .dismiss
         }
     }
 
@@ -761,7 +754,7 @@ public extension AppPhase {
     var pillTone: ToastTone {
         switch self {
         case .dictationCopied: .success
-        case .transcriptCopied, .dictationCopiedBriefly: .success
+        case .transcriptCopied: .success
         case .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .noAudioSignal: .warning
         case .idle, .recording, .transcribing, .cancelledTranscript, .message: .neutral
@@ -778,7 +771,6 @@ public extension AppPhase {
         // The transcript is selectable, so a body tap fights the selection it sits on.
         case .dictationCopied: .none
         case .transcriptCopied, .transcriptionFailed: .openMainWindow
-        case .dictationCopiedBriefly: .dismiss
         case .permissionsRequired: .openPermissionSettings
         case .credentialsUnusable: .openCredentialSettings
         case .noSpeechDetected, .noAudioSignal: .openInputSettings
@@ -819,33 +811,6 @@ public enum TextInputTargetPolicy {
             || role.map(recognizedRoles.contains) == true
     }
 
-    /// Whether the element is an editor rather than something that merely counts
-    /// its characters.
-    ///
-    /// A bare character count is enough to *watch* an element, and `accepts`
-    /// keeps taking it for that. It is not enough to believe a cursor is there:
-    /// an `AXGroup` reporting `AXNumberOfCharacters` of zero, with no editable
-    /// role and no settable selection, is what a web page presents after a text
-    /// field is clicked and then left. A real editor names itself — `AXTextArea`
-    /// on claude.ai, `AXTextField` in Raycast — or lets its selected text be set.
-    ///
-    /// This is the difference between "there is somewhere to paste" and "there is
-    /// something here", and it is readable before the paste rather than inferred
-    /// from what happens after it.
-    public static func acceptsAsEditor(
-        role: String?,
-        subrole: String?,
-        selectedTextSettable: Bool,
-        explicitlyEditable: Bool = false,
-        enabled: Bool?
-    ) -> Bool {
-        guard role != "AXSecureTextField",
-              subrole != "AXSecureTextField",
-              enabled != false else { return false }
-        return selectedTextSettable
-            || explicitlyEditable
-            || role.map(recognizedRoles.contains) == true
-    }
 }
 
 public enum KeyboardFocusRedirectPolicy {
@@ -872,88 +837,24 @@ public enum KeyboardFocusRedirectPolicy {
     }
 }
 
-/// One way of asking a destination to paste.
-public enum PasteDispatchStep: Equatable, Sendable, CaseIterable {
-    /// A Command-V posted to the target process. This is what a person's own
-    /// Command-V does, and it reaches a nonactivating panel that holds keyboard
-    /// focus without being frontmost.
-    case targetedKeystroke
-    /// Pressing the destination's own Paste menu item through Accessibility.
-    case applicationMenuCommand
-}
-
-public enum PasteDispatchPolicy {
-    /// Attempts are made in this order until one of them visibly delivers.
-    public static let order: [PasteDispatchStep] = [.targetedKeystroke, .applicationMenuCommand]
-
-    /// The step to try next, or `nil` when delivery is done.
-    ///
-    /// The rule that matters: a dispatch reporting success is never a reason to
-    /// stop. `AXUIElementPerformAction` returns `.success` on a Paste menu item
-    /// that does nothing at all — Zen's does, on a page whose editor is empty —
-    /// so only evidence that the destination took the transcript ends the
-    /// sequence. Evidence is the concealed item being requested, or observed
-    /// text mutating; either one is enough, and neither is required to have
-    /// arrived from the step that produced it.
-    public static func nextStep(
-        after step: PasteDispatchStep,
-        transcriptTaken: Bool
-    ) -> PasteDispatchStep? {
-        guard !transcriptTaken else { return nil }
-        guard let index = order.firstIndex(of: step), index + 1 < order.count else { return nil }
-        return order[index + 1]
-    }
-}
-
 public enum PasteConfirmationPolicy {
     /// Whether the transcript reached a text cursor.
     ///
-    /// Observed Accessibility mutation always confirms. A request for the
-    /// concealed item is weaker: a single-page app registers its own global paste
-    /// handler, and that handler reads the clipboard whether or not anything is
-    /// focused, so the request arrives identically for a paste that inserted
-    /// nothing.
+    /// One question, and it is not a guess. The transcript is published only as a
+    /// lazily promised string, so it does not exist until a destination asks for
+    /// it. Nothing can insert what it never requested, and nothing that requested
+    /// it was doing anything else with a paste.
     ///
-    /// What separates the two is whether the destination published its document.
-    /// A destination exposing an `AXWebArea` handed its whole page to
-    /// Accessibility, so a paste that landed there would have shown as mutation;
-    /// the request alone, with nothing changed, means the page read the clipboard
-    /// and dropped it. A destination exposing no document at all — Zed, VS Code —
-    /// leaves nothing to observe either way, and there the request is the best
-    /// evidence available and is accepted.
-    public static func confirmsInsertion(
-        accessibilityMutationObserved: Bool,
-        pasteboardDataRequested: Bool,
-        destinationExposesWebDocument: Bool,
-        focusExposesEditor: Bool
-    ) -> Bool {
-        // Necessary, not sufficient. The transcript is published only as a lazily
-        // promised string, so nothing can insert it without asking for that
-        // promise. A delivery where nothing asked did not happen, however much the
-        // destination's Accessibility state moved afterwards — losing a focused
-        // element looks identical to gaining text when all that is compared is
-        // whether the watched states differ.
-        // A real editor held the caret when the paste was sent. That is the
-        // question the rest of this was trying to infer, and it is answerable
-        // before the paste rather than after it. A cold-started browser can take
-        // longer than the whole budget to read the clipboard, and refusing there
-        // reported a working paste as copied.
-        if focusExposesEditor { return true }
-        guard pasteboardDataRequested else { return false }
-        return accessibilityMutationObserved || !destinationExposesWebDocument
-    }
-
-    /// Accessibility state only counts as evidence when it was observed on a focus
-    /// that genuinely looks like text input. A live web page with no focused text
-    /// box changes its own state through carets, timers, and streaming content, so
-    /// watching an unrelated element manufactures confirmations at random — worse
-    /// than no evidence at all, because a failed paste is then reported as
-    /// delivered and the transcript is never offered for recovery.
-    public static func qualifiesAsAccessibilityEvidence(
-        focusContainsTextInput: Bool,
-        mutationObserved: Bool
-    ) -> Bool {
-        focusContainsTextInput && mutationObserved
+    /// Nothing observed *after* the paste is admitted, whatever it looked like.
+    /// Accessibility state is not a record of what a paste did: a focused field
+    /// disappearing reads identically to text arriving, a live page rewrites
+    /// itself on its own timers, and during a hands-free dictation the user may
+    /// type into the box themselves. Each of those was read as a successful
+    /// delivery at some point. What was focused *before* the paste is no better —
+    /// it says where a paste would land, never that one did, and a real search
+    /// field held the cursor through three deliveries that inserted nothing.
+    public static func confirmsInsertion(pasteboardDataRequested: Bool) -> Bool {
+        pasteboardDataRequested
     }
 }
 

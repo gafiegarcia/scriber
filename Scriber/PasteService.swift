@@ -11,12 +11,6 @@ enum PasteResult: Sendable {
     static let noEditableTargetMessage = "No editable text box was focused"
 
     case inserted
-    /// The destination took the transcript but nothing observable proved it
-    /// landed, and the destination is one whose answer cannot be trusted — a web
-    /// page, where a freshly launched browser publishes no editor for a caret it
-    /// does have. Neither an insertion nor a failure, so it claims neither: the
-    /// transcript is left on the clipboard and nothing is said.
-    case unconfirmed
     case noEditableTarget(String)
     case failed(String)
 }
@@ -30,10 +24,10 @@ enum PasteResult: Sendable {
 ///    path may send an Accessibility message, because those are synchronous
 ///    cross-process calls whose cost is set by the destination app, not by
 ///    Scriber. Target discovery therefore happens only at delivery time.
-/// 2. Confirmation is allowed to be slow. Delivery is confirmed when the
-///    destination requests the concealed in-flight pasteboard item, or when an
-///    editable Accessibility target visibly mutates. Missing Accessibility
-///    evidence is never treated as failure — see `docs/PASTE_ENGINE.md`.
+/// 2. Delivery is confirmed by one thing: the destination requesting the
+///    concealed in-flight pasteboard item. The transcript is published only as a
+///    promise, so nothing can insert what it never asked for. Nothing observed
+///    after the paste is admitted as evidence — see `docs/PASTE_ENGINE.md`.
 @MainActor
 final class PasteService {
     /// Accessibility messages block the caller. macOS defaults to a 6-second
@@ -42,23 +36,11 @@ final class PasteService {
     /// succeeding, so every message is capped low enough to stay imperceptible.
     private static let accessibilityMessagingTimeout: Float = 0.2
     private static let maximumInspectedAncestors = 8
-    private static let maximumInspectedMenuItems = 256
-    /// The whole budget for showing that delivery worked, measured from the first
-    /// dispatch so that trying a second one cannot extend it.
-    ///
-    /// Every destination measured takes the transcript within 80 ms — Zed 63,
-    /// Safari 64, Zen 68, Claude 76 — including the two that publish no editor
-    /// and can only ever answer by requesting the concealed item. This leaves an
-    /// order of magnitude above that, and it is only ever spent in full when
-    /// delivery genuinely failed.
+    /// How long a destination has to ask for the transcript before delivery is
+    /// called a failure. Nothing else is waited on, so this is the entire cost of
+    /// a dictation that goes nowhere, and a delivery that lands pays only the
+    /// time the destination actually took.
     private static let deliveryConfirmationBudget = Duration.milliseconds(1_000)
-    /// How long one dispatch is given to visibly deliver before another is tried,
-    /// carved out of the budget above rather than added to it.
-    private static let dispatchHandoverWindow = Duration.milliseconds(250)
-    /// How often focus is re-read while waiting for evidence. Only the ambiguous
-    /// case reaches this now — a page Scriber can read, holding no editor — so it
-    /// polls harder than it did when every delivery paid for it.
-    private static let focusRereadInterval = Duration.milliseconds(75)
     private static let transientPasteboardTypes = [
         NSPasteboard.PasteboardType("org.nspasteboard.TransientType"),
         NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"),
@@ -83,12 +65,15 @@ final class PasteService {
         targetScreen = nil
     }
 
-    /// A finished dictation always ends up on the clipboard, as ordinary text,
-    /// whatever the outcome — so it behaves as though it had been copied by hand
-    /// and can be pasted again. The paste itself is unchanged: the transcript
-    /// travels as a concealed, promised item, so clipboard managers cannot take a
-    /// copy of dictation in flight, nor fake the request that confirms delivery.
-    /// Only what is left behind afterwards is plain.
+    /// A dictation that lands leaves the clipboard exactly as it found it. The
+    /// transcript travels as a concealed, promised item, so clipboard managers
+    /// cannot take a copy of dictation in flight nor fake the request that
+    /// confirms delivery, and once the destination has taken it the user's own
+    /// clipboard comes back.
+    ///
+    /// A dictation that does not land stays on the clipboard as ordinary text,
+    /// because that is the only place the user can recover it from without
+    /// opening a window.
     func insert(_ text: String) async -> PasteResult {
         guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
         let target = currentFocusedPasteTarget()
@@ -100,7 +85,6 @@ final class PasteService {
         let result = await pasteAtCurrentSelection(text, into: target)
         switch result {
         case .inserted: logDeliveryOutcome("inserted")
-        case .unconfirmed: logDeliveryOutcome("unconfirmed")
         case .noEditableTarget: logDeliveryOutcome("noEditableTarget")
         case .failed: logDeliveryOutcome("failed")
         }
@@ -141,49 +125,27 @@ final class PasteService {
             subrole = stringAttribute(focusedElement, named: kAXSubroleAttribute) ?? "-"
         }
 
-        Self.diagnosticLog.info("""
+        Self.diagnosticLog.notice("""
         delivery frontmost=\(Self.identity(of: frontmost), privacy: .public) \
         focusedApp=\(Self.identity(of: focusedApplicationPID), privacy: .public) \
         focusedElement=\(Self.identity(of: focusedElementPID), privacy: .public) \
         role=\(role, privacy: .public) subrole=\(subrole, privacy: .public) \
-        chosen=\(Self.identity(of: chosen?.pid), privacy: .public) \
-        qualifiedTextFocus=\(chosen?.focusContainsTextInput ?? false, privacy: .public) \
-        webDocument=\(chosen?.focusExposesWebDocument ?? false, privacy: .public)
+        chosen=\(Self.identity(of: chosen?.pid), privacy: .public)
         """)
     }
 
     private func logDeliveryOutcome(_ outcome: String) {
-        Self.diagnosticLog.info("delivery outcome=\(outcome, privacy: .public)")
+        Self.diagnosticLog.notice("delivery outcome=\(outcome, privacy: .public)")
     }
 
     /// The inputs to the confirmation decision, so a delivery that was reported
-    /// wrongly can be read back rather than reasoned about. Counts and flags
-    /// only — never the transcript, and never a field's contents.
-    private func logDeliveryEvidence(
-        requested: Bool,
-        mutation: Bool,
-        textFocusBefore: Bool,
-        textFocusAfter: Bool,
-        webDocument: Bool,
-        watchedBefore: Int,
-        watchedAfter: Int,
-        editor: Bool,
-        chainSource: String,
-        chainRole: String,
-        askedCount: Int,
-        elapsedMilliseconds: Int
-    ) {
-        Self.diagnosticLog.info("""
-        delivery evidence requested=\(requested, privacy: .public) \
-        mutation=\(mutation, privacy: .public) \
-        textFocusBefore=\(textFocusBefore, privacy: .public) \
-        textFocusAfter=\(textFocusAfter, privacy: .public) \
-        webDocument=\(webDocument, privacy: .public) \
-        watchedBefore=\(watchedBefore, privacy: .public) \
-        watchedAfter=\(watchedAfter, privacy: .public) \
-        editor=\(editor, privacy: .public) \
-        chain=\(chainSource, privacy: .public)/\(chainRole, privacy: .public) \
-        asked=\(askedCount, privacy: .public) \
+    /// wrongly can be read back rather than reasoned about. Counts only — never
+    /// the transcript, and never a field's contents.
+    ///
+    /// `asked` is the whole decision. `elapsedMs` is what it cost.
+    private func logDeliveryEvidence(askedCount: Int, elapsedMilliseconds: Int) {
+        Self.diagnosticLog.notice("""
+        delivery evidence asked=\(askedCount, privacy: .public) \
         elapsedMs=\(elapsedMilliseconds, privacy: .public)
         """)
     }
@@ -196,30 +158,16 @@ final class PasteService {
 
     // MARK: - Target discovery
 
+    /// The process delivery should paste into, and nothing else.
+    ///
+    /// What is focused is read for exactly one purpose: refusing a password box.
+    /// It is deliberately not consulted for anything else. Focus says where a
+    /// paste would land, never that one did, and a real search field held the
+    /// cursor through three deliveries that inserted nothing.
     private func currentFocusedPasteTarget() -> FocusedTextTarget? {
         guard let pid = currentTargetPID() else { return nil }
-        let application = AXUIElementCreateApplication(pid)
-        AXUIElementSetMessagingTimeout(application, Self.accessibilityMessagingTimeout)
-
-        // A destination may keep its real editor outside the Accessibility tree.
-        // An empty inspection set is expected there, and process-level paste stays
-        // safe because success is confirmed independently by the pasteboard probe.
-        let focus = focusedTextAncestry(in: application, pid: pid)
-        // A focused secure field is the one case Scriber positively refuses:
-        // dictation must never be pasted into a password box.
-        guard !focus.textAncestry.contains(where: isSecureTextElement) else { return nil }
-        let observationElements = focus.textAncestry.filter(isEditableTextElement)
-        return FocusedTextTarget(
-            application: application,
-            pid: pid,
-            observationElements: observationElements,
-            focusContainsTextInput: !observationElements.isEmpty,
-            focusExposesWebDocument: focus.exposesWebDocument,
-            focusPublishedInterface: focus.publishedInterface,
-            focusExposesEditor: focus.textAncestry.contains(where: isEditorElement),
-            focusChainSource: focus.chainSource,
-            focusedRole: focus.textAncestry.first.flatMap { stringAttribute($0, named: kAXRoleAttribute) } ?? "-"
-        )
+        guard !focusedAncestry(in: pid).contains(where: isSecureTextElement) else { return nil }
+        return FocusedTextTarget(pid: pid)
     }
 
     /// The process delivery should paste into.
@@ -248,64 +196,24 @@ final class PasteService {
         return focusOwnerPID
     }
 
-    /// The focused element's bounded ancestry, but only when that focus actually
-    /// looks like text input.
+    /// The focused element's bounded ancestry within one process, asked of the
+    /// application first and the system-wide element second.
     ///
-    /// When macOS positively reports a focused element that is *not* text — a web
-    /// page with no focused text box — record no Accessibility evidence at all. A
-    /// live page mutates its own state between the before and after snapshots
-    /// through carets, timers, and streaming content, and reading that drift as a
-    /// paste mutation confirms insertions that never happened.
-    ///
-    /// An empty result is not a failure. Delivery still dispatches Paste, and
-    /// confirmation falls to the pasteboard probe alone, which is the documented
-    /// path for destinations that hide their editor from Accessibility.
-    private func focusedTextAncestry(in application: AXUIElement, pid: pid_t) -> FocusInspection {
-        var candidates: [[AXUIElement]] = []
+    /// An empty result is not a failure and never refuses a paste. Zed and VS Code
+    /// keep their real editor out of the Accessibility tree entirely and still
+    /// accept an ordinary Command-V.
+    private func focusedAncestry(in pid: pid_t) -> [AXUIElement] {
+        let application = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(application, Self.accessibilityMessagingTimeout)
         if let focused = elementAttribute(application, named: kAXFocusedUIElementAttribute) {
-            candidates.append(ancestry(of: deepestFocus(from: focused)))
+            return ancestry(of: deepestFocus(from: focused))
         }
         let systemWide = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemWide, Self.accessibilityMessagingTimeout)
-        if let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) {
-            var focusedPID: pid_t = 0
-            if AXUIElementGetPid(focused, &focusedPID) == .success, focusedPID == pid {
-                candidates.append(ancestry(of: deepestFocus(from: focused)))
-            }
-        }
-
-        let exposesWebDocument = candidates.contains(where: containsWebDocument)
-        // Whether the destination described any interface at all, rather than the
-        // window and the application it always reports. A browser that has just
-        // started publishes only that shell — no web area to recognise it by — so
-        // without this its silence reads as a confident "nothing is focused".
-        let publishedInterface = candidates.contains { chain in
-            chain.contains { element in
-                let role = stringAttribute(element, named: kAXRoleAttribute)
-                return role != "AXWindow" && role != "AXApplication"
-            }
-        }
-        // Prefer a chain holding an actual editor over one holding something
-        // merely watchable. The two disagree: Google Docs answers the application
-        // element with a chain whose only qualifying node is a character-counting
-        // group, while the system-wide element names the AXTextArea the caret is
-        // really in. Taking the first chain that qualified reported no editor
-        // where there plainly was one, and refused a paste that worked.
-        var chainSource = "none"
-        var chosen: [AXUIElement] = []
-        if let index = candidates.firstIndex(where: { $0.contains(where: isEditorElement) }) {
-            chosen = candidates[index]
-            chainSource = index == 0 ? "app-editor" : "system-editor"
-        } else if let index = candidates.firstIndex(where: containsTextInput) {
-            chosen = candidates[index]
-            chainSource = index == 0 ? "app-watchable" : "system-watchable"
-        }
-        return FocusInspection(
-            textAncestry: chosen,
-            exposesWebDocument: exposesWebDocument,
-            publishedInterface: publishedInterface,
-            chainSource: chainSource
-        )
+        guard let focused = elementAttribute(systemWide, named: kAXFocusedUIElementAttribute) else { return [] }
+        var focusedPID: pid_t = 0
+        guard AXUIElementGetPid(focused, &focusedPID) == .success, focusedPID == pid else { return [] }
+        return ancestry(of: deepestFocus(from: focused))
     }
 
     /// Follows focus downwards to the element that actually holds the caret.
@@ -313,9 +221,7 @@ final class PasteService {
     /// An application can answer `AXFocusedUIElement` with a container that
     /// answers the same question again — Zen names the page's `AXWebArea`, which
     /// names the editor inside it. `ancestry(of:)` only ever walks upwards, so
-    /// stopping at the container meant standing on the document while the text
-    /// area was underneath: the chain qualified only through the web area's
-    /// character count, reported no editor, and refused pastes that worked.
+    /// stopping at the container would hide a secure field sitting underneath it.
     private func deepestFocus(from element: AXUIElement) -> AXUIElement {
         var current = element
         for _ in 0..<Self.maximumInspectedAncestors {
@@ -324,18 +230,6 @@ final class PasteService {
             current = next
         }
         return current
-    }
-
-    /// Whether the focused ancestry sits inside a web document.
-    ///
-    /// This is what separates "Scriber cannot see the editor" from "Scriber can
-    /// see the page and there is no editor in it". A destination publishing an
-    /// `AXWebArea` has handed its whole document to Accessibility, so a paste
-    /// that lands is visible; one that publishes nothing — Zed, VS Code — leaves
-    /// Scriber blind, and only there is a pasteboard request the best available
-    /// evidence.
-    private func containsWebDocument(_ ancestry: [AXUIElement]) -> Bool {
-        ancestry.contains { stringAttribute($0, named: kAXRoleAttribute) == "AXWebArea" }
     }
 
     private func containsTextInput(_ ancestry: [AXUIElement]) -> Bool {
@@ -367,33 +261,6 @@ final class PasteService {
     private func isSecureTextElement(_ element: AXUIElement) -> Bool {
         stringAttribute(element, named: kAXRoleAttribute) == "AXSecureTextField"
             || stringAttribute(element, named: kAXSubroleAttribute) == "AXSecureTextField"
-    }
-
-    /// Whether the element is an editor, not merely something Scriber can watch.
-    /// Read before the paste, and the reason delivery into a real text box needs
-    /// no waiting at all.
-    private func isEditorElement(_ element: AXUIElement) -> Bool {
-        let role = stringAttribute(element, named: kAXRoleAttribute)
-        let subrole = stringAttribute(element, named: kAXSubroleAttribute)
-        var selectedTextSettable = DarwinBoolean(false)
-        let selectedTextStatus = AXUIElementIsAttributeSettable(
-            element,
-            kAXSelectedTextAttribute as CFString,
-            &selectedTextSettable
-        )
-        var enabledValue: CFTypeRef?
-        let enabledStatus = AXUIElementCopyAttributeValue(
-            element,
-            kAXEnabledAttribute as CFString,
-            &enabledValue
-        )
-        return TextInputTargetPolicy.acceptsAsEditor(
-            role: role,
-            subrole: subrole,
-            selectedTextSettable: selectedTextStatus == .success && selectedTextSettable.boolValue,
-            explicitlyEditable: boolAttribute(element, named: "AXIsEditable") == true,
-            enabled: enabledStatus == .success ? enabledValue as? Bool : nil
-        )
     }
 
     private func isEditableTextElement(_ element: AXUIElement) -> Bool {
@@ -440,7 +307,6 @@ final class PasteService {
             return .failed("The focused app changed before Scriber could paste.")
         }
 
-        let statesBeforePaste = observableTextStates(of: currentTarget.observationElements)
         let pasteboard = NSPasteboard.general
         let snapshot = PasteboardSnapshot.capture(pasteboard)
         pasteboard.clearContents()
@@ -459,244 +325,59 @@ final class PasteService {
         let transcriptChangeCount = pasteboard.changeCount
         try? await Task.sleep(for: .milliseconds(75))
         let deliveryStarted = ContinuousClock().now
-        let confirmationDeadline = deliveryStarted.advanced(by: Self.deliveryConfirmationBudget)
-        guard await dispatchPaste(
-            to: currentTarget,
-            awaiting: pasteboardReadProbe,
-            statesBeforePaste: statesBeforePaste,
-            before: confirmationDeadline
-        ) else {
+        guard await postPasteShortcut(to: currentTarget.pid) else {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
-            return .failed("The focused app did not provide a usable Paste command.")
+            return .failed("Scriber could not send a Paste command.")
         }
-        let stateAfterPaste = await waitForDeliveryEvidence(
+        let requested = await waitForTranscriptToBeTaken(
             pasteboardReadProbe,
-            target: currentTarget,
-            comparedTo: statesBeforePaste,
-            until: confirmationDeadline
+            until: deliveryStarted.advanced(by: Self.deliveryConfirmationBudget)
         )
-        let statesAfterPaste = stateAfterPaste?.pid == currentTarget.pid
-            ? observableTextStates(of: stateAfterPaste?.observationElements ?? [])
-            : []
-        let pasteboardDataRequested = pasteboardReadProbe.wasRequested
-        let accessibilityConfirmed = PasteConfirmationPolicy.qualifiesAsAccessibilityEvidence(
-            focusContainsTextInput: currentTarget.focusContainsTextInput
-                || (stateAfterPaste?.focusContainsTextInput ?? false),
-            mutationObserved: (!statesBeforePaste.isEmpty || !statesAfterPaste.isEmpty)
-                && statesBeforePaste != statesAfterPaste
-        )
-        let exposesWebDocument = currentTarget.focusExposesWebDocument
-            || (stateAfterPaste?.focusExposesWebDocument ?? false)
-        let exposesEditor = currentTarget.focusExposesEditor
-            || (stateAfterPaste?.focusExposesEditor ?? false)
         logDeliveryEvidence(
-            requested: pasteboardDataRequested,
-            mutation: statesBeforePaste != statesAfterPaste,
-            textFocusBefore: currentTarget.focusContainsTextInput,
-            textFocusAfter: stateAfterPaste?.focusContainsTextInput ?? false,
-            webDocument: exposesWebDocument,
-            watchedBefore: statesBeforePaste.count,
-            watchedAfter: statesAfterPaste.count,
-            editor: exposesEditor,
-            chainSource: (stateAfterPaste ?? currentTarget).focusChainSource,
-            chainRole: (stateAfterPaste ?? currentTarget).focusedRole,
             askedCount: pasteboardReadProbe.requestCount,
             elapsedMilliseconds: deliveryStarted.duration(to: ContinuousClock().now).milliseconds
         )
-        guard PasteConfirmationPolicy.confirmsInsertion(
-            accessibilityMutationObserved: accessibilityConfirmed,
-            pasteboardDataRequested: pasteboardDataRequested,
-            destinationExposesWebDocument: exposesWebDocument,
-            focusExposesEditor: exposesEditor
-        ) else {
-            // Only claim a failure where the reading can be trusted. A web page
-            // reports the same thing whether its caret is in an editor Firefox has
-            // not published yet or there is no caret at all, and saying "no text
-            // box" to someone whose text arrived correctly is worse than saying
-            // nothing to someone whose did not — they still have it, on the
-            // clipboard and in history.
-            let describedItself = currentTarget.focusPublishedInterface
-                || (stateAfterPaste?.focusPublishedInterface ?? false)
-            return exposesWebDocument || !describedItself
-                ? .unconfirmed
-                : .noEditableTarget("No text box was focused to paste into")
+        guard PasteConfirmationPolicy.confirmsInsertion(pasteboardDataRequested: requested) else {
+            // Nothing asked for the promised transcript, so nothing inserted it.
+            // Leave it behind as ordinary text: the recovery pill points at the
+            // clipboard, and that is the only place the user reaches without
+            // opening a window.
+            publishTranscriptAsOrdinaryText(text, expectedChangeCount: transcriptChangeCount)
+            return .noEditableTarget("No text box was focused to paste into")
         }
-        publishTranscriptAsOrdinaryText(text, expectedChangeCount: transcriptChangeCount)
+        // The destination has the transcript, so the user's own clipboard can come
+        // back. A dictation that lands leaves no trace on it, the way pressing
+        // Command-V yourself would not.
+        snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
         return .inserted
     }
 
-    /// Whether one dispatch visibly delivered, so another need not be tried.
+    /// Waits for the destination to ask for the promised transcript.
     ///
-    /// Either signal ends this: a destination that hides its editor can only ever
-    /// request the concealed item, and one that hides nothing may show the text
-    /// arrive first. Being wrong here costs a second Paste to a destination that
-    /// already took the first, which inserts the dictation twice — so it accepts
-    /// the weaker signal deliberately.
+    /// This is the only thing delivery ever waits on, and the only thing that can
+    /// confirm it. The transcript is published as a promise, so it does not exist
+    /// until something asks; a destination that never asked cannot have inserted
+    /// it, and one that asked was pasting.
     private func waitForTranscriptToBeTaken(
         _ probe: PasteboardReadProbe,
-        watching elements: [AXUIElement],
-        comparedTo statesBeforePaste: [TextElementState],
         until deadline: ContinuousClock.Instant
     ) async -> Bool {
         let clock = ContinuousClock()
         while clock.now < deadline {
             if probe.wasRequested { return true }
-            if !elements.isEmpty, observableTextStates(of: elements) != statesBeforePaste { return true }
-            try? await Task.sleep(for: .milliseconds(25))
+            try? await Task.sleep(for: .milliseconds(10))
         }
         return probe.wasRequested
-            || (!elements.isEmpty && observableTextStates(of: elements) != statesBeforePaste)
     }
 
-    /// Waits for the destination to show that the transcript reached a cursor,
-    /// and returns the focus as it stands at the end.
-    ///
-    /// The signal that ends the wait depends on what the destination publishes. A
-    /// destination exposing no document can only request the concealed item, so
-    /// the request ends it. One exposing a web document requests the item within
-    /// about 65 ms whether or not anything was inserted — its page reads the
-    /// clipboard either way — so there the request settles nothing and the wait
-    /// runs until the text visibly arrives or the budget is spent.
-    ///
-    /// Re-resolving focus rather than watching the original elements is what
-    /// catches a paste that moves the cursor into a box that was not focused when
-    /// it was sent, which is how claude.ai handles a paste aimed at its page.
-    ///
-    /// It is also what finds an editor a cold browser has not finished publishing.
-    /// Firefox builds a page's accessibility subtree lazily, so a Google Docs cell
-    /// that a probe reads as an `AXTextArea` ten seconds after a click answers
-    /// only as the page's `AXWebArea` a third of a second in. Nothing here stops
-    /// early on a readable page holding no editor: the whole budget is spent
-    /// looking, because that is the one case where looking longer changes the
-    /// answer. Every delivery that can be settled sooner already has been.
-    private func waitForDeliveryEvidence(
-        _ probe: PasteboardReadProbe,
-        target: FocusedTextTarget,
-        comparedTo statesBeforePaste: [TextElementState],
-        until deadline: ContinuousClock.Instant
-    ) async -> FocusedTextTarget? {
-        let clock = ContinuousClock()
-        var latest: FocusedTextTarget? = target
-        var nextResolve = clock.now
-        while true {
-            // Re-resolving is a synchronous round trip into the destination, so
-            // it runs on its own slower cadence. Polling it as often as the
-            // pasteboard flag would let one unresponsive destination spend the
-            // whole budget on a single answer.
-            if clock.now >= nextResolve {
-                if let resolved = currentFocusedPasteTarget(), resolved.pid == target.pid {
-                    latest = resolved
-                }
-                let statesNow = observableTextStates(of: latest?.observationElements ?? [])
-                if (!statesBeforePaste.isEmpty || !statesNow.isEmpty), statesBeforePaste != statesNow {
-                    return latest
-                }
-                nextResolve = clock.now.advanced(by: Self.focusRereadInterval)
-            }
-            let exposesWebDocument = target.focusExposesWebDocument
-                || (latest?.focusExposesWebDocument ?? false)
-            let exposesEditor = target.focusExposesEditor
-                || (latest?.focusExposesEditor ?? false)
-            // A real editor holds the cursor and the destination has taken the
-            // transcript. Watching for the text to appear adds nothing but delay,
-            // and the delay is what reported a cold-started browser's working
-            // paste as copied.
-            if probe.wasRequested, !exposesWebDocument || exposesEditor { return latest }
-            guard clock.now < deadline else { return latest }
-            try? await Task.sleep(for: .milliseconds(25))
-        }
-    }
-
-    /// Replaces the concealed in-flight item with a plain one, so the transcript
-    /// behaves exactly as it would had the user copied it themselves — a
-    /// clipboard manager keeps it, and pasting it again works.
+    /// Replaces the concealed in-flight item with a plain one, so a transcript
+    /// that could not be delivered behaves as though the user had copied it
+    /// themselves — a clipboard manager keeps it, and pasting it works.
     private func publishTranscriptAsOrdinaryText(_ text: String, expectedChangeCount: Int) {
         let pasteboard = NSPasteboard.general
         guard pasteboard.changeCount == expectedChangeCount else { return }
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
-    }
-
-    /// Asks the destination to paste, and keeps asking a different way until one
-    /// of them visibly works.
-    ///
-    /// A dispatch reporting success proves nothing. `AXUIElementPerformAction`
-    /// returns `.success` on Zen's Edit ▸ Paste while pressing it does nothing at
-    /// all, which is why delivery there failed for the whole confirmation
-    /// wait despite an ordinary Command-V working by hand.
-    ///
-    /// Between steps, wait only long enough to see whether the destination took
-    /// the transcript. Waiting longer would delay every failing delivery;
-    /// waiting less risks sending a second Paste to a destination that already
-    /// accepted the first, which inserts the dictation twice.
-    private func dispatchPaste(
-        to target: FocusedTextTarget,
-        awaiting probe: PasteboardReadProbe,
-        statesBeforePaste: [TextElementState],
-        before deadline: ContinuousClock.Instant
-    ) async -> Bool {
-        var step: PasteDispatchStep? = PasteDispatchPolicy.order.first
-        var dispatched = false
-        var transcriptTaken = false
-        while let current = step {
-            if await perform(current, on: target) {
-                dispatched = true
-                transcriptTaken = await waitForTranscriptToBeTaken(
-                    probe,
-                    watching: target.observationElements,
-                    comparedTo: statesBeforePaste,
-                    until: min(
-                        ContinuousClock().now.advanced(by: Self.dispatchHandoverWindow),
-                        deadline
-                    )
-                )
-            }
-            step = PasteDispatchPolicy.nextStep(after: current, transcriptTaken: transcriptTaken)
-        }
-        return dispatched
-    }
-
-    private func perform(_ step: PasteDispatchStep, on target: FocusedTextTarget) async -> Bool {
-        switch step {
-        case .targetedKeystroke: await postPasteShortcut(to: target.pid)
-        case .applicationMenuCommand: performApplicationPasteCommand(in: target.application)
-        }
-    }
-
-    private func performApplicationPasteCommand(in application: AXUIElement) -> Bool {
-        guard let menuBar = elementAttribute(application, named: kAXMenuBarAttribute),
-              let pasteItem = pasteMenuItem(in: menuBar) else { return false }
-        return AXUIElementPerformAction(pasteItem, kAXPressAction as CFString) == .success
-    }
-
-    private func pasteMenuItem(in root: AXUIElement) -> AXUIElement? {
-        var queue = [root]
-        var index = 0
-        while index < queue.count, index < Self.maximumInspectedMenuItems {
-            let element = queue[index]
-            index += 1
-            if stringAttribute(element, named: kAXRoleAttribute) == "AXMenuItem",
-               boolAttribute(element, named: kAXEnabledAttribute) != false,
-               isStandardPasteMenuItem(element) {
-                return element
-            }
-            let remainingCapacity = Self.maximumInspectedMenuItems - queue.count
-            if remainingCapacity > 0 {
-                queue.append(
-                    contentsOf: elementArrayAttribute(element, named: kAXChildrenAttribute)
-                        .prefix(remainingCapacity)
-                )
-            }
-        }
-        return nil
-    }
-
-    private func isStandardPasteMenuItem(_ element: AXUIElement) -> Bool {
-        let title = stringAttribute(element, named: kAXTitleAttribute)?.localizedLowercase
-        if title == "paste" { return true }
-        let commandCharacter = stringAttribute(element, named: "AXMenuItemCmdChar")?.lowercased()
-        let commandModifiers = numberAttribute(element, named: "AXMenuItemCmdModifiers")?.intValue
-        return commandCharacter == "v" && commandModifiers == 0
     }
 
     /// Command-V, and only Command-V.
@@ -707,6 +388,11 @@ final class PasteService {
     /// or a launcher hotkey — merges into a session-state event and turns this
     /// into Shift-Command-V or Option-Command-V, which paste differently or not
     /// at all. A private source carries only the flags set here.
+    ///
+    /// This is the only way Scriber asks a destination to paste. Pressing the
+    /// destination's own Edit menu item through Accessibility was tried and
+    /// removed: opening a menu takes keyboard focus off the field being pasted
+    /// into, so the Paste it then performed had nowhere to go.
     private func postPasteShortcut(to pid: pid_t) async -> Bool {
         guard let source = CGEventSource(stateID: .privateState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
@@ -739,67 +425,6 @@ final class PasteService {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
         return value as? Bool
-    }
-
-    private func numberAttribute(_ element: AXUIElement, named name: String) -> NSNumber? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
-        return value as? NSNumber
-    }
-
-    private func elementArrayAttribute(_ element: AXUIElement, named name: String) -> [AXUIElement] {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success,
-              let values = value as? [Any] else { return [] }
-        return values.compactMap { value in
-            let reference = value as CFTypeRef
-            guard CFGetTypeID(reference) == AXUIElementGetTypeID() else { return nil }
-            return unsafeDowncast(reference, to: AXUIElement.self)
-        }
-    }
-
-    private func observableTextStates(of elements: [AXUIElement]) -> [TextElementState] {
-        elements.map { self.textState(of: $0) }.filter(\.hasObservableValue)
-    }
-
-    private func textState(of element: AXUIElement) -> TextElementState {
-        var valueReference: CFTypeRef?
-        let valueStatus = AXUIElementCopyAttributeValue(
-            element,
-            kAXValueAttribute as CFString,
-            &valueReference
-        )
-        let value = valueStatus == .success ? valueReference as? String : nil
-
-        var rangeReference: CFTypeRef?
-        var selectedRange: NSRange?
-        if AXUIElementCopyAttributeValue(
-            element,
-            kAXSelectedTextRangeAttribute as CFString,
-            &rangeReference
-        ) == .success,
-           let rangeReference,
-           CFGetTypeID(rangeReference) == AXValueGetTypeID() {
-            let rangeValue = unsafeDowncast(rangeReference, to: AXValue.self)
-            var range = CFRange()
-            if AXValueGetValue(rangeValue, .cfRange, &range) {
-                selectedRange = NSRange(location: range.location, length: range.length)
-            }
-        }
-
-        var characterCountReference: CFTypeRef?
-        let characterCount: Int?
-        if AXUIElementCopyAttributeValue(
-            element,
-            kAXNumberOfCharactersAttribute as CFString,
-            &characterCountReference
-        ) == .success,
-           let number = characterCountReference as? NSNumber {
-            characterCount = number.intValue
-        } else {
-            characterCount = nil
-        }
-        return TextElementState(value: value, selectedRange: selectedRange, characterCount: characterCount)
     }
 
     // MARK: - Screen placement
@@ -841,47 +466,10 @@ private extension Duration {
     }
 }
 
-private struct TextElementState: Equatable {
-    let value: String?
-    let selectedRange: NSRange?
-    let characterCount: Int?
-
-    var hasObservableValue: Bool { value != nil || selectedRange != nil || characterCount != nil }
-}
-
-private struct FocusInspection {
-    /// Empty unless the focus genuinely looks like text input.
-    let textAncestry: [AXUIElement]
-    /// Recorded from the full ancestry, including one that was discarded above.
-    let exposesWebDocument: Bool
-    /// False when the destination described nothing but its window and itself.
-    let publishedInterface: Bool
-    /// Which focused element the chain came from, and why it was preferred.
-    /// Named in the delivery log, because the two disagree in exactly the cases
-    /// that get judged wrongly.
-    let chainSource: String
-}
-
+/// The process a delivery is aimed at. Only the pid: everything else this once
+/// carried described what was focused, and none of it could confirm a paste.
 private struct FocusedTextTarget {
-    let application: AXUIElement
     let pid: pid_t
-    let observationElements: [AXUIElement]
-    /// False when macOS reported a focused element that is not text input, which
-    /// disqualifies any state change observed on it from counting as evidence.
-    let focusContainsTextInput: Bool
-    /// True when the focus sits inside an `AXWebArea`, meaning the destination
-    /// publishes its document to Accessibility and a landed paste would show.
-    let focusExposesWebDocument: Bool
-    /// False when the destination described nothing but its window and itself,
-    /// which is what a browser does before it has published anything.
-    let focusPublishedInterface: Bool
-    /// True when one of the focused elements is an editor rather than something
-    /// that merely reports a character count.
-    let focusExposesEditor: Bool
-    /// Which focused element supplied the chain, for the delivery log.
-    let focusChainSource: String
-    /// The role of the element the chain starts at, for the delivery log.
-    let focusedRole: String
 }
 
 private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider, @unchecked Sendable {
