@@ -168,7 +168,7 @@ Never drag a test build's item out of the menu bar: the list macOS keeps is per 
 
 ## When the paste engine changes
 
-Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; its table is the baseline.
+Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; it defines the delivery these check.
 
 - Delivery lands at the cursor in ChatGPT, Notion, Ghostty, Raycast, VS Code, Zed, Apple Notes, TextEdit, and Terminal, with no two-to-three-second delay at record start. **These dictations spend API credit; ask first.**
 - Delivery lands in an app that was *just* opened or just switched to with Command-Tab, before it has settled. Calendar's search bar and Notion are where this failed; both need the freshly-opened case, not only the warm one. Compare against pressing Command-V by hand in the same moment — Scriber should now match it.
@@ -177,7 +177,7 @@ Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; its table is the baseline.
 - A dictation with no text field focused in a native app produces **one** alert sound, not two, then the recovery pill. Calendar with no field focused is the case.
 - Nothing pastes twice. Watch particularly in an app that was slow to respond.
 - Hold the dictation shortcut past the end of a hands-free dictation and release it late. The paste still arrives as a paste and nothing else fires.
-- Dictating into a password field is still refused.
+- Dictating into a password field is still refused, the notice names a secure field as the reason rather than reporting a generic failure, and it sounds the alert. Scriber's own API key field is the easiest one to try.
 
 ### The clipboard
 
