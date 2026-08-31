@@ -342,7 +342,7 @@ final class PasteService {
         let transcriptChangeCount = pasteboard.changeCount
         try? await Task.sleep(for: .milliseconds(75))
         let deliveryStarted = ContinuousClock().now
-        guard await postPasteShortcut() else {
+        guard await postPasteShortcut(to: currentTarget.pid) else {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
             return .failed("Scriber could not send a Paste command.")
         }
@@ -411,30 +411,15 @@ final class PasteService {
     /// destination's own Edit menu item through Accessibility was tried and
     /// removed: opening a menu takes keyboard focus off the field being pasted
     /// into, so the Paste it then performed had nowhere to go.
-    ///
-    /// The event enters where a real keypress enters, rather than being posted
-    /// straight into the target process. Posting to a pid hands the event to the
-    /// application, which then routes it itself, and an application whose window
-    /// has just appeared can route it to a responder that is not the editor the
-    /// user is looking at — Raycast Notes takes the paste, reads the clipboard,
-    /// and inserts nothing until it has been clicked and typed in. Entering at the
-    /// HID level lets the window server deliver it exactly as it delivers the
-    /// user's own Command-V, including to a nonactivating panel holding keyboard
-    /// focus without being frontmost.
-    ///
-    /// This means the keystroke follows live keyboard focus rather than the pid
-    /// resolved a moment earlier. Those are the same destination by construction:
-    /// the target *is* the keyboard focus owner, and where they could differ, live
-    /// focus is where the user's own Command-V would have gone.
-    private func postPasteShortcut() async -> Bool {
+    private func postPasteShortcut(to pid: pid_t) async -> Bool {
         guard let source = CGEventSource(stateID: .privateState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else { return false }
         down.flags = .maskCommand
         up.flags = .maskCommand
-        down.post(tap: .cghidEventTap)
+        down.postToPid(pid)
         try? await Task.sleep(for: .milliseconds(12))
-        up.post(tap: .cghidEventTap)
+        up.postToPid(pid)
         return true
     }
 
