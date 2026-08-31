@@ -375,7 +375,17 @@ final class PasteService {
     /// This is the only thing delivery ever waits on, and the only thing that can
     /// confirm it. The transcript is published as a promise, so it does not exist
     /// until something asks; a destination that never asked cannot have inserted
-    /// it, and one that asked was pasting.
+    /// it, and one that asked was almost always pasting.
+    ///
+    /// Known and unfixed: a Raycast Notes window that has just been opened breaks
+    /// the second half of that. It receives the paste and requests the transcript
+    /// 13 ms in, and inserts nothing until the note has been clicked or typed in;
+    /// the delivery is reported as landed because nothing distinguishes it from
+    /// one that did. A real Command-V works there cold, so this is Scriber's to
+    /// fix, but posting the keystroke at the HID level instead of into the target
+    /// process — the one available theory — was tried in 82b1bdd, did not change
+    /// it, and cost two regressions elsewhere. Do not retry that. Anything new
+    /// needs a difference that is actually measured first.
     private func waitForTranscriptToBeTaken(
         _ probe: PasteboardReadProbe,
         until deadline: ContinuousClock.Instant
