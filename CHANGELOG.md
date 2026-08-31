@@ -2,19 +2,23 @@
 
 This file records intentionally identified Scriber releases and prerelease snapshots. Ordinary development builds belong in Git history, not here.
 
-## Unreleased
+## 0.9.2 — 2026-09-01
 
-### Fixed
+Native bundle build 261, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
 
-- **Dictation now lands in apps you have just opened.** Dictating into an app you had just opened or just switched to — Calendar's search field, Notion straight after ⌘Tab — failed most of the time, while pressing ⌘V yourself at the same moment worked. Scriber was asking the app's own **Edit ▸ Paste** menu item, and opening that menu takes the cursor out of the very field being pasted into, so by the time Paste ran there was nowhere for the text to go. It could also freeze Scriber for several seconds against an app that was still starting. Scriber now asks the one way your own hand does, and nothing else.
-- **Scriber no longer reports a dictation delivered when it was not.** A web page rearranging itself, or a text box simply disappearing, could be taken as proof your words had arrived — so a dictation that went nowhere was reported as pasted and you found out by looking. Delivery is now confirmed by one thing: the app actually taking the transcript.
-- **Scriber now says why it will not paste into a password field.** It has always refused — dictation must never be typed into a password box — but it refused silently behind the same "Copied to clipboard" notice as any other failure, so the one thing worth saying was the thing not said. It now names what happened and tells you the transcript is on your clipboard if you meant it.
+A delivery release. Scriber's paste engine was rebuilt around a single question — did the app you were dictating into actually take the transcript — and everything that used to guess at the answer is gone.
 
 ### Changed
 
 - **The pill goes away as your dictation is sent**, rather than spinning while Scriber works out whether it arrived. If it did not arrive, the notice appears a moment later. The total time is unchanged; the waiting is no longer yours to watch.
 - **Every dictation is quicker.** A delay before each paste turned out to be waiting for something that had already finished, and a dictation that cannot be delivered now reports in about a second rather than closer to three.
 - **A dictation that could not be pasted no longer makes Scriber's own alert sound**, so where you used to hear two you now hear one — the app you were pasting into may still beep on its own. Forgetting to put a cursor somewhere is not something going wrong, and the notice that appears is large, tinted, and stays for five seconds. Sound is kept for what you could not have caused: no words heard, no microphone, no sound reaching it, transcription failing. Being refused at a password field sounds too, because that one is Scriber declining rather than reporting.
+
+### Fixed
+
+- **Dictation now lands in apps you have just opened.** Dictating into an app you had just opened or just switched to — Calendar's search field, Notion straight after ⌘Tab — failed most of the time, while pressing ⌘V yourself at the same moment worked. Scriber was asking the app's own **Edit ▸ Paste** menu item, and opening that menu takes the cursor out of the very field being pasted into, so by the time Paste ran there was nowhere for the text to go. It could also freeze Scriber for several seconds against an app that was still starting. Scriber now asks the one way your own hand does, and nothing else.
+- **Scriber no longer reports a dictation delivered when it was not.** A web page rearranging itself, or a text box simply disappearing, could be taken as proof your words had arrived — so a dictation that went nowhere was reported as pasted and you found out by looking. Delivery is now confirmed by one thing: the app actually taking the transcript.
+- **Scriber now says why it will not paste into a password field.** It has always refused — dictation must never be typed into a password box — but it refused silently behind the same "Copied to clipboard" notice as any other failure, so the one thing worth saying was the thing not said. It now names what happened and tells you the transcript is on your clipboard if you meant it.
 
 ## 0.9.1 — 2026-08-27
 
