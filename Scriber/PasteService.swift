@@ -394,11 +394,18 @@ final class PasteService {
     /// the second half of that. It receives the paste and requests the transcript
     /// 13 ms in, and inserts nothing until the note has been clicked or typed in;
     /// the delivery is reported as landed because nothing distinguishes it from
-    /// one that did. A real Command-V works there cold, so this is Scriber's to
-    /// fix, but posting the keystroke at the HID level instead of into the target
-    /// process — the one available theory — was tried in 82b1bdd, did not change
-    /// it, and cost two regressions elsewhere. Do not retry that. Anything new
-    /// needs a difference that is actually measured first.
+    /// one that did.
+    ///
+    /// It is not the delivery method. Three were measured against that window and
+    /// all three were refused while a real Command-V and other dictation apps
+    /// worked: Command-V posted into the process, Command-V posted at the HID
+    /// level (82b1bdd, reverted — it fixed nothing and broke Google Docs), and
+    /// writing the text straight into the focused element through Accessibility.
+    /// The last is the most telling: Raycast's `AXTextArea` reports
+    /// `AXSelectedText` as settable, `AXUIElementSetAttributeValue` returns
+    /// `.success`, and the character count does not move. Something about a note
+    /// that has not been clicked refuses programmatic input of every kind, and it
+    /// is not reachable from outside. Do not retry any of the three.
     private func waitForTranscriptToBeTaken(
         _ probe: PasteboardReadProbe,
         until deadline: ContinuousClock.Instant
