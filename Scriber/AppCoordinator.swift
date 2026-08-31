@@ -1348,6 +1348,11 @@ final class AppCoordinator: ObservableObject {
                 setPhase(.idle)
                 let deliveryStarted = ContinuousClock().now
                 let delivery = await paste.insert(transcript)
+                // The whole delivery as the user experiences it: from the pill
+                // leaving to the outcome being known. `PasteService`'s `elapsedMs`
+                // covers only the keystroke onwards, so a delivery made slow by
+                // target discovery rather than by the destination shows up here and
+                // nowhere else — which is what this measured when it was added.
                 Self.deliveryLog.notice(
                     "delivery handoff idleToOutcomeMs=\(deliveryStarted.duration(to: ContinuousClock().now).pillMilliseconds, privacy: .public)"
                 )
@@ -1355,13 +1360,10 @@ final class AppCoordinator: ObservableObject {
                 case .inserted:
                     record.deliveryState = .pasted
                     returnToIdle()
-                    // After the pill, not before. Saving is synchronous on this
-                    // actor and grows with the size of the history, so doing it
-                    // first stalls the dismissal animation mid-fade.
+                    // After the pill rather than before. Measured at 1 ms against a
+                    // history of 1,255 dictations, so this is ordering for its own
+                    // sake — UI first, disk second — not a fix for anything.
                     try modelContext.save()
-                    Self.deliveryLog.notice(
-                        "delivery handoff idleToSavedMs=\(deliveryStarted.duration(to: ContinuousClock().now).pillMilliseconds, privacy: .public)"
-                    )
                 case .refusedSecureField:
                     copy(record)
                     try modelContext.save()
