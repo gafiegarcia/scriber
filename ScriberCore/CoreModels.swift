@@ -527,6 +527,11 @@ public enum AppPhase: Equatable, Sendable {
     /// retry rather than from a failed paste. Its own phase rather than a
     /// `.message`, which is too brief for an outcome the user has to act on.
     case transcriptCopied
+    /// A password box had the cursor, so nothing was pasted. Its own phase rather
+    /// than a `.dictationCopied` with different words: the transcript is on the
+    /// clipboard either way, but this one is Scriber declining on purpose, and it
+    /// is tinted to say so.
+    case dictationBlockedBySecureField(text: String, message: String)
     case message(String)
 
     public var isBusy: Bool {
@@ -723,6 +728,7 @@ public enum PillShapeStyle: Equatable, Sendable {
 public extension AppPhase {
     var pillShapeStyle: PillShapeStyle {
         if case .dictationCopied = self { return .roundedRectangle }
+        if case .dictationBlockedBySecureField = self { return .roundedRectangle }
         if case .cancelledTranscript = self { return .roundedRectangle }
         return .capsule
     }
@@ -742,7 +748,7 @@ public extension AppPhase {
         case .transcribing: .hideTranscription
         case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
-             .transcriptCopied, .message: .dismiss
+             .transcriptCopied, .dictationBlockedBySecureField, .message: .dismiss
         }
     }
 
@@ -756,7 +762,8 @@ public extension AppPhase {
         case .dictationCopied: .success
         case .transcriptCopied: .success
         case .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed, .noSpeechDetected, .noAudioSignal: .warning
+             .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
+             .dictationBlockedBySecureField: .warning
         case .idle, .recording, .transcribing, .cancelledTranscript, .message: .neutral
         }
     }
@@ -769,7 +776,8 @@ public extension AppPhase {
         return switch self {
         case .idle, .recording, .transcribing, .cancelledTranscript: .none
         // The transcript is selectable, so a body tap fights the selection it sits on.
-        case .dictationCopied: .none
+        // Both carry a selectable transcript, so a body tap fights the selection.
+        case .dictationCopied, .dictationBlockedBySecureField: .none
         case .transcriptCopied, .transcriptionFailed: .openMainWindow
         case .permissionsRequired: .openPermissionSettings
         case .credentialsUnusable: .openCredentialSettings

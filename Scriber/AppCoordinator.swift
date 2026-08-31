@@ -319,6 +319,7 @@ final class AppCoordinator: ObservableObject {
         case .transcribing: "Transcribing"
         case .cancelledTranscript: "Cancelled"
         case .dictationCopied, .transcriptCopied: "Copied"
+        case .dictationBlockedBySecureField: "Not pasted"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"
@@ -1331,20 +1332,38 @@ final class AppCoordinator: ObservableObject {
             try modelContext.save()
 
             if delivery == .automaticPaste {
-                let delivery = await paste.insert(transcript)
+                let delivery = await paste.insert(transcript) { [weak self] in
+                    // The Paste has been sent. Whether it landed takes up to a
+                    // second more to learn, and a spinner held through that second
+                    // is what made delivery feel slow while its total time was
+                    // unchanged. Dismiss now; the recovery pill returns on its own
+                    // if the transcript turns out not to have arrived.
+                    self?.setPhase(.idle)
+                }
                 switch delivery {
                 case .inserted:
                     record.deliveryState = .pasted
                     try modelContext.save()
                     returnToIdle()
+                case .refusedSecureField:
+                    copy(record)
+                    try modelContext.save()
+                    setPhase(.dictationBlockedBySecureField(
+                        text: transcript,
+                        message: "If you meant to dictate into it, you can paste (⌘V) yourself"
+                    ))
                 case .noEditableTarget(let message), .failed(let message):
                     // Nothing took the transcript, so it is still on the clipboard
                     // where `PasteService` left it. `copy` records that in history
                     // and makes the clipboard state explicit rather than implied.
+                    //
+                    // No sound. This is a reminder that the user forgot a cursor,
+                    // not a warning that something went wrong, and the pill is a
+                    // large tinted panel that sits for five seconds. Sound is kept
+                    // for the outcomes the user could not have caused.
                     copy(record)
                     record.errorMessage = message
                     try modelContext.save()
-                    playFeedback(.cancellationOrCopyFallback)
                     setPhase(.dictationCopied(text: transcript, message: message))
                 }
             } else {

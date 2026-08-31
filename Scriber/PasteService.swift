@@ -11,6 +11,9 @@ enum PasteResult: Sendable {
     static let noEditableTargetMessage = "No editable text box was focused"
 
     case inserted
+    /// A password box had the cursor. Scriber refuses to type a dictation into
+    /// one, and says so rather than falling through to a generic copied notice.
+    case refusedSecureField
     case noEditableTarget(String)
     case failed(String)
 }
@@ -74,21 +77,34 @@ final class PasteService {
     /// A dictation that does not land stays on the clipboard as ordinary text,
     /// because that is the only place the user can recover it from without
     /// opening a window.
-    func insert(_ text: String) async -> PasteResult {
+    /// - Parameter onDispatched: Called the moment the Paste has been sent, before
+    ///   anything is known about whether it landed. Learning that takes up to a
+    ///   second more, and making the user watch a spinner through it is what made
+    ///   delivery feel slow while its total time was unchanged.
+    func insert(
+        _ text: String,
+        onDispatched: @MainActor () -> Void = {}
+    ) async -> PasteResult {
         guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
-        let target = currentFocusedPasteTarget()
-        logDeliveryContext(chosen: target)
-        guard let target else {
+        let resolution = resolveTarget()
+        logDeliveryContext(chosen: resolution.target)
+        switch resolution {
+        case .secureField:
+            logDeliveryOutcome("refusedSecureField")
+            return .refusedSecureField
+        case .none:
             logDeliveryOutcome("noEditableTarget-noTarget")
             return .noEditableTarget(PasteResult.noEditableTargetMessage)
+        case .target(let target):
+            let result = await pasteAtCurrentSelection(text, into: target, onDispatched: onDispatched)
+            switch result {
+            case .inserted: logDeliveryOutcome("inserted")
+            case .refusedSecureField: logDeliveryOutcome("refusedSecureField")
+            case .noEditableTarget: logDeliveryOutcome("noEditableTarget")
+            case .failed: logDeliveryOutcome("failed")
+            }
+            return result
         }
-        let result = await pasteAtCurrentSelection(text, into: target)
-        switch result {
-        case .inserted: logDeliveryOutcome("inserted")
-        case .noEditableTarget: logDeliveryOutcome("noEditableTarget")
-        case .failed: logDeliveryOutcome("failed")
-        }
-        return result
     }
 
     // MARK: - Delivery diagnostics
@@ -164,10 +180,10 @@ final class PasteService {
     /// It is deliberately not consulted for anything else. Focus says where a
     /// paste would land, never that one did, and a real search field held the
     /// cursor through three deliveries that inserted nothing.
-    private func currentFocusedPasteTarget() -> FocusedTextTarget? {
-        guard let pid = currentTargetPID() else { return nil }
-        guard !focusedAncestry(in: pid).contains(where: isSecureTextElement) else { return nil }
-        return FocusedTextTarget(pid: pid)
+    private func resolveTarget() -> TargetResolution {
+        guard let pid = currentTargetPID() else { return .none }
+        guard !focusedAncestry(in: pid).contains(where: isSecureTextElement) else { return .secureField }
+        return .target(FocusedTextTarget(pid: pid))
     }
 
     /// The process delivery should paste into.
@@ -299,7 +315,8 @@ final class PasteService {
 
     private func pasteAtCurrentSelection(
         _ text: String,
-        into currentTarget: FocusedTextTarget
+        into currentTarget: FocusedTextTarget,
+        onDispatched: @MainActor () -> Void
     ) async -> PasteResult {
         // Re-resolve rather than comparing against the frontmost app: when focus
         // sits in a nonactivating panel the target is deliberately not frontmost.
@@ -329,6 +346,7 @@ final class PasteService {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
             return .failed("Scriber could not send a Paste command.")
         }
+        onDispatched()
         let requested = await waitForTranscriptToBeTaken(
             pasteboardReadProbe,
             until: deliveryStarted.advanced(by: Self.deliveryConfirmationBudget)
@@ -470,6 +488,19 @@ private extension Duration {
 /// carried described what was focused, and none of it could confirm a paste.
 private struct FocusedTextTarget {
     let pid: pid_t
+}
+
+/// What target discovery found. A password box is kept distinct from finding
+/// nothing, because the two call for opposite things to be said to the user.
+private enum TargetResolution {
+    case target(FocusedTextTarget)
+    case secureField
+    case none
+
+    var target: FocusedTextTarget? {
+        if case .target(let target) = self { return target }
+        return nil
+    }
 }
 
 private final class PasteboardReadProbe: NSObject, NSPasteboardItemDataProvider, @unchecked Sendable {

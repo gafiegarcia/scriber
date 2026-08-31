@@ -11,8 +11,12 @@ This file records intentionally identified Scriber releases and prerelease snaps
 - **A dictation that fails now makes one alert sound instead of two**, because there is one paste attempt instead of two.
 - **A dictation that cannot be delivered says so sooner.** With only one attempt to make, nothing waits on a second.
 
+- **Scriber now says why it will not paste into a password field.** It always refused — dictation must never be typed into a password box — but it refused silently and showed the same "Copied to clipboard" notice as any other failure, so the reason was invisible. It now says so plainly, and tells you the transcript is on your clipboard if you meant it and want to paste it yourself.
+
 ### Changed
 
+- **The pill goes away as soon as your dictation is sent**, rather than spinning while Scriber works out whether it arrived. If it did not arrive, the notice appears a moment later. The total time is unchanged; the waiting is no longer yours to watch.
+- **A dictation that could not be pasted no longer makes a sound.** Forgetting to click into a text box is not something going wrong, and the notice that appears is large, tinted, and stays for five seconds. Sound is kept for the things you could not have caused — no words heard, no microphone, no sound reaching it, transcription failing.
 - **Your clipboard survives a dictation.** A dictation that lands no longer leaves itself on your clipboard — what you had copied is still there, and a copied file comes back as the file. A dictation that *fails* is still put on the clipboard, so it is one ⌘V away, and the notice tells you so.
 - **Scriber no longer tells you it is unsure.** It used to have a third answer for deliveries it could not judge — a brief **Copied** flash meaning "this may or may not have arrived". A dictation app should not stop to say that. There are two answers now: it landed, or it did not and you get the transcript back.
 

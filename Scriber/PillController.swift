@@ -226,7 +226,7 @@ final class PillController {
         // same dwell. The compact one used to inherit `.message`'s 1.5 seconds,
         // which was long enough to see something flash and not long enough to read
         // it.
-        case .dictationCopied, .transcriptCopied:
+        case .dictationCopied, .transcriptCopied, .dictationBlockedBySecureField:
             5
         case .cancelledTranscript, .noSpeechDetected:
             5
@@ -241,7 +241,7 @@ final class PillController {
         switch phase {
         case .recording(let mode, _, _):
             NSSize(width: mode == .locked ? 360 : (model.isHovering ? 320 : 280), height: 52)
-        case .dictationCopied(let text, _):
+        case .dictationCopied(let text, _), .dictationBlockedBySecureField(let text, _):
             copiedResultSize(for: text)
         case .cancelledTranscript:
             NSSize(width: 430, height: 104)
@@ -534,7 +534,9 @@ private struct PillView: View {
     @ViewBuilder private var content: some View {
         switch model.phase {
         case .dictationCopied(let text, let message):
-            copiedResult(text: text, message: message)
+            copiedResult(text: text, message: message, title: "Copied to clipboard", symbol: "checkmark.circle.fill")
+        case .dictationBlockedBySecureField(let text, let message):
+            copiedResult(text: text, message: message, title: "Not pasted into a secure field", symbol: "lock.fill")
         case .cancelledTranscript:
             cancellationRecovery
         default:
@@ -639,12 +641,17 @@ private struct PillView: View {
         .padding(.vertical, 11)
     }
 
-    private func copiedResult(text: String, message: String) -> some View {
+    private func copiedResult(
+        text: String,
+        message: String,
+        title: String,
+        symbol: String
+    ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Image(systemName: "checkmark.circle.fill")
+                Image(systemName: symbol)
                     .foregroundStyle(toneAccent)
-                Text("Copied to clipboard")
+                Text(title)
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 6)
                 countdown
@@ -687,6 +694,8 @@ private struct PillView: View {
             ProgressView().controlSize(.small)
         case .dictationCopied, .transcriptCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(toneAccent)
+        case .dictationBlockedBySecureField:
+            Image(systemName: "lock.fill").foregroundStyle(toneAccent)
         case .noSpeechDetected, .noAudioSignal:
             Image(systemName: "mic.slash.fill").foregroundStyle(toneAccent)
         case .permissionsRequired, .credentialsUnusable, .transcriptionFailed:
@@ -712,6 +721,7 @@ private struct PillView: View {
         // purpose — a History retry reaching the clipboard is the intended result,
         // so this one must not read like the apology the expanded pill is making.
         case .dictationCopied, .transcriptCopied: "Copied"
+        case .dictationBlockedBySecureField: "Not pasted into a secure field"
         case .cancelledTranscript: "You can recover your cancelled transcript"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
@@ -730,7 +740,8 @@ private struct PillView: View {
         case .cancelledTranscript: "We noticed you cancelled your transcription"
         case .permissionsRequired(let missing):
             PermissionReadiness(missingPermissions: missing).recoveryMessage
-        case .dictationCopied(_, let message), .transcriptionFailed(let message): message
+        case .dictationCopied(_, let message), .dictationBlockedBySecureField(_, let message),
+             .transcriptionFailed(let message): message
         // Keep these short: the compact pill gives its subtitle one line and
         // truncates, and these phases also carry a countdown, an action, and a
         // dismiss control on the same row. The cause goes here; the fix is the

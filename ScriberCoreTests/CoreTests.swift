@@ -375,6 +375,7 @@ private let everyPhase: [AppPhase] = [
     .noSpeechDetected,
     .noAudioSignal,
     .transcriptCopied,
+    .dictationBlockedBySecureField(text: "hi", message: "Paste it yourself"),
     .message("Copied")
 ]
 
@@ -454,9 +455,10 @@ struct PillDefaultActionTests {
             // body must not reach either.
             .recording(mode: .locked, elapsed: 3, level: -20),
             .transcribing(attempt: 1, retryDelay: nil),
-            // Its transcript is selectable, so a body tap would fight the
+            // Their transcript is selectable, so a body tap would fight the
             // selection it sits on.
             .dictationCopied(text: "hi", message: "No target"),
+            .dictationBlockedBySecureField(text: "hi", message: "Paste it yourself"),
             .cancelledTranscript
         ]
         for phase in inert { #expect(phase.pillDefaultAction(isPresented: true) == .none) }
@@ -494,7 +496,7 @@ struct PillDefaultActionTests {
         let inertCount = everyPhase
             .filter { $0.pillDefaultAction(isPresented: true) == .none }
             .count
-        #expect(inertCount == 5)
+        #expect(inertCount == 6)
     }
 }
 
