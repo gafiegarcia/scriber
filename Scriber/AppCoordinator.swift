@@ -1348,6 +1348,12 @@ final class AppCoordinator: ObservableObject {
                 case .refusedSecureField:
                     copy(record)
                     try modelContext.save()
+                    // This one does sound. Every other delivery outcome is either
+                    // what the user asked for or a reminder they forgot a cursor;
+                    // this is Scriber declining to do what was asked, next to a
+                    // password box, and it deserves the same alert the other
+                    // warnings use.
+                    playFeedback(.terminalFailure)
                     setPhase(.dictationBlockedBySecureField(
                         text: transcript,
                         message: "If you meant to dictate into it, you can paste (⌘V) yourself"
