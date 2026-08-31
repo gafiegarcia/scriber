@@ -148,7 +148,7 @@ The app builds from the repository root: [`Scriber`](Scriber) is the app target,
 - [Releasing](docs/RELEASING.md): notarization, the disk image, and publishing a download.
 - [Product specification](docs/PRODUCT_SPEC.md): required behavior and durable product decisions.
 - [Roadmap](docs/ROADMAP.md): unbuilt work, grouped by target version.
-- [Paste engine](docs/PASTE_ENGINE.md): cross-app delivery design and its regression matrix.
+- [Paste engine](docs/PASTE_ENGINE.md): how a finished dictation reaches another app, and what has been tried and refused.
 - [Manual checks](docs/MANUAL_CHECKS.md) and [automated checks](docs/AUTOMATED_CHECKS.md): the two verification passes.
 - [Versioning policy](docs/VERSIONING.md): how versions, builds, and tags differ.
 
