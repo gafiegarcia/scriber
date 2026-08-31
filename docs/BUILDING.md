@@ -74,8 +74,10 @@ Then replace the copy in `/Applications` rather than launching it from a build d
 osascript -e 'quit app "Scriber"'
 trash /Applications/Scriber.app
 ditto .build/xcode-release/Build/Products/Release/Scriber.app /Applications/Scriber.app
-open -a Scriber
+open /Applications/Scriber.app
 ```
+
+Open it by path, never `open -a Scriber`. That resolves by name through Launch Services, and a fresh `xcodebuild` registers the copy in `.build`, which can win the lookup — you then get a second Scriber running from the build directory alongside the installed one, two identical microphone icons in the menu bar, and no way to tell which is which.
 
 The stable path matters because Accessibility, Microphone, Launch at Login, and Keychain authorization are associated with the installed application. Never rename the `.app` bundle; doing so invalidates its signature.
 
