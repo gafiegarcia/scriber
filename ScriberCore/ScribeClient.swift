@@ -261,9 +261,14 @@ public struct ScribeClient: Sendable {
         }
     }
 
+    /// `permitsRetry` is asked before every attempt after the first. A dictation
+    /// cancelled mid-transcription answers false: the attempt already sent is
+    /// left to finish because it is billed either way, but a fresh one would
+    /// spend the user's credit on a recording they have just abandoned.
     public func transcribe(
         _ input: ScribeRequest,
-        onAttempt: @escaping @Sendable (Int, TimeInterval?) async -> Void
+        onAttempt: @escaping @Sendable (Int, TimeInterval?) async -> Void,
+        permitsRetry: @escaping @Sendable () async -> Bool = { true }
     ) async throws -> ScribeResult {
         let keyterms = try Self.validateKeyterms(input.keyterms)
         let delays: [TimeInterval] = [3, 5]
@@ -276,7 +281,7 @@ public struct ScribeClient: Sendable {
             } catch {
                 lastError = error
                 let retryable = (error as? ScribeError)?.retryable ?? isRetryableNetworkError(error)
-                guard retryable, attempt < 3 else { throw error }
+                guard retryable, attempt < 3, await permitsRetry() else { throw error }
                 let delay = delays[attempt - 1]
                 await onAttempt(attempt, delay)
                 try await Task.sleep(for: .seconds(delay))

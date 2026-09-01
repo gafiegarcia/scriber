@@ -51,7 +51,7 @@ final class PillModel: ObservableObject {
     var onOpenPermissionSettings: (() -> Void)?
     var onOpenInputSettings: (() -> Void)?
     var onRetry: (() -> Void)?
-    var onUndo: (() -> Void)?
+    var onRecover: (() -> Void)?
     var onCancelRecording: (() -> Void)?
     var onConfirmRecording: (() -> Void)?
     var onDismiss: (() -> Void)?
@@ -623,20 +623,20 @@ private struct PillView: View {
     private var cancellationRecovery: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 9) {
-                Text("Recover cancelled transcript?")
+                Text("Recover canceled dictation?")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 8)
                 countdown
                 dismissButton
             }
 
-            Text("The recording is saved and ready to transcribe.")
+            Text("Recover pastes it wherever your cursor is now.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
                 Spacer()
-                Button("Undo") { model.onUndo?() }
+                Button("Recover") { model.onRecover?() }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                 Button("See History") { model.onOpen?() }
@@ -723,7 +723,7 @@ private struct PillView: View {
         // so this one must not read like the apology the expanded pill is making.
         case .dictationCopied, .transcriptCopied: "Copied"
         case .dictationBlockedBySecureField: "Copied"
-        case .cancelledTranscript: "You can recover your cancelled transcript"
+        case .cancelledTranscript: "You can recover your canceled dictation"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"
@@ -738,7 +738,7 @@ private struct PillView: View {
         case .transcribing(_, let delay):
             delay.map { "Trying again in \(Int($0)) seconds" }
         case .credentialsUnusable(let readiness): readiness.recoveryMessage
-        case .cancelledTranscript: "We noticed you cancelled your transcription"
+        case .cancelledTranscript: "Recover pastes it wherever your cursor is now"
         case .permissionsRequired(let missing):
             PermissionReadiness(missingPermissions: missing).recoveryMessage
         case .dictationCopied(_, let message), .dictationBlockedBySecureField(_, let message),

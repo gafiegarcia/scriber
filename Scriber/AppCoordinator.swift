@@ -131,6 +131,25 @@ final class AppCoordinator: ObservableObject {
     private var microphoneTestTask: Task<Void, Never>?
     private var currentRecord: DictationRecord?
     private var currentRecording: CompletedRecording?
+
+    /// A dictation cancelled after its request had gone out. The request is left
+    /// to finish because it is billed either way, but it must not speak: it
+    /// writes its result here and touches nothing else, because by the time it
+    /// lands the user may already be part-way through the next dictation and
+    /// anything it said would land on that instead.
+    ///
+    /// In memory only. Nothing about this outlives the pill it belongs to, so a
+    /// history row left behind by one retries like any other.
+    private struct CancelledTranscription {
+        let recordID: UUID
+        var outcome: CancelledTranscriptionOutcome = .stillRunning
+    }
+
+    private var cancelledTranscription: CancelledTranscription?
+
+    private func isSilenced(_ recordID: UUID) -> Bool {
+        cancelledTranscription?.recordID == recordID
+    }
     private var checkedStoredAPIKeyThisLaunch = false
     @Published private(set) var isCheckingStoredAPIKey = false
     private var storedAPIKeyValidationTask: Task<Void, Never>?
@@ -140,7 +159,6 @@ final class AppCoordinator: ObservableObject {
     /// twenty-second request each time.
     private var lastUpdateAttempt: Date?
     private var credentialRevision = CredentialRevision()
-    private var suppressPillForCurrentTranscription = false
     /// Whether setup is being walked a second time. `onboardingComplete` cannot
     /// answer it — Redo Setup clears that — and the two differ in what a step
     /// offers: a first run recommends, a redo shows what is already there.
@@ -206,7 +224,7 @@ final class AppCoordinator: ObservableObject {
         pill.model.onOpenPermissionSettings = { [weak self] in self?.openPermissionSettings() }
         pill.model.onOpenInputSettings = { [weak self] in self?.openMicrophoneInputSettings() }
         pill.model.onRetry = { [weak self] in self?.retryCurrentFailure() }
-        pill.model.onUndo = { [weak self] in self?.undoCancelledDictation() }
+        pill.model.onRecover = { [weak self] in self?.recoverCancelledDictation() }
         pill.model.onCancelRecording = { [weak self] in self?.handleHandsFreePillAction(.cancel) }
         pill.model.onConfirmRecording = { [weak self] in self?.handleHandsFreePillAction(.confirm) }
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
@@ -884,7 +902,6 @@ final class AppCoordinator: ObservableObject {
               permissionReadiness.isReady,
               !permissionRecoveryPresentationPending else { return }
         credentialRecoveryPresentationPending = false
-        suppressPillForCurrentTranscription = false
         setPhase(.credentialsUnusable(readiness))
     }
 
@@ -988,7 +1005,6 @@ final class AppCoordinator: ObservableObject {
 
     func retry(_ record: DictationRecord) {
         guard preferences.onboardingComplete else { return }
-        suppressPillForCurrentTranscription = false
         guard canUseHistoryStorage() else { return }
         guard canUseConfiguredAPIKey() else { return }
         guard !phase.isBusy else {
@@ -1127,7 +1143,6 @@ final class AppCoordinator: ObservableObject {
         defer { if !handedOff { _ = gate.apply(.startFailed) } }
 
         guard preferences.onboardingComplete else { return }
-        suppressPillForCurrentTranscription = false
         guard canUseHistoryStorage() else { return }
         refreshPermissions(
             presentRecoveryWhenMissing: false,
@@ -1292,7 +1307,6 @@ final class AppCoordinator: ObservableObject {
             try modelContext.save()
             currentRecord = record
             currentRecording = completed
-            suppressPillForCurrentTranscription = false
             shortcuts.setMode(.busy)
             Task { await transcribeCurrentRecord(delivery: .automaticPaste) }
         } catch {
@@ -1321,10 +1335,41 @@ final class AppCoordinator: ObservableObject {
                 noVerbatim: preferences.noVerbatim,
                 keyterms: preferences.keyterms
             )
+            let recordID = record.id
             let result = try await scribe.transcribe(request) { [weak self] attempt, delay in
-                await MainActor.run { self?.setPhase(.transcribing(attempt: attempt, retryDelay: delay)) }
+                await MainActor.run {
+                    guard let self, !self.isSilenced(recordID) else { return }
+                    self.setPhase(.transcribing(attempt: attempt, retryDelay: delay))
+                }
+            } permitsRetry: { [weak self] in
+                await MainActor.run { self?.isSilenced(recordID) == false }
             }
-            guard let transcript = TranscriptContent.normalized(result.text) else {
+
+            // Nothing may `await` between reading the cancellation and writing
+            // down what it decides. Both run on the main actor, so a Recover
+            // arriving in such a gap would act on an outcome not yet stored.
+            let normalized = TranscriptContent.normalized(result.text)
+            if isSilenced(recordID) {
+                if let normalized {
+                    record.text = normalized
+                    record.detectedLanguageCode = result.languageCode
+                    record.transcriptionState = .succeeded
+                    record.errorMessage = nil
+                    AudioRecorder.delete(relativePath: recording.relativePath)
+                    record.pendingAudioRelativePath = nil
+                    cancelledTranscription?.outcome = .transcript(normalized)
+                } else {
+                    // Kept as a cancelled row holding its audio rather than
+                    // discarded the way an uncancelled empty result is: See
+                    // History has to find something, and Retry there transcribes
+                    // like any other row instead of replaying a lost verdict.
+                    record.transcriptionState = .cancelled
+                    cancelledTranscription?.outcome = .noWords
+                }
+                try? modelContext.save()
+                return
+            }
+            guard let transcript = normalized else {
                 discardNoContent(record: record, recording: recording)
                 return
             }
@@ -1340,57 +1385,7 @@ final class AppCoordinator: ObservableObject {
             try modelContext.save()
 
             if delivery == .automaticPaste {
-                // Transcription is over the moment the text comes back, so the pill
-                // reporting it goes now — before target discovery, before the
-                // clipboard is touched, before the keystroke. Everything after this
-                // is delivery, and the user should not watch it. Whichever outcome
-                // follows brings its own pill back.
-                setPhase(.idle)
-                let deliveryStarted = ContinuousClock().now
-                let delivery = await paste.insert(transcript)
-                // The whole delivery as the user experiences it: from the pill
-                // leaving to the outcome being known. `PasteService`'s `elapsedMs`
-                // covers only the keystroke onwards, so a delivery made slow by
-                // target discovery rather than by the destination shows up here and
-                // nowhere else — which is what this measured when it was added.
-                Self.deliveryLog.notice(
-                    "delivery handoff idleToOutcomeMs=\(deliveryStarted.duration(to: ContinuousClock().now).pillMilliseconds, privacy: .public)"
-                )
-                switch delivery {
-                case .inserted:
-                    record.deliveryState = .pasted
-                    returnToIdle()
-                    // After the pill rather than before. Measured at 1 ms against a
-                    // history of 1,255 dictations, so this is ordering for its own
-                    // sake — UI first, disk second — not a fix for anything.
-                    try modelContext.save()
-                case .refusedSecureField:
-                    copy(record)
-                    try modelContext.save()
-                    // This one does sound. Every other delivery outcome is either
-                    // what the user asked for or a reminder they forgot a cursor;
-                    // this is Scriber declining to do what was asked, next to a
-                    // password box, and it deserves the same alert the other
-                    // warnings use.
-                    playFeedback(.terminalFailure)
-                    setPhase(.dictationBlockedBySecureField(
-                        text: transcript,
-                        message: "Secure field detected, not pasted. Paste with ⌘V if you wish."
-                    ))
-                case .noEditableTarget(let message), .failed(let message):
-                    // Nothing took the transcript, so it is still on the clipboard
-                    // where `PasteService` left it. `copy` records that in history
-                    // and makes the clipboard state explicit rather than implied.
-                    //
-                    // No sound. This is a reminder that the user forgot a cursor,
-                    // not a warning that something went wrong, and the pill is a
-                    // large tinted panel that sits for five seconds. Sound is kept
-                    // for the outcomes the user could not have caused.
-                    copy(record)
-                    record.errorMessage = message
-                    try modelContext.save()
-                    setPhase(.dictationCopied(text: transcript, message: message))
-                }
+                await deliverTranscript(transcript, record: record)
             } else {
                 copy(record)
                 try modelContext.save()
@@ -1399,6 +1394,16 @@ final class AppCoordinator: ObservableObject {
             preferences.apiCreditsExhausted = false
             Task { [weak self] in await self?.refreshSubscriptionUsage() }
         } catch {
+            // Cancelled and then failed. Same rule as a cancelled success: write
+            // it down, say nothing. The row keeps its audio, so Recover — or
+            // Retry in History later — can transcribe it afresh.
+            if isSilenced(record.id) {
+                record.transcriptionState = .cancelled
+                record.errorMessage = error.localizedDescription
+                try? modelContext.save()
+                cancelledTranscription?.outcome = .failed(error.localizedDescription)
+                return
+            }
             playFeedback(.terminalFailure)
             record.transcriptionState = .failed
             record.errorMessage = error.localizedDescription
@@ -1421,6 +1426,65 @@ final class AppCoordinator: ObservableObject {
     /// discarded, since an empty history row would be noise, but not silently: a
     /// dead or wrongly selected input is the likeliest cause and the user needs to
     /// be able to tell "no words" from "nothing happened".
+    /// Hands a finished transcript to whatever holds the cursor. Reached both by
+    /// a dictation that ran to completion and by Recover on one that was
+    /// cancelled after its transcript had already arrived — the target is
+    /// resolved here rather than when the recording started, so Recover lands
+    /// the text wherever the user is standing when they press it.
+    private func deliverTranscript(_ transcript: String, record: DictationRecord) async {
+        // Transcription is over the moment the text comes back, so the pill
+        // reporting it goes now — before target discovery, before the
+        // clipboard is touched, before the keystroke. Everything after this
+        // is delivery, and the user should not watch it. Whichever outcome
+        // follows brings its own pill back.
+        setPhase(.idle)
+        let deliveryStarted = ContinuousClock().now
+        let delivery = await paste.insert(transcript)
+        // The whole delivery as the user experiences it: from the pill
+        // leaving to the outcome being known. `PasteService`'s `elapsedMs`
+        // covers only the keystroke onwards, so a delivery made slow by
+        // target discovery rather than by the destination shows up here and
+        // nowhere else — which is what this measured when it was added.
+        Self.deliveryLog.notice(
+            "delivery handoff idleToOutcomeMs=\(deliveryStarted.duration(to: ContinuousClock().now).pillMilliseconds, privacy: .public)"
+        )
+        switch delivery {
+        case .inserted:
+            record.deliveryState = .pasted
+            returnToIdle()
+            // After the pill rather than before. Measured at 1 ms against a
+            // history of 1,255 dictations, so this is ordering for its own
+            // sake — UI first, disk second — not a fix for anything.
+            try? modelContext.save()
+        case .refusedSecureField:
+            copy(record)
+            try? modelContext.save()
+            // This one does sound. Every other delivery outcome is either
+            // what the user asked for or a reminder they forgot a cursor;
+            // this is Scriber declining to do what was asked, next to a
+            // password box, and it deserves the same alert the other
+            // warnings use.
+            playFeedback(.terminalFailure)
+            setPhase(.dictationBlockedBySecureField(
+                text: transcript,
+                message: "Secure field detected, not pasted. Paste with ⌘V if you wish."
+            ))
+        case .noEditableTarget(let message), .failed(let message):
+            // Nothing took the transcript, so it is still on the clipboard
+            // where `PasteService` left it. `copy` records that in history
+            // and makes the clipboard state explicit rather than implied.
+            //
+            // No sound. This is a reminder that the user forgot a cursor,
+            // not a warning that something went wrong, and the pill is a
+            // large tinted panel that sits for five seconds. Sound is kept
+            // for the outcomes the user could not have caused.
+            copy(record)
+            record.errorMessage = message
+            try? modelContext.save()
+            setPhase(.dictationCopied(text: transcript, message: message))
+        }
+    }
+
     private func discardNoContent(record: DictationRecord, recording: CompletedRecording) {
         AudioRecorder.delete(relativePath: recording.relativePath)
         modelContext.delete(record)
@@ -1432,7 +1496,6 @@ final class AppCoordinator: ObservableObject {
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)
         playFeedback(.terminalFailure)
-        suppressPillForCurrentTranscription = false
         setPhase(.noSpeechDetected)
     }
 
@@ -1459,7 +1522,7 @@ final class AppCoordinator: ObservableObject {
             paste.clearTarget()
             shortcuts.setMode(.idle)
             playFeedback(.cancellationOrCopyFallback)
-            showMessage("Cancelled")
+            showMessage("Canceled")
             return
         }
         shortcuts.setMode(.busy)
@@ -1489,14 +1552,14 @@ final class AppCoordinator: ObservableObject {
             paste.clearTarget()
             shortcuts.setMode(.idle)
             playFeedback(.cancellationOrCopyFallback)
-            showMessage("Cancelled")
+            showMessage("Canceled")
             return
         }
         let record = DictationRecord(
             id: completed.id,
             durationSeconds: completed.duration,
             transcriptionState: .cancelled,
-            errorMessage: "Cancelled before transcription.",
+            errorMessage: "Canceled before transcription.",
             pendingAudioRelativePath: completed.relativePath
         )
         modelContext.insert(record)
@@ -1513,10 +1576,61 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    private func undoCancelledDictation() {
-        guard let record = currentRecord,
-              record.transcriptionState == .cancelled,
-              currentRecording != nil else {
+    /// Escape during transcription. The request already sent is left alone —
+    /// ElevenLabs bills it whether or not the answer is read — but no further
+    /// attempt is made, and whatever comes back is parked rather than delivered.
+    private func cancelTranscriptionInFlight() {
+        guard case .transcribing = phase, let record = currentRecord else { return }
+        cancelledTranscription = CancelledTranscription(recordID: record.id)
+        // Recorded now rather than when the request lands, so a quit in between
+        // leaves a cancelled row holding its audio instead of a transcribing one.
+        record.transcriptionState = .cancelled
+        record.errorMessage = "Canceled before the transcript arrived."
+        try? modelContext.save()
+        paste.clearTarget()
+        pill.setPreferredScreen(nil)
+        shortcuts.setMode(.idle)
+        playFeedback(.cancellationOrCopyFallback)
+        setPhase(.cancelledTranscript)
+    }
+
+    /// The Recover button, for both kinds of cancellation. A dictation cancelled
+    /// before its request went out has only one thing it can do; one cancelled
+    /// after has four, decided by `CancelledTranscriptionOutcome`.
+    private func recoverCancelledDictation() {
+        guard let record = currentRecord, let recording = currentRecording else {
+            showMessage("Recording unavailable")
+            return
+        }
+        guard let cancelled = cancelledTranscription, cancelled.recordID == record.id else {
+            retranscribeCancelledDictation(record)
+            return
+        }
+        switch cancelled.outcome.recovery {
+        // Clearing this un-silences the request still in flight: the next thing
+        // it does reaches the pill normally, and it delivers as it always would.
+        case .waitForTranscript:
+            cancelledTranscription = nil
+            record.transcriptionState = .transcribing
+            record.errorMessage = nil
+            try? modelContext.save()
+            retryingRecordID = record.id
+            shortcuts.setMode(.busy)
+            setPhase(.transcribing(attempt: 1, retryDelay: nil))
+        case .deliver(let transcript):
+            cancelledTranscription = nil
+            Task { await deliverTranscript(transcript, record: record) }
+        case .reportNoWords:
+            cancelledTranscription = nil
+            discardNoContent(record: record, recording: recording)
+        case .transcribeAgain:
+            cancelledTranscription = nil
+            retranscribeCancelledDictation(record)
+        }
+    }
+
+    private func retranscribeCancelledDictation(_ record: DictationRecord) {
+        guard record.transcriptionState == .cancelled, currentRecording != nil else {
             showMessage("Recording unavailable")
             return
         }
@@ -1540,9 +1654,8 @@ final class AppCoordinator: ObservableObject {
             return false
         case .cancelRecording:
             apply(gate.apply(.cancelRequested))
-        case .hideTranscription:
-            suppressPillForCurrentTranscription = true
-            pill.dismiss()
+        case .cancelTranscription:
+            cancelTranscriptionInFlight()
         case .dismiss:
             returnToIdle()
         }
@@ -1585,7 +1698,6 @@ final class AppCoordinator: ObservableObject {
             // permission problem is outranking the credential pill elsewhere.
             credentialRecoveryPresentationPending = false
             lastObservedCredentialReadiness = readiness
-            suppressPillForCurrentTranscription = false
             setPhase(.credentialsUnusable(readiness))
             return false
         }
@@ -1609,7 +1721,6 @@ final class AppCoordinator: ObservableObject {
               !permissionReadiness.isReady,
               !phase.isBusy else { return }
         permissionRecoveryPresentationPending = false
-        suppressPillForCurrentTranscription = false
         setPhase(.permissionsRequired(permissionReadiness.missingPermissions))
     }
 
@@ -1711,17 +1822,12 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func showTransientMessage(_ message: String) {
-        suppressPillForCurrentTranscription = false
         let retainedPhase = phase
         pill.update(.message(message), autoDismiss: false)
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.5))
             guard let self, self.phase == retainedPhase else { return }
-            if self.suppressPillForCurrentTranscription {
-                self.pill.dismiss()
-            } else {
-                self.pill.update(retainedPhase)
-            }
+            self.pill.update(retainedPhase)
         }
     }
 
@@ -1758,7 +1864,10 @@ final class AppCoordinator: ObservableObject {
     private func returnToIdle() {
         recordingStartedAt = nil
         endOtherAudioMuting()
-        suppressPillForCurrentTranscription = false
+        // The parked outcome belongs to the pill that offered Recover. Once that
+        // pill is gone the row in history is the only route back, which is the
+        // point: nothing about a cancellation is remembered beyond the offer.
+        cancelledTranscription = nil
         paste.clearTarget()
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)
@@ -1777,11 +1886,7 @@ final class AppCoordinator: ObservableObject {
         // recording, and the pill draws them from its own model instead. Anything
         // needing either live takes it as a parameter — do not read them here.
         if !Self.differsOnlyByMeter(phase, self.phase) { self.phase = phase }
-        if suppressPillForCurrentTranscription {
-            pill.dismiss()
-        } else {
-            pill.update(phase)
-        }
+        pill.update(phase)
     }
 
 }

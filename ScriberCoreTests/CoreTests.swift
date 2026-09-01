@@ -263,10 +263,10 @@ struct PillDismissalTests {
             .pillDismissalAction(isPresented: true) == .cancelRecording)
     }
 
-    @Test("A visible transcription is hidden without cancellation")
+    @Test("A visible transcription is cancelled")
     func transcribing() {
         #expect(AppPhase.transcribing(attempt: 2, retryDelay: 3)
-            .pillDismissalAction(isPresented: true) == .hideTranscription)
+            .pillDismissalAction(isPresented: true) == .cancelTranscription)
     }
 
     @Test("Visible terminal pills are dismissed")
@@ -277,6 +277,29 @@ struct PillDismissalTests {
             .pillDismissalAction(isPresented: true) == .dismiss)
         #expect(AppPhase.permissionsRequired([.accessibility])
             .pillDismissalAction(isPresented: true) == .dismiss)
+    }
+}
+
+@Suite("Cancelled transcription recovery")
+struct CancelledTranscriptionTests {
+    @Test("A request still in flight is waited for, never restarted")
+    func stillRunning() {
+        #expect(CancelledTranscriptionOutcome.stillRunning.recovery == .waitForTranscript)
+    }
+
+    @Test("A transcript that already arrived is delivered rather than fetched again")
+    func arrived() {
+        #expect(CancelledTranscriptionOutcome.transcript("hello").recovery == .deliver("hello"))
+    }
+
+    @Test("An empty result is reported, not retranscribed")
+    func empty() {
+        #expect(CancelledTranscriptionOutcome.noWords.recovery == .reportNoWords)
+    }
+
+    @Test("A failure is the only outcome that spends a second request")
+    func failure() {
+        #expect(CancelledTranscriptionOutcome.failed("Offline").recovery == .transcribeAgain)
     }
 }
 

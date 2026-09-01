@@ -2,6 +2,14 @@
 
 This file records intentionally identified Scriber releases and prerelease snapshots. Ordinary development builds belong in Git history, not here.
 
+## Unreleased
+
+### Changed
+
+- **Escape now cancels a dictation at any point, not just while you are speaking.** Pressing it while the pill reads **Transcribing…** used to hide the pill and paste the transcript into whatever you were doing a moment later. It now cancels: nothing is pasted, and the pill offers to recover the dictation instead.
+- **Recover puts the transcript where you are standing now**, not where you were when you dictated — so changing your mind about which app the words belong in is a matter of cancelling, moving, and recovering. The button that used to read **Undo** now reads **Recover**.
+- **A cancelled dictation keeps its place in your history.** Whatever the transcription came back with is saved to its row and reported nowhere else, so it cannot interrupt a dictation you have already started, and **See History** always finds the one you cancelled.
+
 ## 0.9.2 — 2026-09-01
 
 Native bundle build 261, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.

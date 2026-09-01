@@ -642,8 +642,40 @@ public enum DictationShortcutTiming {
 public enum PillDismissalAction: Equatable, Sendable {
     case passThrough
     case cancelRecording
-    case hideTranscription
+    case cancelTranscription
     case dismiss
+}
+
+/// What a transcription that was cancelled after its request went out came back
+/// with. The request is left to finish because it is already billed, but it must
+/// not speak: its result is held here until the user asks for it.
+public enum CancelledTranscriptionOutcome: Equatable, Sendable {
+    case stillRunning
+    case transcript(String)
+    case noWords
+    case failed(String)
+}
+
+/// What Recover does with it.
+public enum CancelledTranscriptionRecovery: Equatable, Sendable {
+    case waitForTranscript
+    case deliver(String)
+    case reportNoWords
+    case transcribeAgain
+}
+
+public extension CancelledTranscriptionOutcome {
+    /// `stillRunning` waits rather than starting a second transcription: the
+    /// first request is in flight and paid for, and racing it would bill the
+    /// user twice for one recording and return two transcripts.
+    var recovery: CancelledTranscriptionRecovery {
+        switch self {
+        case .stillRunning: .waitForTranscript
+        case .transcript(let text): .deliver(text)
+        case .noWords: .reportNoWords
+        case .failed: .transcribeAgain
+        }
+    }
 }
 
 public enum PillDefaultAction: Equatable, Sendable {
@@ -745,7 +777,10 @@ public extension AppPhase {
         return switch self {
         case .idle: .passThrough
         case .recording: .cancelRecording
-        case .transcribing: .hideTranscription
+        // Escape means cancel at every stage of a dictation, not just while the
+        // microphone is open. The transcribing pill carries no controls of its
+        // own, so this is the only gesture that reaches it.
+        case .transcribing: .cancelTranscription
         case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
              .transcriptCopied, .dictationBlockedBySecureField, .message: .dismiss
