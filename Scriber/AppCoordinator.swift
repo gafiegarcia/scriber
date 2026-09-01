@@ -147,10 +147,27 @@ final class AppCoordinator: ObservableObject {
         /// Transcribing… with nothing behind it.
         let run: Int
         let recordID: UUID
+        /// What the pill was showing when Escape arrived, so Recover can put the
+        /// run back where it was instead of inventing a first attempt for one that
+        /// is on its third.
+        let interruptedPhase: AppPhase
         var outcome: CancelledTranscriptionOutcome = .stillRunning
     }
 
+    /// The offer on screen. Belongs to the pill and dies with it.
     private var cancelledTranscription: CancelledTranscription?
+
+    /// The run that must stay quiet. Belongs to the run and dies with it.
+    ///
+    /// Kept apart from the offer above on purpose. One flag served both, so
+    /// dismissing the pill — by Escape, by See History, or by its own timeout —
+    /// un-silenced a request that was still working through its retries, and the
+    /// next attempt went out and drew a pill over whatever the user was doing.
+    private var silencedRun: Int?
+
+    private func silence(run: Int) {
+        silencedRun = run
+    }
 
     /// Counts runs of `transcribeCurrentRecord`, so each has an identity a parked
     /// cancellation can name.
@@ -165,7 +182,7 @@ final class AppCoordinator: ObservableObject {
     private var liveTranscriptionDelivery: RetryDelivery?
 
     private func isSilenced(run: Int) -> Bool {
-        cancelledTranscription?.run == run
+        silencedRun == run
     }
     private var checkedStoredAPIKeyThisLaunch = false
     @Published private(set) var isCheckingStoredAPIKey = false
@@ -1339,15 +1356,18 @@ final class AppCoordinator: ObservableObject {
         let run = transcriptionRun
         liveTranscriptionRun = run
         liveTranscriptionDelivery = delivery
-        // A fresh run retires the previous offer. Without this a cancellation
-        // whose pill has already timed out silences the next transcription of the
-        // same recording, which then finishes without ever taking its pill down.
+        // A fresh run retires the previous offer and starts unsilenced. Without
+        // this a cancellation whose pill has already timed out silences the next
+        // transcription of the same recording, which then finishes without ever
+        // taking its pill down.
         cancelledTranscription = nil
+        silencedRun = nil
         defer {
             if liveTranscriptionRun == run {
                 liveTranscriptionRun = nil
                 liveTranscriptionDelivery = nil
             }
+            if silencedRun == run { silencedRun = nil }
             retryingRecordID = nil
             shortcuts.setMode(.idle)
         }
@@ -1612,6 +1632,8 @@ final class AppCoordinator: ObservableObject {
             returnToIdle()
             return
         }
+        let interrupted = phase
+        silence(run: run)
         // Recorded now rather than when the request lands, so a quit in between
         // leaves a cancelled row holding its audio instead of a transcribing one.
         record.transcriptionState = .cancelled
@@ -1625,11 +1647,15 @@ final class AppCoordinator: ObservableObject {
         // writes what it got.
         guard liveTranscriptionDelivery != .copy else {
             returnToIdle()
-            cancelledTranscription = CancelledTranscription(run: run, recordID: record.id)
+            cancelledTranscription = CancelledTranscription(
+                run: run, recordID: record.id, interruptedPhase: interrupted
+            )
             return
         }
 
-        cancelledTranscription = CancelledTranscription(run: run, recordID: record.id)
+        cancelledTranscription = CancelledTranscription(
+            run: run, recordID: record.id, interruptedPhase: interrupted
+        )
         paste.clearTarget()
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)
@@ -1662,12 +1688,16 @@ final class AppCoordinator: ObservableObject {
                 return
             }
             cancelledTranscription = nil
+            silencedRun = nil
             record.transcriptionState = .transcribing
             record.errorMessage = nil
             try? modelContext.save()
             retryingRecordID = record.id
             shortcuts.setMode(.busy)
-            setPhase(.transcribing(attempt: 1, retryDelay: nil))
+            // The phase Escape interrupted, not a fabricated first attempt. A run
+            // on its third attempt drew the compact pill for one moment and the
+            // real one the next, which read as the pill breaking.
+            setPhase(cancelled.interruptedPhase)
         case .deliver(let transcript):
             cancelledTranscription = nil
             Task { await deliverTranscript(transcript, record: record) }
