@@ -9,6 +9,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 - **Escape now cancels a dictation at any point, not just while you are speaking.** Pressing it while the pill reads **Transcribing…** used to hide the pill and paste the transcript into whatever you were doing a moment later. It now cancels: nothing is pasted, and the pill offers to recover the dictation instead.
 - **Recover puts the transcript where you are standing now**, not where you were when you dictated — so changing your mind about which app the words belong in is a matter of cancelling, moving, and recovering. The button that used to read **Undo** now reads **Recover**.
 - **Pressing the shortcut while Scriber is still transcribing no longer says so.** It used to replace **Transcribing…** with **Still transcribing** for a second and a half, which took away the one thing on screen that was telling you what was happening. The press is now ignored and the pill carries on.
+- **Setup now says that Escape cancels.** The **Try it!** step explains it where the shortcut is first tried, and says that a canceled dictation waits in your history.
 - **A cancelled dictation keeps its place in your history.** Whatever the transcription came back with is saved to its row and reported nowhere else, so it cannot interrupt a dictation you have already started, and **See History** always finds the one you cancelled.
 
 ## 0.9.2 — 2026-09-01

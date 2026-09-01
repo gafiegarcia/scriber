@@ -727,6 +727,15 @@ struct TryItStep: View {
             .padding(10)
             .background(Color(nsColor: .textBackgroundColor), in: shape)
             .overlay { shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1) }
+
+            // Taught here rather than on the step that chose the shortcut, for
+            // the same reason the two ways of pressing it are: this is the first
+            // moment it can be tried.
+            Text("Changed your mind? Press **Escape** at any point to cancel — while you are talking or while Scriber is transcribing. Canceled dictations wait for you in your history, so nothing is lost.")
+                .font(OnboardingType.caption)
+                .lineSpacing(OnboardingType.lineSpacing)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .onAppear { isFocused = true }
     }
