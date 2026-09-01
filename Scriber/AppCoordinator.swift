@@ -1380,7 +1380,11 @@ final class AppCoordinator: ObservableObject {
                 liveTranscriptionRun = nil
                 liveTranscriptionDelivery = nil
                 retryingRecordID = nil
-                shortcuts.setMode(.idle)
+                // Being the newest transcription is not enough: a dictation that
+                // is still recording has not reached this stage at all, so it
+                // leaves `liveTranscriptionRun` naming the abandoned run while
+                // owning the monitor. Ask the gate, which knows about both.
+                if gate.isIdle { shortcuts.setMode(.idle) }
             }
         }
         do {
@@ -1443,6 +1447,9 @@ final class AppCoordinator: ObservableObject {
             try modelContext.save()
 
             if delivery == .automaticPaste {
+                // Before the await, not inside it. Everything after this is
+                // delivery and the user should not watch it.
+                setPhase(.idle)
                 await deliverTranscript(transcript, record: record)
             } else {
                 copy(record)
@@ -1490,13 +1497,12 @@ final class AppCoordinator: ObservableObject {
     /// cancelled after its transcript had already arrived — the target is
     /// resolved here rather than when the recording started, so Recover lands
     /// the text wherever the user is standing when they press it.
+    /// Callers take the pill down *before* awaiting this. Transcription is over
+    /// the moment the text comes back, and putting `setPhase(.idle)` inside here
+    /// left it behind an `await`: the pill could not begin leaving until the
+    /// executor came back round, which is a delay between the text landing and
+    /// the pill going that was not there before.
     private func deliverTranscript(_ transcript: String, record: DictationRecord) async {
-        // Transcription is over the moment the text comes back, so the pill
-        // reporting it goes now — before target discovery, before the
-        // clipboard is touched, before the keystroke. Everything after this
-        // is delivery, and the user should not watch it. Whichever outcome
-        // follows brings its own pill back.
-        setPhase(.idle)
         let deliveryStarted = ContinuousClock().now
         let delivery = await paste.insert(transcript)
         // The whole delivery as the user experiences it: from the pill
@@ -1686,7 +1692,7 @@ final class AppCoordinator: ObservableObject {
         )
         paste.clearTarget()
         pill.setPreferredScreen(nil)
-        shortcuts.setMode(.idle)
+        if gate.isIdle { shortcuts.setMode(.idle) }
         playFeedback(.cancellationOrCopyFallback)
         setPhase(.cancelledTranscript)
     }
@@ -1731,6 +1737,7 @@ final class AppCoordinator: ObservableObject {
             setPhase(cancelled.interruptedPhase)
         case .deliver(let transcript):
             cancelledTranscription = nil
+            setPhase(.idle)
             Task { await deliverTranscript(transcript, record: record) }
         case .reportNoWords:
             cancelledTranscription = nil
