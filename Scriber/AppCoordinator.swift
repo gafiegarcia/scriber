@@ -925,11 +925,10 @@ final class AppCoordinator: ObservableObject {
         // Only a press with no dictation of its own to end can reach these. Once
         // the gate holds one, the gesture belongs to it, and asking `phase` would
         // be asking state that a start still in flight has not published yet.
+        // A press arriving mid-transcription is ignored, not answered. Saying
+        // "Still transcribing" replaced the pill's own account of what was
+        // happening with a restatement of it, for a second and a half.
         if gate.isIdle, case .pressed = action {
-            if case .transcribing = phase {
-                showTransientMessage("Still transcribing")
-                return
-            }
             guard phase.acceptsRecordingStart else { return }
         }
         apply(gate.apply(.shortcut(action)))
@@ -975,10 +974,7 @@ final class AppCoordinator: ObservableObject {
     func startHandsFreeFromMenu() {
         guard preferences.onboardingComplete else { return }
         if gate.isIdle {
-            guard phase.acceptsRecordingStart else {
-                showTransientMessage("Still transcribing")
-                return
-            }
+            guard phase.acceptsRecordingStart else { return }
             apply(gate.apply(.startRequested(mode: .locked)))
         } else {
             apply(gate.apply(.stopRequested))

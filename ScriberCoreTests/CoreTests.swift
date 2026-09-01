@@ -56,7 +56,7 @@ struct ShortcutMatcherTests {
     func busyState() {
         #expect(AppPhase.recording(mode: .held, elapsed: 0, level: -80).isBusy)
         #expect(AppPhase.transcribing(attempt: 1, retryDelay: nil).isBusy)
-        #expect(!AppPhase.message("Still transcribing").isBusy)
+        #expect(!AppPhase.message("Already transcribing").isBusy)
         #expect(!AppPhase.dictationCopied(text: "hi", message: "No target").isBusy)
     }
 
