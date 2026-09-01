@@ -141,14 +141,27 @@ final class AppCoordinator: ObservableObject {
     /// In memory only. Nothing about this outlives the pill it belongs to, so a
     /// history row left behind by one retries like any other.
     private struct CancelledTranscription {
+        /// The run this cancelled, never the record. The same recording can be
+        /// transcribed again from History, and an earlier cancellation of it must
+        /// not silence that new attempt — which is what left a pill saying
+        /// Transcribing… with nothing behind it.
+        let run: Int
         let recordID: UUID
         var outcome: CancelledTranscriptionOutcome = .stillRunning
     }
 
     private var cancelledTranscription: CancelledTranscription?
 
-    private func isSilenced(_ recordID: UUID) -> Bool {
-        cancelledTranscription?.recordID == recordID
+    /// Counts runs of `transcribeCurrentRecord`, so each has an identity a parked
+    /// cancellation can name.
+    private var transcriptionRun = 0
+
+    /// The run actually in flight. `nil` means nothing is running, whatever the
+    /// pill still says — a stale phase must not be mistaken for a live request.
+    private var liveTranscriptionRun: Int?
+
+    private func isSilenced(run: Int) -> Bool {
+        cancelledTranscription?.run == run
     }
     private var checkedStoredAPIKeyThisLaunch = false
     @Published private(set) var isCheckingStoredAPIKey = false
@@ -1318,7 +1331,15 @@ final class AppCoordinator: ObservableObject {
 
     private func transcribeCurrentRecord(delivery: RetryDelivery) async {
         guard let record = currentRecord, let recording = currentRecording else { returnToIdle(); return }
+        transcriptionRun += 1
+        let run = transcriptionRun
+        liveTranscriptionRun = run
+        // A fresh run retires the previous offer. Without this a cancellation
+        // whose pill has already timed out silences the next transcription of the
+        // same recording, which then finishes without ever taking its pill down.
+        cancelledTranscription = nil
         defer {
+            if liveTranscriptionRun == run { liveTranscriptionRun = nil }
             retryingRecordID = nil
             shortcuts.setMode(.idle)
         }
@@ -1331,21 +1352,20 @@ final class AppCoordinator: ObservableObject {
                 noVerbatim: preferences.noVerbatim,
                 keyterms: preferences.keyterms
             )
-            let recordID = record.id
             let result = try await scribe.transcribe(request) { [weak self] attempt, delay in
                 await MainActor.run {
-                    guard let self, !self.isSilenced(recordID) else { return }
+                    guard let self, !self.isSilenced(run: run) else { return }
                     self.setPhase(.transcribing(attempt: attempt, retryDelay: delay))
                 }
             } permitsRetry: { [weak self] in
-                await MainActor.run { self?.isSilenced(recordID) == false }
+                await MainActor.run { self?.isSilenced(run: run) == false }
             }
 
             // Nothing may `await` between reading the cancellation and writing
             // down what it decides. Both run on the main actor, so a Recover
             // arriving in such a gap would act on an outcome not yet stored.
             let normalized = TranscriptContent.normalized(result.text)
-            if isSilenced(recordID) {
+            if isSilenced(run: run) {
                 if let normalized {
                     record.text = normalized
                     record.detectedLanguageCode = result.languageCode
@@ -1393,7 +1413,7 @@ final class AppCoordinator: ObservableObject {
             // Cancelled and then failed. Same rule as a cancelled success: write
             // it down, say nothing. The row keeps its audio, so Recover — or
             // Retry in History later — can transcribe it afresh.
-            if isSilenced(record.id) {
+            if isSilenced(run: run) {
                 record.transcriptionState = .cancelled
                 record.errorMessage = error.localizedDescription
                 try? modelContext.save()
@@ -1576,8 +1596,15 @@ final class AppCoordinator: ObservableObject {
     /// ElevenLabs bills it whether or not the answer is read — but no further
     /// attempt is made, and whatever comes back is parked rather than delivered.
     private func cancelTranscriptionInFlight() {
-        guard case .transcribing = phase, let record = currentRecord else { return }
-        cancelledTranscription = CancelledTranscription(recordID: record.id)
+        // A live run is required, not merely a pill that says there is one.
+        // Offering Recover against a request that already finished leaves the
+        // button waiting on something that will never call back.
+        guard case .transcribing = phase, let record = currentRecord,
+              let run = liveTranscriptionRun else {
+            returnToIdle()
+            return
+        }
+        cancelledTranscription = CancelledTranscription(run: run, recordID: record.id)
         // Recorded now rather than when the request lands, so a quit in between
         // leaves a cancelled row holding its audio instead of a transcribing one.
         record.transcriptionState = .cancelled
@@ -1606,6 +1633,14 @@ final class AppCoordinator: ObservableObject {
         // Clearing this un-silences the request still in flight: the next thing
         // it does reaches the pill normally, and it delivers as it always would.
         case .waitForTranscript:
+            // Only worth waiting for while the run is still going. If it ended
+            // without recording its outcome, transcribe afresh rather than sit on
+            // a Transcribing… pill nothing will ever take down.
+            guard liveTranscriptionRun == cancelled.run else {
+                cancelledTranscription = nil
+                retranscribeCancelledDictation(record)
+                return
+            }
             cancelledTranscription = nil
             record.transcriptionState = .transcribing
             record.errorMessage = nil

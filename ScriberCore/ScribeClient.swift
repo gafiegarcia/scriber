@@ -275,6 +275,10 @@ public struct ScribeClient: Sendable {
         var lastError: Error?
 
         for attempt in 1...3 {
+            // Asked again on the way out of the wait, not only on the way in. A
+            // cancellation arriving during the backoff has to stop the attempt
+            // that wait was for, and the check below has already passed by then.
+            if attempt > 1, await permitsRetry() == false { break }
             await onAttempt(attempt, nil)
             do {
                 return try await perform(input, keyterms: keyterms)
