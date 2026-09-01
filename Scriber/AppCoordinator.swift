@@ -160,6 +160,10 @@ final class AppCoordinator: ObservableObject {
     /// pill still says — a stale phase must not be mistaken for a live request.
     private var liveTranscriptionRun: Int?
 
+    /// What the run in flight was going to do with its transcript. Cancelling one
+    /// bound for the clipboard has nothing to offer to recover, so it says nothing.
+    private var liveTranscriptionDelivery: RetryDelivery?
+
     private func isSilenced(run: Int) -> Bool {
         cancelledTranscription?.run == run
     }
@@ -1334,12 +1338,16 @@ final class AppCoordinator: ObservableObject {
         transcriptionRun += 1
         let run = transcriptionRun
         liveTranscriptionRun = run
+        liveTranscriptionDelivery = delivery
         // A fresh run retires the previous offer. Without this a cancellation
         // whose pill has already timed out silences the next transcription of the
         // same recording, which then finishes without ever taking its pill down.
         cancelledTranscription = nil
         defer {
-            if liveTranscriptionRun == run { liveTranscriptionRun = nil }
+            if liveTranscriptionRun == run {
+                liveTranscriptionRun = nil
+                liveTranscriptionDelivery = nil
+            }
             retryingRecordID = nil
             shortcuts.setMode(.idle)
         }
@@ -1604,12 +1612,24 @@ final class AppCoordinator: ObservableObject {
             returnToIdle()
             return
         }
-        cancelledTranscription = CancelledTranscription(run: run, recordID: record.id)
         // Recorded now rather than when the request lands, so a quit in between
         // leaves a cancelled row holding its audio instead of a transcribing one.
         record.transcriptionState = .cancelled
         record.errorMessage = "Canceled before the transcript arrived."
         try? modelContext.save()
+
+        // A History retry was only ever going to reach the clipboard, and the user
+        // cancelling one is looking at the window that holds the row. There is no
+        // paste to prevent and nothing to offer, so it stops in silence and the
+        // row's own Retry stays where it is. The request still finishes and still
+        // writes what it got.
+        guard liveTranscriptionDelivery != .copy else {
+            returnToIdle()
+            cancelledTranscription = CancelledTranscription(run: run, recordID: record.id)
+            return
+        }
+
+        cancelledTranscription = CancelledTranscription(run: run, recordID: record.id)
         paste.clearTarget()
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)

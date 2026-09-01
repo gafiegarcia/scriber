@@ -13,6 +13,19 @@ final class DictationHistoryMaintenance {
 
     func recoverPersistedAndOrphanedRecords() {
         guard let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
+        // A row holding a transcript succeeded, whatever its state says. Nothing
+        // writes text to a record except a transcription that finished, and the
+        // audio is only released once it has, so this pair cannot describe a
+        // dictation that failed or was cancelled. Rows in that shape are left
+        // stranded: History offers no Retry, because there is no audio to retry.
+        for record in records
+        where record.transcriptionState != .succeeded
+            && record.pendingAudioRelativePath == nil
+            && !(record.text ?? "").isEmpty {
+            record.transcriptionState = .succeeded
+            record.errorMessage = nil
+        }
+
         for record in records where record.transcriptionState == .transcribing {
             record.transcriptionState = .failed
             record.errorMessage = record.pendingAudioRelativePath == nil

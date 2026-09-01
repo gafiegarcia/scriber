@@ -223,11 +223,16 @@ final class PillController {
         case .permissionsRequired:
             8
         // Both forms of "your text is on the clipboard, not in your app" get the
-        // same dwell. The compact one used to inherit `.message`'s 1.5 seconds,
-        // which was long enough to see something flash and not long enough to read
-        // it.
-        case .dictationCopied, .transcriptCopied, .dictationBlockedBySecureField:
+        // same dwell. Either is news the user did not ask for and has to read, and
+        // 1.5 seconds was long enough to see something flash and not long enough
+        // to read it.
+        case .dictationCopied, .dictationBlockedBySecureField:
             5
+        // A History retry reaching the clipboard is the result that was asked for,
+        // so this one is a receipt rather than news. It is read at a glance, and
+        // holding it as long as an apology makes a deliberate action feel slow.
+        case .transcriptCopied:
+            1.5
         case .cancelledTranscript, .noSpeechDetected:
             5
         case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
