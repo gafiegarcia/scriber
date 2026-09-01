@@ -61,6 +61,11 @@ final class AppCoordinator: ObservableObject {
         category: "paste-target"
     )
 
+    private static let dictationLog = Logger(
+        subsystem: "com.gafiegarcia.scriber",
+        category: "dictation"
+    )
+
     private static let permissionLog = Logger(
         subsystem: "com.gafiegarcia.scriber",
         category: "permissions"
@@ -1387,7 +1392,7 @@ final class AppCoordinator: ObservableObject {
                 noVerbatim: preferences.noVerbatim,
                 keyterms: preferences.keyterms
             )
-            let result = try await scribe.transcribe(request) { [weak self] attempt, delay in
+            let result = try await scribe.transcribe(request, run: run) { [weak self] attempt, delay in
                 await MainActor.run {
                     guard let self, !self.isSilenced(run: run) else { return }
                     self.setPhase(.transcribing(attempt: attempt, retryDelay: delay))
@@ -1409,6 +1414,7 @@ final class AppCoordinator: ObservableObject {
                     AudioRecorder.delete(relativePath: recording.relativePath)
                     record.pendingAudioRelativePath = nil
                     cancelledTranscription?.outcome = .transcript(normalized)
+                    Self.dictationLog.notice("dictation parked run=\(run, privacy: .public) outcome=transcript")
                 } else {
                     // Kept as a cancelled row holding its audio rather than
                     // discarded the way an uncancelled empty result is: See
@@ -1416,6 +1422,7 @@ final class AppCoordinator: ObservableObject {
                     // like any other row instead of replaying a lost verdict.
                     record.transcriptionState = .cancelled
                     cancelledTranscription?.outcome = .noWords
+                    Self.dictationLog.notice("dictation parked run=\(run, privacy: .public) outcome=noWords")
                 }
                 try? modelContext.save()
                 return
@@ -1453,6 +1460,7 @@ final class AppCoordinator: ObservableObject {
                 record.errorMessage = error.localizedDescription
                 try? modelContext.save()
                 cancelledTranscription?.outcome = .failed(error.localizedDescription)
+                Self.dictationLog.notice("dictation parked run=\(run, privacy: .public) outcome=failed")
                 return
             }
             playFeedback(.terminalFailure)
@@ -1537,6 +1545,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func discardNoContent(record: DictationRecord, recording: CompletedRecording) {
+        let duration = recording.duration
         AudioRecorder.delete(relativePath: recording.relativePath)
         modelContext.delete(record)
         try? modelContext.save()
@@ -1546,6 +1555,15 @@ final class AppCoordinator: ObservableObject {
         paste.clearTarget()
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)
+        // Short enough to have been a change of mind: the natural end of a held
+        // dictation is letting go, and being told there were no words in one is
+        // an answer to a question the user withdrew.
+        guard RecordingCancellationPolicy.reportsMissingSpeech(elapsed: duration) else {
+            Self.dictationLog.notice("dictation noWords closed quietly")
+            feedbackSounds.fadeOut()
+            returnToIdle()
+            return
+        }
         playFeedback(.terminalFailure)
         setPhase(.noSpeechDetected)
     }
@@ -1641,6 +1659,9 @@ final class AppCoordinator: ObservableObject {
         }
         let interrupted = phase
         silence(run: run)
+        Self.dictationLog.notice(
+            "dictation canceled run=\(run, privacy: .public) delivery=\(self.liveTranscriptionDelivery == .copy ? "copy" : "paste", privacy: .public)"
+        )
         // Recorded now rather than when the request lands, so a quit in between
         // leaves a cancelled row holding its audio instead of a transcribing one.
         record.transcriptionState = .cancelled
@@ -1682,6 +1703,9 @@ final class AppCoordinator: ObservableObject {
             retranscribeCancelledDictation(record)
             return
         }
+        Self.dictationLog.notice(
+            "dictation recover run=\(cancelled.run, privacy: .public) outcome=\(cancelled.outcome.label, privacy: .public)"
+        )
         switch cancelled.outcome.recovery {
         // Clearing this un-silences the request still in flight: the next thing
         // it does reaches the pill normally, and it delivers as it always would.

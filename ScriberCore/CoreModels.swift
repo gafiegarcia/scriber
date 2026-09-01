@@ -665,6 +665,17 @@ public enum CancelledTranscriptionRecovery: Equatable, Sendable {
 }
 
 public extension CancelledTranscriptionOutcome {
+    /// Names the outcome without carrying it. `String(describing:)` would put the
+    /// transcript itself into a log line.
+    var label: String {
+        switch self {
+        case .stillRunning: "stillRunning"
+        case .transcript: "transcript"
+        case .noWords: "noWords"
+        case .failed: "failed"
+        }
+    }
+
     /// `stillRunning` waits rather than starting a second transcription: the
     /// first request is in flight and paid for, and racing it would bill the
     /// user twice for one recording and return two transcripts.
@@ -715,6 +726,22 @@ public enum RecordingCancellationPolicy {
     /// it reports silence to someone who never spoke, so those close silently.
     public static func reportsMissingAudio(elapsed: TimeInterval, detectedSignal: Bool) -> Bool {
         !detectedSignal && elapsed >= recoveryThreshold
+    }
+
+    /// Longer than someone takes to think better of a dictation and let go.
+    public static let speechReportThreshold: TimeInterval = 3
+
+    /// Whether a recording that carried signal but came back wordless is worth
+    /// saying so about. The same rule as `reportsMissingAudio`, held longer.
+    ///
+    /// A microphone too quiet to be understood and a held key released without
+    /// speaking produce the same recording: a low peak, above the detection
+    /// threshold, with no words in it. Nothing in one clip tells them apart, so
+    /// duration decides. Nobody holds the key this long having decided not to
+    /// speak, while somebody whose input is misconfigured talked for their whole
+    /// dictation and deserves to be told why nothing arrived.
+    public static func reportsMissingSpeech(elapsed: TimeInterval) -> Bool {
+        elapsed >= speechReportThreshold
     }
 }
 

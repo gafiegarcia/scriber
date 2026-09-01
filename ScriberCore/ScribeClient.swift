@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 // Direct ElevenLabs Scribe v2 client shared with the app target.
 
@@ -125,6 +126,7 @@ public enum ScribeError: LocalizedError, Sendable {
     case serviceUnavailable
     case http(Int, String)
     case network(String)
+    case timedOut
 
     public var errorDescription: String? {
         switch self {
@@ -137,6 +139,7 @@ public enum ScribeError: LocalizedError, Sendable {
         case .serviceUnavailable: "ElevenLabs is temporarily unavailable."
         case .http(_, let message): message
         case .network(let message): message
+        case .timedOut: "Connection timed out"
         }
     }
 
@@ -149,7 +152,7 @@ public enum ScribeError: LocalizedError, Sendable {
 
     public var retryable: Bool {
         switch self {
-        case .rateLimited, .serviceUnavailable, .network: true
+        case .rateLimited, .serviceUnavailable, .network, .timedOut: true
         case .http(let status, _): status == 408 || status == 429 || status >= 500
         default: false
         }
@@ -157,6 +160,25 @@ public enum ScribeError: LocalizedError, Sendable {
 }
 
 public struct ScribeClient: Sendable {
+    /// How long one transcription may take in total, across every attempt and
+    /// every backoff between them. A dictation that has not come back inside this
+    /// has failed, and its row is retryable.
+    public static let transcriptionBudget: TimeInterval = 90
+
+    /// Bounded deliberately. `URLSession.shared` carries a resource timeout of
+    /// seven days, so a Wi-Fi that accepts the connection and never answers — a
+    /// captive portal, a hotel, a router with no route beyond it — left a
+    /// dictation transcribing with no end in sight and its request alive behind.
+    private static let session: URLSession = {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = transcriptionBudget
+        configuration.waitsForConnectivity = false
+        return URLSession(configuration: configuration)
+    }()
+
+    static let log = Logger(subsystem: "com.gafiegarcia.scriber", category: "dictation")
+
     private let endpoint = URL(string: "https://api.elevenlabs.io/v1/speech-to-text")!
     private let subscriptionEndpoint = URL(string: "https://api.elevenlabs.io/v1/user/subscription")!
     private let validationEndpoint = URL(
@@ -210,8 +232,8 @@ public struct ScribeClient: Sendable {
 
         let data: Data
         let response: URLResponse
-        do { (data, response) = try await URLSession.shared.data(for: request) }
-        catch { throw ScribeError.network("Could not reach ElevenLabs: \(error.localizedDescription)") }
+        do { (data, response) = try await Self.session.data(for: request) }
+        catch { throw Self.networkError(error) }
         guard let http = response as? HTTPURLResponse else { throw ScribeError.serviceUnavailable }
         if let error = Self.apiKeyValidationError(statusCode: http.statusCode, data: data) { throw error }
         return APIKeyValidationResult(
@@ -231,8 +253,8 @@ public struct ScribeClient: Sendable {
 
         let data: Data
         let response: URLResponse
-        do { (data, response) = try await URLSession.shared.data(for: request) }
-        catch { throw ScribeError.network("Could not reach ElevenLabs: \(error.localizedDescription)") }
+        do { (data, response) = try await Self.session.data(for: request) }
+        catch { throw Self.networkError(error) }
         guard let http = response as? HTTPURLResponse else { throw ScribeError.serviceUnavailable }
         guard (200..<300).contains(http.statusCode) else {
             throw Self.responseError(statusCode: http.statusCode, data: data, fallback: "Could not load credit usage")
@@ -267,26 +289,43 @@ public struct ScribeClient: Sendable {
     /// spend the user's credit on a recording they have just abandoned.
     public func transcribe(
         _ input: ScribeRequest,
+        run: Int = 0,
         onAttempt: @escaping @Sendable (Int, TimeInterval?) async -> Void,
         permitsRetry: @escaping @Sendable () async -> Bool = { true }
     ) async throws -> ScribeResult {
         let keyterms = try Self.validateKeyterms(input.keyterms)
         let delays: [TimeInterval] = [3, 5]
         var lastError: Error?
+        let started = ContinuousClock().now
+        let deadline = Date.now.addingTimeInterval(Self.transcriptionBudget)
 
         for attempt in 1...3 {
             // Asked again on the way out of the wait, not only on the way in. A
             // cancellation arriving during the backoff has to stop the attempt
             // that wait was for, and the check below has already passed by then.
             if attempt > 1, await permitsRetry() == false { break }
+            guard Date.now < deadline else {
+                Self.log.notice("transcribe budget spent run=\(run, privacy: .public) attempts=\(attempt - 1, privacy: .public)")
+                throw ScribeError.timedOut
+            }
             await onAttempt(attempt, nil)
+            Self.log.notice("transcribe attempt run=\(run, privacy: .public) n=\(attempt, privacy: .public)")
             do {
-                return try await perform(input, keyterms: keyterms)
+                let result = try await perform(input, keyterms: keyterms)
+                Self.log.notice(
+                    "transcribe returned run=\(run, privacy: .public) n=\(attempt, privacy: .public) elapsedMs=\(started.millisecondsSince, privacy: .public) empty=\(result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, privacy: .public)"
+                )
+                return result
             } catch {
                 lastError = error
                 let retryable = (error as? ScribeError)?.retryable ?? isRetryableNetworkError(error)
+                Self.log.notice(
+                    "transcribe failed run=\(run, privacy: .public) n=\(attempt, privacy: .public) elapsedMs=\(started.millisecondsSince, privacy: .public) retryable=\(retryable, privacy: .public) kind=\(Self.kind(of: error), privacy: .public)"
+                )
                 guard retryable, attempt < 3, await permitsRetry() else { throw error }
                 let delay = delays[attempt - 1]
+                // No point waiting out a backoff the budget cannot afford.
+                guard Date.now.addingTimeInterval(delay) < deadline else { throw ScribeError.timedOut }
                 await onAttempt(attempt, delay)
                 // Nothing is in flight during a backoff, so a cancellation
                 // arriving inside one has nothing to wait for. Ending the wait
@@ -296,6 +335,22 @@ public struct ScribeClient: Sendable {
             }
         }
         throw lastError ?? ScribeError.serviceUnavailable
+    }
+
+    /// Names the failure without quoting it. Messages can carry an endpoint or a
+    /// server's own prose; a category cannot, and it is what a bug report needs.
+    private static func kind(of error: Error) -> String {
+        switch error {
+        case ScribeError.timedOut: "timedOut"
+        case ScribeError.network: "network"
+        case ScribeError.rateLimited: "rateLimited"
+        case ScribeError.serviceUnavailable: "serviceUnavailable"
+        case ScribeError.authentication, ScribeError.authorization: "authentication"
+        case ScribeError.insufficientCredits: "insufficientCredits"
+        case ScribeError.invalidRequest: "invalidRequest"
+        case ScribeError.http(let status, _): "http\(status)"
+        default: "other"
+        }
     }
 
     /// Waits in slices so the cancellation is noticed while the wait is running,
@@ -342,7 +397,7 @@ public struct ScribeClient: Sendable {
         body.append(audio)
         append("\r\n--\(boundary)--\r\n")
 
-        var request = URLRequest(url: endpoint, timeoutInterval: 120)
+        var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue(input.apiKey, forHTTPHeaderField: "xi-api-key")
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -350,8 +405,8 @@ public struct ScribeClient: Sendable {
 
         let data: Data
         let response: URLResponse
-        do { (data, response) = try await URLSession.shared.data(for: request) }
-        catch { throw ScribeError.network("Could not reach ElevenLabs: \(error.localizedDescription)") }
+        do { (data, response) = try await Self.session.data(for: request) }
+        catch { throw Self.networkError(error) }
         guard let http = response as? HTTPURLResponse else { throw ScribeError.serviceUnavailable }
         guard (200..<300).contains(http.statusCode) else {
             let message = Self.errorMessage(data: data) ?? "Transcription failed (\(http.statusCode))."
@@ -373,6 +428,19 @@ public struct ScribeClient: Sendable {
 
     static func decodeSubscriptionUsage(_ data: Data) throws -> ElevenLabsSubscriptionUsage {
         try JSONDecoder().decode(ElevenLabsSubscriptionUsage.self, from: data)
+    }
+
+    /// Says what happened in Scriber's voice. The old text appended Apple's
+    /// sentence to one that already said the same thing, and it claimed the user
+    /// was offline for a Wi-Fi that routes but never answers.
+    static func networkError(_ error: Error) -> ScribeError {
+        guard let error = error as? URLError else { return .network("Could not reach ElevenLabs") }
+        return switch error.code {
+        case .notConnectedToInternet: .network("Not connected to the Internet")
+        case .networkConnectionLost: .network("The connection was lost")
+        case .timedOut: .timedOut
+        default: .network("Could not reach ElevenLabs")
+        }
     }
 
     private func isRetryableNetworkError(_ error: Error) -> Bool {
@@ -398,5 +466,12 @@ public struct ScribeClient: Sendable {
         case 500...599: .serviceUnavailable
         default: .http(statusCode, Self.errorMessage(data: data) ?? "\(fallback) (\(statusCode)).")
         }
+    }
+}
+
+private extension ContinuousClock.Instant {
+    var millisecondsSince: Int {
+        let elapsed = ContinuousClock().now - self
+        return Int(elapsed.components.seconds * 1_000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
     }
 }

@@ -280,6 +280,27 @@ struct PillDismissalTests {
     }
 }
 
+@Suite("Wordless recordings")
+struct WordlessRecordingTests {
+    @Test("A change of mind closes without a verdict")
+    func shortRelease() {
+        #expect(!RecordingCancellationPolicy.reportsMissingSpeech(elapsed: 1))
+        #expect(!RecordingCancellationPolicy.reportsMissingSpeech(elapsed: 2.9))
+    }
+
+    @Test("A dictation someone gave is told why nothing arrived")
+    func spokenAttempt() {
+        #expect(RecordingCancellationPolicy.reportsMissingSpeech(elapsed: 3))
+        #expect(RecordingCancellationPolicy.reportsMissingSpeech(elapsed: 12))
+    }
+
+    @Test("Held longer than no signal is tolerated for")
+    func longerThanMissingAudio() {
+        #expect(RecordingCancellationPolicy.speechReportThreshold
+            > RecordingCancellationPolicy.recoveryThreshold)
+    }
+}
+
 @Suite("Cancelled transcription recovery")
 struct CancelledTranscriptionTests {
     @Test("A request still in flight is waited for, never restarted")

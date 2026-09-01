@@ -314,6 +314,11 @@ final class PillController {
                     panelResizeGeneration += 1
                     let generation = panelResizeGeneration
                     isResizingPanel = true
+                    // Known and unfixed: this resize is visibly jagged — the
+                    // movement is not uniform across its duration. An attempt to
+                    // fix it failed and was abandoned; it is accepted, not
+                    // undiscovered. Do not spend an evening rediscovering it.
+                    //
                     // Known and unfixed: AppKit interpolates the panel and SwiftUI
                     // interpolates its contents, so anything whose position both of
                     // them contribute to lands the difference between the two engines
@@ -740,8 +745,6 @@ private struct PillView: View {
 
     private var subtitle: String? {
         switch model.phase {
-        case .transcribing(_, let delay):
-            delay.map { "Trying again in \(Int($0)) seconds" }
         case .credentialsUnusable(let readiness): readiness.recoveryMessage
         case .cancelledTranscript: "Recover pastes it wherever your cursor is now"
         case .permissionsRequired(let missing):
