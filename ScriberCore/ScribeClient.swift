@@ -288,10 +288,31 @@ public struct ScribeClient: Sendable {
                 guard retryable, attempt < 3, await permitsRetry() else { throw error }
                 let delay = delays[attempt - 1]
                 await onAttempt(attempt, delay)
-                try await Task.sleep(for: .seconds(delay))
+                // Nothing is in flight during a backoff, so a cancellation
+                // arriving inside one has nothing to wait for. Ending the wait
+                // then rather than serving it out stops an abandoned run
+                // outliving the pill that abandoned it by several seconds.
+                guard await waitBeforeRetry(delay, permitsRetry: permitsRetry) else { break }
             }
         }
         throw lastError ?? ScribeError.serviceUnavailable
+    }
+
+    /// Waits in slices so the cancellation is noticed while the wait is running,
+    /// not only once it is over. Returns false when the wait was abandoned.
+    private func waitBeforeRetry(
+        _ delay: TimeInterval,
+        permitsRetry: @escaping @Sendable () async -> Bool
+    ) async -> Bool {
+        let slice: TimeInterval = 0.1
+        var waited: TimeInterval = 0
+        while waited < delay {
+            do { try await Task.sleep(for: .seconds(min(slice, delay - waited))) }
+            catch { return false }
+            waited += slice
+            if await permitsRetry() == false { return false }
+        }
+        return true
     }
 
     private func perform(_ input: ScribeRequest, keyterms: [String]) async throws -> ScribeResult {

@@ -157,16 +157,20 @@ final class AppCoordinator: ObservableObject {
     /// The offer on screen. Belongs to the pill and dies with it.
     private var cancelledTranscription: CancelledTranscription?
 
-    /// The run that must stay quiet. Belongs to the run and dies with it.
+    /// The runs that must stay quiet. Each belongs to a run and is dropped only
+    /// when that run ends.
     ///
-    /// Kept apart from the offer above on purpose. One flag served both, so
-    /// dismissing the pill — by Escape, by See History, or by its own timeout —
-    /// un-silenced a request that was still working through its retries, and the
-    /// next attempt went out and drew a pill over whatever the user was doing.
-    private var silencedRun: Int?
+    /// Kept apart from the offer above on purpose: dismissing the pill — by
+    /// Escape, by See History, or by its own timeout — retires the offer and must
+    /// not revive a request still working through its retries. A set rather than
+    /// one value for the same reason, since a cancelled run outlives the pill by
+    /// the length of its backoff and the user can start another dictation inside
+    /// that window. Holding one value let the new run's start clear the old run's
+    /// silence, which is how retries came to queue up behind each other.
+    private var silencedRuns: Set<Int> = []
 
     private func silence(run: Int) {
-        silencedRun = run
+        silencedRuns.insert(run)
     }
 
     /// Counts runs of `transcribeCurrentRecord`, so each has an identity a parked
@@ -182,7 +186,7 @@ final class AppCoordinator: ObservableObject {
     private var liveTranscriptionDelivery: RetryDelivery?
 
     private func isSilenced(run: Int) -> Bool {
-        silencedRun == run
+        silencedRuns.contains(run)
     }
     private var checkedStoredAPIKeyThisLaunch = false
     @Published private(set) var isCheckingStoredAPIKey = false
@@ -1356,20 +1360,23 @@ final class AppCoordinator: ObservableObject {
         let run = transcriptionRun
         liveTranscriptionRun = run
         liveTranscriptionDelivery = delivery
-        // A fresh run retires the previous offer and starts unsilenced. Without
-        // this a cancellation whose pill has already timed out silences the next
-        // transcription of the same recording, which then finishes without ever
-        // taking its pill down.
+        // A fresh run retires the previous offer. Without this a cancellation
+        // whose pill has already timed out silences the next transcription of the
+        // same recording, which then finishes without ever taking its pill down.
         cancelledTranscription = nil
-        silencedRun = nil
         defer {
+            silencedRuns.remove(run)
+            // Only the run still in charge may put the app back to rest. A
+            // cancelled run finishes after the user has moved on — often into
+            // another dictation — and `shortcuts.setMode(.idle)` from one of those
+            // takes the live recording's shortcut monitor out from under it, so a
+            // held key stops meaning stop when released.
             if liveTranscriptionRun == run {
                 liveTranscriptionRun = nil
                 liveTranscriptionDelivery = nil
+                retryingRecordID = nil
+                shortcuts.setMode(.idle)
             }
-            if silencedRun == run { silencedRun = nil }
-            retryingRecordID = nil
-            shortcuts.setMode(.idle)
         }
         do {
             guard let apiKey = try await keychain.readAPIKey(), !apiKey.isEmpty else { throw ScribeError.authentication }
@@ -1688,7 +1695,7 @@ final class AppCoordinator: ObservableObject {
                 return
             }
             cancelledTranscription = nil
-            silencedRun = nil
+            silencedRuns.remove(cancelled.run)
             record.transcriptionState = .transcribing
             record.errorMessage = nil
             try? modelContext.save()
