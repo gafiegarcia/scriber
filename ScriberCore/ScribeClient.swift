@@ -313,14 +313,14 @@ public struct ScribeClient: Sendable {
             do {
                 let result = try await perform(input, keyterms: keyterms)
                 Self.log.notice(
-                    "transcribe returned run=\(run, privacy: .public) n=\(attempt, privacy: .public) elapsedMs=\(started.millisecondsSince, privacy: .public) empty=\(result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, privacy: .public)"
+                    "transcribe returned run=\(run, privacy: .public) n=\(attempt, privacy: .public) elapsedMs=\(started.elapsedMilliseconds, privacy: .public) empty=\(result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, privacy: .public)"
                 )
                 return result
             } catch {
                 lastError = error
                 let retryable = (error as? ScribeError)?.retryable ?? isRetryableNetworkError(error)
                 Self.log.notice(
-                    "transcribe failed run=\(run, privacy: .public) n=\(attempt, privacy: .public) elapsedMs=\(started.millisecondsSince, privacy: .public) retryable=\(retryable, privacy: .public) kind=\(Self.kind(of: error), privacy: .public)"
+                    "transcribe failed run=\(run, privacy: .public) n=\(attempt, privacy: .public) elapsedMs=\(started.elapsedMilliseconds, privacy: .public) retryable=\(retryable, privacy: .public) kind=\(Self.kind(of: error), privacy: .public)"
                 )
                 guard retryable, attempt < 3, await permitsRetry() else { throw error }
                 let delay = delays[attempt - 1]
@@ -466,12 +466,5 @@ public struct ScribeClient: Sendable {
         case 500...599: .serviceUnavailable
         default: .http(statusCode, Self.errorMessage(data: data) ?? "\(fallback) (\(statusCode)).")
         }
-    }
-}
-
-private extension ContinuousClock.Instant {
-    var millisecondsSince: Int {
-        let elapsed = ContinuousClock().now - self
-        return Int(elapsed.components.seconds * 1_000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
     }
 }

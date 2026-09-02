@@ -1387,3 +1387,12 @@ public enum ShortcutPreferences {
         chord.isValid && !ReservedShortcuts.reserves(chord)
     }
 }
+
+public extension ContinuousClock.Instant {
+    /// Milliseconds since this instant. Every timing line in the app reports in
+    /// these, so they can be compared against each other without conversion.
+    var elapsedMilliseconds: Int {
+        let elapsed = ContinuousClock().now - self
+        return Int(elapsed.components.seconds * 1_000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
+    }
+}

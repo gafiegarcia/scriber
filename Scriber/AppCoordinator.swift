@@ -1475,18 +1475,25 @@ final class AppCoordinator: ObservableObject {
             let transcriptReady = ContinuousClock().now
             if delivery == .automaticPaste { setPhase(.idle) }
             Self.dictationLog.notice(
-                "dictation pill released run=\(run, privacy: .public) transcriptToPillMs=\(transcriptReady.millisecondsSincePill, privacy: .public)"
+                "dictation pill released run=\(run, privacy: .public) transcriptToPillMs=\(transcriptReady.elapsedMilliseconds, privacy: .public)"
             )
 
+            let writeStarted = ContinuousClock().now
             record.text = transcript
             record.detectedLanguageCode = result.languageCode
             record.transcriptionState = .succeeded
             record.errorMessage = nil
-            try modelContext.save()
-
-            AudioRecorder.delete(relativePath: recording.relativePath)
             record.pendingAudioRelativePath = nil
             try modelContext.save()
+            let saveMs = writeStarted.elapsedMilliseconds
+
+            // Off this thread. Removing a file is not something a dictation waits
+            // on and not something the pill's fade should be blocked behind.
+            let retiredAudio = recording.relativePath
+            Task.detached(priority: .utility) { AudioRecorder.deleteOffMainThread(relativePath: retiredAudio) }
+            Self.dictationLog.notice(
+                "dictation persisted run=\(run, privacy: .public) saveMs=\(saveMs, privacy: .public)"
+            )
 
             if delivery == .automaticPaste {
                 await deliverTranscript(transcript, record: record)
@@ -2070,12 +2077,5 @@ final class AppCoordinator: ObservableObject {
 private extension Duration {
     var pillMilliseconds: Int {
         Int(components.seconds * 1_000 + components.attoseconds / 1_000_000_000_000_000)
-    }
-}
-
-private extension ContinuousClock.Instant {
-    var millisecondsSincePill: Int {
-        let elapsed = ContinuousClock().now - self
-        return Int(elapsed.components.seconds * 1_000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
     }
 }

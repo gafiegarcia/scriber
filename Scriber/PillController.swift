@@ -900,10 +900,3 @@ private extension TimeInterval {
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }
-
-private extension ContinuousClock.Instant {
-    var elapsedMilliseconds: Int {
-        let elapsed = ContinuousClock().now - self
-        return Int(elapsed.components.seconds * 1_000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
-    }
-}

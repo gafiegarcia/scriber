@@ -120,11 +120,18 @@ final class AudioRecorder {
         backend.cancelRecording()
     }
 
-    static func url(for relativePath: String) throws -> URL {
+    nonisolated static func url(for relativePath: String) throws -> URL {
         try pendingAudioDirectory().appendingPathComponent(relativePath)
     }
 
     static func delete(relativePath: String) {
+        guard let url = try? url(for: relativePath) else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    /// The same removal, for callers with no reason to hold the main thread
+    /// while the file system works. Nothing here touches main-actor state.
+    nonisolated static func deleteOffMainThread(relativePath: String) {
         guard let url = try? url(for: relativePath) else { return }
         try? FileManager.default.removeItem(at: url)
     }
@@ -144,7 +151,7 @@ final class AudioRecorder {
         return Double(file.length) / file.processingFormat.sampleRate
     }
 
-    private static func pendingAudioDirectory() throws -> URL {
+    nonisolated private static func pendingAudioDirectory() throws -> URL {
         let support = try FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
