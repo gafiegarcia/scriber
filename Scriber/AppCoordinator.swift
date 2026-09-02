@@ -465,6 +465,13 @@ final class AppCoordinator: ObservableObject {
         source: PermissionRefreshSource
     ) {
         let previousReadiness = permissionReadiness
+        // Diagnostic only, and logged for one caller. A dictation's press waits
+        // through this whole function, and the four readings below are all
+        // cross-process — any of them can be the wait. Delete with the roadmap
+        // item that owns the start delay.
+        var axMs = 0
+        var micAuthMs = 0
+        var micStateMs = 0
         if let permissionReadinessOverride {
             accessibilityGranted = !permissionReadinessOverride.missingPermissions.contains(.accessibility)
             microphoneGranted = !permissionReadinessOverride.missingPermissions.contains(.microphone)
@@ -475,21 +482,27 @@ final class AppCoordinator: ObservableObject {
             // tracking; a no-op write re-evaluates the whole `App` body, SwiftUI
             // reinstalls the main menu, and the open Window menu loses the items
             // AppKit contributes from the key window — Close ⌘W among them.
+            let beforeAX = ContinuousClock().now
             let trusted = AXIsProcessTrusted()
+            axMs = beforeAX.elapsedMilliseconds
             if accessibilityGranted != trusted {
                 accessibilityGranted = trusted
                 Self.permissionLog.notice(
                     "accessibility: granted=\(trusted, privacy: .public) source=\(source.rawValue, privacy: .public)"
                 )
             }
+            let beforeMicAuth = ContinuousClock().now
             let authorized = AudioRecorder.microphoneAuthorized
+            micAuthMs = beforeMicAuth.elapsedMilliseconds
             if microphoneGranted != authorized {
                 microphoneGranted = authorized
                 Self.permissionLog.notice(
                     "microphone: granted=\(authorized, privacy: .public) source=\(source.rawValue, privacy: .public)"
                 )
             }
+            let beforeMicState = ContinuousClock().now
             let state = AudioRecorder.microphonePermissionState
+            micStateMs = beforeMicState.elapsedMilliseconds
             if microphonePermissionState != state {
                 microphonePermissionState = state
                 Self.permissionLog.notice(
@@ -500,11 +513,18 @@ final class AppCoordinator: ObservableObject {
         // Outside the override branch: this is not a permission, so a test run
         // that synthesizes missing permissions still reads the real login item.
         // Same assign-only-on-change rule as above.
+        let beforeLaunchState = ContinuousClock().now
         let launchState = LaunchAtLoginService.state
+        let launchStateMs = beforeLaunchState.elapsedMilliseconds
         if launchAtLoginState != launchState {
             launchAtLoginState = launchState
             Self.permissionLog.notice(
                 "launchAtLogin: state=\(launchState.rawValue, privacy: .public) source=\(source.rawValue, privacy: .public)"
+            )
+        }
+        if source == .startRecording {
+            Self.dictationLog.notice(
+                "permissions refresh axMs=\(axMs, privacy: .public) micAuthMs=\(micAuthMs, privacy: .public) micStateMs=\(micStateMs, privacy: .public) launchStateMs=\(launchStateMs, privacy: .public)"
             )
         }
         if refreshAudioInputs { refreshAudioInputDevices() }
