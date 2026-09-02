@@ -22,6 +22,7 @@
 
 ## Workflow
 
+- **Edit files with the Edit and Write tools, never with `sed` or a Python replace script.** A script that fails partway leaves nothing written while its earlier replacements look like they succeeded, which has produced confident reports of edits that never happened. Delete this line once the harness stops recommending shell edits in Auto mode.
 - Before changing native behavior, read `docs/PRODUCT_SPEC.md`. Read `docs/PASTE_ENGINE.md` before changing cross-app text delivery. Use `docs/BUILDING.md` for setup, building, and installation.
 - Keep each document to one job: `PRODUCT_SPEC.md` defines required behavior, `ROADMAP.md` lists unbuilt work by target version, `MANUAL_CHECKS.md` and `AUTOMATED_CHECKS.md` hold checks, `PASTE_ENGINE.md` records the paste architecture, `BUILDING.md` covers building locally, and `RELEASING.md` covers publishing a download.
 - **Do not hard-wrap prose in Markdown.** Write one line per paragraph and let editors soft-wrap it to whatever width the reader has. Code blocks, tables, and ASCII diagrams keep their literal line breaks.
