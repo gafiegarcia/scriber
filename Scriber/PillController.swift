@@ -142,8 +142,20 @@ final class PillController {
         }
 
         keepsPanelCenterForCurrentUpdate = false
-        applyLayout(for: phase)
+        // Mount the new phase's content *before* the layout below, never after.
+        //
+        // `applyLayout` ends in a forced layout pass. Run while the hosted view
+        // still holds the outgoing phase, that pass sizes the glass against
+        // content about to be replaced, and the taller content wins: crossing
+        // from the recovery panel to `.transcribing` asked for a 296x68 panel and
+        // settled at 296x80, a capsule's radius on a box twelve points too tall.
+        // Recording never showed it because its own content is the short one.
+        //
+        // The outgoing phase is passed along instead, because the resize still
+        // has to know what it is leaving. Do not fold it back into `model.phase`.
+        let outgoingPhase = model.phase
         model.phase = phase
+        applyLayout(for: phase, from: outgoingPhase)
         // A dictation starting is the only pill that fades in. See `show`.
         let isRecordingStart: Bool
         if case .recording = phase { isRecordingStart = true } else { isRecordingStart = false }
@@ -169,7 +181,7 @@ final class PillController {
         guard hovering != model.isHovering else { return }
         model.isHovering = hovering
         if case .recording(.held, _, _) = model.phase {
-            applyLayout(for: model.phase, forceAnimated: true)
+            applyLayout(for: model.phase, from: model.phase, forceAnimated: true)
         }
         guard dismissalCountdown != nil else { return }
         hovering ? pauseAutoDismissal() : resumeAutoDismissal()
@@ -285,7 +297,11 @@ final class PillController {
         )
     }
 
-    private func applyLayout(for phase: AppPhase, forceAnimated: Bool = false) {
+    private func applyLayout(
+        for phase: AppPhase,
+        from outgoingPhase: AppPhase,
+        forceAnimated: Bool = false
+    ) {
         let desiredPillSize = pillSize(for: phase)
         let desiredPanelSize = panelSize(for: desiredPillSize)
         let desiredGlassFrame = NSRect(
@@ -330,9 +346,9 @@ final class PillController {
                 // radius is not interpolated alongside it, so animating that
                 // crossing shows a shape that belongs to neither phase for as long
                 // as it runs.
-                let animatesConfirmExpansion = model.phase.showsConfirmRecordingControl == false
+                let animatesConfirmExpansion = outgoingPhase.showsConfirmRecordingControl == false
                     && phase.showsConfirmRecordingControl
-                    && model.phase.pillShapeStyle == phase.pillShapeStyle
+                    && outgoingPhase.pillShapeStyle == phase.pillShapeStyle
 
                 if !shouldReduceMotion && (forceAnimated || animatesConfirmExpansion) {
                     // Only the update()/show() pairing consumes this note, so only set it
@@ -409,12 +425,18 @@ final class PillController {
         }
 
         if didResize {
-            // What the panel and glass actually hold once everything above has
-            // run, against what was asked for. The line before this one records
-            // only what they held going in, which cannot tell a frame that was
-            // never set from one that was set and not drawn.
+            // Where the pill actually ended up, against what it asked for. The
+            // line before this one records only what it held going in, which
+            // cannot tell a frame that was never set from one that was set and
+            // then put back — the difference this pair was added to catch.
+            //
+            // `hosted` is the field that matters: it is the height of the
+            // SwiftUI content inside the glass, and a `hosted` that disagrees
+            // with the glass is this bug returning. On an animated resize the
+            // frame is still travelling when this runs, so `final` reporting the
+            // outgoing size there is expected and not a fault.
             Self.log.notice(
-                "pill settled to=\(phase.logLabel, privacy: .public) wasVisible=\(wasVisible, privacy: .public) panel=\(Int(self.panel.frame.width), privacy: .public)x\(Int(self.panel.frame.height), privacy: .public) glass=\(Int(self.glassView.frame.width), privacy: .public)x\(Int(self.glassView.frame.height), privacy: .public) radius=\(Int(self.glassView.cornerRadius), privacy: .public)"
+                "pill settled to=\(phase.logLabel, privacy: .public) wasVisible=\(wasVisible, privacy: .public) asked=\(Int(desiredPanelSize.width), privacy: .public)x\(Int(desiredPanelSize.height), privacy: .public) final=\(Int(self.panel.frame.width), privacy: .public)x\(Int(self.panel.frame.height), privacy: .public) glass=\(Int(self.glassView.frame.width), privacy: .public)x\(Int(self.glassView.frame.height), privacy: .public) hosted=\(Int(self.glassView.contentView?.frame.height ?? -1), privacy: .public) radius=\(Int(self.glassView.cornerRadius), privacy: .public)"
             )
         }
     }
@@ -422,14 +444,10 @@ final class PillController {
     /// Applies geometry with layer actions off, so nothing here can be caught
     /// interpolating a frame or a corner radius that was meant to land at once.
     ///
-    /// Known and unfixed: this does not fix the shape seen crossing from the
-    /// recovery panel to `.transcribing`, where the glass goes on rendering at
-    /// about the panel's height while wearing the capsule's radius. The frame is
-    /// set correctly and autoresizing would produce the same numbers on its own,
-    /// so the view's frame is not what is wrong — the glass keeps a stale
-    /// rendering. Five explanations have been reasoned out of this file and all
-    /// five were wrong; the resize log now prints the glass frame after the fact
-    /// as well as before, so read that before proposing a sixth.
+    /// This is not what fixed the crooked capsule — that was the ordering in
+    /// `update` — and it has never been measured to change anything on its own.
+    /// It is kept because the rule it enforces is the one `PRODUCT_SPEC` states:
+    /// a crossing between the message box and the capsule is never animated.
     private func applyingGeometryInstantly(_ body: () -> Void) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)

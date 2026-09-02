@@ -6,6 +6,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Changed
 
+- **The pill no longer flashes a stretched capsule** on its way from **Recover canceled dictation?** to a one-line **Transcribing…**. It was drawing the small pill at the big panel's height for as long as that phase lasted — about a second and a half — because the pill was being measured while it still held the panel it was leaving.
 - **Pills appear and leave at once now.** Only the pill for a dictation starting fades in; every other one is simply there, and all of them go the moment they are done. The fade on the way out was never doing what it looked like it was doing — after a successful paste it drew no in-between frames at all, so the pill held at full strength and then vanished. A dictation tool should get out of the way when it has finished rather than perform on the way out.
 - **Escape now cancels a dictation at any point, not just while you are speaking.** Pressing it while the pill reads **Transcribing…** used to hide the pill and paste the transcript into whatever you were doing a moment later. It now cancels: nothing is pasted, and the pill offers to recover the dictation instead.
 - **Recover puts the transcript where you are standing now**, not where you were when you dictated — so changing your mind about which app the words belong in is a matter of canceling, moving, and recovering. The button that used to read **Undo** now reads **Recover**.
