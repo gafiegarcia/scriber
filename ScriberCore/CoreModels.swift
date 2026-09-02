@@ -521,6 +521,10 @@ public enum AppPhase: Equatable, Sendable {
     /// recorder, so the input is working — routes to input settings anyway, because
     /// an input that is too quiet is the next likeliest cause.
     case noSpeechDetected
+    /// The same finding, reported for a recording retried from History. It says
+    /// only what happened: the recovery the live pill offers is aimed at an input
+    /// that is wrong *now*, and this recording was made at some point in the past.
+    case retryFoundNoWords
     /// Nothing ever crossed the signal threshold, so the recording was discarded
     /// before it cost any API credit.
     ///
@@ -789,6 +793,27 @@ public enum PillShapeStyle: Equatable, Sendable {
 }
 
 public extension AppPhase {
+    /// Names the phase for a log line, without the values a case may carry.
+    var logLabel: String {
+        switch self {
+        case .idle: "idle"
+        case .recording: "recording"
+        case .transcribing: "transcribing"
+        case .cancelledTranscript: "cancelled"
+        case .noInternetConnection: "noInternet"
+        case .dictationCopied: "dictationCopied"
+        case .transcriptCopied: "transcriptCopied"
+        case .dictationBlockedBySecureField: "secureField"
+        case .permissionsRequired: "permissions"
+        case .credentialsUnusable: "credentials"
+        case .transcriptionFailed: "failed"
+        case .noSpeechDetected: "noWords"
+        case .retryFoundNoWords: "retryNoWords"
+        case .noAudioSignal: "noSignal"
+        case .message: "message"
+        }
+    }
+
     var pillShapeStyle: PillShapeStyle {
         if case .dictationCopied = self { return .roundedRectangle }
         if case .dictationBlockedBySecureField = self { return .roundedRectangle }
@@ -814,7 +839,7 @@ public extension AppPhase {
         // own, so this is the only gesture that reaches it.
         case .transcribing: .cancelTranscription
         case .cancelledTranscript, .noInternetConnection, .dictationCopied, .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
+             .transcriptionFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,
              .transcriptCopied, .dictationBlockedBySecureField, .message: .dismiss
         }
     }
@@ -829,7 +854,7 @@ public extension AppPhase {
         case .dictationCopied: .success
         case .transcriptCopied: .success
         case .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
+             .transcriptionFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,
              .dictationBlockedBySecureField: .warning
         case .idle, .recording, .transcribing, .cancelledTranscript, .noInternetConnection, .message: .neutral
         }
@@ -849,6 +874,7 @@ public extension AppPhase {
         case .permissionsRequired: .openPermissionSettings
         case .credentialsUnusable: .openCredentialSettings
         case .noSpeechDetected, .noAudioSignal: .openInputSettings
+        case .retryFoundNoWords: .none
         case .message: .dismiss
         }
     }

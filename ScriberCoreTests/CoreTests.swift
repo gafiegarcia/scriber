@@ -443,6 +443,7 @@ private let everyPhase: [AppPhase] = [
     .credentialsUnusable(.missingAPIKey),
     .transcriptionFailed("Offline"),
     .noSpeechDetected,
+    .retryFoundNoWords,
     .noAudioSignal,
     .transcriptCopied,
     .dictationBlockedBySecureField(text: "hi", message: "Paste it yourself"),
@@ -566,7 +567,7 @@ struct PillDefaultActionTests {
         let inertCount = everyPhase
             .filter { $0.pillDefaultAction(isPresented: true) == .none }
             .count
-        #expect(inertCount == 7)
+        #expect(inertCount == 8)
     }
 }
 

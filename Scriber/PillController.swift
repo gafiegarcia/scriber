@@ -1,6 +1,7 @@
 @preconcurrency import AppKit
 import Combine
 import SwiftUI
+import os
 #if SWIFT_PACKAGE
 import ScriberCore
 #endif
@@ -76,6 +77,8 @@ final class PillController {
     private var panelResizeGeneration = 0
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
     private let presentationDuration: TimeInterval = 0.18
+
+    private static let log = Logger(subsystem: "com.gafiegarcia.scriber", category: "dictation")
     private let glassMargin: CGFloat = 8
 
     private(set) var isPresented = false
@@ -235,7 +238,7 @@ final class PillController {
         // holding it as long as an apology makes a deliberate action feel slow.
         case .transcriptCopied:
             1.5
-        case .cancelledTranscript, .noInternetConnection, .noSpeechDetected:
+        case .cancelledTranscript, .noInternetConnection, .noSpeechDetected, .retryFoundNoWords:
             5
         case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
             6
@@ -295,6 +298,11 @@ final class PillController {
         }
 
         if desiredPanelSize != currentPanelSize {
+            // Every resize, with what was asked for and what the panel and glass
+            // actually held a moment before. A shape rendering outside its glass
+            // for one pass cannot be read from the accessibility tree, and reading
+            // the source has twice pointed at the wrong cause.
+            Self.log.notice("pill resize to=\(phase.logLabel, privacy: .public) panel=\(Int(self.currentPanelSize.width), privacy: .public)x\(Int(self.currentPanelSize.height), privacy: .public)->\(Int(desiredPanelSize.width), privacy: .public)x\(Int(desiredPanelSize.height), privacy: .public) glass=\(Int(self.glassView.frame.width), privacy: .public)x\(Int(self.glassView.frame.height), privacy: .public) radius=\(Int(self.glassView.cornerRadius), privacy: .public)->\(Int(desiredCornerRadius), privacy: .public)")
             if panel.isVisible {
                 let desiredPanelFrame = NSRect(
                     x: panel.frame.midX - desiredPanelSize.width / 2,
@@ -747,7 +755,7 @@ private struct PillView: View {
             Image(systemName: "checkmark.circle.fill").foregroundStyle(toneAccent)
         case .dictationBlockedBySecureField:
             Image(systemName: "lock.fill").foregroundStyle(toneAccent)
-        case .noSpeechDetected, .noAudioSignal:
+        case .noSpeechDetected, .retryFoundNoWords, .noAudioSignal:
             Image(systemName: "mic.slash.fill").foregroundStyle(toneAccent)
         case .permissionsRequired, .credentialsUnusable, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(toneAccent)
@@ -778,7 +786,7 @@ private struct PillView: View {
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"
-        case .noSpeechDetected: "No words detected"
+        case .noSpeechDetected, .retryFoundNoWords: "No words detected"
         case .noAudioSignal: "No sound from the microphone"
         case .message(let value): value
         }

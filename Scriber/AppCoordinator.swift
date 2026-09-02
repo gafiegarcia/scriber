@@ -401,7 +401,7 @@ final class AppCoordinator: ObservableObject {
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"
-        case .noSpeechDetected: "No words detected"
+        case .noSpeechDetected, .retryFoundNoWords: "No words detected"
         case .noAudioSignal: "No microphone signal"
         case .message(let value): value
         }
@@ -1461,9 +1461,22 @@ final class AppCoordinator: ObservableObject {
                 return
             }
             guard let transcript = normalized else {
-                discardNoContent(record: record, recording: recording)
+                discardNoContent(record: record, recording: recording, wasRetry: delivery == .copy)
                 return
             }
+
+            // The pill goes first, before anything is written down. Two saves and
+            // a synchronous file delete used to run in front of it, and with a
+            // history of any size each save re-runs the window's unbounded
+            // queries on this thread — which both delayed the dismissal and ate
+            // its fade, since an animation whose main thread is blocked draws no
+            // intermediate frames. Nothing here has to reach disk before the pill
+            // leaves; the record is held in memory either way.
+            let transcriptReady = ContinuousClock().now
+            if delivery == .automaticPaste { setPhase(.idle) }
+            Self.dictationLog.notice(
+                "dictation pill released run=\(run, privacy: .public) transcriptToPillMs=\(transcriptReady.millisecondsSincePill, privacy: .public)"
+            )
 
             record.text = transcript
             record.detectedLanguageCode = result.languageCode
@@ -1476,9 +1489,6 @@ final class AppCoordinator: ObservableObject {
             try modelContext.save()
 
             if delivery == .automaticPaste {
-                // Before the await, not inside it. Everything after this is
-                // delivery and the user should not watch it.
-                setPhase(.idle)
                 await deliverTranscript(transcript, record: record)
             } else {
                 copy(record)
@@ -1579,7 +1589,11 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    private func discardNoContent(record: DictationRecord, recording: CompletedRecording) {
+    private func discardNoContent(
+        record: DictationRecord,
+        recording: CompletedRecording,
+        wasRetry: Bool = false
+    ) {
         let duration = recording.duration
         AudioRecorder.delete(relativePath: recording.relativePath)
         modelContext.delete(record)
@@ -1590,6 +1604,14 @@ final class AppCoordinator: ObservableObject {
         paste.clearTarget()
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)
+        // A deliberate retry is always answered. Its duration says nothing about
+        // intent — the recording was made at some earlier time, and pressing
+        // Retry is the question being asked now.
+        guard !wasRetry else {
+            playFeedback(.terminalFailure)
+            setPhase(.retryFoundNoWords)
+            return
+        }
         // Short enough to have been a change of mind: the natural end of a held
         // dictation is letting go, and being told there were no words in one is
         // an answer to a question the user withdrew.
@@ -1778,7 +1800,8 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func retranscribeCancelledDictation(_ record: DictationRecord) {
-        guard record.transcriptionState == .cancelled, currentRecording != nil else {
+        guard record.transcriptionState == .cancelled || record.transcriptionState == .failed,
+              currentRecording != nil else {
             showMessage("Recording unavailable")
             return
         }
@@ -1832,6 +1855,10 @@ final class AppCoordinator: ObservableObject {
 
     private func retryCurrentFailure() {
         guard let currentRecord else { return }
+        if case .noInternetConnection = phase {
+            retranscribeCancelledDictation(currentRecord)
+            return
+        }
         retry(currentRecord)
     }
 
@@ -2043,5 +2070,12 @@ final class AppCoordinator: ObservableObject {
 private extension Duration {
     var pillMilliseconds: Int {
         Int(components.seconds * 1_000 + components.attoseconds / 1_000_000_000_000_000)
+    }
+}
+
+private extension ContinuousClock.Instant {
+    var millisecondsSincePill: Int {
+        let elapsed = ContinuousClock().now - self
+        return Int(elapsed.components.seconds * 1_000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
     }
 }
