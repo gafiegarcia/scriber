@@ -442,9 +442,17 @@ final class PillController {
             panel.animator().alphaValue = 0
         }
         let duration = presentationDuration
+        let fadeStarted = ContinuousClock().now
         presentationTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(duration))
             guard let self, !Task.isCancelled else { return }
+            // How long the fade actually took against the 180 ms it asked for.
+            // A gap means the main thread was busy through it, and an alpha
+            // animation whose thread is blocked draws no intermediate frames —
+            // the pill sits at full opacity and then vanishes.
+            Self.log.notice(
+                "pill hidden askedMs=\(Int(duration * 1000), privacy: .public) tookMs=\(fadeStarted.elapsedMilliseconds, privacy: .public)"
+            )
             panel.orderOut(nil)
             panel.alphaValue = 1
             if clearPhaseWhenFinished { model.phase = .idle }
@@ -833,6 +841,10 @@ private struct PillView: View {
             Button("Retry") { model.onRetry?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("See History") { model.onOpen?() }.controlSize(.small)
             dismissButton
+        // No recovery to offer — the input it would send you to is not what was
+        // wrong — but still a way out that is not a keystroke.
+        case .retryFoundNoWords:
+            dismissButton
         case .noSpeechDetected, .noAudioSignal:
             Button("Check Input") { model.onOpenInputSettings?() }
                 .buttonStyle(.borderedProminent)
@@ -886,5 +898,12 @@ private extension TimeInterval {
     var formattedTimer: String {
         let seconds = Int(self)
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+private extension ContinuousClock.Instant {
+    var elapsedMilliseconds: Int {
+        let elapsed = ContinuousClock().now - self
+        return Int(elapsed.components.seconds * 1_000 + elapsed.components.attoseconds / 1_000_000_000_000_000)
     }
 }
