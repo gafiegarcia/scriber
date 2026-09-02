@@ -7,7 +7,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 ### Changed
 
 - **Escape now cancels a dictation at any point, not just while you are speaking.** Pressing it while the pill reads **Transcribing…** used to hide the pill and paste the transcript into whatever you were doing a moment later. It now cancels: nothing is pasted, and the pill offers to recover the dictation instead.
-- **Recover puts the transcript where you are standing now**, not where you were when you dictated — so changing your mind about which app the words belong in is a matter of cancelling, moving, and recovering. The button that used to read **Undo** now reads **Recover**.
+- **Recover puts the transcript where you are standing now**, not where you were when you dictated — so changing your mind about which app the words belong in is a matter of canceling, moving, and recovering. The button that used to read **Undo** now reads **Recover**.
 - **Pressing the shortcut while Scriber is still transcribing no longer says so.** It used to replace **Transcribing…** with **Still transcribing** for a second and a half, which took away the one thing on screen that was telling you what was happening. The press is now ignored and the pill carries on.
 - **Dictating with no network says so straight away.** Scriber still records, then stops before sending anything and shows **No internet connection** — no attempts, no eight seconds of retries to tell you what was knowable at once. Your recording is kept, and **Retry** lights up by itself the moment you are back online.
 - **A transcription now gives up after 90 seconds.** On a Wi-Fi that connects but never reaches the internet — a captive portal, a hotel, a router with no route beyond it — a dictation could sit on **Transcribing…** indefinitely, because the request underneath it had no real time limit. It now fails, says **Connection timed out**, and leaves the dictation retryable.
@@ -17,7 +17,9 @@ This file records intentionally identified Scriber releases and prerelease snaps
 - **Canceling a retry from history is silent.** It stops without a pill or a sound, the row keeps its own **Retry**, and the request still finishes and updates the row — there is no paste to prevent when you are already looking at the window holding the text.
 - **The Copied notice goes as quickly as it used to.** It shares its look with the notice that appears when a dictation could not be pasted, and had been holding for as long — five seconds to read a receipt for something you asked for.
 - **Setup now says that Escape cancels.** The **Try it!** step explains it where the shortcut is first tried, and says that a canceled dictation waits in your history.
-- **A cancelled dictation keeps its place in your history.** Whatever the transcription came back with is saved to its row and reported nowhere else, so it cannot interrupt a dictation you have already started, and **See History** always finds the one you cancelled.
+- **Retrying an old dictation that has no words in it now says so**, however short the recording was. The three-second rule that keeps quiet about a dictation you thought better of cannot apply to one recorded days ago — pressing Retry is the question being asked. The notice is a plain one-line pill without the **Check Input** button, since the input it would send you to is not what was wrong.
+- **History rows that showed a transcript and a Canceled badge at once are repaired** when Scriber starts. A row holding a transcript has succeeded, so it now reads that way and stops offering a retry it cannot perform.
+- **A canceled dictation keeps its place in your history.** Whatever the transcription came back with is saved to its row and reported nowhere else, so it cannot interrupt a dictation you have already started, and **See History** always finds the one you canceled.
 
 ## 0.9.2 — 2026-09-01
 

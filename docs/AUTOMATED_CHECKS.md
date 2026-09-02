@@ -144,7 +144,9 @@ It creates and renders a window once. It cannot put a closed one back on screen:
 
 Log at `.notice`. `log show` omits `.info` and `.debug` unless asked for them by flag, so a line written at either is invisible to the command above and reads as a feature that never ran.
 
-The subsystem holds three categories: `window-lifecycle`, `paste-target`, and `permissions`. Narrow to one by adding `AND category == "permissions"` to the predicate.
+The subsystem holds four categories: `window-lifecycle`, `paste-target`, `permissions`, and `dictation`. Narrow to one by adding `AND category == "permissions"` to the predicate.
+
+`dictation` carries a line per transcription attempt and per outcome, each stamped with a run number and elapsed milliseconds, plus every pill resize with its geometry and every fade against the duration it asked for. Read it before theorising about timing or about which pill drew what: reading the source predicted the wrong cause three times where these lines answered it directly. It records run numbers, attempt numbers, outcome labels and sizes, never transcript text.
 
 `permissions` writes a line only when a reading actually changes — the permission or the shortcut monitor, its new value, and which refresh path saw it. Silence means nothing changed, not that nothing was observed, and a launch is silent because the published values start from the same readings the first refresh takes. A `--ui-testing` launch cannot produce a transition at all: it grants no permission and its missing-permission flag injects a fixed state. Read this category on the installed app.
 
