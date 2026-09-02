@@ -296,6 +296,11 @@ final class PillController {
         )
         let desiredCornerRadius = CGFloat(phase.pillCornerRadius(height: Double(desiredPillSize.height)))
 
+        // Captured before anything below mutates them, so the settled line at the
+        // end can report on the same resize this one describes.
+        let didResize = desiredPanelSize != currentPanelSize
+        let wasVisible = panel.isVisible
+
         // Recording republishes its phase ten times a second to move the waveform and
         // tick the timer, so most calls here change no geometry at all. Writing the
         // destination anyway costs two forced layout passes per tick, and mid-resize it
@@ -307,7 +312,7 @@ final class PillController {
             if glassView.frame == desiredGlassFrame { return }
         }
 
-        if desiredPanelSize != currentPanelSize {
+        if didResize {
             // Every resize, with what was asked for and what the panel and glass
             // actually held a moment before. A shape rendering outside its glass
             // for one pass cannot be read from the accessibility tree, and reading
@@ -402,17 +407,29 @@ final class PillController {
             glassView.layoutSubtreeIfNeeded()
             glassView.cornerRadius = desiredCornerRadius
         }
+
+        if didResize {
+            // What the panel and glass actually hold once everything above has
+            // run, against what was asked for. The line before this one records
+            // only what they held going in, which cannot tell a frame that was
+            // never set from one that was set and not drawn.
+            Self.log.notice(
+                "pill settled to=\(phase.logLabel, privacy: .public) wasVisible=\(wasVisible, privacy: .public) panel=\(Int(self.panel.frame.width), privacy: .public)x\(Int(self.panel.frame.height), privacy: .public) glass=\(Int(self.glassView.frame.width), privacy: .public)x\(Int(self.glassView.frame.height), privacy: .public) radius=\(Int(self.glassView.cornerRadius), privacy: .public)"
+            )
+        }
     }
 
-    /// Applies geometry with layer actions off, so a frame and the corner radius
-    /// that belongs to it land in the same pass.
+    /// Applies geometry with layer actions off, so nothing here can be caught
+    /// interpolating a frame or a corner radius that was meant to land at once.
     ///
-    /// Anything changing both at once — every crossing between the message box
-    /// and the capsule — otherwise draws a shape belonging to neither phase until
-    /// the layout is applied again. `.recording` applies it ten times a second
-    /// and so repairs itself within 100 ms, which is why this was invisible on
-    /// every path but one: `.transcribing` republishes nothing, so there the
-    /// wrong shape stood until the transcript arrived.
+    /// Known and unfixed: this does not fix the shape seen crossing from the
+    /// recovery panel to `.transcribing`, where the glass goes on rendering at
+    /// about the panel's height while wearing the capsule's radius. The frame is
+    /// set correctly and autoresizing would produce the same numbers on its own,
+    /// so the view's frame is not what is wrong — the glass keeps a stale
+    /// rendering. Five explanations have been reasoned out of this file and all
+    /// five were wrong; the resize log now prints the glass frame after the fact
+    /// as well as before, so read that before proposing a sixth.
     private func applyingGeometryInstantly(_ body: () -> Void) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
