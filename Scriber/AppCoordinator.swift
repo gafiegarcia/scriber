@@ -1246,10 +1246,15 @@ final class AppCoordinator: ObservableObject {
         // not depend on what is plugged in. `-160` is the no-signal floor: the
         // waveform draws flat until there is really something to draw, rather
         // than claiming a level it cannot have yet.
-        playFeedback(.dictationStarted)
-        let afterFeedback = ContinuousClock().now
         recordingStartedAt = Date.now
         setPhase(.recording(mode: mode, elapsed: 0, level: -160))
+        // After the pill, not before it. `NSSound.play` blocks for 8 ms with the
+        // speaker awake and 45-49 ms with it asleep — the amplifier powering up,
+        // which the note in `DictationFeedbackSoundPlayer` describes — and none of
+        // that is time the pill should be waiting behind. Still on the press and
+        // still ahead of the capture session, which is what the cue promises.
+        playFeedback(.dictationStarted)
+        let afterFeedback = ContinuousClock().now
         // Everything the press waits through before the pill can be drawn, split
         // by step. `pressToPill` is the number the user feels; the rest say which
         // step owns it. Nothing here is on the recorder — the capture session
