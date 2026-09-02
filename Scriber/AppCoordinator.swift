@@ -1248,6 +1248,7 @@ final class AppCoordinator: ObservableObject {
         // than claiming a level it cannot have yet.
         recordingStartedAt = Date.now
         setPhase(.recording(mode: mode, elapsed: 0, level: -160))
+        let afterPill = ContinuousClock().now
         // After the pill, not before it. `NSSound.play` blocks for 8 ms with the
         // speaker awake and 45-49 ms with it asleep — the amplifier powering up,
         // which the note in `DictationFeedbackSoundPlayer` describes — and none of
@@ -1255,15 +1256,17 @@ final class AppCoordinator: ObservableObject {
         // still ahead of the capture session, which is what the cue promises.
         playFeedback(.dictationStarted)
         let afterFeedback = ContinuousClock().now
-        // Everything the press waits through before the pill can be drawn, split
-        // by step. `pressToPill` is the number the user feels; the rest say which
-        // step owns it. Nothing here is on the recorder — the capture session
-        // opens in the task below, after the pill is already up.
+        // Everything the press waits through before the pill can be asked for,
+        // split by step. `pressToPill` is the number the user feels; the rest say
+        // which step owns it. `soundAfterPill` sits outside that number by
+        // design — it is work the press no longer waits through. Nothing here is
+        // on the recorder either: the capture session opens in the task below,
+        // after the pill is already up.
         //
         // Delete this with the roadmap item it exists to judge.
         if let pressedAt = lastShortcutPressAt {
             Self.dictationLog.notice(
-                "dictation start pressToPillMs=\(pressedAt.elapsedMilliseconds, privacy: .public) permissionsMs=\(pressedAt.duration(to: afterPermissions).pillMilliseconds, privacy: .public) micTestMs=\(afterPermissions.duration(to: afterMicrophoneTest).pillMilliseconds, privacy: .public) captureTargetMs=\(afterMicrophoneTest.duration(to: afterCaptureTarget).pillMilliseconds, privacy: .public) soundMs=\(afterCaptureTarget.duration(to: afterFeedback).pillMilliseconds, privacy: .public)"
+                "dictation start pressToPillMs=\(pressedAt.duration(to: afterPill).pillMilliseconds, privacy: .public) permissionsMs=\(pressedAt.duration(to: afterPermissions).pillMilliseconds, privacy: .public) micTestMs=\(afterPermissions.duration(to: afterMicrophoneTest).pillMilliseconds, privacy: .public) captureTargetMs=\(afterMicrophoneTest.duration(to: afterCaptureTarget).pillMilliseconds, privacy: .public) soundAfterPillMs=\(afterPill.duration(to: afterFeedback).pillMilliseconds, privacy: .public)"
             )
             lastShortcutPressAt = nil
         }
