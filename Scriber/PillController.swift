@@ -129,6 +129,12 @@ final class PillController {
     func update(_ phase: AppPhase, autoDismiss: Bool = true) {
         clearAutoDismissal()
         guard phase != .idle else {
+            // A dictation reaches idle twice: once when the transcript arrives and
+            // again when delivery confirms, a few hundred milliseconds later.
+            // Hiding a second time cancelled the fade already running and started
+            // another from wherever the first had reached, so the pill almost
+            // never finished one — it was reset mid-way and then ordered out.
+            guard isPresented else { return }
             resetHovering()
             hide(clearPhaseWhenFinished: true)
             return
