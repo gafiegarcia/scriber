@@ -968,6 +968,10 @@ final class AppCoordinator: ObservableObject {
 
     func handle(_ action: ShortcutAction) {
         guard preferences.onboardingComplete else { return }
+        // Stamped here rather than in `beginRecording`, because the wait the user
+        // feels starts at the key, not at the first thing Scriber chooses to do
+        // about it. Read by the start timing line and nothing else.
+        if case .pressed = action { lastShortcutPressAt = ContinuousClock().now }
         // The pill's own dismissal, answered from what is on screen rather than
         // from what the recorder is doing.
         if case .cancel = action {
@@ -1203,15 +1207,31 @@ final class AppCoordinator: ObservableObject {
             return
         }
         guard canUseConfiguredAPIKey() else { return }
+        let afterPermissions = ContinuousClock().now
         stopMicrophoneTest()
+        let afterMicrophoneTest = ContinuousClock().now
         pill.setPreferredScreen(paste.captureTarget())
+        let afterCaptureTarget = ContinuousClock().now
         // Acknowledged on the press, never on the microphone, so the answer does
         // not depend on what is plugged in. `-160` is the no-signal floor: the
         // waveform draws flat until there is really something to draw, rather
         // than claiming a level it cannot have yet.
         playFeedback(.dictationStarted)
+        let afterFeedback = ContinuousClock().now
         recordingStartedAt = Date.now
         setPhase(.recording(mode: mode, elapsed: 0, level: -160))
+        // Everything the press waits through before the pill can be drawn, split
+        // by step. `pressToPill` is the number the user feels; the rest say which
+        // step owns it. Nothing here is on the recorder — the capture session
+        // opens in the task below, after the pill is already up.
+        //
+        // Delete this with the roadmap item it exists to judge.
+        if let pressedAt = lastShortcutPressAt {
+            Self.dictationLog.notice(
+                "dictation start pressToPillMs=\(pressedAt.elapsedMilliseconds, privacy: .public) permissionsMs=\(pressedAt.duration(to: afterPermissions).pillMilliseconds, privacy: .public) micTestMs=\(afterPermissions.duration(to: afterMicrophoneTest).pillMilliseconds, privacy: .public) captureTargetMs=\(afterMicrophoneTest.duration(to: afterCaptureTarget).pillMilliseconds, privacy: .public) soundMs=\(afterCaptureTarget.duration(to: afterFeedback).pillMilliseconds, privacy: .public)"
+            )
+            lastShortcutPressAt = nil
+        }
         // Told at the press, not at the open. The tap machine reports another key
         // being typed only while it is in held mode, so a mode arriving with the
         // microphone left the whole start window deaf to `fn`+delete — the key
@@ -2037,6 +2057,10 @@ final class AppCoordinator: ObservableObject {
     /// it, so its elapsed time is frozen at the last material change. The pill
     /// keeps its own clock, which is what the user sees.
     private var recordingStartedAt: Date?
+
+    /// When the press that is about to open a dictation arrived. Diagnostic only,
+    /// and read once — see the start timing line in `beginRecording`.
+    private var lastShortcutPressAt: ContinuousClock.Instant?
 
     private var elapsedSincePress: TimeInterval {
         guard let recordingStartedAt else { return 0 }
