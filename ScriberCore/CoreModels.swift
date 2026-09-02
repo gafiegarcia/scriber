@@ -509,6 +509,10 @@ public enum AppPhase: Equatable, Sendable {
     case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)
     case transcribing(attempt: Int, retryDelay: TimeInterval?)
     case cancelledTranscript
+    /// Stopped before anything was sent, because this Mac has no route to a
+    /// network at all. Distinct from a transcription that failed: nothing left
+    /// the machine, no credit moved, and the recording is waiting intact.
+    case noInternetConnection
     case dictationCopied(text: String, message: String)
     case permissionsRequired([ScriberPermission])
     case credentialsUnusable(CredentialReadiness)
@@ -789,6 +793,7 @@ public extension AppPhase {
         if case .dictationCopied = self { return .roundedRectangle }
         if case .dictationBlockedBySecureField = self { return .roundedRectangle }
         if case .cancelledTranscript = self { return .roundedRectangle }
+        if case .noInternetConnection = self { return .roundedRectangle }
         return .capsule
     }
 
@@ -808,7 +813,7 @@ public extension AppPhase {
         // microphone is open. The transcribing pill carries no controls of its
         // own, so this is the only gesture that reaches it.
         case .transcribing: .cancelTranscription
-        case .cancelledTranscript, .dictationCopied, .permissionsRequired, .credentialsUnusable,
+        case .cancelledTranscript, .noInternetConnection, .dictationCopied, .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
              .transcriptCopied, .dictationBlockedBySecureField, .message: .dismiss
         }
@@ -826,7 +831,7 @@ public extension AppPhase {
         case .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .noAudioSignal,
              .dictationBlockedBySecureField: .warning
-        case .idle, .recording, .transcribing, .cancelledTranscript, .message: .neutral
+        case .idle, .recording, .transcribing, .cancelledTranscript, .noInternetConnection, .message: .neutral
         }
     }
 
@@ -836,7 +841,7 @@ public extension AppPhase {
     func pillDefaultAction(isPresented: Bool) -> PillDefaultAction {
         guard isPresented else { return .none }
         return switch self {
-        case .idle, .recording, .transcribing, .cancelledTranscript: .none
+        case .idle, .recording, .transcribing, .cancelledTranscript, .noInternetConnection: .none
         // The transcript is selectable, so a body tap fights the selection it sits on.
         // Both carry a selectable transcript, so a body tap fights the selection.
         case .dictationCopied, .dictationBlockedBySecureField: .none

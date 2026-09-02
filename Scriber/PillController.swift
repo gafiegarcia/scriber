@@ -52,6 +52,8 @@ final class PillModel: ObservableObject {
     var onOpenInputSettings: (() -> Void)?
     var onRetry: (() -> Void)?
     var onRecover: (() -> Void)?
+    /// Drives the offline pill's Retry, which cannot work without a route.
+    @Published var hasNetworkRoute = true
     var onCancelRecording: (() -> Void)?
     var onConfirmRecording: (() -> Void)?
     var onDismiss: (() -> Void)?
@@ -233,7 +235,7 @@ final class PillController {
         // holding it as long as an apology makes a deliberate action feel slow.
         case .transcriptCopied:
             1.5
-        case .cancelledTranscript, .noSpeechDetected:
+        case .cancelledTranscript, .noInternetConnection, .noSpeechDetected:
             5
         case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
             6
@@ -248,7 +250,7 @@ final class PillController {
             NSSize(width: mode == .locked ? 360 : (model.isHovering ? 320 : 280), height: 52)
         case .dictationCopied(let text, _), .dictationBlockedBySecureField(let text, _):
             copiedResultSize(for: text)
-        case .cancelledTranscript:
+        case .cancelledTranscript, .noInternetConnection:
             NSSize(width: 430, height: 104)
         case .permissionsRequired:
             NSSize(width: 450, height: 60)
@@ -491,6 +493,12 @@ private struct PillView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background { tintLayer.clipShape(pillShape(for: model.phase)) }
             .overlay { specularHighlight }
+            // The frame above is a maximum, not a size: content taller than the
+            // pill still expands past it, and the background and rim are drawn to
+            // that larger frame rather than to the glass behind it. Shrinking into
+            // a smaller phase gave the content one layout pass to decide the
+            // height, which drew the shape below the panel's bottom edge.
+            .clipShape(pillShape(for: model.phase))
             .contentShape(pillShape(for: model.phase))
             .onTapGesture { if hasDefaultAction { model.onDefaultAction?() } }
             // Declarative rather than an `NSCursor` push/pop pair: the phase can
@@ -555,6 +563,8 @@ private struct PillView: View {
             copiedResult(text: text, message: message, symbol: "lock.fill")
         case .cancelledTranscript:
             cancellationRecovery
+        case .noInternetConnection:
+            noInternetRecovery
         default:
             compactStatus
         }
@@ -631,22 +641,52 @@ private struct PillView: View {
     }
 
     private var cancellationRecovery: some View {
+        recoveryOffer(
+            title: "Recover canceled dictation?",
+            body: "Recover pastes it wherever your cursor is now.",
+            actionTitle: "Recover",
+            isActionEnabled: true,
+            action: { model.onRecover?() }
+        )
+    }
+
+    /// The same offer the cancelled dictation makes, for a recording that never
+    /// went out. Retry is dead until this Mac has a route again: pressing a
+    /// button that cannot possibly work is a worse answer than one that says so.
+    private var noInternetRecovery: some View {
+        recoveryOffer(
+            title: "No internet connection",
+            body: "Your recording is saved. Retry once you are back online.",
+            actionTitle: "Retry",
+            isActionEnabled: model.hasNetworkRoute,
+            action: { model.onRetry?() }
+        )
+    }
+
+    private func recoveryOffer(
+        title: String,
+        body: String,
+        actionTitle: String,
+        isActionEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 9) {
-                Text("Recover canceled dictation?")
+                Text(title)
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 8)
                 countdown
                 dismissButton
             }
 
-            Text("Recover pastes it wherever your cursor is now.")
+            Text(body)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
                 Spacer()
-                Button("Recover") { model.onRecover?() }
+                Button(actionTitle, action: action)
+                    .disabled(!isActionEnabled)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                 Button("See History") { model.onOpen?() }
@@ -734,6 +774,7 @@ private struct PillView: View {
         case .dictationCopied, .transcriptCopied: "Copied"
         case .dictationBlockedBySecureField: "Copied"
         case .cancelledTranscript: "You can recover your canceled dictation"
+        case .noInternetConnection: "No internet connection"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"

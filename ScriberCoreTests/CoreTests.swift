@@ -301,6 +301,31 @@ struct WordlessRecordingTests {
     }
 }
 
+@Suite("No internet connection")
+struct NoInternetPhaseTests {
+    @Test("Reads as the offer it is, not as a failure")
+    func neutral() {
+        #expect(AppPhase.noInternetConnection.pillTone == .neutral)
+    }
+
+    @Test("Carries the recovery layout, like the cancellation it resembles")
+    func shape() {
+        #expect(AppPhase.noInternetConnection.pillShapeStyle
+            == AppPhase.cancelledTranscript.pillShapeStyle)
+    }
+
+    @Test("Its own controls answer a body click, so the body does nothing")
+    func inert() {
+        #expect(AppPhase.noInternetConnection.pillDefaultAction(isPresented: true) == .none)
+    }
+
+    @Test("A resting notice does not hold up the next dictation")
+    func doesNotBlockRecording() {
+        #expect(AppPhase.noInternetConnection.acceptsRecordingStart)
+        #expect(!AppPhase.noInternetConnection.isBusy)
+    }
+}
+
 @Suite("Cancelled transcription recovery")
 struct CancelledTranscriptionTests {
     @Test("A request still in flight is waited for, never restarted")
@@ -412,6 +437,7 @@ private let everyPhase: [AppPhase] = [
     .recording(mode: .held, elapsed: 1, level: -20),
     .transcribing(attempt: 1, retryDelay: nil),
     .cancelledTranscript,
+    .noInternetConnection,
     .dictationCopied(text: "hi", message: "No target"),
     .permissionsRequired([.microphone, .accessibility]),
     .credentialsUnusable(.missingAPIKey),
@@ -540,7 +566,7 @@ struct PillDefaultActionTests {
         let inertCount = everyPhase
             .filter { $0.pillDefaultAction(isPresented: true) == .none }
             .count
-        #expect(inertCount == 6)
+        #expect(inertCount == 7)
     }
 }
 

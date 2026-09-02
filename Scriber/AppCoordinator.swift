@@ -128,6 +128,8 @@ final class AppCoordinator: ObservableObject {
     private let paste = PasteService()
     private let login = LaunchAtLoginService()
     private let pill = PillController()
+    private let reachability = NetworkReachability()
+    private var reachabilityObserver: AnyCancellable?
     private let shortcuts: GlobalShortcutService
     private let feedbackSounds: DictationFeedbackSoundPlaying
     private let otherAudioMuting: OtherAudioMuting
@@ -268,6 +270,12 @@ final class AppCoordinator: ObservableObject {
         pill.model.onOpenInputSettings = { [weak self] in self?.openMicrophoneInputSettings() }
         pill.model.onRetry = { [weak self] in self?.retryCurrentFailure() }
         pill.model.onRecover = { [weak self] in self?.recoverCancelledDictation() }
+        // Live, so the offline pill's Retry lights up the moment a route returns
+        // rather than only when the pill is next drawn.
+        pill.model.hasNetworkRoute = reachability.hasNetworkRoute
+        reachabilityObserver = reachability.$hasNetworkRoute.sink { [weak self] hasRoute in
+            self?.pill.model.hasNetworkRoute = hasRoute
+        }
         pill.model.onCancelRecording = { [weak self] in self?.handleHandsFreePillAction(.cancel) }
         pill.model.onConfirmRecording = { [weak self] in self?.handleHandsFreePillAction(.confirm) }
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
@@ -387,6 +395,7 @@ final class AppCoordinator: ObservableObject {
         case .recording: "Recording"
         case .transcribing: "Transcribing"
         case .cancelledTranscript: "Cancelled"
+        case .noInternetConnection: "No internet connection"
         case .dictationCopied, .transcriptCopied: "Copied"
         case .dictationBlockedBySecureField: "Copied"
         case .permissionsRequired: "Permissions required"
@@ -1387,6 +1396,21 @@ final class AppCoordinator: ObservableObject {
                 if gate.isIdle { shortcuts.setMode(.idle) }
             }
         }
+        // Knowable before a request is built, so nothing is sent and nothing is
+        // spent. Three attempts and eight seconds of backoff cannot reach a
+        // network that is not there; they only delay saying so.
+        guard reachability.hasNetworkRoute else {
+            Self.dictationLog.notice("dictation refused run=\(run, privacy: .public) reason=noRoute")
+            record.transcriptionState = .failed
+            record.errorMessage = "Not connected to the Internet"
+            try? modelContext.save()
+            paste.clearTarget()
+            pill.setPreferredScreen(nil)
+            if gate.isIdle { shortcuts.setMode(.idle) }
+            playFeedback(.terminalFailure)
+            setPhase(.noInternetConnection)
+            return
+        }
         do {
             guard let apiKey = try await keychain.readAPIKey(), !apiKey.isEmpty else { throw ScribeError.authentication }
             let request = ScribeRequest(
@@ -1402,7 +1426,12 @@ final class AppCoordinator: ObservableObject {
                     self.setPhase(.transcribing(attempt: attempt, retryDelay: delay))
                 }
             } permitsRetry: { [weak self] in
-                await MainActor.run { self?.isSilenced(run: run) == false }
+                // A route lost mid-transcription ends the attempts too. The one
+                // already sent may still answer; a fresh one cannot.
+                await MainActor.run {
+                    guard let self else { return false }
+                    return !self.isSilenced(run: run) && self.reachability.hasNetworkRoute
+                }
             }
 
             // Nothing may `await` between reading the cancellation and writing
