@@ -462,6 +462,7 @@ final class AppCoordinator: ObservableObject {
     private func refreshPermissions(
         presentRecoveryWhenMissing: Bool,
         refreshAudioInputs: Bool,
+        refreshLaunchAtLogin: Bool = true,
         source: PermissionRefreshSource
     ) {
         let previousReadiness = permissionReadiness
@@ -513,14 +514,22 @@ final class AppCoordinator: ObservableObject {
         // Outside the override branch: this is not a permission, so a test run
         // that synthesizes missing permissions still reads the real login item.
         // Same assign-only-on-change rule as above.
-        let beforeLaunchState = ContinuousClock().now
-        let launchState = LaunchAtLoginService.state
-        let launchStateMs = beforeLaunchState.elapsedMilliseconds
-        if launchAtLoginState != launchState {
-            launchAtLoginState = launchState
-            Self.permissionLog.notice(
-                "launchAtLogin: state=\(launchState.rawValue, privacy: .public) source=\(source.rawValue, privacy: .public)"
-            )
+        // `SMAppService` asks another daemon whether Scriber is a login item, and
+        // it costs 42-48 ms every time — measured as the whole of what a dictation's
+        // press used to wait through, against 0 ms for all three real permission
+        // readings. Nothing about starting a dictation depends on the answer, so
+        // that caller does not ask. Same rule as `refreshAudioInputs` above it.
+        var launchStateMs = 0
+        if refreshLaunchAtLogin {
+            let beforeLaunchState = ContinuousClock().now
+            let launchState = LaunchAtLoginService.state
+            launchStateMs = beforeLaunchState.elapsedMilliseconds
+            if launchAtLoginState != launchState {
+                launchAtLoginState = launchState
+                Self.permissionLog.notice(
+                    "launchAtLogin: state=\(launchState.rawValue, privacy: .public) source=\(source.rawValue, privacy: .public)"
+                )
+            }
         }
         if source == .startRecording {
             Self.dictationLog.notice(
@@ -1219,6 +1228,7 @@ final class AppCoordinator: ObservableObject {
         refreshPermissions(
             presentRecoveryWhenMissing: false,
             refreshAudioInputs: false,
+            refreshLaunchAtLogin: false,
             source: .startRecording
         )
         guard permissionReadiness.isReady else {
