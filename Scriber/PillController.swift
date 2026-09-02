@@ -130,10 +130,11 @@ final class PillController {
         clearAutoDismissal()
         guard phase != .idle else {
             // A dictation reaches idle twice: once when the transcript arrives and
-            // again when delivery confirms, a few hundred milliseconds later.
-            // Hiding a second time cancelled the fade already running and started
-            // another from wherever the first had reached, so the pill almost
-            // never finished one — it was reset mid-way and then ordered out.
+            // again when delivery confirms, a few hundred milliseconds later. The
+            // second one has a pill already gone to take down, so it must not run
+            // again — it would clear the phase out from under whatever the first
+            // dismissal handed on to, and log a second thread probe for one
+            // dismissal.
             guard isPresented else { return }
             resetHovering()
             hide(clearPhaseWhenFinished: true)
@@ -143,7 +144,10 @@ final class PillController {
         keepsPanelCenterForCurrentUpdate = false
         applyLayout(for: phase)
         model.phase = phase
-        show()
+        // A dictation starting is the only pill that fades in. See `show`.
+        let isRecordingStart: Bool
+        if case .recording = phase { isRecordingStart = true } else { isRecordingStart = false }
+        show(fadingIn: isRecordingStart)
         if autoDismiss,
            !autoDismissalDisabledForUITesting,
            let delay = dismissalDelay(for: phase) {
@@ -316,8 +320,14 @@ final class PillController {
                     width: desiredPanelSize.width,
                     height: desiredPanelSize.height
                 )
+                // Within one shape only. A crossing between the message box and the
+                // capsule changes the corner radius as well as the frame, and the
+                // radius is not interpolated alongside it, so animating that
+                // crossing shows a shape that belongs to neither phase for as long
+                // as it runs.
                 let animatesConfirmExpansion = model.phase.showsConfirmRecordingControl == false
                     && phase.showsConfirmRecordingControl
+                    && model.phase.pillShapeStyle == phase.pillShapeStyle
 
                 if !shouldReduceMotion && (forceAnimated || animatesConfirmExpansion) {
                     // Only the update()/show() pairing consumes this note, so only set it
@@ -368,24 +378,46 @@ final class PillController {
                             glassView.animator().frame = desiredGlassFrame
                         }
                     }
-                    panel.setFrame(desiredPanelFrame, display: true)
-                    glassView.frame = desiredGlassFrame
+                    applyingGeometryInstantly {
+                        panel.setFrame(desiredPanelFrame, display: true)
+                        glassView.frame = desiredGlassFrame
+                    }
                 }
             } else {
-                panel.setContentSize(desiredPanelSize)
-                glassView.frame = desiredGlassFrame
+                applyingGeometryInstantly {
+                    panel.setContentSize(desiredPanelSize)
+                    glassView.frame = desiredGlassFrame
+                }
             }
             currentPanelSize = desiredPanelSize
         } else {
-            glassView.frame = desiredGlassFrame
+            applyingGeometryInstantly { glassView.frame = desiredGlassFrame }
         }
 
         // Apply the destination glass geometry directly on every phase change.
         // Relying on autoresizing alone can leave NSGlassEffectView rendering the
         // fixed copied-result radius after its host shrinks back to a capsule.
-        panel.contentView?.layoutSubtreeIfNeeded()
-        glassView.layoutSubtreeIfNeeded()
-        glassView.cornerRadius = desiredCornerRadius
+        applyingGeometryInstantly {
+            panel.contentView?.layoutSubtreeIfNeeded()
+            glassView.layoutSubtreeIfNeeded()
+            glassView.cornerRadius = desiredCornerRadius
+        }
+    }
+
+    /// Applies geometry with layer actions off, so a frame and the corner radius
+    /// that belongs to it land in the same pass.
+    ///
+    /// Anything changing both at once — every crossing between the message box
+    /// and the capsule — otherwise draws a shape belonging to neither phase until
+    /// the layout is applied again. `.recording` applies it ten times a second
+    /// and so repairs itself within 100 ms, which is why this was invisible on
+    /// every path but one: `.transcribing` republishes nothing, so there the
+    /// wrong shape stood until the transcript arrived.
+    private func applyingGeometryInstantly(_ body: () -> Void) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        body()
+        CATransaction.commit()
     }
 
     private func copiedResultSize(for text: String) -> NSSize {
@@ -408,7 +440,12 @@ final class PillController {
         return NSSize(width: width, height: chromeHeight + previewHeight)
     }
 
-    private func show() {
+    /// `fadingIn` is true only for a dictation starting. Every other pill appears
+    /// at once: a utility answers, it does not make an entrance, and an animation
+    /// the user is waiting behind reads as the app being slow rather than as
+    /// polish. The one exception earns it — the recording pill is the app saying
+    /// it heard the shortcut, and that is worth a moment.
+    private func show(fadingIn: Bool) {
         isPresented = true
         presentationTask?.cancel()
         presentationTask = nil
@@ -419,10 +456,14 @@ final class PillController {
             return
         }
 
-        panel.alphaValue = shouldReduceMotion ? 1 : 0
-        panel.orderFrontRegardless()
-        guard !shouldReduceMotion else { return }
+        guard fadingIn, !shouldReduceMotion else {
+            panel.alphaValue = 1
+            panel.orderFrontRegardless()
+            return
+        }
 
+        panel.alphaValue = 0
+        panel.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { context in
             context.duration = presentationDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -430,38 +471,39 @@ final class PillController {
         }
     }
 
+    /// The pill always leaves at once. Dismissal is the moment the user turns
+    /// back to their own work, so nothing here is worth waiting behind.
     private func hide(clearPhaseWhenFinished: Bool) {
         isPresented = false
         presentationTask?.cancel()
         presentationTask = nil
+        let wasVisible = panel.isVisible
+        panel.orderOut(nil)
+        panel.alphaValue = 1
+        if clearPhaseWhenFinished { model.phase = .idle }
+        if wasVisible { startMainThreadProbe() }
+    }
 
-        guard panel.isVisible, !shouldReduceMotion else {
-            panel.orderOut(nil)
-            panel.alphaValue = 1
-            if clearPhaseWhenFinished { model.phase = .idle }
-            return
-        }
-
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = presentationDuration
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            panel.animator().alphaValue = 0
-        }
-        let duration = presentationDuration
-        let fadeStarted = ContinuousClock().now
+    /// Not part of the dismissal — a measurement of the thread it happened on.
+    ///
+    /// Delivery is `@MainActor` and holds this thread for a couple of hundred
+    /// milliseconds after the pill goes, and nothing in any app draws while it
+    /// does. Dismissing instantly hid that; it did not fix it. `probeMs` is what
+    /// the sleep asked for and `tookMs` what it got, so the gap between them is
+    /// drawing time spent elsewhere. Measured against 180 ms because every
+    /// number recorded on this problem so far was measured against 180 ms.
+    ///
+    /// Delete this with **Stop delivery holding the main thread**; it exists to
+    /// judge that item and has no other reader.
+    private func startMainThreadProbe() {
+        let asked = presentationDuration
+        let startedAt = ContinuousClock().now
         presentationTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(duration))
+            try? await Task.sleep(for: .seconds(asked))
             guard let self, !Task.isCancelled else { return }
-            // How long the fade actually took against the 180 ms it asked for.
-            // A gap means the main thread was busy through it, and an alpha
-            // animation whose thread is blocked draws no intermediate frames —
-            // the pill sits at full opacity and then vanishes.
             Self.log.notice(
-                "pill hidden askedMs=\(Int(duration * 1000), privacy: .public) tookMs=\(fadeStarted.elapsedMilliseconds, privacy: .public)"
+                "pill dismissed probeMs=\(Int(asked * 1000), privacy: .public) tookMs=\(startedAt.elapsedMilliseconds, privacy: .public)"
             )
-            panel.orderOut(nil)
-            panel.alphaValue = 1
-            if clearPhaseWhenFinished { model.phase = .idle }
             presentationTask = nil
         }
     }
