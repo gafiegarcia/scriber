@@ -156,10 +156,7 @@ final class PillController {
         let outgoingPhase = model.phase
         model.phase = phase
         applyLayout(for: phase, from: outgoingPhase)
-        // A dictation starting is the only pill that fades in. See `show`.
-        let isRecordingStart: Bool
-        if case .recording = phase { isRecordingStart = true } else { isRecordingStart = false }
-        show(fadingIn: isRecordingStart)
+        show()
         if autoDismiss,
            !autoDismissalDisabledForUITesting,
            let delay = dismissalDelay(for: phase) {
@@ -475,12 +472,11 @@ final class PillController {
         return NSSize(width: width, height: chromeHeight + previewHeight)
     }
 
-    /// `fadingIn` is true only for a dictation starting. Every other pill appears
-    /// at once: a utility answers, it does not make an entrance, and an animation
-    /// the user is waiting behind reads as the app being slow rather than as
-    /// polish. The one exception earns it — the recording pill is the app saying
-    /// it heard the shortcut, and that is worth a moment.
-    private func show(fadingIn: Bool) {
+    /// Every pill is put on screen at once. Scriber animates nothing here, and
+    /// what fading remains is AppKit's own for a utility-window panel, which is
+    /// left to AppKit deliberately: the rule being kept is that Scriber never
+    /// delays the user, not that no pixel ever fades.
+    private func show() {
         isPresented = true
         presentationTask?.cancel()
         presentationTask = nil
@@ -490,20 +486,8 @@ final class PillController {
             panel.alphaValue = 1
             return
         }
-
-        guard fadingIn, !shouldReduceMotion else {
-            panel.alphaValue = 1
-            panel.orderFrontRegardless()
-            return
-        }
-
-        panel.alphaValue = 0
+        panel.alphaValue = 1
         panel.orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = presentationDuration
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().alphaValue = 1
-        }
     }
 
     /// The pill always leaves at once. Dismissal is the moment the user turns
