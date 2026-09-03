@@ -419,7 +419,15 @@ final class PasteService {
     /// note that had just been opened, asking and inserting nothing — was asking
     /// honestly. Its paste was handed the user's previous clipboard, because the
     /// restore ran before it had finished reading. See `clipboardRestoreDelay`.
-    private func waitForTranscriptToBeTaken(
+    ///
+    /// `nonisolated` because this only reads a lock-protected flag and sleeps,
+    /// and doing that on the main actor woke it roughly nineteen times per
+    /// delivery — every 10 ms for the ~190 ms a destination takes to answer.
+    /// Nothing here touches AppKit or any state of this class. The waiting is
+    /// unchanged and so is what confirms a delivery; only the thread that does
+    /// the waiting is. The destination's request arrives on the main run loop
+    /// either way, so leaving that thread alone can only help it land sooner.
+    nonisolated private func waitForTranscriptToBeTaken(
         _ probe: PasteboardReadProbe,
         until deadline: ContinuousClock.Instant
     ) async -> Bool {
