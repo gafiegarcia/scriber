@@ -92,8 +92,23 @@ final class PasteService {
     /// opening a window.
     func insert(_ text: String) async -> PasteResult {
         guard AXIsProcessTrusted() else { return .failed("Accessibility permission is not enabled.") }
+        // Measurement only, for the "Stop delivery holding the main thread"
+        // roadmap item; delete these with that item. `elapsedMs` starts at the
+        // keystroke and `idleToOutcomeMs` covers the whole delivery, so the
+        // synchronous stretch in front of the keystroke — the part that actually
+        // holds the thread — is visible in neither. These split it.
+        let deliveryEntered = ContinuousClock().now
         let resolution = resolveTarget()
+        let afterResolve = ContinuousClock().now
         logDeliveryContext(chosen: resolution.target)
+        let afterContext = ContinuousClock().now
+        Self.diagnosticLog.notice(
+            """
+            delivery segments \
+            resolveMs=\(deliveryEntered.duration(to: afterResolve).milliseconds, privacy: .public) \
+            contextMs=\(afterResolve.duration(to: afterContext).milliseconds, privacy: .public)
+            """
+        )
         switch resolution {
         case .secureField:
             logDeliveryOutcome("refusedSecureField")
@@ -330,7 +345,12 @@ final class PasteService {
         }
 
         let pasteboard = NSPasteboard.general
+        // Measurement only; delete with the roadmap item. `capture` reads out
+        // every type of every item already on the clipboard, so its cost is set
+        // by what the user last copied — an image is not the same as a word.
+        let beforeSnapshot = ContinuousClock().now
         let snapshot = PasteboardSnapshot.capture(pasteboard)
+        let afterSnapshot = ContinuousClock().now
         pasteboard.clearContents()
         let pasteboardReadProbe = PasteboardReadProbe(text: text)
         let transcriptItem = NSPasteboardItem()
@@ -351,6 +371,16 @@ final class PasteService {
         // waiting on a step AppKit does not have.
         let transcriptChangeCount = pasteboard.changeCount
         let deliveryStarted = ContinuousClock().now
+        // Measurement only; delete with the roadmap item. `writeMs` covers
+        // publishing the promised item and the four transient types.
+        Self.diagnosticLog.notice(
+            """
+            delivery clipboard \
+            snapshotMs=\(beforeSnapshot.duration(to: afterSnapshot).milliseconds, privacy: .public) \
+            writeMs=\(afterSnapshot.duration(to: deliveryStarted).milliseconds, privacy: .public) \
+            items=\(snapshot.items.count, privacy: .public)
+            """
+        )
         guard await postPasteShortcut(to: currentTarget.pid) else {
             snapshot.restoreIfUnchanged(pasteboard, expectedChangeCount: transcriptChangeCount)
             return .failed("Scriber could not send a Paste command.")

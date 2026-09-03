@@ -55,6 +55,22 @@ final class GlobalShortcutService {
         return nanoseconds / 1_000_000_000
     }
 
+    /// The same clock `ShortcutTapInput.timestamp` is on, so the two subtract.
+    static func monotonicNow() -> TimeInterval {
+        seconds(fromMachTime: mach_absolute_time())
+    }
+
+    /// When the key physically went down, for the press this service most
+    /// recently reported as `.pressed`.
+    ///
+    /// Measurement only, for the "Stop delivery holding the main thread" roadmap
+    /// item; delete it with that item. Nothing about a dictation depends on this.
+    /// The tap is on the main run loop, so a press arriving while the main thread
+    /// is busy waits in the queue and every timestamp taken on the main actor —
+    /// including the one the start line calls the press — is taken after that
+    /// wait is already over. This is the only stamp in the app that predates it.
+    private(set) var lastPressHardwareTime: TimeInterval?
+
     /// Never call this from inside the tap's own callback. Its first act is
     /// `stop()`, which releases the `CFMachPort` whose callout would be on the
     /// stack. Everything the tap triggers is deferred a run-loop turn precisely so
@@ -154,6 +170,12 @@ final class GlobalShortcutService {
 
     private func process(_ input: ShortcutTapInput) -> Bool {
         let outcome = machine.handle(input, pillConsumesEscape: pillConsumesEscape?() ?? false)
+        // Recorded here rather than where the effect is delivered: this runs
+        // inside the tap callback, so it is the last point that still knows which
+        // input produced the effects. Measurement only — see the property.
+        if outcome.effects.contains(where: { if case .action(.pressed) = $0 { true } else { false } }) {
+            lastPressHardwareTime = input.timestamp
+        }
         schedule(outcome.effects)
         return outcome.suppressesEvent
     }
