@@ -1617,12 +1617,12 @@ final class AppCoordinator: ObservableObject {
     /// executor came back round, which is a delay between the text landing and
     /// the pill going that was not there before.
     private func deliverTranscript(_ transcript: String, record: DictationRecord) async {
-        // The pill is gone by now and the phase is already idle, so nothing else
-        // here says a dictation is still finishing. Without this flag a press
-        // arriving during delivery starts a whole recording, and then this
-        // dictation's own `returnToIdle` reaches `setMode(.idle)` and clears the
-        // hold latch the new press had just set in the tap — the release then
-        // matches nothing and the recording it started has nothing to stop it.
+        // The caller set the phase to idle before awaiting this, so the pill is
+        // already gone and nothing else left says a dictation is still finishing.
+        // Without this flag `phase.acceptsRecordingStart` lets a press through
+        // for the whole delivery — a fifth of a second when it lands, and the
+        // full confirmation second when it does not, which is the window before
+        // the recovery panel appears. A dictation must not begin inside it.
         isDeliveringTranscript = true
         defer { isDeliveringTranscript = false }
         let deliveryStarted = ContinuousClock().now
