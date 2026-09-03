@@ -354,9 +354,19 @@ final class AppCoordinator: ObservableObject {
                 .autoconnect()
                 .sink { [weak self] _ in
                     Task { @MainActor in
+                        // Not the login item. `SMAppService` asks another daemon
+                        // and cost 21-30 ms of main thread on every one of these,
+                        // which was the whole of this poll and the only thing
+                        // Scriber did to the main thread while idle — a stall of
+                        // that size, every five seconds, for as long as the app
+                        // is running. The three real permission readings are 0 ms
+                        // together. Settings and activation both refresh the
+                        // login item, so a change made in System Settings is
+                        // still picked up on the way back to Scriber.
                         self?.refreshPermissions(
                             presentRecoveryWhenMissing: false,
                             refreshAudioInputs: false,
+                            refreshLaunchAtLogin: false,
                             source: .poll
                         )
                     }
@@ -506,12 +516,16 @@ final class AppCoordinator: ObservableObject {
         // that synthesizes missing permissions still reads the real login item.
         // Same assign-only-on-change rule as above.
         //
-        // `SMAppService` asks another daemon and costs 42-48 ms every time,
-        // measured as the whole of what a dictation's press used to wait through
-        // — against 0 ms for all three real permission readings above it. Nothing
-        // about starting a dictation depends on whether Scriber launches at
-        // login, so that caller passes `false`. Do not make this unconditional
-        // again without measuring the press.
+        // `SMAppService` asks another daemon and costs 21-48 ms every time, against
+        // 0 ms for all three real permission readings above it. It was the whole of
+        // what a dictation's press used to wait through, and later the whole of what
+        // the five-second poll cost — twice now it has been the most expensive thing
+        // on a path nobody thought was doing any work.
+        //
+        // Only ask where the answer is about to be shown or acted on: launch,
+        // activation, Settings, onboarding. A caller on a hot path, or one that
+        // just wants fresh permissions, passes `false`. Do not make this
+        // unconditional again without measuring what calls it.
         if refreshLaunchAtLogin {
             let launchState = LaunchAtLoginService.state
             if launchAtLoginState != launchState {
