@@ -22,8 +22,18 @@ final class GlobalShortcutService {
     /// Every decision this tap makes. Kept in `ScriberCore` so it can be tested:
     /// nothing in this file can be, and a mistake here stalls the whole machine.
     private var machine: ShortcutTapMachine
-    private var pendingEffects: [ShortcutTapEffect] = []
+    private var pendingEffects: [PendingEffect] = []
     private var isDrainScheduled = false
+
+    /// An effect and the timestamp of the input that produced it, kept together.
+    ///
+    /// The buffer holds several inputs' effects whenever the drain is late, which
+    /// is exactly when a press is worth timing, so the timestamp cannot live in a
+    /// property the next input overwrites.
+    private struct PendingEffect {
+        let effect: ShortcutTapEffect
+        let hardwareTime: TimeInterval
+    }
 
     init(dictation: ShortcutChord) {
         machine = ShortcutTapMachine(dictation: dictation)
@@ -69,6 +79,11 @@ final class GlobalShortcutService {
     /// is busy waits in the queue and every timestamp taken on the main actor —
     /// including the one the start line calls the press — is taken after that
     /// wait is already over. This is the only stamp in the app that predates it.
+    ///
+    /// Written as the press is handed to `onAction`, not as the tap sees it. A
+    /// stall long enough to be worth measuring buffers several inputs into one
+    /// drain, so a slot written at tap time would hold the newest press by the
+    /// time the oldest one is read — understating the stall it is here to show.
     private(set) var lastPressHardwareTime: TimeInterval?
 
     /// Never call this from inside the tap's own callback. Its first act is
@@ -170,13 +185,7 @@ final class GlobalShortcutService {
 
     private func process(_ input: ShortcutTapInput) -> Bool {
         let outcome = machine.handle(input, pillConsumesEscape: pillConsumesEscape?() ?? false)
-        // Recorded here rather than where the effect is delivered: this runs
-        // inside the tap callback, so it is the last point that still knows which
-        // input produced the effects. Measurement only — see the property.
-        if outcome.effects.contains(where: { if case .action(.pressed) = $0 { true } else { false } }) {
-            lastPressHardwareTime = input.timestamp
-        }
-        schedule(outcome.effects)
+        schedule(outcome.effects, hardwareTime: input.timestamp)
         return outcome.suppressesEvent
     }
 
@@ -191,9 +200,11 @@ final class GlobalShortcutService {
     /// either leaves a recording nothing stops or stops one that never started.
     /// Ordering comes from the array here. `DispatchQueue.main.async` is FIFO too,
     /// but wants an `@escaping @Sendable` closure and this class is neither.
-    private func schedule(_ effects: [ShortcutTapEffect]) {
+    private func schedule(_ effects: [ShortcutTapEffect], hardwareTime: TimeInterval) {
         guard !effects.isEmpty else { return }
-        pendingEffects.append(contentsOf: effects)
+        pendingEffects.append(
+            contentsOf: effects.map { PendingEffect(effect: $0, hardwareTime: hardwareTime) }
+        )
         guard !isDrainScheduled else { return }
         isDrainScheduled = true
         Task { @MainActor in self.drainPendingEffects() }
@@ -201,11 +212,14 @@ final class GlobalShortcutService {
 
     private func drainPendingEffects() {
         isDrainScheduled = false
-        let effects = pendingEffects
+        let pending = pendingEffects
         pendingEffects.removeAll(keepingCapacity: true)
-        for effect in effects {
-            switch effect {
-            case .action(let action): onAction?(action)
+        for entry in pending {
+            switch entry.effect {
+            case .action(let action):
+                // Measurement only — see `lastPressHardwareTime`.
+                if case .pressed = action { lastPressHardwareTime = entry.hardwareTime }
+                onAction?(action)
             case .nonModifierKeyDown: onNonModifierKeyDown?()
             }
         }
