@@ -19,7 +19,8 @@ struct DictationHistoryView: View {
     }
 
     /// How many records are built at once. Raised a page at a time as the end of
-    /// the list comes into view, and reset whenever the set being shown changes.
+    /// the list comes into view, and reset only when the list is taken down —
+    /// never while it is on screen, which is the `Known and unfixed:` note below.
     ///
     /// Everything below this is rebuilt on every insert, because SwiftData
     /// republishes the whole array and a day card's rows are an eager `ForEach`
@@ -63,6 +64,15 @@ struct DictationHistoryView: View {
         }
         .onChange(of: filtered.isEmpty) { _, isEmpty in
             if isEmpty { dayTitle.title = nil }
+        }
+        // An empty `records` is how a closed window reaches this view: `MainWindow`
+        // stops filtering for a window nobody can see, which takes the whole list
+        // down. Reset the page with it, or reopening rebuilds every row the last
+        // session scrolled to in one body pass, with the scroll back at the top so
+        // none of that work is even visible. Safe here and nowhere else — there is
+        // no scroll position to strand when there is no list.
+        .onChange(of: records.isEmpty) { _, isEmpty in
+            if isEmpty { renderLimit = Self.pageSize }
         }
         // Known and unfixed: the page a search was scrolled to is carried back out
         // of it. Resetting to one page here is what a different list deserves, but
