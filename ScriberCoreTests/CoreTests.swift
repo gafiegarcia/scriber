@@ -1281,6 +1281,24 @@ struct ShortcutTapMachineTests {
         #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.pressed)])
     }
 
+    /// The dictation before this one is still delivering when the next press
+    /// latches, so its `returnToIdle` reaches `setMode(.idle)` afterwards. A mode
+    /// change that cleared the latch took this release with it, and the recording
+    /// it belonged to ran on with nothing able to stop it — reproduced by hand by
+    /// starting a hold at the moment the previous transcript landed.
+    @Test("A hold latched before the previous dictation goes idle still stops")
+    func holdSurvivesLateIdle() {
+        var machine = machine(dictation: keyedHold)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.pressed)])
+
+        machine.setMode(.idle)
+
+        #expect(
+            machine.handle(up(2, [.command, .shift], at: heldLongEnough), pillConsumesEscape: false)
+                .effects == [.action(.releasedAfterHold)]
+        )
+    }
+
     @Test("The held chord's repeats never reach the app in front")
     func heldChordRepeatsAreSwallowed() {
         var machine = machine(dictation: keyedHold)
