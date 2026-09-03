@@ -22,7 +22,7 @@ final class DictationFeedbackSoundPlayer: DictationFeedbackSoundPlaying {
 
     init(volume: Float = 0.55) {
         self.volume = volume
-        startSound = NSSound(named: NSSound.Name("Blow"))
+        startSound = NSSound(named: NSSound.Name("Frog"))
         cancellationOrCopyFallbackSound = NSSound(named: NSSound.Name("Tink"))
         startSound?.volume = volume
         cancellationOrCopyFallbackSound?.volume = volume
