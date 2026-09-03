@@ -29,6 +29,18 @@ final class MainThreadStallMonitor {
     private let threshold: TimeInterval
     private var observer: CFRunLoopObserver?
     private var passBeganAt: CFAbsoluteTime?
+    private var passBeganCPU: UInt64 = 0
+
+    /// CPU actually burned by this thread, as opposed to time passing on it.
+    ///
+    /// The two come apart exactly where it matters. A pass that takes 350 ms of
+    /// wall clock and 350 ms of CPU is work worth hunting. One that takes 350 ms
+    /// and 20 ms of CPU is a run loop being woken repeatedly and going back to
+    /// waiting — busy on paper, idle in fact, and nothing a fix could remove.
+    /// Wall time alone cannot tell those apart, and they call for opposite work.
+    private static func threadCPUNanoseconds() -> UInt64 {
+        clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+    }
 
     init(threshold: TimeInterval = 0.016) {
         self.threshold = threshold
@@ -48,13 +60,15 @@ final class MainThreadStallMonitor {
                 switch activity {
                 case .afterWaiting:
                     self.passBeganAt = CFAbsoluteTimeGetCurrent()
+                    self.passBeganCPU = Self.threadCPUNanoseconds()
                 case .beforeWaiting:
                     guard let began = self.passBeganAt else { return }
                     self.passBeganAt = nil
                     let elapsed = CFAbsoluteTimeGetCurrent() - began
                     guard elapsed >= self.threshold else { return }
+                    let cpu = Self.threadCPUNanoseconds() - self.passBeganCPU
                     Self.log.notice(
-                        "main thread stalled ms=\(Int(elapsed * 1_000), privacy: .public)"
+                        "main thread stalled ms=\(Int(elapsed * 1_000), privacy: .public) cpuMs=\(Int(cpu / 1_000_000), privacy: .public)"
                     )
                 default:
                     return
