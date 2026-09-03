@@ -2174,8 +2174,22 @@ final class AppCoordinator: ObservableObject {
         // So this property's level and elapsed time are stale for the length of a
         // recording, and the pill draws them from its own model instead. Anything
         // needing either live takes it as a parameter — do not read them here.
+        // Measurement only; delete with the delivery roadmap item. The run loop
+        // observer puts ~350 ms of main-thread CPU around the end of a dictation,
+        // most of it after the delivery outcome is already known, and a phase
+        // change is the one thing on that path that reaches SwiftUI. Split so a
+        // publish and a pill update can be told apart — they have different fixes.
+        let phaseStarted = ContinuousClock().now
         if !Self.differsOnlyByMeter(phase, self.phase) { self.phase = phase }
+        let afterPublish = ContinuousClock().now
         pill.update(phase)
+        let afterPill = ContinuousClock().now
+        let total = phaseStarted.duration(to: afterPill).pillMilliseconds
+        if total >= 16 {
+            Self.dictationLog.notice(
+                "setPhase to=\(String(describing: phase).prefix(24), privacy: .public) totalMs=\(total, privacy: .public) publishMs=\(phaseStarted.duration(to: afterPublish).pillMilliseconds, privacy: .public) pillMs=\(afterPublish.duration(to: afterPill).pillMilliseconds, privacy: .public)"
+            )
+        }
     }
 
 }
