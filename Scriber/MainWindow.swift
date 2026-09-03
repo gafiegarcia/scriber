@@ -27,6 +27,11 @@ struct MainWindowView: View {
     /// then drops a transcript selection the user was part-way through making.
     @State private var opensWithSearchFocused = true
 
+    /// Whether this window is presented. Read through `mainWindowIsOnScreen`,
+    /// never directly — on its own it misses the case where SwiftUI rebuilt this
+    /// content after the window was already key.
+    @State private var isMainWindowPresented = false
+
     private var recoveryConditions: [RecoveryCondition] {
         RecoveryConditions.current(
             onboardingComplete: runtime.preferences.onboardingComplete,
@@ -44,10 +49,34 @@ struct MainWindowView: View {
     /// The window owns this rather than the page: the toolbar count and the list
     /// have to agree, and two copies of the filter is how they stop agreeing.
     private var visibleRecords: [DictationRecord] {
-        records.filter {
+        // Nothing to show for a window nobody can see. SwiftUI keeps a `Window`
+        // scene alive after it closes, so this view stays subscribed to the store
+        // and re-runs on every insert — which is to say on every dictation. A
+        // profile of sixty seconds of real dictation put the top of the main
+        // thread here and in what this feeds: filtering every record twice, then
+        // grouping all of them by day, then building rows, for a window that was
+        // not on screen. That was most of a ~370 ms stall after each dictation.
+        //
+        // The list and the count both read this, so one guard covers both, and
+        // they cannot disagree about what is visible.
+        guard mainWindowIsOnScreen else { return [] }
+        return records.filter {
             $0.transcriptionState != .transcribing
                 || runtime.coordinator.retryingRecordID == $0.id
         }
+    }
+
+    /// Whether the main window is actually on screen.
+    ///
+    /// Both halves are needed. The published flag is what makes this reactive —
+    /// opening the window has to re-run a body that returned nothing — while the
+    /// live check is what makes it correct on the orderings the flag misses, the
+    /// same ones `onAppear` already guards against: SwiftUI rebuilding this
+    /// content after the window is key, so no `didBecomeKey` is coming. Without
+    /// it the window can come back showing an empty history.
+    private var mainWindowIsOnScreen: Bool {
+        if isMainWindowPresented { return true }
+        return NSApp.windows.contains { AppWindowIdentity.isMainWindow($0) && $0.isVisible }
     }
 
     var body: some View {
@@ -112,12 +141,14 @@ struct MainWindowView: View {
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
                 guard let window = note.object as? NSWindow,
                       AppWindowIdentity.isMainWindow(window) else { return }
+                isMainWindowPresented = true
                 focusSearchForPresentation()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
                 guard let window = note.object as? NSWindow,
                       AppWindowIdentity.isMainWindow(window) else { return }
                 opensWithSearchFocused = true
+                isMainWindowPresented = false
             }
             .onAppear {
                 runtime.coordinator.registerSettingsWindowOpener { openWindow(id: "settings") }
@@ -127,6 +158,7 @@ struct MainWindowView: View {
                 // unserved. Reading the key window tells the two orderings apart
                 // without guessing at a delay between them.
                 if let window = NSApp.keyWindow, AppWindowIdentity.isMainWindow(window) {
+                    isMainWindowPresented = true
                     focusSearchForPresentation()
                 }
             }
