@@ -192,7 +192,7 @@ Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; it defines the delivery these c
 - Nothing pastes twice. Watch particularly in an app that was slow to respond.
 - Start a hands-free dictation, then keep physically holding the shortcut keys down while it finishes and pastes. The recording still ends and the dictation still arrives as an ordinary paste — that is the whole expectation. Worth repeating with a chord that uses Option or Control, not only the default.
 
-    What this protects: Scriber builds its Command-V from a private event source (`PasteService.swift:447`), so only the flags it sets travel with the keystroke. Built from the combined session state instead, whatever is physically held merges in and Command-V arrives as Option-Command-V or Shift-Command-V — a different command, or none. A failure looks like the dictation not landing, or landing with the wrong formatting, rather than like a crash.
+    What this protects: Scriber builds its Command-V from a private event source (`PasteService.swift:477`), so only the flags it sets travel with the keystroke. Built from the combined session state instead, whatever is physically held merges in and Command-V arrives as Option-Command-V or Shift-Command-V — a different command, or none. A failure looks like the dictation not landing, or landing with the wrong formatting, rather than like a crash.
 - Dictating into a password field is still refused, the notice names a secure field as the reason rather than reporting a generic failure, and it sounds the alert. Scriber's own API key field is the easiest one to try.
 
 ### The clipboard
