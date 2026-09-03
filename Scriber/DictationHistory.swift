@@ -64,9 +64,13 @@ struct DictationHistoryView: View {
         .onChange(of: filtered.isEmpty) { _, isEmpty in
             if isEmpty { dayTitle.title = nil }
         }
-        // A new search is a different list, and carrying a scrolled-open page into
-        // it would build results the user has not scrolled to.
-        .onChange(of: searchQuery) { _, _ in renderLimit = Self.pageSize }
+        // Known and unfixed: the page a search was scrolled to is carried back out
+        // of it. Resetting to one page here is what a different list deserves, but
+        // the scroll position does not reset with it: clearing a search scrolled
+        // far down left the viewport past the end of sixty rows, showing nothing
+        // until it was scrolled back. Growing the page is cheap and one-time;
+        // an empty history is not. Reset it here again only alongside sending the
+        // scroll back to the top.
         .accessibilityIdentifier("dictation-history-view")
     }
 

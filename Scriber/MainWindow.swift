@@ -80,7 +80,12 @@ struct MainWindowView: View {
     }
 
     var body: some View {
-        workspaceContent
+        // Filtered once and handed to both readers. `visibleRecords` is a computed
+        // property, so the list and the toolbar count each used to run it — two
+        // passes over every record on every insert, which a profile put second
+        // only to building the rows themselves.
+        let visible = visibleRecords
+        return workspaceContent(visible)
             .frame(minWidth: 640, minHeight: 480)
             .environmentObject(toasts)
             .overlay(alignment: .bottomTrailing) { ToastStackView().environmentObject(toasts) }
@@ -104,7 +109,7 @@ struct MainWindowView: View {
                         Text(workspace.title)
                             .font(.headline)
 
-                        Text(dictationCountLabel)
+                        Text(Self.dictationCountLabel(visible))
                             .foregroundStyle(.secondary)
                             .accessibilityIdentifier("dictation-count")
                     }
@@ -192,17 +197,17 @@ struct MainWindowView: View {
     }
 
     @ViewBuilder
-    private var workspaceContent: some View {
+    private func workspaceContent(_ visible: [DictationRecord]) -> some View {
         switch workspace {
         case .dictation:
-            DictationHistoryView(records: visibleRecords, searchQuery: searchQuery)
+            DictationHistoryView(records: visible, searchQuery: searchQuery)
         }
     }
 
     /// Counts what the workspace holds, not what the current search matches: the
     /// number is a property of the history, not of the query.
-    private var dictationCountLabel: String {
-        let count = visibleRecords.count
+    private static func dictationCountLabel(_ visible: [DictationRecord]) -> String {
+        let count = visible.count
         return "\(count) \(count == 1 ? "dictation" : "dictations")"
     }
 
