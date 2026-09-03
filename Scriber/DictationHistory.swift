@@ -18,17 +18,33 @@ struct DictationHistoryView: View {
         return records.filter { ($0.text ?? "").localizedCaseInsensitiveContains(searchQuery) }
     }
 
-    /// Regroups every record on each body evaluation. The day-title write in
+    /// How many records are built at once. Raised a page at a time as the end of
+    /// the list comes into view, and reset whenever the set being shown changes.
+    ///
+    /// Everything below this is rebuilt on every insert, because SwiftData
+    /// republishes the whole array and a day card's rows are an eager `ForEach`
+    /// inside a `VStack` — only whole sections are lazy, and a day the user has
+    /// dictated into all day is one section. A profile put `DictationHistoryRow`
+    /// at the top of the main thread for this reason. Grouping and building a
+    /// page costs the same whether the history holds fifty records or five
+    /// thousand, which is the point.
+    @State private var renderLimit = Self.pageSize
+
+    private static let pageSize = 60
+
+    /// Regroups a page on each body evaluation. The day-title write in
     /// `scrollingHistory` below is guarded to fire only when the titlebar's
-    /// label actually changes, rather than on every scroll frame — see that
-    /// guard if this ever needs revisiting for a large history.
+    /// label actually changes, rather than on every scroll frame.
     private var sections: [DictationHistorySection] {
         let calendar = Calendar.autoupdatingCurrent
-        let grouped = Dictionary(grouping: filtered) { calendar.startOfDay(for: $0.createdAt) }
+        let page = filtered.prefix(renderLimit)
+        let grouped = Dictionary(grouping: page) { calendar.startOfDay(for: $0.createdAt) }
         return grouped.keys.sorted(by: >).map { date in
             DictationHistorySection(date: date, records: grouped[date] ?? [])
         }
     }
+
+    private var hasMoreToShow: Bool { filtered.count > renderLimit }
 
     var body: some View {
         Group {
@@ -48,6 +64,9 @@ struct DictationHistoryView: View {
         .onChange(of: filtered.isEmpty) { _, isEmpty in
             if isEmpty { dayTitle.title = nil }
         }
+        // A new search is a different list, and carrying a scrolled-open page into
+        // it would build results the user has not scrolled to.
+        .onChange(of: searchQuery) { _, _ in renderLimit = Self.pageSize }
         .accessibilityIdentifier("dictation-history-view")
     }
 
@@ -84,6 +103,15 @@ struct DictationHistoryView: View {
                                 )
                             }
                         }
+                }
+                // Reaching the end of what is built asks for the next page. Inside
+                // the `LazyVStack`, so it is only created when the list has been
+                // scrolled that far — a marker outside one appears immediately and
+                // loads everything at once, which is the whole cost being avoided.
+                if hasMoreToShow {
+                    Color.clear
+                        .frame(height: 1)
+                        .onAppear { renderLimit += Self.pageSize }
                 }
             }
             .frame(maxWidth: DictationHistoryLayout.maxContentWidth, alignment: .leading)
