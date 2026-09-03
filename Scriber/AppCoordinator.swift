@@ -126,6 +126,8 @@ final class AppCoordinator: ObservableObject {
     private let scribe = ScribeClient()
     private let updateChecker = UpdateChecker()
     private let paste = PasteService()
+    /// Measurement only; delete with the delivery roadmap item.
+    private let stalls = MainThreadStallMonitor()
     private let login = LaunchAtLoginService()
     private let pill = PillController()
     private let reachability = NetworkReachability()
@@ -244,6 +246,8 @@ final class AppCoordinator: ObservableObject {
            !UpdateChecker.stillDescribesAnUpdate(offer, currentVersion: Self.runningVersion) {
             preferences.availableUpdate = nil
         }
+
+        stalls.start()
 
         shortcuts.onAction = { [weak self] action in self?.handle(action) }
         // A query, not the dismissal: the tap asks this while the key is passing,
