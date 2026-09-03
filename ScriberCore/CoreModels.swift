@@ -1071,6 +1071,14 @@ public struct ShortcutTapMachine: Sendable {
         reset()
     }
 
+    /// Known and unfixed: an idle arriving after a newer press has latched clears
+    /// that press's latch, and its release then matches nothing — leaving a held
+    /// recording nothing will stop. The machine cannot tell the two apart, because
+    /// a mode carries no sense of which dictation set it. `AppCoordinator` keeps
+    /// the case out of reach by refusing to start a dictation while the previous
+    /// one is still being delivered; do not remove that guard without replacing
+    /// this. Clearing the latch here is not optional either — it is what stops a
+    /// keyed chord's auto-repeat restarting the recording it just cancelled.
     public mutating func setMode(_ mode: ShortcutMonitorMode) {
         self.mode = mode
         if mode == .idle || mode == .busy { resetLatches() }

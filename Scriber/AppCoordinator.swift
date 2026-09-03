@@ -1006,6 +1006,14 @@ final class AppCoordinator: ObservableObject {
         // A press arriving mid-transcription is ignored, not answered. Saying
         // "Still transcribing" replaced the pill's own account of what was
         // happening with a restatement of it, for a second and a half.
+        // A dictation is not finished when its pill goes. Delivery still has to
+        // find the target, put the transcript on the clipboard, send the paste and
+        // hear back — a fifth of a second, sometimes twice that — and a dictation
+        // starting inside that window races the one still tidying up after itself.
+        // Ignored rather than answered, like a press during transcription: the
+        // window is short enough that only a deliberate attempt lands in it, and a
+        // notice about it would be more disruptive than the press being dropped.
+        if case .pressed = action, isDeliveringTranscript { return }
         if gate.isIdle, case .pressed = action {
             guard phase.acceptsRecordingStart else { return }
         }
@@ -1609,6 +1617,14 @@ final class AppCoordinator: ObservableObject {
     /// executor came back round, which is a delay between the text landing and
     /// the pill going that was not there before.
     private func deliverTranscript(_ transcript: String, record: DictationRecord) async {
+        // The pill is gone by now and the phase is already idle, so nothing else
+        // here says a dictation is still finishing. Without this flag a press
+        // arriving during delivery starts a whole recording, and then this
+        // dictation's own `returnToIdle` reaches `setMode(.idle)` and clears the
+        // hold latch the new press had just set in the tap — the release then
+        // matches nothing and the recording it started has nothing to stop it.
+        isDeliveringTranscript = true
+        defer { isDeliveringTranscript = false }
         let deliveryStarted = ContinuousClock().now
         let delivery = await paste.insert(transcript)
         // The whole delivery as the user experiences it: from the pill
@@ -2106,6 +2122,10 @@ final class AppCoordinator: ObservableObject {
     /// told about it. Measurement only; delete with the "Stop delivery holding
     /// the main thread" roadmap item.
     private var lastShortcutQueuedMilliseconds: Int?
+
+    /// Whether a finished dictation is still being handed to another app. True
+    /// only between the pill leaving and the delivery outcome being known.
+    private var isDeliveringTranscript = false
 
     private var elapsedSincePress: TimeInterval {
         guard let recordingStartedAt else { return 0 }
