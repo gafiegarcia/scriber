@@ -1035,22 +1035,55 @@ private final class FakeCredentialStorageBackend: CredentialStorageBackend, @unc
 struct RetainedAudioRetentionPolicyTests {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
+    private let period = RetainedAudioRetention.sevenDays.period!
+
     @Test("Expires only at the full retention period")
     func retentionBoundary() {
-        let period = RetainedAudioRetentionPolicy.retentionPeriod
         #expect(!RetainedAudioRetentionPolicy.hasExpired(
-            createdAt: now.addingTimeInterval(-period + 1), now: now
+            createdAt: now.addingTimeInterval(-period + 1), retention: .sevenDays, now: now
         ))
         #expect(RetainedAudioRetentionPolicy.hasExpired(
-            createdAt: now.addingTimeInterval(-period), now: now
+            createdAt: now.addingTimeInterval(-period), retention: .sevenDays, now: now
         ))
-        #expect(!RetainedAudioRetentionPolicy.hasExpired(createdAt: now, now: now))
+        #expect(!RetainedAudioRetentionPolicy.hasExpired(
+            createdAt: now, retention: .sevenDays, now: now
+        ))
+    }
+
+    @Test("A longer period keeps what a shorter one would have taken")
+    func longerPeriodKeepsWhatShorterTakes() {
+        let createdAt = now.addingTimeInterval(-period)
+        #expect(!RetainedAudioRetentionPolicy.hasExpired(
+            createdAt: createdAt, retention: .thirtyDays, now: now
+        ))
+        #expect(!RetainedAudioRetentionPolicy.hasExpired(
+            createdAt: .distantPast, retention: .never, now: now
+        ))
+    }
+
+    @Test("Never keeps everything, including a recording that went missing")
+    func neverKeepsEverything() {
+        #expect(RetainedAudioRetentionPolicy.disposition(
+            createdAt: .distantPast,
+            retention: .never,
+            retainedAudioPath: "recording.m4a",
+            retainedAudioExistsOnDisk: false,
+            now: now
+        ) == .keep)
+        #expect(RetainedAudioRetentionPolicy.disposition(
+            createdAt: .distantPast,
+            retention: .never,
+            retainedAudioPath: nil,
+            retainedAudioExistsOnDisk: nil,
+            now: now
+        ) == .keep)
     }
 
     @Test("Keeps a dictation whose recording is still worth retrying")
     func keepsRetryableDictation() {
         #expect(RetainedAudioRetentionPolicy.disposition(
             createdAt: now.addingTimeInterval(-60),
+            retention: .sevenDays,
             retainedAudioPath: "recording.m4a",
             retainedAudioExistsOnDisk: true,
             now: now
@@ -1060,7 +1093,8 @@ struct RetainedAudioRetentionPolicyTests {
     @Test("Takes the recording and the entry together at the period")
     func discardsExpiredDictationWithItsAudio() {
         #expect(RetainedAudioRetentionPolicy.disposition(
-            createdAt: now.addingTimeInterval(-RetainedAudioRetentionPolicy.retentionPeriod),
+            createdAt: now.addingTimeInterval(-period),
+            retention: .sevenDays,
             retainedAudioPath: "recording.m4a",
             retainedAudioExistsOnDisk: true,
             now: now
@@ -1071,6 +1105,7 @@ struct RetainedAudioRetentionPolicyTests {
     func discardsDictationWhoseAudioVanished() {
         #expect(RetainedAudioRetentionPolicy.disposition(
             createdAt: now.addingTimeInterval(-60),
+            retention: .sevenDays,
             retainedAudioPath: "recording.m4a",
             retainedAudioExistsOnDisk: false,
             now: now
@@ -1081,6 +1116,7 @@ struct RetainedAudioRetentionPolicyTests {
     func keepsEverythingWhenTheDirectoryIsUnreadable() {
         #expect(RetainedAudioRetentionPolicy.disposition(
             createdAt: now.addingTimeInterval(-60),
+            retention: .sevenDays,
             retainedAudioPath: "recording.m4a",
             retainedAudioExistsOnDisk: nil,
             now: now
@@ -1091,16 +1127,24 @@ struct RetainedAudioRetentionPolicyTests {
     func audiolessDictationWaitsOutThePeriod() {
         #expect(RetainedAudioRetentionPolicy.disposition(
             createdAt: now.addingTimeInterval(-60),
+            retention: .sevenDays,
             retainedAudioPath: nil,
             retainedAudioExistsOnDisk: nil,
             now: now
         ) == .keep)
         #expect(RetainedAudioRetentionPolicy.disposition(
-            createdAt: now.addingTimeInterval(-RetainedAudioRetentionPolicy.retentionPeriod),
+            createdAt: now.addingTimeInterval(-period),
+            retention: .sevenDays,
             retainedAudioPath: nil,
             retainedAudioExistsOnDisk: nil,
             now: now
         ) == .discardEntry)
+    }
+
+    @Test("Carries the replaced toggle's answer across, without inventing 30 days")
+    func migratesFromTheToggle() {
+        #expect(RetainedAudioRetention.migrating(fromDeletesExpiredRetainedAudio: true) == .sevenDays)
+        #expect(RetainedAudioRetention.migrating(fromDeletesExpiredRetainedAudio: false) == .never)
     }
 }
 

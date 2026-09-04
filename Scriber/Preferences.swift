@@ -27,7 +27,10 @@ final class Preferences: ObservableObject {
         static let audioInputSelection = "audioInputSelection"
         static let playDictationFeedbackSounds = "playDictationFeedbackSounds"
         static let muteOtherAudioWhileDictating = "muteOtherAudioWhileDictating"
-        static let deletesExpiredRetainedAudio = "deletesExpiredRetainedAudio"
+        static let retainedAudioRetention = "retainedAudioRetention"
+        /// The boolean this replaced. Read once, to carry over an answer already
+        /// given; never written again.
+        static let legacyDeletesExpiredRetainedAudio = "deletesExpiredRetainedAudio"
         static let automaticUpdateChecks = "automaticUpdateChecks"
         static let lastUpdateCheck = "lastUpdateCheck"
         static let availableUpdate = "availableUpdate"
@@ -67,8 +70,8 @@ final class Preferences: ObservableObject {
     @Published var muteOtherAudioWhileDictating: Bool {
         didSet { defaults.set(muteOtherAudioWhileDictating, forKey: Keys.muteOtherAudioWhileDictating) }
     }
-    @Published var deletesExpiredRetainedAudio: Bool {
-        didSet { defaults.set(deletesExpiredRetainedAudio, forKey: Keys.deletesExpiredRetainedAudio) }
+    @Published var retainedAudioRetention: RetainedAudioRetention {
+        didSet { defaults.set(retainedAudioRetention.rawValue, forKey: Keys.retainedAudioRetention) }
     }
     @Published var automaticUpdateChecks: Bool {
         didSet { defaults.set(automaticUpdateChecks, forKey: Keys.automaticUpdateChecks) }
@@ -112,9 +115,13 @@ final class Preferences: ObservableObject {
         // makes macOS demand System Audio Recording, and an opt-out default
         // would spend that prompt during a first dictation.
         muteOtherAudioWhileDictating = defaults.bool(forKey: Keys.muteOtherAudioWhileDictating)
-        deletesExpiredRetainedAudio = defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil
-            ? true
-            : defaults.bool(forKey: Keys.deletesExpiredRetainedAudio)
+        retainedAudioRetention = defaults.string(forKey: Keys.retainedAudioRetention)
+            .flatMap(RetainedAudioRetention.init(rawValue:))
+            ?? RetainedAudioRetention.migrating(
+                fromDeletesExpiredRetainedAudio: defaults.object(forKey: Keys.legacyDeletesExpiredRetainedAudio) == nil
+                    ? true
+                    : defaults.bool(forKey: Keys.legacyDeletesExpiredRetainedAudio)
+            )
         automaticUpdateChecks = Self.optInFlag(Keys.automaticUpdateChecks, in: defaults)
         lastUpdateCheck = defaults.object(forKey: Keys.lastUpdateCheck) as? Date
         availableUpdate = Self.decode(AvailableUpdate.self, key: Keys.availableUpdate, defaults: defaults)
@@ -123,8 +130,8 @@ final class Preferences: ObservableObject {
         if defaults.object(forKey: Keys.playDictationFeedbackSounds) == nil {
             defaults.set(true, forKey: Keys.playDictationFeedbackSounds)
         }
-        if defaults.object(forKey: Keys.deletesExpiredRetainedAudio) == nil {
-            defaults.set(true, forKey: Keys.deletesExpiredRetainedAudio)
+        if defaults.string(forKey: Keys.retainedAudioRetention) == nil {
+            defaults.set(retainedAudioRetention.rawValue, forKey: Keys.retainedAudioRetention)
         }
         if defaults.object(forKey: Keys.startInBackground) == nil {
             defaults.set(true, forKey: Keys.startInBackground)

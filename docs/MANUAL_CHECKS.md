@@ -66,6 +66,7 @@ Never ask Gaf to risk irreplaceable history, the only copy of an API key, or acc
 
 - Copy a known, non-sensitive history entry and paste it into a scratch field. The correct transcript arrives and the copy toast does not move the source row. This replaces the current clipboard.
 - Create a disposable retryable dictation by speaking for more than one second and cancelling with Escape, then retry that generated entry. **Retry spends API credit; ask first.** Its row remains visible with the Retrying label and success is confirmed by a readable pill. Delete only this synthetic entry afterward, after checking its content and timestamp distinguish it from real history.
+- On the first launch after an update that changes the retention sweep, count the history before and after. Transcripts are all still there; what is gone is failed and cancelled entries past the chosen period. **Irreplaceable history is at stake, so read Settings → Dictation first**: whatever **Delete failed and cancelled dictations** says is what will have been applied, and **Never** must leave the count untouched.
 
 ## When the data-use guidance changes
 

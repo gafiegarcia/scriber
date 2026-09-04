@@ -12,6 +12,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Changed
 
+- **You choose how long a failed or cancelled dictation is kept, and the default is now 7 days.** Settings → Dictation replaces the **Delete unused recordings after 30 days** switch with a choice of **After 7 days**, **After 30 days**, and **Never**. If you had that switch on, you get the new default — 30 days was never something you picked. If you had turned it off, you get **Never**, which leaves everything where it is.
 - **A failed or cancelled dictation now leaves your history when its recording does.** Such an entry was kept forever after its recording expired, saying only that it could no longer be retried — nothing to read, nothing to copy, nothing to do. The entry and the recording now go together, as does any entry whose recording has gone missing. Dictations that produced a transcript are untouched. Entries already stranded this way are cleared the first time you open Scriber.
 - **Dictation history follows the shape Notes and Mail use.** Every day is named above its own entries and the name stays with you as you scroll through that day, rather than appearing only in the window's titlebar. The cards each day sat in are gone; entries are separated by a rule the way a list separates rows.
 - **The main window has a maximum width.** A transcript column reads badly when it runs the whole width of a large display, so the window stops at a comfortable measure. **It can no longer be made full screen** — Fill and the green button grow it vertically only.

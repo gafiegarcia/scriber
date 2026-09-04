@@ -755,14 +755,51 @@ public enum RecordingCancellationPolicy {
 
 /// When Scriber stops keeping a failed or cancelled dictation. Unretried audio
 /// left in Application Support is a privacy cost as much as a disk one, so
-/// retention is bounded rather than indefinite, and a dictation that never
-/// produced a transcript goes with its recording: what is left offers nothing to
-/// read, copy, or retry.
-public enum RetainedAudioRetentionPolicy {
-    public static let retentionPeriod: TimeInterval = 30 * 24 * 60 * 60
+/// retention is bounded unless the user asks otherwise, and a dictation that
+/// never produced a transcript goes with its recording: what is left offers
+/// nothing to read, copy, or retry.
+/// How long a failed or cancelled dictation is kept, as the user chose it.
+public enum RetainedAudioRetention: String, CaseIterable, Codable, Sendable {
+    case sevenDays
+    case thirtyDays
+    case never
 
-    public static func hasExpired(createdAt: Date, now: Date = .now) -> Bool {
-        now.timeIntervalSince(createdAt) >= retentionPeriod
+    public static let standard: RetainedAudioRetention = .sevenDays
+
+    /// `nil` for `never`, which is the one answer that is not a length of time.
+    public var period: TimeInterval? {
+        switch self {
+        case .sevenDays: 7 * 24 * 60 * 60
+        case .thirtyDays: 30 * 24 * 60 * 60
+        case .never: nil
+        }
+    }
+
+    public var label: String {
+        switch self {
+        case .sevenDays: "After 7 days"
+        case .thirtyDays: "After 30 days"
+        case .never: "Never"
+        }
+    }
+
+    /// Carries over the answer someone gave the **Delete unused recordings after
+    /// 30 days** toggle this replaced. Nobody chose 30 days — it was the only
+    /// behaviour on offer — so an enabled toggle means "yes, clean up" and takes
+    /// the new default. Only switching it off was ever a decision of its own.
+    public static func migrating(fromDeletesExpiredRetainedAudio wasEnabled: Bool) -> RetainedAudioRetention {
+        wasEnabled ? standard : .never
+    }
+}
+
+public enum RetainedAudioRetentionPolicy {
+    public static func hasExpired(
+        createdAt: Date,
+        retention: RetainedAudioRetention,
+        now: Date = .now
+    ) -> Bool {
+        guard let period = retention.period else { return false }
+        return now.timeIntervalSince(createdAt) >= period
     }
 
     /// What the sweep does with one dictation. Ask only about a failed or
@@ -781,11 +818,15 @@ public enum RetainedAudioRetentionPolicy {
     ///   and take the whole history with it.
     public static func disposition(
         createdAt: Date,
+        retention: RetainedAudioRetention,
         retainedAudioPath: String?,
         retainedAudioExistsOnDisk: Bool?,
         now: Date = .now
     ) -> Disposition {
-        let expired = hasExpired(createdAt: createdAt, now: now)
+        // Never means never: not the recording, not the entry, not one whose
+        // recording has gone missing on its own.
+        guard retention != .never else { return .keep }
+        let expired = hasExpired(createdAt: createdAt, retention: retention, now: now)
         guard retainedAudioPath != nil else {
             // Nothing to retry already. The row still waits out the retention
             // period, so a dictation that failed this morning stays visible

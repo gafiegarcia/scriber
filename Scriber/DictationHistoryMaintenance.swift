@@ -65,13 +65,13 @@ final class DictationHistoryMaintenance {
     /// along with any retained audio still behind them. Such a dictation earns its
     /// row by being retryable; once the recording has expired or gone missing and
     /// no transcript ever arrived, the row can only be scrolled past.
-    func discardExpiredDictations(ifEnabled isEnabled: Bool) {
+    func discardExpiredDictations(keptFor retention: RetainedAudioRetention) {
         // Never from a test build. `PendingAudio` is one real directory that
         // `--ui-testing` does not isolate while the history store under it *is*
         // in-memory, so the sweep below sees every one of Gaf's genuinely retained
         // recordings as referenced by nothing and deletes the expired ones. This
         // guard has to cover every entry point, not just the launch call site.
-        guard servicesAllowed, isEnabled,
+        guard servicesAllowed, retention != .never,
               let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
 
         // `nil` when the directory could not be read, which the policy needs to
@@ -97,6 +97,7 @@ final class DictationHistoryMaintenance {
             }
             let disposition = RetainedAudioRetentionPolicy.disposition(
                 createdAt: record.createdAt,
+                retention: retention,
                 retainedAudioPath: record.pendingAudioRelativePath,
                 retainedAudioExistsOnDisk: record.pendingAudioRelativePath.flatMap { path in
                     audioOnDisk.map { $0.contains(path) }
@@ -122,7 +123,10 @@ final class DictationHistoryMaintenance {
         guard let files = audioFiles else { return }
         for file in files where !referencedAudio.contains(file.lastPathComponent) {
             let createdAt = (try? file.resourceValues(forKeys: [.creationDateKey]))?.creationDate
-            guard RetainedAudioRetentionPolicy.hasExpired(createdAt: createdAt ?? .distantPast) else { continue }
+            guard RetainedAudioRetentionPolicy.hasExpired(
+                createdAt: createdAt ?? .distantPast,
+                retention: retention
+            ) else { continue }
             try? FileManager.default.removeItem(at: file)
         }
     }

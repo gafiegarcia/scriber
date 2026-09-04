@@ -383,17 +383,17 @@ final class AppCoordinator: ObservableObject {
         }
         .store(in: &cancellables)
 
-        preferences.$deletesExpiredRetainedAudio
+        preferences.$retainedAudioRetention
             .dropFirst()
-            .sink { [weak self] enabled in
-                self?.historyMaintenance.discardExpiredDictations(ifEnabled: enabled)
+            .sink { [weak self] retention in
+                self?.historyMaintenance.discardExpiredDictations(keptFor: retention)
             }
             .store(in: &cancellables)
 
         if persistenceAvailable, servicesAllowed {
             historyMaintenance.recoverPersistedAndOrphanedRecords()
             historyMaintenance.discardExpiredDictations(
-                ifEnabled: preferences.deletesExpiredRetainedAudio
+                keptFor: preferences.retainedAudioRetention
             )
         }
         lastObservedCredentialReadiness = credentialReadiness
@@ -1172,7 +1172,7 @@ final class AppCoordinator: ObservableObject {
     func discardExpiredDictations() {
         guard persistenceAvailable else { return }
         historyMaintenance.discardExpiredDictations(
-            ifEnabled: preferences.deletesExpiredRetainedAudio
+            keptFor: preferences.retainedAudioRetention
         )
     }
 

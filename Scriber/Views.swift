@@ -758,12 +758,19 @@ private struct DictationSettingsPane: View {
                 }
             }
             Section {
-                SettingsToggle(
-                    "Delete unused recordings after 30 days",
-                    caption: "Failed and cancelled dictations keep their audio so you can retry them. Transcripts and history entries are always kept; only the unused recording is removed.",
-                    isOn: $runtime.preferences.deletesExpiredRetainedAudio
-                )
-                .accessibilityIdentifier("delete-expired-audio-toggle")
+                Picker(selection: $runtime.preferences.retainedAudioRetention) {
+                    ForEach(RetainedAudioRetention.allCases, id: \.self) { retention in
+                        Text(retention.label).tag(retention)
+                    }
+                } label: {
+                    // Two `Text`s inside AppKit's own label, for the reason
+                    // `SettingsToggle` gives: a caption written as its own row is
+                    // divided from the setting it explains.
+                    Text("Delete failed and cancelled dictations")
+                    Text("A failed or cancelled dictation keeps its recording so you can retry it. This sets how long it is kept before both the recording and the entry are deleted.")
+                        .padding(.top, SettingsPaneLayout.captionGap)
+                }
+                .accessibilityIdentifier("retained-audio-retention")
 
                 HStack {
                     Button("Clear Dictation History…", role: .destructive) {
