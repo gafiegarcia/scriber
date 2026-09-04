@@ -263,7 +263,7 @@ While inspecting: the toolbar must read **22 dictations** — 23 means the in-fl
 
 ### Scroll-load history
 
-`--ui-testing-seed-history-large` fills the in-memory store with 406 synthetic records over 29 days, for inspecting the history list under a load the curated fixture above cannot produce — scrolling smoothness and the day strip's handover behavior across many more crossings than four days gives you. It is a separate flag from `--ui-testing-seed-history`; pass only one. `Scriber/UITestingLargeHistoryFixture.swift` documents the fixture. It is not the fixture the "22 dictations" check above depends on.
+`--ui-testing-seed-history-large` fills the in-memory store with 1,918 synthetic records over 45 days, shaped from the real store — one day holds 290 of them, and transcript lengths run one to four lines. Both of those matter: a uniform fixture answers an easier question than the real history asks, and the heavy day is where a list that builds a whole section at once falls over. It is a separate flag from `--ui-testing-seed-history`; pass only one. `Scriber/UITestingLargeHistoryFixture.swift` documents the fixture. It is not the fixture the "22 dictations" check above depends on.
 
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -283,7 +283,7 @@ Use this same isolated launch for the window, toolbar, Settings, and history int
 - `⌘F` focuses Dictation search. In Settings, the command is disabled and leaves focus unchanged.
 - Launch, the Dock icon, and reopening after `⌘W` all present the main window with search focused. Returning from another app, `⌘H`, or minimising preserves an existing transcript selection and search/scroll position.
 - The main window has no displayed title. Workspace, total rendered count, and warning control stay grouped without reflow; search does not change the total.
-- The titlebar's day strip names the day at the top of the list, hands over as the next day's card reaches it, and collapses when a search matches nothing. Its label stays aligned to the card's leading edge at both the minimum window size and full width, the separator appears only over scrolled content, and the cards and toolbar survive minimum window size.
+- Each day's label sits above its entries and sticks to the top of the list as that day passes under, handing over to the next. Scroll the full 45 days, then drag the scrollbar hard from top to bottom and back several times: content is on screen at every position and the list never blanks. Rows and toolbar survive minimum window size.
 - Single-entry Delete and Clear Dictation History both ask first. Clear Dictation History is on Settings' Dictation tab. Exercise Cancel and confirmation against the in-memory fixture, verify the rendered count, and never repeat this against the installed app's real history.
 - Saving a dummy key and then choosing **Remove API Key…** on the ElevenLabs tab exercises only the confirmation, routing, and visible missing-key state. It is not evidence about the real Keychain.
 - Every route that opens Settings to fix something selects the tab that owns the problem, and opening Settings without naming one leaves the selected tab alone: press `⌘,` twice and the second opening stays where the first was left. Scroll that tab to the bottom, close the window, and reopen it: the same tab comes back, at its top.

@@ -6,46 +6,30 @@ import ScriberCore
 #endif
 
 struct DictationHistoryView: View {
-    @EnvironmentObject private var runtime: AppRuntime
     /// Already filtered to what the workspace shows; the window owns that filter
     /// so its toolbar count cannot disagree with this list.
+    ///
+    /// No `@EnvironmentObject` here. This view reads nothing off `AppRuntime`,
+    /// and holding one anyway subscribed it to every coordinator publish — a
+    /// phase change re-evaluated the whole history for nothing.
     let records: [DictationRecord]
     let searchQuery: String
-    @StateObject private var dayTitle = DictationDayTitle()
 
     private var filtered: [DictationRecord] {
         guard !searchQuery.isEmpty else { return records }
         return records.filter { ($0.text ?? "").localizedCaseInsensitiveContains(searchQuery) }
     }
 
-    /// How many records are built at once. Raised a page at a time as the end of
-    /// the list comes into view, and reset only when the list is taken down —
-    /// never while it is on screen, which is the `Known and unfixed:` note below.
-    ///
-    /// Everything below this is rebuilt on every insert, because SwiftData
-    /// republishes the whole array and a day card's rows are an eager `ForEach`
-    /// inside a `VStack` — only whole sections are lazy, and a day the user has
-    /// dictated into all day is one section. A profile put `DictationHistoryRow`
-    /// at the top of the main thread for this reason. Grouping and building a
-    /// page costs the same whether the history holds fifty records or five
-    /// thousand, which is the point.
-    @State private var renderLimit = Self.pageSize
-
-    private static let pageSize = 60
-
-    /// Regroups a page on each body evaluation. The day-title write in
-    /// `scrollingHistory` below is guarded to fire only when the titlebar's
-    /// label actually changes, rather than on every scroll frame.
+    /// Groups the whole history by day, with no paging of any kind. `List` builds
+    /// only the rows near the viewport and reuses them as they scroll away, so
+    /// handing it every record costs about what handing it sixty used to.
     private var sections: [DictationHistorySection] {
         let calendar = Calendar.autoupdatingCurrent
-        let page = filtered.prefix(renderLimit)
-        let grouped = Dictionary(grouping: page) { calendar.startOfDay(for: $0.createdAt) }
+        let grouped = Dictionary(grouping: filtered) { calendar.startOfDay(for: $0.createdAt) }
         return grouped.keys.sorted(by: >).map { date in
             DictationHistorySection(date: date, records: grouped[date] ?? [])
         }
     }
-
-    private var hasMoreToShow: Bool { filtered.count > renderLimit }
 
     var body: some View {
         Group {
@@ -58,148 +42,43 @@ struct DictationHistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DictationHistoryLayout.pageBackground)
-        .background {
-            DictationDayTitlebarInstaller(model: dayTitle).frame(width: 0, height: 0)
-        }
-        .onChange(of: filtered.isEmpty) { _, isEmpty in
-            if isEmpty { dayTitle.title = nil }
-        }
-        // An empty `records` is how a closed window reaches this view: `MainWindow`
-        // stops filtering for a window nobody can see, which takes the whole list
-        // down. Reset the page with it, or reopening rebuilds every row the last
-        // session scrolled to in one body pass, with the scroll back at the top so
-        // none of that work is even visible. Safe here and nowhere else — there is
-        // no scroll position to strand when there is no list.
-        .onChange(of: records.isEmpty) { _, isEmpty in
-            if isEmpty { renderLimit = Self.pageSize }
-        }
-        // Known and unfixed: the page a search was scrolled to is carried back out
-        // of it. Resetting to one page here is what a different list deserves, but
-        // the scroll position does not reset with it: clearing a search scrolled
-        // far down left the viewport past the end of sixty rows, showing nothing
-        // until it was scrolled back. Growing the page is cheap and one-time;
-        // an empty history is not. Reset it here again only alongside sending the
-        // scroll back to the top.
         .accessibilityIdentifier("dictation-history-view")
     }
 
-    /// A `ScrollView` rather than a `List`, so the page can scroll under the
-    /// titlebar's glass. The width cap sits on the content, not the scroll view,
-    /// which keeps the scroll indicator against the window edge.
+    /// A `List`, which is `NSTableView` underneath on macOS: it builds only the
+    /// rows near the viewport and reuses them as they scroll away, so a history
+    /// of any length costs the same to show.
     ///
-    /// The outer reader is here for the safe-area inset alone — the titlebar's
-    /// height, and so the line a card's top crosses on its way out of sight.
-    /// Measure it rather than hardcoding: it follows the user's text size.
+    /// **Do not hand-draw what this already draws.** `List` supplies the row
+    /// separators — including suppressing the one after a section's last row —
+    /// and makes a `Section` header stick to the top of the scroll area on its
+    /// way past, which is the Apple Notes behaviour Scriber used to approximate
+    /// with a titlebar strip and a preference key tracking every card's offset.
+    /// All of that is deleted. Adding a divider, a card, or a day label back here
+    /// draws a second one on top of the framework's.
     private var historyList: some View {
-        GeometryReader { outer in
-            scrollingHistory(titlebarHeight: outer.safeAreaInsets.top)
-        }
-    }
-
-    private func scrollingHistory(titlebarHeight: CGFloat) -> some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(sections) { section in
-                    DictationDayCard(records: section.records)
-                        .padding(.bottom, DictationHistoryLayout.groupSpacing)
-                        .background {
-                            GeometryReader { proxy in
-                                Color.clear.preference(
-                                    key: DictationSectionTopKey.self,
-                                    value: [
-                                        DictationSectionTop(
-                                            id: section.id,
-                                            title: section.title,
-                                            top: proxy.frame(in: .named(Self.scrollSpace)).minY
-                                        )
-                                    ]
-                                )
-                            }
-                        }
-                }
-                // Reaching the end of what is built asks for the next page. Inside
-                // the `LazyVStack`, so it is only created when the list has been
-                // scrolled that far — a marker outside one appears immediately and
-                // loads everything at once, which is the whole cost being avoided.
-                if hasMoreToShow {
-                    Color.clear
-                        .frame(height: 1)
-                        .onAppear { renderLimit += Self.pageSize }
-                }
-            }
-            .frame(maxWidth: DictationHistoryLayout.maxContentWidth, alignment: .leading)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, DictationHistoryLayout.horizontalInset)
-            .padding(.top, DictationHistoryLayout.topInset)
-            .padding(.bottom, 24)
-        }
-        .coordinateSpace(.named(Self.scrollSpace))
-        .onPreferenceChange(DictationSectionTopKey.self) { tops in
-            MainActor.assumeIsolated {
-                let title = Self.currentTitle(from: tops, crossing: titlebarHeight)
-                // `top` moves every scroll frame, so this fires every frame too.
-                // `@Published` publishes on assignment whether or not the value
-                // changed, so an unconditional write here invalidates the whole
-                // view — recomputing `sections` over the entire history — on every
-                // frame of every scroll.
-                if dayTitle.title != title {
-                    dayTitle.title = title
+        List {
+            ForEach(sections) { section in
+                Section(section.title) {
+                    ForEach(section.records) { record in
+                        DictationHistoryRow(record: record)
+                    }
                 }
             }
         }
     }
 
-    private static let scrollSpace = "dictation-history-scroll"
-
-    /// The day the titlebar names: the last card whose top has already reached the
-    /// titlebar, or the first one still below it before any has. Sorted rather than
-    /// trusted in order — preference values arrive in whatever order SwiftUI
-    /// collected the children, which is not the list's order.
-    private static func currentTitle(
-        from tops: [DictationSectionTop],
-        crossing titlebarHeight: CGFloat
-    ) -> String? {
-        let ordered = tops.sorted { $0.id > $1.id }
-        guard let first = ordered.first else { return nil }
-        return ordered.last { $0.top <= titlebarHeight }?.title ?? first.title
-    }
 }
 
-/// Where each day's card sits relative to the top of the scroll view. Negative
-/// once the card has begun passing under the titlebar.
-private struct DictationSectionTop: Equatable, Sendable {
-    let id: Date
-    let title: String
-    let top: CGFloat
-}
-
-private struct DictationSectionTopKey: PreferenceKey {
-    static let defaultValue: [DictationSectionTop] = []
-
-    static func reduce(value: inout [DictationSectionTop], nextValue: () -> [DictationSectionTop]) {
-        value.append(contentsOf: nextValue())
-    }
-}
-
+/// What is left of the page's geometry now that `List` owns the rest.
+///
+/// The card metrics, the page background, the width cap, the day-label inset and
+/// the gap between days all went with the cards and the titlebar strip: `List`
+/// supplies its own insets, background, separators and sticky headers. Add a
+/// constant back only when the framework's own value has been looked at on screen
+/// and rejected — not to reproduce the old page from memory.
 enum DictationHistoryLayout {
-    /// Wider than Settings. They used to match, back when Settings was a page in
-    /// this same window; it is its own window now, so the transcript column is
-    /// free to be as wide as it reads well at.
-    static let maxContentWidth: CGFloat = 800
-
-    /// Distance from the window edge to the card edge, and the page's horizontal
-    /// rhythm generally.
-    static let horizontalInset: CGFloat = 32
-
-    /// The day label hangs 2pt off the cards' leading edge, the way a Finder
-    /// sidebar heading sits a little left of the rows under it. Far enough to
-    /// read as sitting above the card rather than inside it, and no further —
-    /// what should look indented is the content, not the heading.
-    static let dayLabelLeadingInset: CGFloat = horizontalInset - 2
-
-    /// Padding inside the card, between its edge and a row's content. The rule
-    /// between neighbouring rows does not share it; that one runs full width.
+    /// Leading padding on a row, between the list's own inset and the entry time.
     static let contentInset: CGFloat = 16
 
     /// Top and bottom padding on a row. A shade under `contentInset`, because a
@@ -207,61 +86,12 @@ enum DictationHistoryLayout {
     /// this number at all.
     static let rowVerticalInset: CGFloat = 14
 
-    /// Between the entry time and the transcript beside it. Keep it close to
-    /// `contentInset`: open much wider than the card's own padding and the time
-    /// reads as pushed against the border rather than as a column of its own.
+    /// Between the entry time and the transcript beside it.
     static let timeColumnGap: CGFloat = 20
-
-    static let cardCornerRadius: CGFloat = 16
-
-    /// The gap that separates one day from the next. Wider than it looks like it
-    /// needs: the day label sits in the titlebar rather than between the cards, so
-    /// this gap is the only thing marking where one day ends and the next begins.
-    static let groupSpacing: CGFloat = 40
-
-    /// Clearance between the titlebar's day label and the first card under it.
-    static let topInset: CGFloat = 20
-
-    /// The page's fill, painted explicitly rather than inherited. Do not reach for
-    /// another system colour to stand in for the window's own background: none
-    /// matches it, and the difference shows as a band wherever the two meet.
-    static let pageBackground = Color(nsColor: .windowBackgroundColor)
 }
 
 /// One day group as a single card: one shape, one outline, one rule between
 /// neighbouring rows.
-private struct DictationDayCard: View {
-    let records: [DictationRecord]
-
-    // One number for the outline's weight and each rule's horizontal inset, and
-    // they have to stay equal. `strokeBorder` draws inward, so the border owns
-    // this outer band on every edge and insetting each rule by the same width
-    // lands its ends on the border's inner edge. Full width instead and both lay a
-    // semi-transparent `.separator` over that band, stacking into a darker dot at
-    // each end; inset any more and a gap opens.
-    private let borderWidth: CGFloat = 1
-
-    private var shape: RoundedRectangle {
-        // The squircle, which is what macOS actually draws — `.circular` joins a
-        // straight edge to a circular arc and the join is visible at this radius.
-        RoundedRectangle(cornerRadius: DictationHistoryLayout.cardCornerRadius, style: .continuous)
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ForEach(records) { record in
-                DictationHistoryRow(record: record)
-                if record.id != records.last?.id {
-                    Divider()
-                        .padding(.horizontal, borderWidth)
-                }
-            }
-        }
-        .clipShape(shape)
-        .overlay { shape.strokeBorder(.separator, lineWidth: borderWidth) }
-    }
-}
-
 private struct DictationHistorySection: Identifiable {
     let date: Date
     let records: [DictationRecord]

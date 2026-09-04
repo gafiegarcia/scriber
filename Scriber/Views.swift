@@ -795,18 +795,25 @@ private struct DictationSettingsPane: View {
     }
 }
 
-/// The added keyterms as their own card, matching `DictationDayCard`'s recipe:
-/// one shape, one outline, one rule between neighbouring rows. Not drawn when
-/// there are no keyterms, and not indented — the border and per-row padding
-/// already mark this as the contents of Keyterms.
+/// The added keyterms as their own card: one shape, one outline, one rule
+/// between neighbouring rows. Not drawn when there are no keyterms, and not
+/// indented — the border and per-row padding already mark this as the contents
+/// of Keyterms.
+///
+/// Hand-drawn because this is a handful of terms inside a form, not a list.
+/// Dictation history used to be built this way too and is now a `List`, which
+/// draws its own separators; do not take this as the pattern for anything that
+/// scrolls.
 private struct KeytermsCard: View {
     let terms: [String]
     let onRemove: (String) -> Void
 
     // One number for the outline's weight and each rule's horizontal inset, kept
-    // equal for the reasons `DictationDayCard.borderWidth` spells out: the rules
-    // read as the same line as the border, and their ends butt the border's
-    // inner edge instead of stacking on it into a darker dot.
+    // equal. `strokeBorder` draws inward, so the border owns this outer band and
+    // insetting each rule by the same width lands its ends on the border's inner
+    // edge. Full width instead and both lay a semi-transparent `.separator` over
+    // that band, stacking into a darker dot at each end; inset any more and a gap
+    // opens.
     private let borderWidth: CGFloat = 1
 
     private var shape: RoundedRectangle {
