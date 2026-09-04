@@ -65,20 +65,6 @@ struct DictationHistoryView: View {
                 Section {
                     ForEach(section.records) { record in
                         DictationHistoryRow(record: record)
-                            // The gap between one group and the next hangs off the
-                            // last row above it, because a pinned header's height
-                            // is the list's to set and nothing put inside one
-                            // changes it. Padding rather than a bottom row inset:
-                            // a row's height comes from its content, which is the
-                            // same reason the transcript's padding is what sizes
-                            // an ordinary row. The inset was tried here and
-                            // produced no gap at all.
-                            .padding(
-                                .bottom,
-                                record.id == section.records.last?.id
-                                    ? DictationHistoryLayout.groupSpacing
-                                    : 0
-                            )
                             // `List` draws a separator on every row including a
                             // section's first and last, and `listSectionSeparator`
                             // does not reach either — it was tried here and
@@ -138,12 +124,22 @@ struct DictationHistoryView: View {
                 }
             }
         }
-        // Named rather than left to `.automatic`, and not for looks. Apple's
-        // reference says of both `listRowSeparator` and `listSectionSeparator`:
-        // "the list style is the final arbiter of separator visibility." Under
-        // `.automatic` every separator preference in this file was ignored.
-        // `.plain` also brings no inset of its own, so the width is ours to set.
-        .listStyle(.plain)
+        // The style decides three things at once and they cannot be picked
+        // separately: whether the separator preferences below are honoured, how
+        // much space sits between one section and the next, and how far a day
+        // label travels under the toolbar before handing over to the next.
+        //
+        // `.inset` is the only one that gives all three. `.automatic` ignored
+        // every separator preference in this file — Apple's reference says "the
+        // list style is the final arbiter of separator visibility" — and `.plain`
+        // honours them but supplies no section spacing and hands a day label over
+        // only once it is entirely under the toolbar, a scroll of its length
+        // during which the label names the wrong day.
+        //
+        // Do not switch this to control a separator. Three rounds of work went
+        // into rebuilding by hand what `.plain` had taken away, and all of it was
+        // deleted when the style changed back.
+        .listStyle(.inset)
         // No width cap here. The window itself is capped instead — see
         // `fitMainWindow` — so the list fills it and the scroll bar stays against
         // the window edge where a scroll bar belongs. Capping the list moved the
@@ -178,9 +174,11 @@ enum DictationHistoryLayout {
     /// Between the entry time and the transcript beside it.
     static let timeColumnGap: CGFloat = 20
 
-    /// Above a day label, separating it from the group before it. No rule marks
-    /// that boundary any more, so this gap is the only thing that does.
-    static let groupSpacing: CGFloat = 40
+    // No constant for the gap between one day and the next. `.inset` supplies it,
+    // and two attempts to declare it here — a top inset on the header, a bottom
+    // one on the last row above it — were both wrong: the first because a header
+    // ignores insets, the second because it was reproducing something the style
+    // was going to give for free under a style we had no reason to avoid.
 
     /// A day label is a heading, not a caption, and has to read as one against a
     /// column of transcripts — clearly larger and heavier than the body text it
