@@ -14,8 +14,14 @@ import SwiftData
 /// record, and neither can reach one of Gaf's real recordings.
 @MainActor
 enum UITestingLargeHistoryFixture {
-    private static let dayCount = 29
-    private static let recordsPerDay = 14
+    /// Shaped from the real store on 2026-09-04: 1,923 records over 45 days,
+    /// with one day holding 290 of them. The heavy day is the case that matters
+    /// — a single day card's rows are an eager `ForEach`, so one section can be
+    /// asked to build 290 rows at once, and no amount of laziness between
+    /// sections helps with that.
+    private static let dayCount = 45
+    private static let heaviestDayRecords = 290
+    private static let ordinaryDayRecords = 37
 
     static func seed(into context: ModelContext) {
         let calendar = Calendar.autoupdatingCurrent
@@ -24,9 +30,10 @@ enum UITestingLargeHistoryFixture {
 
         for dayOffset in 0..<dayCount {
             guard let day = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { continue }
+            let recordsPerDay = dayOffset == 0 ? heaviestDayRecords : ordinaryDayRecords
             for slot in 0..<recordsPerDay {
                 index += 1
-                let hour = 23 - (slot * (24 / recordsPerDay))
+                let hour = 23 - (slot * 24 / recordsPerDay)
                 let minute = (index * 7) % 60
                 let createdAt = calendar.date(
                     bySettingHour: max(hour, 0),
@@ -46,12 +53,27 @@ enum UITestingLargeHistoryFixture {
             id: id(index),
             createdAt: createdAt,
             durationSeconds: Double(3 + (index % 40)),
-            text: "Synthetic scroll-performance entry number \(index), long enough to " +
-                "occupy a couple of lines the way a real dictation would.",
+            text: text(index: index),
             detectedLanguageCode: "en",
             transcriptionState: .succeeded,
             deliveryState: .pasted
         )
+    }
+
+    /// Row heights have to vary the way real ones do, or a list measured against
+    /// this fixture answers an easier question than the real history asks. The
+    /// mix follows the real store's length distribution for dictations over ten
+    /// seconds: about a quarter one line, a third two, and the rest three or
+    /// four, with a few long enough to be truncated.
+    private static func text(index: Int) -> String {
+        let sentence = "Synthetic scroll-performance entry number \(index), long enough to occupy "
+            + "a line or two the way a real dictation would. "
+        return switch index % 12 {
+        case 0, 1, 2: "Short entry number \(index)."
+        case 3, 4, 5, 6: sentence
+        case 7, 8, 9, 10: String(repeating: sentence, count: 2)
+        default: String(repeating: sentence, count: 4)
+        }
     }
 
     /// Deterministic and namespaced away from `UITestingHistoryFixture`'s ids,
