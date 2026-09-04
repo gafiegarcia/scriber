@@ -103,13 +103,15 @@ hdiutil detach "$MNT" && rm -f /tmp/Scriber-quarantined.dmg
 
 Both must pass: `accepted` with `source=Notarized Developer ID`, and a valid ticket. `spctl --type exec` is the wrong assessment for an application bundle and reports that the code is valid but does not seem to be an app; do not use it here.
 
-## 6. Verify the candidate on real hardware, before tagging
+## 6. Verify the candidate on real hardware when a second Mac is reachable
 
 Run the distribution checks in [Manual checks](MANUAL_CHECKS.md) against the disk image built above, while it is still only a file in `.build/`. Send it to a second macOS account and to a Mac on the oldest supported macOS by any route that marks it as downloaded; that flag, not a release URL, is what makes Gatekeeper assess it.
 
-Doing this after tagging instead is what turns one release into several. A tag on `main` ships, so a fault found afterwards costs a new version for a build nobody could install — while the same fault found here costs a rebuild and nothing else.
+Do this before tagging whenever the hardware is available, because a fault found here costs a rebuild and nothing else, while the same fault found after the tag costs a whole new version for a build nobody could install.
 
-Only the three things step 7 produces can still be wrong after tagging, and none of them needs a new version: a bad asset is replaced with `gh release upload --clobber`, wrong notes with `gh release edit`, and a wrong cask checksum in the tap repository alone.
+**When the hardware is not available, tag anyway.** The oldest-macOS machine is borrowed rather than owned, and holding a release until it can be borrowed has already meant holding fixes that were worth shipping. Accept that a fault found later becomes a patch release, and say so in the tag message: name the checks that were skipped and why, so the next reader can tell a deliberate gap from an oversight.
+
+Only the three things step 7 produces can still be wrong after tagging, and none of them needs a new version: a bad asset is replaced with `gh release upload --clobber`, wrong notes with `gh release edit`, and a wrong cask checksum in the tap repository alone. A **Known issue** callout under `## What's new` is the honest way to publish a fault found after the fact but before its fix.
 
 ## 7. Publish
 
