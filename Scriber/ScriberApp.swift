@@ -415,7 +415,16 @@ struct ScriberApp: App {
         // window at launch only when there is a saved one to restore, so a session
         // that ended with the window closed comes up with no window at all.
         .defaultLaunchBehavior(AppLaunchConfiguration.presentsMainWindowAtLaunch ? .presented : .suppressed)
-        .defaultSize(width: 900, height: 640)
+        // Inside the width cap the content declares, or the window opens wider
+        // than it is allowed to be resized to and snaps in on its first layout.
+        .defaultSize(width: DictationHistoryLayout.maxContentWidth, height: 640)
+        // The width cap the content declares is only enforced under this.
+        // Settings and setup have always had it, which is why their sizes hold
+        // and this window's did not: the default resizability takes a minimum
+        // from the content and ignores the maximum, so the window could be
+        // dragged past its cap and only snapped back on the next activation.
+        // Height stays free — the content sets no maximum for it.
+        .windowResizability(.contentSize)
         // Hides the title text only. `window.title` and `.titled` both survive,
         // which every `AppWindowIdentity` check depends on, and SwiftUI sets
         // `fullSizeContentView` itself so content runs under the toolbar.
@@ -735,6 +744,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.setActivationPolicy(.regular)
                 if AppWindowIdentity.isPageWindow(window) { self?.fitPageWindow(window) }
                 if AppWindowIdentity.isSettingsWindow(window) { self?.fitSettingsWindow(window) }
+                if AppWindowIdentity.isMainWindow(window) { Self.fitMainWindow(window) }
             }
         })
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self] note in
@@ -902,6 +912,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// limits corrects it on the way in; the saved position is left alone.
     ///
     /// The resizable mask is claimed for the reason `fitPageWindow` gives.
+    /// Stops the main window drawing a separator under its toolbar, so the only
+    /// rule below the toolbar is the one the history's own day header draws.
+    ///
+    /// **This is not what fixed the doubled line at the top of the history**, and
+    /// it is worth saying so: the doubling was `List`'s own — a stuck section
+    /// header draws a bottom edge, and the first row under it drew a separator
+    /// too. Setting this to `.none` and reading it back showed `.none` while both
+    /// lines stayed. It is kept because a toolbar separator on top of a header
+    /// rule would be a third line, not because it removed a second.
+    ///
+    /// Only the main window. Settings has no list drawing a line of its own and
+    /// keeps the default.
+    private static func fitMainWindow(_ window: NSWindow) {
+        window.titlebarSeparatorStyle = .none
+        // The transcript column has a width it reads well at, and the window is
+        // where that cap belongs. Capping the list inside instead takes the
+        // scroll bar in with it and leaves bands of bare window beside a list
+        // that no longer reaches its own scroll bar.
+        //
+        // `contentMaxSize`, as `fitSettingsWindow` uses, rather than `maxSize`:
+        // one measures the content area and the other the whole frame, and only
+        // the first is the number the scene's own cap is expressed in.
+        window.contentMaxSize = NSSize(
+            width: DictationHistoryLayout.maxContentWidth,
+            height: .greatestFiniteMagnitude
+        )
+    }
+
     private func fitSettingsWindow(_ window: NSWindow) {
         guard fittedSettingsWindows.insert(ObjectIdentifier(window)).inserted else { return }
         let size = NSSize(width: SettingsWindowLayout.width, height: SettingsWindowLayout.height)
