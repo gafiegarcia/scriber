@@ -417,7 +417,7 @@ struct ScriberApp: App {
         .defaultLaunchBehavior(AppLaunchConfiguration.presentsMainWindowAtLaunch ? .presented : .suppressed)
         // Inside the width cap the content declares, or the window opens wider
         // than it is allowed to be resized to and snaps in on its first layout.
-        .defaultSize(width: DictationHistoryLayout.maxContentWidth, height: 640)
+        .defaultSize(width: MainWindowLayout.maxWidth, height: MainWindowLayout.defaultHeight)
         // The width cap the content declares is only enforced under this.
         // Settings and setup have always had it, which is why their sizes hold
         // and this window's did not: the default resizability takes a minimum
@@ -904,6 +904,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// A backstop for the main window's width cap, not the thing that enforces
+    /// it. The scene declares the cap on its content and takes
+    /// `.windowResizability(.contentSize)`, which is what makes it hold; this
+    /// repeats it in AppKit's terms. Whether it is still needed has not been
+    /// tested — removing it means checking by hand that the window still refuses
+    /// to be dragged past `MainWindowLayout.maxWidth`.
+    ///
+    /// `contentMaxSize`, as `fitSettingsWindow` uses, rather than `maxSize`: one
+    /// measures the content area and the other the whole frame, and only the
+    /// first is the number the scene's cap is expressed in.
+    ///
+    /// Deliberately sets no `titlebarSeparatorStyle`. A view-tree dump of this
+    /// window while scrolled found `NSScrollPocket` present with both its
+    /// `NSHardPocketView` children `hidden`: under a SwiftUI `List`, AppKit draws
+    /// no titlebar separator whichever style is asked for, so neither `.none` nor
+    /// `.automatic` changes anything here.
+    private static func fitMainWindow(_ window: NSWindow) {
+        window.contentMaxSize = NSSize(
+            width: MainWindowLayout.maxWidth,
+            height: .greatestFiniteMagnitude
+        )
+    }
+
     /// Holds Settings at its fixed size, and keeps Window ▸ Center working there.
     ///
     /// `.contentSize` resizability sizes a window from its content but never
@@ -912,40 +935,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// limits corrects it on the way in; the saved position is left alone.
     ///
     /// The resizable mask is claimed for the reason `fitPageWindow` gives.
-    /// Stops the main window drawing a separator under its toolbar, so the only
-    /// rule below the toolbar is the one the history's own day header draws.
-    ///
-    /// **This is not what fixed the doubled line at the top of the history**, and
-    /// it is worth saying so: the doubling was `List`'s own — a stuck section
-    /// header draws a bottom edge, and the first row under it drew a separator
-    /// too. Setting this to `.none` and reading it back showed `.none` while both
-    /// lines stayed. It is kept because a toolbar separator on top of a header
-    /// rule would be a third line, not because it removed a second.
-    ///
-    /// Only the main window. Settings has no list drawing a line of its own and
-    /// keeps the default.
-    private static func fitMainWindow(_ window: NSWindow) {
-        // No `titlebarSeparatorStyle` here, and setting one would change nothing.
-        // A view-tree dump of this window while scrolled found `NSScrollPocket`
-        // present with both its `NSHardPocketView` children `hidden=true`: under
-        // a SwiftUI `List`, AppKit draws no titlebar separator at all, whichever
-        // style is asked for. The line below the sticky day label is the table's
-        // own — a `_NSTableRowSeparatorDrawingView` sitting on the header row.
-        //
-        // The transcript column has a width it reads well at, and the window is
-        // where that cap belongs. Capping the list inside instead takes the
-        // scroll bar in with it and leaves bands of bare window beside a list
-        // that no longer reaches its own scroll bar.
-        //
-        // `contentMaxSize`, as `fitSettingsWindow` uses, rather than `maxSize`:
-        // one measures the content area and the other the whole frame, and only
-        // the first is the number the scene's own cap is expressed in.
-        window.contentMaxSize = NSSize(
-            width: DictationHistoryLayout.maxContentWidth,
-            height: .greatestFiniteMagnitude
-        )
-    }
-
     private func fitSettingsWindow(_ window: NSWindow) {
         guard fittedSettingsWindows.insert(ObjectIdentifier(window)).inserted else { return }
         let size = NSSize(width: SettingsWindowLayout.width, height: SettingsWindowLayout.height)

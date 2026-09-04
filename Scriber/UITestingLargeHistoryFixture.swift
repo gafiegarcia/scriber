@@ -2,7 +2,7 @@
 import Foundation
 import SwiftData
 
-/// Several hundred synthetic Dictation records for `--ui-testing-seed-history-large`.
+/// Around 1,900 synthetic Dictation records for `--ui-testing-seed-history-large`.
 ///
 /// For measuring history-list scrolling, which needs far more than the 23 rows
 /// `UITestingHistoryFixture` curates for interface checks. No existing check uses
@@ -14,11 +14,13 @@ import SwiftData
 /// record, and neither can reach one of Gaf's real recordings.
 @MainActor
 enum UITestingLargeHistoryFixture {
-    /// Shaped from the real store on 2026-09-04: 1,923 records over 45 days,
-    /// with one day holding 290 of them. The heavy day is the case that matters
-    /// — a single day card's rows are an eager `ForEach`, so one section can be
-    /// asked to build 290 rows at once, and no amount of laziness between
-    /// sections helps with that.
+    /// Shaped from the real store on 2026-09-04: 1,923 records over 45 days, with
+    /// one day holding 290 of them.
+    ///
+    /// Keep the heavy day. Grouping walks the records in order and a single day is
+    /// one unbroken run, so the longest day is what the grouping pass and the
+    /// section's own layout are worst at — an evenly spread fixture never tests
+    /// either.
     private static let dayCount = 45
     private static let heaviestDayRecords = 290
     private static let ordinaryDayRecords = 37

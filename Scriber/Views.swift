@@ -12,6 +12,20 @@ enum SettingsWindowLayout {
     static let height: CGFloat = 520
 }
 
+/// The main window's own measurements, gathered for the reason
+/// `SettingsWindowLayout` is: the scene derives its frame from them and the
+/// window layer pins its limits to the same numbers, so the two have to agree.
+///
+/// `maxWidth` is the window, not the transcript column. The list style's inset
+/// and the row's `contentInset` come off it, so the text is about 70pt narrower
+/// than this — do not read it as a measure of line length.
+enum MainWindowLayout {
+    static let maxWidth: CGFloat = 800
+    static let minWidth: CGFloat = 640
+    static let minHeight: CGFloat = 480
+    static let defaultHeight: CGFloat = 640
+}
+
 struct SearchDictationHistoryActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
@@ -800,10 +814,9 @@ private struct DictationSettingsPane: View {
 /// indented — the border and per-row padding already mark this as the contents
 /// of Keyterms.
 ///
-/// Hand-drawn because this is a handful of terms inside a form, not a list.
-/// Dictation history used to be built this way too and is now a `List`, which
-/// draws its own separators; do not take this as the pattern for anything that
-/// scrolls.
+/// Hand-drawn because this is a handful of terms inside a form, not a list. Do
+/// not take it as the pattern for anything that scrolls — a `List` draws its own
+/// separators, and a second set on top is what this recipe would give it.
 private struct KeytermsCard: View {
     let terms: [String]
     let onRemove: (String) -> Void
