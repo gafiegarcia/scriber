@@ -201,8 +201,9 @@ enum DictationHistoryLayout {
     ///
     /// Long enough that a word costs one rebuild rather than one per letter,
     /// short enough that it reads as the list keeping up rather than as a wait.
-    /// Mail's results trail its field by about this much.
-    static let searchSettlingDelay: Duration = .milliseconds(250)
+    /// 250 was tried first and felt like a wait; at 100 the list still skips the
+    /// letters inside a word, because typing one takes longer than this.
+    static let searchSettlingDelay: Duration = .milliseconds(100)
 
     // No constant for the gap between one day and the next. `.inset` supplies it,
     // and two attempts to declare it here — a top inset on the header, a bottom
