@@ -2,7 +2,18 @@
 
 This file records intentionally identified Scriber releases and prerelease snapshots. Ordinary development builds belong in Git history, not here.
 
-## 0.9.3 — 2026-09-04
+## Unreleased
+
+### Fixed
+
+- **Scrolling to the bottom of a long history no longer leaves it blank.** Dragging the scrollbar down could load the whole history at once and then strand the view past the end of it, showing nothing until you scrolled back up. This was introduced by the incremental loading in 0.9.3; the loading it came from is gone rather than patched.
+- **The dictation history scrolls smoothly however long it is.** It now builds only the rows near what you are looking at and reuses them as they pass, instead of building every row it had ever been scrolled to. A history of two thousand entries costs what sixty used to, and the day you dictated into three hundred times is no longer the one that stutters.
+- **Typing in the search field no longer stutters.** Deleting was the worst of it — clearing the query goes from a handful of matches back to everything — and the field was waiting for the list to catch up. The field now stays ahead and the results follow a moment later.
+
+### Changed
+
+- **Dictation history follows the shape Notes and Mail use.** Every day is named above its own entries and the name stays with you as you scroll through that day, rather than appearing only in the window's titlebar. The cards each day sat in are gone; entries are separated by a rule the way a list separates rows.
+- **The main window has a maximum width.** A transcript column reads badly when it runs the whole width of a large display, so the window stops at a comfortable measure. **It can no longer be made full screen** — Fill and the green button grow it vertically only.
 
 Native bundle build 296, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
 
