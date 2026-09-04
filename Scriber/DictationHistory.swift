@@ -65,6 +65,20 @@ struct DictationHistoryView: View {
                 Section {
                     ForEach(section.records) { record in
                         DictationHistoryRow(record: record)
+                            // The gap between one group and the next hangs off the
+                            // last row above it, because a pinned header's height
+                            // is the list's to set and nothing put inside one
+                            // changes it. Padding rather than a bottom row inset:
+                            // a row's height comes from its content, which is the
+                            // same reason the transcript's padding is what sizes
+                            // an ordinary row. The inset was tried here and
+                            // produced no gap at all.
+                            .padding(
+                                .bottom,
+                                record.id == section.records.last?.id
+                                    ? DictationHistoryLayout.groupSpacing
+                                    : 0
+                            )
                             // `List` draws a separator on every row including a
                             // section's first and last, and `listSectionSeparator`
                             // does not reach either — it was tried here and
@@ -85,28 +99,18 @@ struct DictationHistoryView: View {
                                 record.id == section.records.last?.id ? .hidden : .visible,
                                 edges: .bottom
                             )
-                            // Insets rather than padding inside the row, so the
-                            // separators come in with the content. Padding leaves
-                            // them running to the window edge and into the scroll
-                            // bar.
-                            // Replaces the row's insets outright, vertical ones
-                            // included — passing zero there is why the transcript
-                            // padding below is the only vertical measurement in a
-                            // row, and why raising it is the only way to make a
-                            // row taller.
+                            // Insets rather than padding for the horizontal
+                            // measurement, so the separators come in with the
+                            // content — padding leaves them running to the window
+                            // edge and into the scroll bar. Vertical is zero
+                            // deliberately: this call replaces a row's insets
+                            // outright, which is what makes the transcript's own
+                            // padding the only thing sizing a row.
                             .listRowInsets(
                                 EdgeInsets(
                                     top: 0,
                                     leading: DictationHistoryLayout.contentInset,
-                                    // The gap between one group and the next hangs
-                                    // off the last row rather than off the header
-                                    // below it. A pinned header's height is the
-                                    // list's to set, so neither padding inside it
-                                    // nor row insets on it produce a gap — both
-                                    // were tried. A row's insets do.
-                                    bottom: record.id == section.records.last?.id
-                                        ? DictationHistoryLayout.groupSpacing
-                                        : 0,
+                                    bottom: 0,
                                     trailing: DictationHistoryLayout.contentInset
                                 )
                             )

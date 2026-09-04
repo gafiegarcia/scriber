@@ -87,10 +87,10 @@ struct MainWindowView: View {
         let visible = visibleRecords
         return workspaceContent(visible)
             // The cap is declared here, not only on the `NSWindow`. SwiftUI
-            // derives a `Window` scene's resize limits from its content, and
-            // rewrites `maxSize` on every layout pass — setting that in AppKit
-            // alone let the window be dragged wider and only snapped it back on
-            // the next activation.
+            // derives a `Window` scene's resize limits from its content and
+            // rewrites the window's own limits on every layout pass, so a cap set
+            // in AppKit alone is overwritten and only snaps the window back on the
+            // next activation.
             .frame(
                 minWidth: 640,
                 maxWidth: DictationHistoryLayout.maxContentWidth,
