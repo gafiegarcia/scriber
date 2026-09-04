@@ -27,6 +27,12 @@ struct MainWindowView: View {
     /// then drops a transcript selection the user was part-way through making.
     @State private var opensWithSearchFocused = true
 
+    /// Whether the retention sweep still owes this presentation a run. Armed by a
+    /// close, the same way `opensWithSearchFocused` is: becoming key also happens
+    /// on every app switch and unhide, and the list does not need re-sweeping each
+    /// time focus comes back to a window already showing it.
+    @State private var sweepsOnPresentation = true
+
     /// Whether this window is presented. Read through `mainWindowIsOnScreen`,
     /// never directly — on its own it misses the case where SwiftUI rebuilt this
     /// content after the window was already key.
@@ -156,12 +162,14 @@ struct MainWindowView: View {
                 guard let window = note.object as? NSWindow,
                       AppWindowIdentity.isMainWindow(window) else { return }
                 isMainWindowPresented = true
+                sweepForPresentation()
                 focusSearchForPresentation()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
                 guard let window = note.object as? NSWindow,
                       AppWindowIdentity.isMainWindow(window) else { return }
                 opensWithSearchFocused = true
+                sweepsOnPresentation = true
                 isMainWindowPresented = false
             }
             .onAppear {
@@ -173,6 +181,7 @@ struct MainWindowView: View {
                 // without guessing at a delay between them.
                 if let window = NSApp.keyWindow, AppWindowIdentity.isMainWindow(window) {
                     isMainWindowPresented = true
+                    sweepForPresentation()
                     focusSearchForPresentation()
                 }
             }
@@ -218,6 +227,15 @@ struct MainWindowView: View {
     private static func dictationCountLabel(_ visible: [DictationRecord]) -> String {
         let count = visible.count
         return "\(count) \(count == 1 ? "dictation" : "dictations")"
+    }
+
+    /// Consumes a pending presentation by clearing out dictations past their
+    /// retention period, so the list is current the moment it is looked at.
+    @MainActor
+    private func sweepForPresentation() {
+        guard sweepsOnPresentation else { return }
+        sweepsOnPresentation = false
+        runtime.coordinator.discardExpiredDictations()
     }
 
     /// Consumes a pending presentation by focusing the toolbar's search field.

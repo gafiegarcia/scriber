@@ -386,13 +386,13 @@ final class AppCoordinator: ObservableObject {
         preferences.$deletesExpiredRetainedAudio
             .dropFirst()
             .sink { [weak self] enabled in
-                self?.historyMaintenance.expireRetainedAudio(ifEnabled: enabled)
+                self?.historyMaintenance.discardExpiredDictations(ifEnabled: enabled)
             }
             .store(in: &cancellables)
 
         if persistenceAvailable, servicesAllowed {
             historyMaintenance.recoverPersistedAndOrphanedRecords()
-            historyMaintenance.expireRetainedAudio(
+            historyMaintenance.discardExpiredDictations(
                 ifEnabled: preferences.deletesExpiredRetainedAudio
             )
         }
@@ -1160,6 +1160,20 @@ final class AppCoordinator: ObservableObject {
     /// large history makes it measurable.
     func clearDictationHistory(_ records: [DictationRecord]) {
         for record in records { delete(record) }
+    }
+
+    /// Sweeps for the main window, which is where the result is seen.
+    ///
+    /// Launch is the only other moment this runs, and an always-on dictation app
+    /// launches at login and is relaunched by almost nobody — so on its own it
+    /// leaves entries past their date sitting in a list somebody is reading. The
+    /// retention period stays a floor either way: this can keep a dictation longer
+    /// than the setting asks, never delete one sooner.
+    func discardExpiredDictations() {
+        guard persistenceAvailable else { return }
+        historyMaintenance.discardExpiredDictations(
+            ifEnabled: preferences.deletesExpiredRetainedAudio
+        )
     }
 
     func openMainWindow() {

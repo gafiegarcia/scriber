@@ -1047,21 +1047,60 @@ struct RetainedAudioRetentionPolicyTests {
         #expect(!RetainedAudioRetentionPolicy.hasExpired(createdAt: now, now: now))
     }
 
-    @Test("Keeps why the dictation failed alongside why its audio is gone")
-    func preservesExistingFailureReason() {
-        let combined = RetainedAudioRetentionPolicy.expiredMessage(
-            appendingTo: "Cancelled before transcription."
-        )
-        #expect(combined.hasPrefix("Cancelled before transcription."))
-        #expect(combined.hasSuffix(RetainedAudioRetentionPolicy.expiryMessage))
+    @Test("Keeps a dictation whose recording is still worth retrying")
+    func keepsRetryableDictation() {
+        #expect(RetainedAudioRetentionPolicy.disposition(
+            createdAt: now.addingTimeInterval(-60),
+            retainedAudioPath: "recording.m4a",
+            retainedAudioExistsOnDisk: true,
+            now: now
+        ) == .keep)
     }
 
-    @Test("Stands alone when nothing explained the failure")
-    func standsAloneWithoutAReason() {
-        #expect(RetainedAudioRetentionPolicy.expiredMessage(appendingTo: nil)
-            == RetainedAudioRetentionPolicy.expiryMessage)
-        #expect(RetainedAudioRetentionPolicy.expiredMessage(appendingTo: "")
-            == RetainedAudioRetentionPolicy.expiryMessage)
+    @Test("Takes the recording and the entry together at the period")
+    func discardsExpiredDictationWithItsAudio() {
+        #expect(RetainedAudioRetentionPolicy.disposition(
+            createdAt: now.addingTimeInterval(-RetainedAudioRetentionPolicy.retentionPeriod),
+            retainedAudioPath: "recording.m4a",
+            retainedAudioExistsOnDisk: true,
+            now: now
+        ) == .deleteAudioAndDiscardEntry)
+    }
+
+    @Test("Drops a row offering a Retry whose recording is gone")
+    func discardsDictationWhoseAudioVanished() {
+        #expect(RetainedAudioRetentionPolicy.disposition(
+            createdAt: now.addingTimeInterval(-60),
+            retainedAudioPath: "recording.m4a",
+            retainedAudioExistsOnDisk: false,
+            now: now
+        ) == .discardEntry)
+    }
+
+    @Test("Keeps every row when the audio directory cannot be read")
+    func keepsEverythingWhenTheDirectoryIsUnreadable() {
+        #expect(RetainedAudioRetentionPolicy.disposition(
+            createdAt: now.addingTimeInterval(-60),
+            retainedAudioPath: "recording.m4a",
+            retainedAudioExistsOnDisk: nil,
+            now: now
+        ) == .keep)
+    }
+
+    @Test("A dictation with no recording waits out the same period")
+    func audiolessDictationWaitsOutThePeriod() {
+        #expect(RetainedAudioRetentionPolicy.disposition(
+            createdAt: now.addingTimeInterval(-60),
+            retainedAudioPath: nil,
+            retainedAudioExistsOnDisk: nil,
+            now: now
+        ) == .keep)
+        #expect(RetainedAudioRetentionPolicy.disposition(
+            createdAt: now.addingTimeInterval(-RetainedAudioRetentionPolicy.retentionPeriod),
+            retainedAudioPath: nil,
+            retainedAudioExistsOnDisk: nil,
+            now: now
+        ) == .discardEntry)
     }
 }
 

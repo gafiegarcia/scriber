@@ -753,22 +753,48 @@ public enum RecordingCancellationPolicy {
     }
 }
 
-/// When Scriber stops keeping the audio behind a failed or cancelled dictation.
-/// Unretried audio left in Application Support is a privacy cost as much as a
-/// disk one, so retention is bounded rather than indefinite.
+/// When Scriber stops keeping a failed or cancelled dictation. Unretried audio
+/// left in Application Support is a privacy cost as much as a disk one, so
+/// retention is bounded rather than indefinite, and a dictation that never
+/// produced a transcript goes with its recording: what is left offers nothing to
+/// read, copy, or retry.
 public enum RetainedAudioRetentionPolicy {
     public static let retentionPeriod: TimeInterval = 30 * 24 * 60 * 60
-
-    public static let expiryMessage = "The retained recording was removed after 30 days and can no longer be retried."
 
     public static func hasExpired(createdAt: Date, now: Date = .now) -> Bool {
         now.timeIntervalSince(createdAt) >= retentionPeriod
     }
 
-    /// Keeps why the dictation failed alongside why its audio is gone.
-    public static func expiredMessage(appendingTo existing: String?) -> String {
-        guard let existing, !existing.isEmpty else { return expiryMessage }
-        return "\(existing) \(expiryMessage)"
+    /// What the sweep does with one dictation. Ask only about a failed or
+    /// cancelled dictation holding no transcript — anything else is either still
+    /// in flight or has a transcript to keep, and neither is this sweep's
+    /// business.
+    public enum Disposition: Equatable, Sendable {
+        case keep
+        case discardEntry
+        case deleteAudioAndDiscardEntry
+    }
+
+    /// - Parameter retainedAudioExistsOnDisk: `nil` when the retained-audio
+    ///   directory could not be read. An unreadable directory reports no files,
+    ///   which would otherwise read as every recording having vanished at once
+    ///   and take the whole history with it.
+    public static func disposition(
+        createdAt: Date,
+        retainedAudioPath: String?,
+        retainedAudioExistsOnDisk: Bool?,
+        now: Date = .now
+    ) -> Disposition {
+        let expired = hasExpired(createdAt: createdAt, now: now)
+        guard retainedAudioPath != nil else {
+            // Nothing to retry already. The row still waits out the retention
+            // period, so a dictation that failed this morning stays visible
+            // whether or not any audio survived it.
+            return expired ? .discardEntry : .keep
+        }
+        if expired { return .deleteAudioAndDiscardEntry }
+        // A row offering a Retry whose recording is missing can never keep it.
+        return retainedAudioExistsOnDisk == false ? .discardEntry : .keep
     }
 }
 

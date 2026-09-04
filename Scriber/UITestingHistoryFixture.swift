@@ -13,8 +13,8 @@ import SwiftData
 ///    real `<uuid>.m4a` makes that a no-op rather than a deletion in Gaf's own
 ///    directory.
 /// 2. **No entry is older than the 30-day retention period**, or
-///    `expireRetainedAudio` rewrites `errorMessage` and clears audio paths under a
-///    check in progress. Its `servicesAllowed` gate is belt and braces; do not
+///    `discardExpiredDictations` deletes failed and cancelled rows out from under
+///    a check in progress. Its `servicesAllowed` gate is belt and braces; do not
 ///    depend on it.
 /// 3. **Every field combination is one the app itself can produce.** Success sets
 ///    `text` and clears the audio path; failure leaves `text` nil, sets

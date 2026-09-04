@@ -10,8 +10,10 @@ import SwiftData
 /// fixture and must keep passing unchanged.
 ///
 /// These records carry no retained audio: `pendingAudioRelativePath` stays nil, so
-/// `AppCoordinator.delete` skips file removal and `expireRetainedAudio` skips the
-/// record, and neither can reach one of Gaf's real recordings.
+/// `AppCoordinator.delete` skips file removal and cannot reach one of Gaf's real
+/// recordings. Every record here also succeeded, which is what keeps
+/// `discardExpiredDictations` off them — records reach back 45 days, and a failed
+/// or cancelled one that far back is exactly what that sweep deletes.
 @MainActor
 enum UITestingLargeHistoryFixture {
     /// Shaped from the real store on 2026-09-04: 1,923 records over 45 days, with

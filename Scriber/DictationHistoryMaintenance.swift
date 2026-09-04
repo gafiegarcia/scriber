@@ -61,10 +61,11 @@ final class DictationHistoryMaintenance {
         try? modelContext.save()
     }
 
-    /// Removes retained dictation audio older than the retention period. Only the
-    /// recording goes — the history row, its transcript, and why it failed are all
-    /// preserved, so only the ability to retry is lost.
-    func expireRetainedAudio(ifEnabled isEnabled: Bool) {
+    /// Removes failed and cancelled dictations that have nothing left to offer,
+    /// along with any retained audio still behind them. Such a dictation earns its
+    /// row by being retryable; once the recording has expired or gone missing and
+    /// no transcript ever arrived, the row can only be scrolled past.
+    func discardExpiredDictations(ifEnabled isEnabled: Bool) {
         // Never from a test build. `PendingAudio` is one real directory that
         // `--ui-testing` does not isolate while the history store under it *is*
         // in-memory, so the sweep below sees every one of Gaf's genuinely retained
@@ -73,23 +74,52 @@ final class DictationHistoryMaintenance {
         guard servicesAllowed, isEnabled,
               let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
 
-        var didExpireRecord = false
+        // `nil` when the directory could not be read, which the policy needs to
+        // tell apart from a directory that is genuinely empty. One listing serves
+        // both passes; a file this sweep deletes below is simply gone by the time
+        // the second pass tries again.
+        let audioFiles = try? AudioRecorder.recoverableAudioFiles()
+        let audioOnDisk = audioFiles.map { Set($0.map(\.lastPathComponent)) }
+
+        var survivors: [DictationRecord] = []
+        var didDiscard = false
         for record in records {
-            guard let relativePath = record.pendingAudioRelativePath,
-                  RetainedAudioRetentionPolicy.hasExpired(createdAt: record.createdAt) else { continue }
-            AudioRecorder.delete(relativePath: relativePath)
-            record.pendingAudioRelativePath = nil
-            record.errorMessage = RetainedAudioRetentionPolicy.expiredMessage(
-                appendingTo: record.errorMessage
+            // Ask about the transcript, never about the state alone. A row holding
+            // text is a dictation that succeeded whatever else is stored about it,
+            // and a row still transcribing has not reached an outcome — including
+            // one the user is retrying right now, from the very window this sweep
+            // may have been run by.
+            guard record.text?.isEmpty ?? true,
+                  record.transcriptionState == .failed || record.transcriptionState == .cancelled
+            else {
+                survivors.append(record)
+                continue
+            }
+            let disposition = RetainedAudioRetentionPolicy.disposition(
+                createdAt: record.createdAt,
+                retainedAudioPath: record.pendingAudioRelativePath,
+                retainedAudioExistsOnDisk: record.pendingAudioRelativePath.flatMap { path in
+                    audioOnDisk.map { $0.contains(path) }
+                }
             )
-            didExpireRecord = true
+            switch disposition {
+            case .keep:
+                survivors.append(record)
+                continue
+            case .deleteAudioAndDiscardEntry:
+                if let path = record.pendingAudioRelativePath { AudioRecorder.delete(relativePath: path) }
+            case .discardEntry:
+                break
+            }
+            modelContext.delete(record)
+            didDiscard = true
         }
-        if didExpireRecord { try? modelContext.save() }
+        if didDiscard { try? modelContext.save() }
 
         // Anything left that no dictation references is stale by construction,
         // including the files orphan recovery deliberately refuses to reimport.
-        let referencedAudio = Set(records.compactMap(\.pendingAudioRelativePath))
-        guard let files = try? AudioRecorder.recoverableAudioFiles() else { return }
+        let referencedAudio = Set(survivors.compactMap(\.pendingAudioRelativePath))
+        guard let files = audioFiles else { return }
         for file in files where !referencedAudio.contains(file.lastPathComponent) {
             let createdAt = (try? file.resourceValues(forKeys: [.creationDateKey]))?.creationDate
             guard RetainedAudioRetentionPolicy.hasExpired(createdAt: createdAt ?? .distantPast) else { continue }
