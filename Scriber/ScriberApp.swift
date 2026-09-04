@@ -925,7 +925,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Only the main window. Settings has no list drawing a line of its own and
     /// keeps the default.
     private static func fitMainWindow(_ window: NSWindow) {
-        window.titlebarSeparatorStyle = .none
+        // No `titlebarSeparatorStyle` here, and setting one would change nothing.
+        // A view-tree dump of this window while scrolled found `NSScrollPocket`
+        // present with both its `NSHardPocketView` children `hidden=true`: under
+        // a SwiftUI `List`, AppKit draws no titlebar separator at all, whichever
+        // style is asked for. The line below the sticky day label is the table's
+        // own — a `_NSTableRowSeparatorDrawingView` sitting on the header row.
+        //
         // The transcript column has a width it reads well at, and the window is
         // where that cap belongs. Capping the list inside instead takes the
         // scroll bar in with it and leaves bands of bare window beside a list

@@ -151,6 +151,30 @@ struct DictationHistoryView: View {
                         // `.inset` that lands it where it should be, slightly
                         // left of the rows it heads. Nudging it was only ever
                         // correcting for `.plain` putting it too far out.
+                        // Known and unfixed: the rule under a day label is thicker
+                        // than the rules between rows, and nothing here changes
+                        // it. Do not spend a fifth attempt without new evidence —
+                        // these are the four that failed, and why each looked
+                        // right:
+                        //
+                        // - `listSectionSeparator(.hidden)`, on the section. No
+                        //   effect; it reaches neither edge of a section.
+                        // - `listRowSeparator(.hidden)` on this header. No effect,
+                        //   though the rows beside it honour the same call.
+                        // - `titlebarSeparatorStyle`, both `.none` and
+                        //   `.automatic`. No effect either way, and a view-tree
+                        //   dump of the scrolled window explains why: AppKit's
+                        //   `NSHardPocketView` is `hidden` under a SwiftUI `List`.
+                        // - Hiding the first row's top separator. That one is real
+                        //   and is still applied, but it was not this line.
+                        //
+                        // What is known: the rule runs the full width of the
+                        // window while a row's is inset, so it is not a row's. It
+                        // is drawn whether or not the label is stuck. The next
+                        // thing to try is a screen recording read frame by frame
+                        // to measure it in physical pixels — one hairline at 2x
+                        // and two abutting hairlines are hard to tell apart by eye
+                        // and trivial to tell apart in a frame dump.
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
