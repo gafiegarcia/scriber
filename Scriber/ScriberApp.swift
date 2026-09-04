@@ -920,6 +920,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `NSHardPocketView` children `hidden`: under a SwiftUI `List`, AppKit draws
     /// no titlebar separator whichever style is asked for, so neither `.none` nor
     /// `.automatic` changes anything here.
+    ///
+    /// The rule under a stuck day label is not this separator, and setting this
+    /// property will not change it either. It belongs to the header's own floating
+    /// banner — `DictationHistory.swift` describes it where the `Section` header
+    /// is built.
     private static func fitMainWindow(_ window: NSWindow) {
         window.contentMaxSize = NSSize(
             width: MainWindowLayout.maxWidth,

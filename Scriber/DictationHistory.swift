@@ -110,9 +110,11 @@ struct DictationHistoryView: View {
                 Section {
                     ForEach(section.records) { record in
                         DictationHistoryRow(record: record)
-                            // Hidden at both edges of a group: the top one doubled
-                            // the rule under the day label, and a rule after a
-                            // group's last entry belongs to no group.
+                            // Hidden at both edges of a group: the top one landed a
+                            // point from the banner's own rule under a stuck day
+                            // label and read as one thick rule, and a rule after a
+                            // group's last entry belongs to no group. The header
+                            // below describes the banner.
                             .listRowSeparator(
                                 record.id == section.firstID ? .hidden : .visible,
                                 edges: .top
@@ -153,16 +155,34 @@ struct DictationHistoryView: View {
                         // `.inset` already sits slightly left of the rows it
                         // heads.
                         //
-                        // Known and unfixed: the rule under a day label is thicker
-                        // than the rules between rows. Four things do not change
-                        // it — `listSectionSeparator` on the section,
-                        // `listRowSeparator` on this header, `titlebarSeparatorStyle`
-                        // in either direction, and hiding the first row's top
-                        // separator. It runs the full width of the window while a
-                        // row's is inset, and is drawn whether or not the label is
-                        // stuck. Measure it from a screen recording before trying
-                        // a fifth: one hairline at 2x and two abutting hairlines
-                        // are hard to separate by eye and trivial in a frame dump.
+                        // Known and unfixed: the rule under a *stuck* day label is
+                        // thicker than the rules between rows, and it is not a
+                        // separator — which is why no separator setting has ever
+                        // touched it. AppKit wraps a floating header row in a
+                        // private `NSBannerView`, and that view's decoration ramps
+                        // up over the row's last 4pt into a bright hairline: about
+                        // three times a row separator's weight, read off a 2x
+                        // capture. Only a stuck label has it. An unstuck one has no
+                        // rule at all, since the one it used to have was the first
+                        // row's top separator, hidden above.
+                        //
+                        // Nothing public reaches the banner. Measured against it
+                        // and moving no pixel: `listSectionSeparator`,
+                        // `listRowSeparator` and its tint on this header,
+                        // `titlebarSeparatorStyle` and `toolbarStyle` in every
+                        // value, a window with no toolbar, a window without
+                        // `fullSizeContentView`, and `scrollEdgeEffectStyle(.hard)`
+                        // — the documented switch for this exact effect, inert here
+                        // on macOS 27. `NSBannerView` has no public header.
+                        //
+                        // Two dead ends, so they are not re-walked. `.sidebar` is
+                        // the one list style that draws no banner, and it gets
+                        // there by dropping sticky headers altogether rather than
+                        // by styling them. And covering the strip with a background
+                        // fails: the fill would have to match a `List` background
+                        // that is an `NSVisualEffectView` material rather than a
+                        // colour, and a solid colour renders as a black band across
+                        // the label.
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
