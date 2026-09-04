@@ -218,6 +218,21 @@ osascript -e "tell application \"System Events\" to tell (first process whose un
 
 Anything a Debug build should expose to this needs an `accessibilityIdentifier`. A glyph-only button reports its SF Symbol name instead, which reads as an identifier and is not one.
 
+### Asking whether an AppKit call still does anything
+
+The tree measures what a window settles on; it cannot say which line of code decided it. When SwiftUI and a hand-written `NSWindow` call both claim the same property, attach `lldb` to the Debug build and read the property itself. The expression parser has no AppKit symbols, so reach every value through KVC and keep each statement simple — anything more elaborate fails to compile against `void *` receivers:
+
+```bash
+lldb -b -p "$pid" \
+  -o 'po (id)[[NSApp windows] valueForKey:@"title"]' \
+  -o 'po (id)[[NSApp windows] valueForKey:@"contentMaxSize"]' \
+  -o 'po (id)[[NSApp windows] valueForKey:@"delegate"]'
+```
+
+Three things make the answer readable. Untouched windows carry AppKit's defaults — `FLT_MAX`, printed as `3.4028e38` — so a window that differs has been written to by somebody. `CGFloat.infinity` prints as `inf` and `CGFloat.greatestFiniteMagnitude` as `1.797e308`, which is often enough to tell SwiftUI's write from Scriber's without any further work. And a property SwiftUI owns is restored: overwrite it from the debugger, drive one resize through the tree, and read it back — `SwiftUI.AppKitWindowController` puts its own value back on the next layout pass, which is the proof that the Scriber call beside it is doing nothing.
+
+Pair it with `--ui-testing-no-activate`, where the window never becomes key. Anything hanging off `didBecomeKey` cannot have run, so whatever holds in that launch holds without it.
+
 ## Inspecting a running Debug build
 
 ### Visual and interaction inspection
