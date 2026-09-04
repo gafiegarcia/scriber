@@ -15,6 +15,8 @@ This file records intentionally identified Scriber releases and prerelease snaps
 - **Dictation history follows the shape Notes and Mail use.** Every day is named above its own entries and the name stays with you as you scroll through that day, rather than appearing only in the window's titlebar. The cards each day sat in are gone; entries are separated by a rule the way a list separates rows.
 - **The main window has a maximum width.** A transcript column reads badly when it runs the whole width of a large display, so the window stops at a comfortable measure. **It can no longer be made full screen** — Fill and the green button grow it vertically only.
 
+## 0.9.3 — 2026-09-04
+
 Native bundle build 296, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
 
 A responsiveness release. Scriber spent most of a dictation's cost on work nobody could see — a history list rebuilding for a closed window, a login-item reading on the press and again every five seconds — and this removes it. Escape now cancels at any stage, and a dictation can no longer be left recording with nothing able to stop it.
