@@ -108,13 +108,16 @@ struct DictationHistoryView: View {
                                 record.id == section.records.last?.id ? .hidden : .visible,
                                 edges: .bottom
                             )
-                            // Insets rather than padding for the horizontal
-                            // measurement, so the separators come in with the
-                            // content — padding leaves them running to the window
-                            // edge and into the scroll bar. Vertical is zero
-                            // deliberately: this call replaces a row's insets
-                            // outright, which is what makes the transcript's own
-                            // padding the only thing sizing a row.
+                            // Horizontal only, and it stacks on top of the inset
+                            // the style gives the list itself rather than
+                            // replacing it: `.inset` contributes 16 and `.plain`
+                            // 8, measured by comparing the two. So this number is
+                            // not the distance from the window edge — it is that
+                            // distance minus the style's own.
+                            //
+                            // Vertical is zero deliberately. This call replaces a
+                            // row's own insets outright, which is what leaves the
+                            // transcript's padding as the only thing sizing a row.
                             .listRowInsets(
                                 EdgeInsets(
                                     top: 0,
@@ -123,10 +126,15 @@ struct DictationHistoryView: View {
                                     trailing: DictationHistoryLayout.contentInset
                                 )
                             )
-                            // A row inset moves where a separator starts, not
-                            // where it ends: without this the rules run past the
-                            // content and into the scroll bar. The trailing end
-                            // needs naming separately.
+                            // A row inset moves where a separator starts, not where
+                            // it ends, so the trailing end needs naming too.
+                            //
+                            // The leading one is not redundant either. Left to
+                            // itself the separator follows the row's leading
+                            // *text*, and on a cancelled or failed row that
+                            // resolves to the status badge rather than the
+                            // transcript — the rule visibly steps right on those
+                            // rows alone. Naming the edge pins it to the row.
                             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
                             .alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] }
                     }
@@ -137,12 +145,12 @@ struct DictationHistoryView: View {
                         // transcripts under it. A list header defaults to
                         // secondary, which read as a caption at this size.
                         .foregroundStyle(.primary)
-                        // Padding, not `listRowInsets`. A `Section` header ignores
-                        // row insets outright — the rows beside it honour the same
-                        // call — so this is the only way to move the label off the
-                        // list's own edge. Its own inset is about 8pt, so this is
-                        // the difference that brings it level with the rows.
-                        .padding(.leading, DictationHistoryLayout.dayLabelLeadingPadding)
+                        // No leading padding. A `Section` header ignores
+                        // `listRowInsets`, so it keeps the style's own inset
+                        // however far the rows beside it are moved — and under
+                        // `.inset` that lands it where it should be, slightly
+                        // left of the rows it heads. Nudging it was only ever
+                        // correcting for `.plain` putting it too far out.
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -185,14 +193,15 @@ enum DictationHistoryLayout {
     /// free to be as wide as it reads well at.
     static let maxContentWidth: CGFloat = 800
 
-    /// From the window edge to a row's content and to a day label, and where the
-    /// row separators start and stop.
+    /// Added to a row's leading and trailing edge, and to where its separator
+    /// starts and stops.
     ///
-    /// Measured against Notes, which holds its group labels about 16pt off the
-    /// pane edge. The row has slack to give: the gap between a transcript and the
-    /// copy button beside it is elastic, so widening this narrows the row without
-    /// costing the transcript a line.
-    static let contentInset: CGFloat = 24
+    /// **Not the distance from the window edge.** The style insets the list
+    /// itself and this stacks on top: measured by comparing the two, `.inset`
+    /// contributes 16 and `.plain` 8. So 16 here reads as 32 on screen, which is
+    /// the measure the page had before the style changed. Re-measure on screen if
+    /// the style ever moves again rather than carrying this number across.
+    static let contentInset: CGFloat = 16
 
     /// Between the entry time and the transcript beside it.
     static let timeColumnGap: CGFloat = 20
@@ -216,15 +225,12 @@ enum DictationHistoryLayout {
     /// sits above, without reaching for a document title's size.
     static let dayLabelFont: Font = .title2.weight(.bold)
 
-    /// Added to the list's own leading inset to place a day label.
-    ///
-    /// A `Section` header ignores `listRowInsets`, so it keeps that inset — about
-    /// 8pt — however far the rows beside it are moved. This is the difference,
-    /// not the total, and it is not `contentInset`: the label sits *left* of the
-    /// rows it heads, the way a Finder sidebar heading sits left of its rows, and
-    /// its ceiling is the leading edge of the window's close button. Past that it
-    /// reads as hanging off the window rather than off the list.
-    static let dayLabelLeadingPadding: CGFloat = 8
+    // No constant placing the day label. A `Section` header ignores
+    // `listRowInsets`, so it keeps the style's own inset however far the rows
+    // beside it move, and under `.inset` that is already where it should be —
+    // slightly left of the rows it heads, the way a Finder sidebar heading sits
+    // left of its rows. The padding that used to be here was correcting for
+    // `.plain` putting it too far out, and went with `.plain`.
 
     // No vertical row padding constant. `List` already pads a row, and adding to
     // it is what put too much air between a transcript and the rule under it.
@@ -297,7 +303,21 @@ private struct DictationHistoryRow: View {
     /// Measured at 54pt for a one-line row, which is what the old card layout
     /// produced by accident: its floor was the icon cluster, 26pt of glyph and
     /// hover target inside 14pt of row padding.
-    fileprivate static let minimumTranscriptBlockHeight: CGFloat = 54
+    ///
+    /// `@ScaledMetric` rather than a plain number, and so is the padding beside
+    /// it. Both were derived from two lines of transcript measuring 31pt, which
+    /// is a fact about the body font — change the text size and 31 changes while
+    /// a hardcoded 54 and 14 would not, so the rows would quietly stop lining up.
+    /// This is as close as Swift comes to sizing in `rem`: a base value at the
+    /// default text size, scaled with `.body` from there.
+    @ScaledMetric(relativeTo: .body) private var minimumTranscriptBlockHeight: CGFloat = 54
+
+    /// Sets the height of rows with two lines or more and nothing else — a
+    /// one-line row is held by the floor above. 14 is arithmetic rather than
+    /// taste: the row insets zero out every other vertical measurement, two lines
+    /// of transcript measure 31pt, and 31 + 2 × 14 is the 60pt a two-line row
+    /// wants against the floor's 54 for a one-line one.
+    @ScaledMetric(relativeTo: .body) private var transcriptVerticalPadding: CGFloat = 14
 
     private var isRetrying: Bool {
         runtime.coordinator.retryingRecordID == record.id
@@ -339,18 +359,11 @@ private struct DictationHistoryRow: View {
             // got. Padding the row keeps that difference and moves it; padding
             // the transcript makes the text the tallest child at every length,
             // so this number *is* the gap to the separator in every row.
-            //
-            // This number sets the height of rows with two lines or more and
-            // nothing else: a one-line row is held by the floor below it, so
-            // raising this opens up the long rows without touching the short
-            // ones. 14 is arithmetic rather than taste — the row insets zero out
-            // every other vertical measurement, two lines of transcript measure
-            // 31pt, and 31 + 2 × 14 is the 60pt a two-line row wants.
-            .padding(.vertical, 14)
+            .padding(.vertical, transcriptVerticalPadding)
             // After the padding, so the floor is on the padded block rather than
             // on the text inside it — a floor applied to the text would be
             // padded on top of and make every row taller than it reads.
-            .frame(minHeight: Self.minimumTranscriptBlockHeight, alignment: .leading)
+            .frame(minHeight: minimumTranscriptBlockHeight, alignment: .leading)
 
             Spacer(minLength: 12)
 
