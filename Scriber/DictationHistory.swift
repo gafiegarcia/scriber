@@ -15,9 +15,22 @@ struct DictationHistoryView: View {
     let records: [DictationRecord]
     let searchQuery: String
 
+    /// What the list is filtered by, which trails what is in the field.
+    ///
+    /// The field has to stay responsive while the list catches up, the way Mail's
+    /// does — typing must never lag, results may. Filtering itself was never the
+    /// cost: a substring scan of two thousand short transcripts is under a
+    /// millisecond. Rebuilding the list behind it is, and this is what stops that
+    /// happening once per keystroke.
+    ///
+    /// Deleting is the case that made it necessary. Clearing a query goes from a
+    /// handful of matches back to every record, so it rebuilds the most, which is
+    /// why ⌘Delete and the last character were always the worst.
+    @State private var activeQuery = ""
+
     private var filtered: [DictationRecord] {
-        guard !searchQuery.isEmpty else { return records }
-        return records.filter { ($0.text ?? "").localizedCaseInsensitiveContains(searchQuery) }
+        guard !activeQuery.isEmpty else { return records }
+        return records.filter { ($0.text ?? "").localizedCaseInsensitiveContains(activeQuery) }
     }
 
     /// Groups the whole history by day, with no paging of any kind. `List` builds
@@ -42,6 +55,16 @@ struct DictationHistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // `task(id:)` cancels and restarts whenever the field changes, so the
+        // sleep only finishes once typing stops — the whole debounce is those two
+        // lines. Both directions are delayed, deleting included: it is the
+        // expensive one, and a field that clears instantly while the list catches
+        // up is the point rather than a compromise.
+        .task(id: searchQuery) {
+            try? await Task.sleep(for: DictationHistoryLayout.searchSettlingDelay)
+            guard !Task.isCancelled else { return }
+            activeQuery = searchQuery
+        }
         .accessibilityIdentifier("dictation-history-view")
     }
 
@@ -173,6 +196,13 @@ enum DictationHistoryLayout {
 
     /// Between the entry time and the transcript beside it.
     static let timeColumnGap: CGFloat = 20
+
+    /// How long typing has to stop before the list is filtered again.
+    ///
+    /// Long enough that a word costs one rebuild rather than one per letter,
+    /// short enough that it reads as the list keeping up rather than as a wait.
+    /// Mail's results trail its field by about this much.
+    static let searchSettlingDelay: Duration = .milliseconds(250)
 
     // No constant for the gap between one day and the next. `.inset` supplies it,
     // and two attempts to declare it here — a top inset on the header, a bottom
@@ -309,19 +339,12 @@ private struct DictationHistoryRow: View {
             // the transcript makes the text the tallest child at every length,
             // so this number *is* the gap to the separator in every row.
             //
-            // Which means it only works while the padded transcript stays taller
-            // than `RowIconHover`'s 24pt, which the two-line minimum guarantees
-            // on its own.
-            //
-            // 10. This number sets the height of rows with two lines or more and
-            // nothing else: a one-line row is held by the floor below, so raising
-            // this opens up the long rows without touching the short ones. That
-            // only became true once the floor replaced the two-line minimum —
-            // before it, raising this moved every row together.
-            //
-            // 14, and it is arithmetic rather than taste: the row insets above
-            // zero out every other vertical measurement, two lines of transcript
-            // measure 31pt, and 31 + 2 × 14 is the 60pt a two-line row wants.
+            // This number sets the height of rows with two lines or more and
+            // nothing else: a one-line row is held by the floor below it, so
+            // raising this opens up the long rows without touching the short
+            // ones. 14 is arithmetic rather than taste — the row insets zero out
+            // every other vertical measurement, two lines of transcript measure
+            // 31pt, and 31 + 2 × 14 is the 60pt a two-line row wants.
             .padding(.vertical, 14)
             // After the padding, so the floor is on the padded block rather than
             // on the text inside it — a floor applied to the text would be
