@@ -418,16 +418,26 @@ struct ScriberApp: App {
         // Inside the width cap the content declares, or the window opens wider
         // than it is allowed to be resized to and snaps in on its first layout.
         .defaultSize(width: MainWindowLayout.maxWidth, height: MainWindowLayout.defaultHeight)
-        // The width cap the content declares is only enforced under this.
-        // Settings and setup have always had it, which is why their sizes hold
-        // and this window's did not: the default resizability takes a minimum
-        // from the content and ignores the maximum, so the window could be
-        // dragged past its cap and only snapped back on the next activation.
+        // The width cap the content declares is only enforced under this, and
+        // this pair is the whole of it — nothing in AppKit repeats them. SwiftUI
+        // owns the window's size limits outright: wipe `contentMaxSize` in a
+        // debugger and its own window controller both refuses the wider resize
+        // and writes the limit back on the next layout pass. `.fullScreenNone`
+        // comes from here too, because the maximum width is finite.
         // Height stays free — the content sets no maximum for it.
         .windowResizability(.contentSize)
         // Hides the title text only. `window.title` and `.titled` both survive,
         // which every `AppWindowIdentity` check depends on, and SwiftUI sets
         // `fullSizeContentView` itself so content runs under the toolbar.
+        //
+        // Nothing sets `titlebarSeparatorStyle`, and nothing should: a view-tree
+        // dump of this window while scrolled found `NSScrollPocket` present with
+        // both its `NSHardPocketView` children `hidden`. Under a SwiftUI `List`
+        // AppKit draws no titlebar separator whichever style is asked for, so
+        // neither `.none` nor `.automatic` changes anything. The rule under a
+        // stuck day label is a different thing entirely — it belongs to the
+        // header's own floating banner, which `DictationHistory.swift` describes
+        // where the `Section` header is built.
         .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
             MainWindowCommands(runtime: runtime)
@@ -744,7 +754,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.setActivationPolicy(.regular)
                 if AppWindowIdentity.isPageWindow(window) { self?.fitPageWindow(window) }
                 if AppWindowIdentity.isSettingsWindow(window) { self?.fitSettingsWindow(window) }
-                if AppWindowIdentity.isMainWindow(window) { Self.fitMainWindow(window) }
             }
         })
         observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self] note in
@@ -902,34 +911,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             Self.windowLog.notice("showOnboardingWindow: never appeared")
         }
-    }
-
-    /// A backstop for the main window's width cap, not the thing that enforces
-    /// it. The scene declares the cap on its content and takes
-    /// `.windowResizability(.contentSize)`, which is what makes it hold; this
-    /// repeats it in AppKit's terms. Whether it is still needed has not been
-    /// tested — removing it means checking by hand that the window still refuses
-    /// to be dragged past `MainWindowLayout.maxWidth`.
-    ///
-    /// `contentMaxSize`, as `fitSettingsWindow` uses, rather than `maxSize`: one
-    /// measures the content area and the other the whole frame, and only the
-    /// first is the number the scene's cap is expressed in.
-    ///
-    /// Deliberately sets no `titlebarSeparatorStyle`. A view-tree dump of this
-    /// window while scrolled found `NSScrollPocket` present with both its
-    /// `NSHardPocketView` children `hidden`: under a SwiftUI `List`, AppKit draws
-    /// no titlebar separator whichever style is asked for, so neither `.none` nor
-    /// `.automatic` changes anything here.
-    ///
-    /// The rule under a stuck day label is not this separator, and setting this
-    /// property will not change it either. It belongs to the header's own floating
-    /// banner — `DictationHistory.swift` describes it where the `Section` header
-    /// is built.
-    private static func fitMainWindow(_ window: NSWindow) {
-        window.contentMaxSize = NSSize(
-            width: MainWindowLayout.maxWidth,
-            height: .greatestFiniteMagnitude
-        )
     }
 
     /// Holds Settings at its fixed size, and keeps Window ▸ Center working there.

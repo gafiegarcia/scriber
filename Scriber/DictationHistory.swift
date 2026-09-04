@@ -203,11 +203,13 @@ struct DictationHistoryView: View {
         // into rebuilding by hand what `.plain` had taken away, and all of it was
         // deleted when the style changed back.
         .listStyle(.inset)
-        // No width cap here. The window itself is capped instead — see
-        // `fitMainWindow` — so the list fills it and the scroll bar stays against
-        // the window edge where a scroll bar belongs. Capping the list moved the
-        // bar inward and left bands of bare window beside it; capping the row
-        // held only the text and let the rules run past it.
+        // No width cap here. The window itself is capped instead — `MainWindow`
+        // declares it as the content's `maxWidth`, and the scene takes
+        // `.windowResizability(.contentSize)` so SwiftUI enforces it — leaving the
+        // list to fill the window with the scroll bar against its edge, where a
+        // scroll bar belongs. Capping the list moved the bar inward and left bands
+        // of bare window beside it; capping the row held only the text and let the
+        // rules run past it.
     }
 
 }
