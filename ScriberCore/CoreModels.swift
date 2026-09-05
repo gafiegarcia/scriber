@@ -753,11 +753,6 @@ public enum RecordingCancellationPolicy {
     }
 }
 
-/// When Scriber stops keeping a failed or cancelled dictation. Unretried audio
-/// left in Application Support is a privacy cost as much as a disk one, so
-/// retention is bounded unless the user asks otherwise, and a dictation that
-/// never produced a transcript goes with its recording: what is left offers
-/// nothing to read, copy, or retry.
 /// How long a failed or cancelled dictation is kept, as the user chose it.
 public enum RetainedAudioRetention: String, CaseIterable, Codable, Sendable {
     case sevenDays
@@ -792,6 +787,11 @@ public enum RetainedAudioRetention: String, CaseIterable, Codable, Sendable {
     }
 }
 
+/// When Scriber stops keeping a failed or cancelled dictation. Unretried audio
+/// left in Application Support is a privacy cost as much as a disk one, so
+/// retention is bounded unless the user asks otherwise, and a dictation that
+/// never produced a transcript goes with its recording: what is left offers
+/// nothing to read, copy, or retry.
 public enum RetainedAudioRetentionPolicy {
     public static func hasExpired(
         createdAt: Date,
