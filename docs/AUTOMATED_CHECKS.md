@@ -7,59 +7,35 @@
 - Every `--ui-testing` flag is **Debug only**. `isUITesting` is compiled out of Release, so an installed app takes the arguments, ignores them silently, and runs exactly as itself — a check aimed at `/Applications` looks like the feature is broken when nothing was ever switched on. Launch these from `.build/xcode-debug/Build/Products/Debug/Scriber.app`.
 - A `--ui-testing` launch uses throwaway defaults, an in-memory history store, disabled external services, and no real Keychain. It can prove presentation, interaction, and routing, but never real credential validity or storage, service access, permissions, dictation, insertion, global shortcuts, or menu-bar behavior.
 
+## What the scripts are
+
+Every check a machine can run lives in `scripts/`. This document says what each one proves, what it cannot, and how to read what it returns.
+
+| Script | Run it |
+|---|---|
+| `./scripts/check.sh` | After any change to Swift, and before any commit. |
+| `./scripts/smoke.sh` | After any change to startup, the pill, or an `NSViewRepresentable`. |
+| `./scripts/check-docs.sh` | After any change to a document or to a symbol a document names. |
+| `./scripts/inspect-release.sh` | After a Release build, before installing or notarizing. |
+| `./scripts/check-cask.sh <version>` | After publishing a release. |
+
 ## Routine pass
 
-Run from any directory inside the repository. The repo-local module cache and `--disable-sandbox` make the package tests work in managed sandboxes as well as a normal shell.
+`./scripts/check.sh` — both parse invocations, the ScriberCore typecheck, the package tests, and the `Info.plist` lint.
 
-```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-MODULE_CACHE="$REPO_ROOT/.build/module-cache"
-mkdir -p "$MODULE_CACHE"
+Neither parse invocation typechecks, so a Debug `xcodebuild` is the only real gate on `#if DEBUG` code. The second invocation exists because without `-D DEBUG` those regions are lexed but never parsed, so the first says nothing about `AppLaunchConfiguration`'s flags or `UITestingHistoryFixture`.
 
-swiftc -frontend -parse \
-  "$REPO_ROOT"/Scriber/*.swift \
-  "$REPO_ROOT"/ScriberCore/*.swift \
-  "$REPO_ROOT"/ScriberCoreTests/*.swift
+## The documents
 
-# Again with DEBUG defined. Without it, `#if DEBUG` regions are lexed but never
-# parsed, so the pass above says nothing about `AppLaunchConfiguration`'s flags
-# or `UITestingHistoryFixture`.
-swiftc -frontend -parse -D DEBUG \
-  "$REPO_ROOT"/Scriber/*.swift \
-  "$REPO_ROOT"/ScriberCore/*.swift
+`./scripts/check-docs.sh` — no line-numbered code citation anywhere, every symbol citation naming something its file still declares, and every quoted spec fragment in `MANUAL_CHECKS.md` still present in `PRODUCT_SPEC.md`.
 
-swiftc -module-cache-path "$MODULE_CACHE" -typecheck \
-  "$REPO_ROOT"/ScriberCore/*.swift
-
-CLANG_MODULE_CACHE_PATH="$MODULE_CACHE" \
-SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
-swift test --disable-sandbox --package-path "$REPO_ROOT"
-
-plutil -lint "$REPO_ROOT/Scriber/Info.plist"
-```
-
-Neither parse invocation typechecks, so a Debug `xcodebuild` is the only real gate on `#if DEBUG` code.
+It proves a spec fragment exists. It cannot prove it is the *right* rule: an anchor can resolve to a plausible neighbour, and only reading the check beside the bullet it names settles that.
 
 ## Release bundle inspection
 
-Build instructions are in the [build guide](BUILDING.md). After building Release, inspect the exact bundle that will be installed:
+Build instructions are in the [build guide](BUILDING.md). After building Release, `./scripts/inspect-release.sh` inspects the exact bundle that will be installed — pass a path to inspect a different one.
 
-```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-APP_PATH="$REPO_ROOT/.build/xcode-release/Build/Products/Release/Scriber.app"
-
-codesign -d -r- "$APP_PATH"
-codesign --verify --strict --verbose=2 "$APP_PATH"
-codesign -d --entitlements :- "$APP_PATH"
-codesign -d --verbose=4 "$APP_PATH" 2>&1 | grep -E "^(Authority|TeamIdentifier|CodeDirectory)"
-
-if [ -e "$APP_PATH/Contents/embedded.provisionprofile" ]; then
-  echo "REFUSING: Release contains a provisioning profile" >&2
-  exit 1
-fi
-```
-
-Four things must hold, and each has caught a real mistake:
+Four things must hold, the script asserts all four, and each has caught a real mistake:
 
 - The requirement anchors to Apple's Developer ID chain for team `24U8BM54A3`. Anything else is a different app to macOS, and its permission grants will not carry over.
 - `CodeDirectory` flags include `runtime`. Without the hardened runtime, notarization refuses the build.
@@ -70,22 +46,9 @@ Four things must hold, and each has caught a real mistake:
 
 Run after publishing a release. Nothing else checks the tap's `Casks/scriber.rb`: it lives in another repository, is not compiled, is not tested, and does not run until someone types the install command — so a wrong `sha256`, a `version` that builds a URL to nothing, a mis-set `depends_on`, or an artifact name that does not match what is inside the disk image all fail silently until a stranger meets them.
 
+`./scripts/check-cask.sh 0.9.4` — pass the version just published, which it asserts the cask actually installs.
+
 `--appdir` is what makes it runnable here. Installing the cask the ordinary way would put the release over the development build in `/Applications` and hand Homebrew that app to manage again; sent to a throwaway directory, the whole real path still runs — fetch, checksum, architecture and OS gates, mount, artifact placement — against the copy nobody is using.
-
-```bash
-APPDIR="$(mktemp -d)"
-brew install --cask --appdir="$APPDIR" gafiegarcia/scriber/scriber
-APP="$APPDIR/Scriber.app"
-
-/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist"
-codesign --verify --strict --verbose=2 "$APP"
-xcrun stapler validate "$APP"
-spctl -a -vvv --type open --context context:primary-signature "$APP"
-
-brew uninstall --cask scriber
-brew list --cask | grep scriber || echo "no longer tracked"
-```
 
 The version and build must be the release just published, the signature must verify, the ticket must validate, and `spctl` must report `source=Notarized Developer ID`.
 
@@ -97,42 +60,7 @@ The app itself needs no separate proof here. The cask fetches the same release a
 
 ## Launch smoke check
 
-Run after any change to startup, the pill, or an `NSViewRepresentable`.
-
-Run it exactly as written. `APP_PATH` must be absolute and the `before_pid` guard must stay, or a failed launch makes the final `kill` target the installed Scriber.
-
-```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-xcodebuild -project "$REPO_ROOT/Scriber.xcodeproj" \
-  -scheme Scriber -configuration Debug \
-  -derivedDataPath "$REPO_ROOT/.build/xcode-debug" build
-```
-
-```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-before_pid="$(pgrep -n -x Scriber || true)"
-APP_PATH="$REPO_ROOT/.build/xcode-debug/Build/Products/Debug/Scriber.app"
-
-if [ ! -d "$APP_PATH" ]; then
-  echo "REFUSING: build the Debug app first" >&2
-  exit 1
-fi
-
-open -g -j -n -a "$APP_PATH" --args \
-  --ui-testing \
-  --ui-testing-no-activate \
-  --ui-testing-missing-permissions
-sleep 6
-pid="$(pgrep -n -x Scriber || true)"
-
-if [ -z "$pid" ] || [ "$pid" = "$before_pid" ]; then
-  echo "REFUSING: the test build never launched" >&2
-  exit 1
-fi
-
-ps -p "$pid" -o pid,%cpu,command
-kill "$pid"
-```
+`./scripts/smoke.sh` — builds Debug, launches it, prints its CPU, and kills it. The `before_pid` guard and the absolute path are inside the script, which is what keeps its `kill` off the installed Scriber when a launch fails.
 
 This launch suppresses activation, Dock presence, and the menu-bar item, but still creates and renders the window. A process that stays at high CPU or never idles is an app failure worth sampling before blaming the harness.
 
@@ -154,7 +82,7 @@ The subsystem holds four categories: `window-lifecycle`, `paste-target`, `permis
 
 ## A launch macOS made at login
 
-`--simulate-login-launch` makes the app treat its launch as one macOS made at login, which is otherwise reachable only by restarting the Mac. Add it to the smoke check's arguments and the app must come up with no window ordered front and `launch: loginItem=true startsInBackground=true` in the log. Without the flag the same launch must show the window, which is the pair worth running together — one of them passing on its own proves nothing.
+`./scripts/smoke.sh --login` adds `--simulate-login-launch`, which makes the app treat its launch as one macOS made at login — otherwise reachable only by restarting the Mac. Under it the app must come up with no window ordered front and `launch: loginItem=true startsInBackground=true` in the log. Without the flag the same launch must show the window, which is the pair worth running together — one of them passing on its own proves nothing.
 
 The flag skips the preferences the real path consults, so it holds whatever Start in the background is set to at the time. It is Debug-only and independent of `--ui-testing`, so the app can otherwise behave normally under it.
 
