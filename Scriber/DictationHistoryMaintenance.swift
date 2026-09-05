@@ -65,14 +65,17 @@ final class DictationHistoryMaintenance {
     /// along with any retained audio still behind them. Such a dictation earns its
     /// row by being retryable; once the recording has expired or gone missing and
     /// no transcript ever arrived, the row can only be scrolled past.
-    func discardExpiredDictations(keptFor retention: RetainedAudioRetention) {
+    ///
+    /// - Returns: the discarded records' ids, so a caller holding one can let go.
+    @discardableResult
+    func discardExpiredDictations(keptFor retention: RetainedAudioRetention) -> [UUID] {
         // Never from a test build. `PendingAudio` is one real directory that
         // `--ui-testing` does not isolate while the history store under it *is*
         // in-memory, so the sweep below sees every one of Gaf's genuinely retained
         // recordings as referenced by nothing and deletes the expired ones. This
         // guard has to cover every entry point, not just the launch call site.
         guard servicesAllowed, retention != .never,
-              let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
+              let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return [] }
 
         // `nil` when the directory could not be read, which the policy needs to
         // tell apart from a directory that is genuinely empty. One listing serves
@@ -82,7 +85,7 @@ final class DictationHistoryMaintenance {
         let audioOnDisk = audioFiles.map { Set($0.map(\.lastPathComponent)) }
 
         var survivors: [DictationRecord] = []
-        var didDiscard = false
+        var discarded: [UUID] = []
         for record in records {
             // Ask about the transcript, never about the state alone. A row holding
             // text is a dictation that succeeded whatever else is stored about it,
@@ -112,15 +115,15 @@ final class DictationHistoryMaintenance {
             case .discardEntry:
                 break
             }
+            discarded.append(record.id)
             modelContext.delete(record)
-            didDiscard = true
         }
-        if didDiscard { try? modelContext.save() }
+        if !discarded.isEmpty { try? modelContext.save() }
 
         // Anything left that no dictation references is stale by construction,
         // including the files orphan recovery deliberately refuses to reimport.
         let referencedAudio = Set(survivors.compactMap(\.pendingAudioRelativePath))
-        guard let files = audioFiles else { return }
+        guard let files = audioFiles else { return discarded }
         for file in files where !referencedAudio.contains(file.lastPathComponent) {
             let createdAt = (try? file.resourceValues(forKeys: [.creationDateKey]))?.creationDate
             guard RetainedAudioRetentionPolicy.hasExpired(
@@ -129,5 +132,6 @@ final class DictationHistoryMaintenance {
             ) else { continue }
             try? FileManager.default.removeItem(at: file)
         }
+        return discarded
     }
 }

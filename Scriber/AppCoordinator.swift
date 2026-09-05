@@ -386,15 +386,16 @@ final class AppCoordinator: ObservableObject {
         preferences.$retainedAudioRetention
             .dropFirst()
             .sink { [weak self] retention in
-                self?.historyMaintenance.discardExpiredDictations(keptFor: retention)
+                // The publisher's value, never `preferences.retainedAudioRetention`:
+                // `@Published` emits before the property is written, so reading it
+                // here sweeps to the setting the user just moved away from.
+                self?.discardExpiredDictations(keptFor: retention)
             }
             .store(in: &cancellables)
 
         if persistenceAvailable, servicesAllowed {
             historyMaintenance.recoverPersistedAndOrphanedRecords()
-            historyMaintenance.discardExpiredDictations(
-                keptFor: preferences.retainedAudioRetention
-            )
+            discardExpiredDictations()
         }
         lastObservedCredentialReadiness = credentialReadiness
         refreshPermissions(source: .launch)
@@ -1170,10 +1171,23 @@ final class AppCoordinator: ObservableObject {
     /// retention period stays a floor either way: this can keep a dictation longer
     /// than the setting asks, never delete one sooner.
     func discardExpiredDictations() {
+        discardExpiredDictations(keptFor: preferences.retainedAudioRetention)
+    }
+
+    /// The one place the sweep is reached from, so the guard cannot be forgotten
+    /// at a call site. Without `persistenceAvailable` the store that failed to
+    /// open has been replaced by an empty in-memory one, while the real history
+    /// and every retained recording are still on disk — a sweep against it finds
+    /// nothing referencing them and deletes the expired ones for real.
+    private func discardExpiredDictations(keptFor retention: RetainedAudioRetention) {
         guard persistenceAvailable else { return }
-        historyMaintenance.discardExpiredDictations(
-            keptFor: preferences.retainedAudioRetention
-        )
+        let discarded = historyMaintenance.discardExpiredDictations(keptFor: retention)
+        // A discarded record must not be left in hand: reading a deleted SwiftData
+        // model is a trap, and Retry on a resting pill reads this one.
+        if let id = currentRecord?.id, discarded.contains(id) {
+            currentRecord = nil
+            currentRecording = nil
+        }
     }
 
     func openMainWindow() {
