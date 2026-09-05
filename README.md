@@ -143,14 +143,14 @@ Scriber checks GitHub once a day for a newer version and tells you in the menu b
 
 ## Repository
 
-The app builds from the repository root: [`Scriber`](Scriber) is the app target, [`ScriberCore`](ScriberCore) the shared package with [`ScriberCoreTests`](ScriberCoreTests) beside it, and [`Branding`](Branding) the icon artwork. Docs live in [`docs`](docs):
+The app builds from the repository root: [`Scriber`](Scriber) is the app target, [`ScriberCore`](ScriberCore) the shared package with [`ScriberCoreTests`](ScriberCoreTests) beside it, [`Branding`](Branding) the icon artwork, and [`scripts`](scripts) every check a machine can run. Docs live in [`docs`](docs):
 
 - [Building](docs/BUILDING.md): prerequisites, signing, command-line builds, installing, and first launch.
 - [Releasing](docs/RELEASING.md): notarization, the disk image, and publishing a download.
 - [Product specification](docs/PRODUCT_SPEC.md): required behavior and durable product decisions.
-- [Roadmap](docs/ROADMAP.md): unbuilt work, grouped by target version.
+- [Roadmap](docs/ROADMAP.md): committed work, each item linking to the task that holds its detail.
 - [Paste engine](docs/PASTE_ENGINE.md): how a finished dictation reaches another app, and what has been tried and refused.
-- [Manual checks](docs/MANUAL_CHECKS.md) and [automated checks](docs/AUTOMATED_CHECKS.md): the two verification passes.
+- [Automated checks](docs/AUTOMATED_CHECKS.md): what each script in `scripts/` proves, and what it cannot. [Manual checks](docs/MANUAL_CHECKS.md): the states only a person at this Mac can reach.
 - [Versioning policy](docs/VERSIONING.md): how versions, builds, and tags differ.
 
 The Xcode project is the source of truth for the bundle build number. See the [changelog](CHANGELOG.md) for released snapshots.
