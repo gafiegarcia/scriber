@@ -4,23 +4,24 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
-### Fixed
+## 0.9.4 (build 311) — 2026-09-05
 
-- **Changing the recording-cleanup setting can no longer delete recordings while your history is unavailable.** If Scriber's history database failed to open — the state where the menu bar reports **Dictation history unavailable** — the app carried on with an empty stand-in, and changing that setting swept your real recordings against it, deleting the older ones as unreferenced. Present since 0.9.3.
-- **Scrolling to the bottom of a long history no longer leaves it blank.** Dragging the scrollbar down could load the whole history at once and then strand the view past the end of it, showing nothing until you scrolled back up. This was introduced by the incremental loading in 0.9.3; the loading it came from is gone rather than patched.
-- **The dictation history scrolls smoothly however long it is.** It now builds only the rows near what you are looking at and reuses them as they pass, instead of building every row it had ever been scrolled to. A history of two thousand entries costs what sixty used to, and the day you dictated into three hundred times is no longer the one that stutters.
-- **Typing in the search field no longer stutters.** Deleting was the worst of it — clearing the query goes from a handful of matches back to everything — and the field was waiting for the list to catch up. The field now stays ahead and the results follow a moment later.
+A history release. The dictation list was rebuilt on the list AppKit already knows how to scroll, so it stays smooth however much you have dictated, and failed dictations stop collecting at the bottom of it — an entry whose recording is gone now leaves with it, on a schedule you choose.
 
 ### Changed
 
+- **Dictation history follows the shape Notes and Mail use.** Every day is named above its own entries and the name stays with you as you scroll through that day, rather than appearing only in the window's titlebar. The cards each day sat in are gone; entries are separated by a rule the way a list separates rows.
 - **You choose how long a failed or cancelled dictation is kept, and the default is now 7 days.** Settings → Dictation replaces the **Delete unused recordings after 30 days** switch with a choice of **After 7 days**, **After 30 days**, and **Never**. If you had that switch on, you get the new default — 30 days was never something you picked. If you had turned it off, you get **Never**, which leaves everything where it is.
 - **A failed or cancelled dictation now leaves your history when its recording does.** Such an entry was kept forever after its recording expired, saying only that it could no longer be retried — nothing to read, nothing to copy, nothing to do. The entry and the recording now go together, as does any entry whose recording has gone missing. Dictations that produced a transcript are untouched. Entries already stranded this way are cleared the first time you open Scriber.
-- **Dictation history follows the shape Notes and Mail use.** Every day is named above its own entries and the name stays with you as you scroll through that day, rather than appearing only in the window's titlebar. The cards each day sat in are gone; entries are separated by a rule the way a list separates rows.
 - **The main window has a maximum width.** A transcript column reads badly when it runs the whole width of a large display, so the window stops at a comfortable measure. **It can no longer be made full screen** — Fill and the green button grow it vertically only.
 
-## 0.9.3 — 2026-09-04
+### Fixed
 
-Native bundle build 296, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
+- **The dictation history scrolls smoothly however long it is, and no longer strands you on a blank page.** The incremental loading added in 0.9.3 is gone rather than patched: dragging the scrollbar down could load the whole history at once and leave the view past the end of it, showing nothing until you scrolled back up. The list now builds only the rows near what you are looking at and reuses them as they pass. A history of two thousand entries costs what sixty used to, and the day you dictated into three hundred times is no longer the one that stutters.
+- **Typing in the search field no longer stutters.** Deleting was the worst of it — clearing the query goes from a handful of matches back to everything — and the field was waiting for the list to catch up. The field now stays ahead and the results follow a moment later.
+- **Changing the recording-cleanup setting can no longer delete recordings while your history is unavailable.** If Scriber's history database failed to open — the state where the menu bar reports **Dictation history unavailable** — the app carried on with an empty stand-in, and changing that setting swept your real recordings against it, deleting the older ones as unreferenced. Present since 0.9.3.
+
+## 0.9.3 (build 296) — 2026-09-04
 
 A responsiveness release. Scriber spent most of a dictation's cost on work nobody could see — a history list rebuilding for a closed window, a login-item reading on the press and again every five seconds — and this removes it. Escape now cancels at any stage, and a dictation can no longer be left recording with nothing able to stop it.
 
@@ -56,9 +57,7 @@ A responsiveness release. Scriber spent most of a dictation's cost on work nobod
 - **The pill comes up as soon as you press the shortcut.** It used to take somewhere between 55 and 110 milliseconds to appear, and almost all of that was two things that had no business being in the way: Scriber asked macOS whether it was set to launch at login — on every single dictation — and then waited for the start sound to begin playing, which takes about 45 milliseconds if your speaker has gone to sleep. Neither is asked before the pill now, and it appears in about 10 milliseconds. The sound still plays on the press, just no longer ahead of what you are waiting for.
 - **The pill no longer flashes a stretched capsule** on its way from **Recover canceled dictation?** to a one-line **Transcribing…**. It was drawing the small pill at the big panel's height for as long as that phase lasted — about a second and a half — because the pill was being measured while it still held the panel it was leaving.
 
-## 0.9.2 — 2026-09-01
-
-Native bundle build 261, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
+## 0.9.2 (build 261) — 2026-09-01
 
 A delivery release. Scriber's paste engine was rebuilt around a single question — did the app you were dictating into actually take the transcript — and everything that used to guess at the answer is gone.
 
@@ -74,9 +73,7 @@ A delivery release. Scriber's paste engine was rebuilt around a single question 
 - **Scriber no longer reports a dictation delivered when it was not.** A web page rearranging itself, or a text box simply disappearing, could be taken as proof your words had arrived — so a dictation that went nowhere was reported as pasted and you found out by looking. Delivery is now confirmed by one thing: the app actually taking the transcript.
 - **Scriber now says why it will not paste into a password field.** It has always refused — dictation must never be typed into a password box — but it refused silently behind the same "Copied to clipboard" notice as any other failure, so the one thing worth saying was the thing not said. It now names what happened and tells you the transcript is on your clipboard if you meant it.
 
-## 0.9.1 — 2026-08-27
-
-Native bundle build 234, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
+## 0.9.1 (build 234) — 2026-08-27
 
 If you installed Scriber with Homebrew, take this update with `brew upgrade --cask scriber` rather than the disk image. Dragging a download over a Homebrew install leaves Homebrew describing an app it no longer put there. From 0.9.1 onward Scriber says so itself; 0.9.0 could not, which is why it is written here.
 
@@ -100,9 +97,7 @@ If you installed Scriber with Homebrew, take this update with `brew upgrade --ca
 - **Settings opens each tab at its top.** It used to come back wherever you left it — close it half-way down the General tab and the next opening started there, with the settings above it out of sight. Which tab you were last on is still remembered, because that is somewhere you chose to be; where you had scrolled to is not.
 - **The menu bar keeps its warnings together.** A missing permission and an unusable key were drawn in separate groups, divided from each other as though they were different kinds of thing. They now sit together, with an available update in a group of its own — an offer is not a warning.
 
-## 0.9.0 — 2026-08-24
-
-Native bundle build 217, signed with a Developer ID Application certificate under the hardened runtime, notarized and stapled. Apple silicon, macOS 26 Tahoe or newer.
+## 0.9.0 (build 217) — 2026-08-24
 
 ### Added
 
@@ -144,9 +139,9 @@ Native bundle build 217, signed with a Developer ID Application certificate unde
 
 - The **"Microphone cut out"** warning is gone. It was meant to tell you when your microphone stopped sending audio partway through a dictation, but Bluetooth earbuds send literal silence between phrases, so it fired on an ordinary pause before you stopped recording — announcing that part of your dictation was missing when all of it had arrived. A microphone that sends nothing at all is still reported, as before.
 
-## 0.8.8 — 2026-08-14
+## 0.8.8 (build 143) — 2026-08-14
 
-Native bundle build 143, installed from an entitlement-free, locally signed Release build.
+Entitlement-free, locally signed, not notarized.
 
 ### Fixed
 
@@ -181,9 +176,9 @@ Native bundle build 143, installed from an entitlement-free, locally signed Rele
 - The toolbar warning's popover is a little narrower, and its message sits closer to the sides of the box instead of leaving a wide margin there.
 - The **Usage** section on Settings' ElevenLabs tab is now called **Credits**. The bar shows what is left and drains leftward as credits are spent, so a section called Usage read backwards against it. The pill that appears when your credits run out now offers **View Credits** rather than **View Usage**, matching the section it opens.
 
-## 0.8.7 — 2026-08-06
+## 0.8.7 (build 100) — 2026-08-06
 
-Native bundle build 100, installed from an entitlement-free, locally signed Release build. The app itself is unchanged from `0.8.6`; this release opens the source.
+Entitlement-free, locally signed, not notarized. The app itself is unchanged from `0.8.6`; this release opens the source.
 
 ### Changed
 
@@ -193,9 +188,9 @@ Native bundle build 100, installed from an entitlement-free, locally signed Rele
 
 - The retired Electron implementation is no longer in the repository. It stopped at `0.6.0` and remains in Git history.
 
-## 0.8.6 — 2026-08-05
+## 0.8.6 (build 99) — 2026-08-05
 
-Native bundle build 99, installed from an entitlement-free, locally signed Release build.
+Entitlement-free, locally signed, not notarized.
 
 ### Fixed
 
@@ -209,9 +204,9 @@ Native bundle build 99, installed from an entitlement-free, locally signed Relea
 - The keyterms you've added now sit in their own card under the field that adds them, one row per term with a divider between them, instead of each reading as its own settings row with the same divider treatment as Language or the filler-word toggle. Rows are roomier too, so the delete button on a crowded list is easy to tie to the entry beside it at a glance.
 - The Keyterms row no longer spends a permanent caption line explaining what a keyterm is. Click the small **ⓘ** beside **Keyterms** for the same explanation in a popover.
 
-## 0.8.5 — 2026-08-04
+## 0.8.5 (build 79) — 2026-08-04
 
-Native bundle build 79, installed from an entitlement-free, locally signed Release build.
+Entitlement-free, locally signed, not notarized.
 
 ### Fixed
 
@@ -231,18 +226,18 @@ Native bundle build 79, installed from an entitlement-free, locally signed Relea
 - Clearer labels throughout Settings: the sounds setting says what you will actually hear, keyterms explain what they are for, "Hands-free Toggle" is now "Hands-free Dictation", "Redo Onboarding…" is "Redo Setup…", and "Remove Key…" is "Remove API Key…".
 - The day label in Dictation and the Settings section headers sit a little left of the cards they name, so the content is what reads as indented.
 
-## 0.8.4 — 2026-08-03
+## 0.8.4 (build 64) — 2026-08-03
 
-Native bundle build 64, installed from an entitlement-free, locally signed Release build.
+Entitlement-free, locally signed, not notarized.
 
 ### Changed
 
 - The day a group belongs to is now named in a strip inside the window's titlebar rather than on a band pinned inside the list. The strip shares the titlebar's own material, so scrolled entries pass under one continuous surface instead of meeting an opaque band and then a translucent one.
 - The empty Dictation history now reads "No Dictations Yet" on its own, without the sentence that followed it.
 
-## 0.8.3 — 2026-08-03
+## 0.8.3 (build 63) — 2026-08-03
 
-Native bundle build 63, installed from an entitlement-free, locally signed Release build.
+Entitlement-free, locally signed, not notarized.
 
 ### Changed
 
@@ -251,9 +246,9 @@ Native bundle build 63, installed from an entitlement-free, locally signed Relea
 - The pill's top and bottom edges now catch a faint highlight, so its glass reads as a lit edge rather than a flat panel.
 - The pill's outcome tint is stronger in light mode. Light glass washed the accents out far enough that a green success and an amber warning looked the same, which is the one thing that tint exists to tell apart.
 
-## 0.8.2 — 2026-08-02
+## 0.8.2 (build 47) — 2026-08-02
 
-Native bundle build 47, installed from an entitlement-free, locally signed Release build.
+Entitlement-free, locally signed, not notarized.
 
 ### Fixed
 
@@ -269,9 +264,9 @@ Native bundle build 47, installed from an entitlement-free, locally signed Relea
 - Every permission button now says "Allow," in Settings and in onboarding alike. The buttons used to change their own label — "Allow" or "Open Settings" — depending on how far macOS thought you had got, which told you nothing you wanted to know and, for Accessibility, sometimes did nothing at all. One button, one word, and it always takes you to the place that can grant the permission.
 - The Accessibility "Allow" button opens System Settings and nothing else. It used to also raise the system permission prompt, so two things appeared at once — and since that prompt cannot grant the permission, granting it in System Settings left the prompt stranded on screen.
 
-## 0.8.1 — 2026-07-31
+## 0.8.1 (build 39) — 2026-07-31
 
-Native bundle build 39, installed from an entitlement-free, locally signed Release build.
+Entitlement-free, locally signed, not notarized.
 
 ### Changed
 
@@ -296,11 +291,11 @@ Native bundle build 39, installed from an entitlement-free, locally signed Relea
 - Focusing Scriber no longer respawns an unchanged missing-permissions pill or restarts its dismissal timer.
 - Scriber no longer crashes shortly after launch when the missing-permissions warning appears.
 
-## 0.7.0 — 2026-07-29
+## 0.7.0 (build 30) — 2026-07-29
 
 The first release without a prerelease suffix. It does not claim v1 polish; it marks the point where versions move by plain semver instead of alpha numbering. See [`docs/VERSIONING.md`](docs/VERSIONING.md).
 
-Native bundle build 30, installed from an entitlement-free, locally signed Release build.
+Entitlement-free, locally signed, not notarized.
 
 ### Added
 

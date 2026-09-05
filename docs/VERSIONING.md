@@ -24,7 +24,9 @@ An Xcode **Release** configuration is an optimized build configuration; it does 
 - Treat pushed tags as immutable; a correction receives a new patch tag.
 - Create a tag only when the documented personal-use behavior passes its release gates in [`ROADMAP.md`](ROADMAP.md).
 
-Annotated tag messages carry engineering metadata that does not belong in the changelog: bundle build, credential and signing state, verification performed, known limitations, and confirmation that no credentials, recordings, local history, or machine-specific output are included.
+A changelog heading names the version, its bundle build, and its date: `## 0.9.4 (build 311) — 2026-09-05`. Nothing else about how the build was made goes in the changelog — signing, hardening, notarization and the macOS requirement are the same for every release since `v0.9.0`, and repeating them under each version says nothing a reader did not already know. Where a release differs, say only how: the builds before `v0.9.0` were entitlement-free, locally signed and never notarized, and that is worth one line because it is not what the others did. `PRODUCT_SPEC.md` states the signing rules, README states the requirements, and the tag message records what this particular build was.
+
+Annotated tag messages carry engineering metadata that does not belong in the changelog: credential and signing state, verification performed, checks deliberately skipped, known limitations, and confirmation that no credentials, recordings, local history, or machine-specific output are included.
 
 ## What a version claims
 
