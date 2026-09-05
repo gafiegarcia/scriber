@@ -6,6 +6,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Fixed
 
+- **Changing the recording-cleanup setting can no longer delete recordings while your history is unavailable.** If Scriber's history database failed to open — the state where the menu bar reports **Dictation history unavailable** — the app carried on with an empty stand-in, and changing that setting swept your real recordings against it, deleting the older ones as unreferenced. Present since 0.9.3.
 - **Scrolling to the bottom of a long history no longer leaves it blank.** Dragging the scrollbar down could load the whole history at once and then strand the view past the end of it, showing nothing until you scrolled back up. This was introduced by the incremental loading in 0.9.3; the loading it came from is gone rather than patched.
 - **The dictation history scrolls smoothly however long it is.** It now builds only the rows near what you are looking at and reuses them as they pass, instead of building every row it had ever been scrolled to. A history of two thousand entries costs what sixty used to, and the day you dictated into three hundred times is no longer the one that stutters.
 - **Typing in the search field no longer stutters.** Deleting was the worst of it — clearing the query goes from a handful of matches back to everything — and the field was waiting for the list to catch up. The field now stays ahead and the results follow a moment later.
