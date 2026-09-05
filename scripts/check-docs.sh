@@ -28,7 +28,8 @@ failures = []
 
 markdown = sorted(
     p for p in root.rglob("*.md")
-    if ".build" not in p.parts and "node_modules" not in p.parts
+    # CLAUDE.md is a symlink to AGENTS.md; reporting both doubles every finding.
+    if ".build" not in p.parts and "node_modules" not in p.parts and not p.is_symlink()
 )
 sources = {p.name: p for d in ("Scriber", "ScriberCore", "ScriberCoreTests")
            for p in (root / d).glob("*.swift")}
