@@ -183,12 +183,9 @@ Never drag a test build's item out of the menu bar: the list macOS keeps is per 
 
 ## When the paste engine changes
 
-Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; it defines the delivery these check.
+Read [`PASTE_ENGINE.md`](PASTE_ENGINE.md) first; its **Regression baseline** lists the destinations delivery must reach, and these say how to reach them and what trips a run up.
 
-- Delivery lands at the cursor in Notion, Ghostty, Raycast, VS Code, Zed, Apple Notes, TextEdit, Terminal, and the Claude desktop app, with no two-to-three-second delay at record start. **These dictations spend API credit; ask first.**
-- Delivery lands in an app that was *just* opened or just switched to with Command-Tab, before it has settled. Calendar's search bar and Notion are where this failed; both need the freshly-opened case, not only the warm one. Compare against pressing Command-V by hand in the same moment — Scriber should now match it.
-- Delivery lands in a web page: `claude.ai` with the prompt focused, with the prompt empty and never clicked, and with nothing focused at all, plus Google Docs including a table cell, and a browser's own address bar.
-- Raycast's command bar and Raycast Notes still take a dictation while another app is frontmost. Neither has a menu bar, so Command-V is the only route that can reach them and a regression there is total.
+- Work through that roster. **These dictations spend API credit; ask first.**
 - A dictation with no text field focused in a native app produces **one** alert sound, not two, then the recovery pill. Calendar with no field focused is the case.
 - Nothing pastes twice. Watch particularly in an app that was slow to respond.
 - Start a hands-free dictation, then keep physically holding the shortcut keys down while it finishes and pastes. The recording still ends and the dictation still arrives as an ordinary paste — that is the whole expectation. Worth repeating with a chord that uses Option or Control, not only the default.

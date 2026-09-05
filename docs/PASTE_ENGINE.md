@@ -75,7 +75,15 @@ The level matters: macOS does not persist `info`, so a diagnostic written at tha
 
 ## Regression baseline
 
-Destination-by-destination expectations live in [`MANUAL_CHECKS.md`](MANUAL_CHECKS.md). Also verify that moving focus during transcription delivers to the final cursor.
+The destinations delivery is expected to reach, which nothing else records. Running these spends API credit, so ask first.
+
+- Notion, Ghostty, Raycast, VS Code, Zed, Apple Notes, TextEdit, Terminal, and the Claude desktop app, with no two-to-three-second delay at record start.
+- An app that was *just* opened or switched to with Command-Tab, before it has settled. Calendar's search bar and Notion are where this failed; both need the freshly-opened case, not only the warm one. Compare against pressing Command-V by hand in the same moment — Scriber should match it.
+- A web page: `claude.ai` with the prompt focused, with the prompt empty and never clicked, and with nothing focused at all; Google Docs including a table cell; and a browser's own address bar.
+- Raycast's command bar and Raycast Notes while another app is frontmost. Neither has a menu bar, so Command-V is the only route that can reach them and a regression there is total.
+- Also verify that moving focus during transcription delivers to the final cursor.
+
+[`MANUAL_CHECKS.md`](MANUAL_CHECKS.md) says how to reach each of these and what trips a run up; this list is what they are run against.
 
 One destination once appeared to break the confirmation rule: Raycast Notes on a freshly opened note asked for the transcript and inserted nothing. It was asking honestly, and its paste was handed the user's previous clipboard by a restore that ran too early. The rule has no known exception.
 
