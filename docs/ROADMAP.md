@@ -29,7 +29,7 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Move the pill's ✕ and ✓ out to match its curve.** ([Notion task](https://app.notion.com/p/3be71937040280968982f75b528add40))
 - [ ] **Transition toasts in place rather than from the right.** ([Notion task](https://app.notion.com/p/3be719370402802ca972e95ea7e40139))
 - [ ] **Give Scriber's Notion page its own skill.** ([Notion task](https://app.notion.com/p/3bc719370402803ca180e1691bbf548a))
-- [ ] **Bound the two queries that load every dictation.** ([Notion task](https://app.notion.com/p/3be71937040280d0bb2ad70e1979f0fa))
+- [ ] **Stop the workspace group sliding toward the traffic lights on reopen.** ([Notion task](https://app.notion.com/p/3d3719370402817eb0cefba6e7d07a2f))
 - [ ] **Decide whether the history's scrollbar has to tell the truth.** ([Notion task](https://app.notion.com/p/3d2719370402818eaea1e0194be139a8))
 - [ ] **Hold the mute longer when the input is Bluetooth.** ([Notion task](https://app.notion.com/p/3c271937040280cb9f01c2aa59e9f87a))
 - [ ] **Give the Settings window a title.** ([Notion task](https://app.notion.com/p/3c5719370402800b8517f4dac5bb2d4e))
