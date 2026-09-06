@@ -23,10 +23,10 @@
 
 - **Edit files with the Edit and Write tools, never with `sed` or a Python replace script.** A script that fails partway leaves nothing written while its earlier replacements look like they succeeded, which has produced confident reports of edits that never happened. Delete this line once the harness stops recommending shell edits in Auto mode.
 - Before changing native behavior, read `docs/PRODUCT_SPEC.md`. Read `docs/PASTE_ENGINE.md` before changing cross-app text delivery. Use `docs/BUILDING.md` for setup, building, and installation.
-- Keep each document to one job: `PRODUCT_SPEC.md` defines required behavior, `ROADMAP.md` names committed work and links each item to the Notion task holding its detail, `MANUAL_CHECKS.md` says how to reach a state only Gaf can reach, `AUTOMATED_CHECKS.md` explains what the scripts prove, `PASTE_ENGINE.md` records the paste architecture, `BUILDING.md` covers building locally, and `RELEASING.md` covers publishing a download. `scripts/` holds every check a machine can run. A rule belongs in exactly one of them; naming the owner is not restating it.
+- Keep each document to one job: `PRODUCT_SPEC.md` defines required behavior, `ROADMAP.md` names committed work and links each item to the Notion task holding its detail, `MANUAL_CHECKS.md` holds the checks only Gaf can run, `AUTOMATED_CHECKS.md` explains what the scripts prove, `PASTE_ENGINE.md` records the paste architecture, `BUILDING.md` covers building locally, and `RELEASING.md` covers publishing a download. `scripts/` holds every check a machine can run. A rule belongs in exactly one of them; naming the owner is not restating it.
 - **Do not hard-wrap prose in Markdown.** Write one line per paragraph and let editors soft-wrap it to whatever width the reader has. Code blocks, tables, and ASCII diagrams keep their literal line breaks.
 - **Docs describe the present, never the past.** No changelogs, session notes, findings, or "why we removed X" in any doc. Git commits and tag messages are the engineering history; `CHANGELOG.md` carries user-relevant changes, under `Unreleased` until their version is tagged. If a rationale changes what someone does next, state it as an instruction; if it explains a decision already made, it belongs in the commit that made it.
-- **An inline comment carries one of five tags, and an untagged one may be deleted by the next agent without asking.** What is already in this code is not a model for what to write: most of it predates this rule.
+- **Every inline comment you write or edit carries one of five tags.** What is already in this code is not a model for what to write: nearly all of it predates this rule.
 
     ```swift
     // Platform: a macOS, SwiftUI or AppKit behavior no API documents
@@ -37,6 +37,8 @@
     ```
 
     `Legacy:` carries an obligation the others do not: say **whether the live code can still produce** the state being defended against. A guard whose comment explains its rule but not its provenance reads as evidence of a live bug, and has already produced a confident report of one against correct code.
+
+    An existing untagged comment is not a licence to delete on sight. Delete one when it restates the code it sits on, or while you are already editing that code and it no longer describes what is there. If it carries something a tag covers — a measured number, a platform behavior, a mistake worth not repeating — **give it the tag instead of deleting it.** Much of what is untagged is the only record of a finding: the rule about a separator landing a point from the day label's own is a measurement nothing else holds.
 
 - **A doc comment (`///`) is governed by length, not by tag**: what the symbol is for, plus any parameter whose meaning is not already in its name.
 - **Docs cite code by symbol, never by line**: `` `discardExpiredDictations` (`DictationHistoryMaintenance.swift`) ``, qualified by type where the same name appears in two files. Where the interesting line is a statement rather than a declaration, cite the declaration enclosing it; where it is a string the user sees, quote the string. This holds in Notion task bodies too, which no script can reach. `./scripts/check-docs.sh` is the gate.
