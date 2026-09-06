@@ -1099,6 +1099,8 @@ final class AppCoordinator: ObservableObject {
         switch disposition {
         case .cancelRecording:
             apply(gate.apply(.cancelRequested))
+        case .cancelTranscription:
+            cancelTranscriptionInFlight()
         case .finishRecording:
             apply(gate.apply(.stopRequested))
         }

@@ -566,12 +566,17 @@ public enum AppPhase: Equatable, Sendable {
         return true
     }
 
-    /// Whether the pill actually draws the Cancel control. Locked recording
-    /// shows it unconditionally; held recording keeps it out of the way until
-    /// the pointer arrives, since Escape already covers cancellation without it.
-    func showsCancelRecordingControl(isHovering: Bool) -> Bool {
+    /// Whether the pill actually draws the Cancel control. Locked recording and
+    /// transcribing show it unconditionally; held recording keeps it out of the
+    /// way until the pointer arrives, since Escape already covers cancellation
+    /// without it.
+    ///
+    /// Transcribing carries it so that the control, and therefore the status
+    /// text beside it, sits in the same place a recording left it. The two
+    /// phases lay out from the same leading element for that reason.
+    func showsCancelControl(isHovering: Bool) -> Bool {
         switch self {
-        case .recording(.locked, _, _): true
+        case .recording(.locked, _, _), .transcribing: true
         case .recording(.held, _, _): isHovering
         default: false
         }
@@ -604,6 +609,7 @@ public enum AppPhase: Equatable, Sendable {
 
 enum HandsFreePillDisposition: Equatable, Sendable {
     case cancelRecording
+    case cancelTranscription
     case finishRecording
 }
 
@@ -611,9 +617,20 @@ enum HandsFreePillAction: Equatable, Sendable {
     case cancel
     case confirm
 
+    /// The pill's Cancel is the pointer's version of Escape, so it means what
+    /// Escape means at that moment: stop the recording, or stop the transcription
+    /// it has become. It is drawn in both phases — see
+    /// `showsCancelControl(isHovering:)`.
     func disposition(for phase: AppPhase) -> HandsFreePillDisposition? {
         switch self {
-        case .cancel: phase.permitsCancelRecording ? .cancelRecording : nil
+        case .cancel:
+            if phase.permitsCancelRecording {
+                .cancelRecording
+            } else if case .transcribing = phase {
+                .cancelTranscription
+            } else {
+                nil
+            }
         case .confirm: phase.showsConfirmRecordingControl ? .finishRecording : nil
         }
     }
@@ -902,8 +919,9 @@ public extension AppPhase {
         case .idle: .passThrough
         case .recording: .cancelRecording
         // Escape means cancel at every stage of a dictation, not just while the
-        // microphone is open. The transcribing pill carries no controls of its
-        // own, so this is the only gesture that reaches it.
+        // microphone is open. The transcribing pill's own Cancel resolves here
+        // too, through `HandsFreePillAction`, so the key and the control cannot
+        // come to mean different things.
         case .transcribing: .cancelTranscription
         case .cancelledTranscript, .noInternetConnection, .dictationCopied, .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,

@@ -36,7 +36,13 @@ struct ShortcutMatcherTests {
         #expect(locked.showsConfirmRecordingControl)
         #expect(HandsFreePillAction.cancel.disposition(for: locked) == .cancelRecording)
         #expect(HandsFreePillAction.confirm.disposition(for: locked) == .finishRecording)
-        #expect(HandsFreePillAction.cancel.disposition(for: .transcribing(attempt: 1, retryDelay: nil)) == nil)
+        // Cancel reaches transcribing too — it is the pointer's version of
+        // Escape, and Escape cancels at every stage of a dictation. Confirm does
+        // not: there is nothing left to stop early.
+        #expect(
+            HandsFreePillAction.cancel.disposition(for: .transcribing(attempt: 1, retryDelay: nil))
+                == .cancelTranscription
+        )
         #expect(HandsFreePillAction.confirm.disposition(for: .transcribing(attempt: 1, retryDelay: nil)) == nil)
     }
 
@@ -45,11 +51,19 @@ struct ShortcutMatcherTests {
         let held = AppPhase.recording(mode: .held, elapsed: 1, level: -20)
         let locked = AppPhase.recording(mode: .locked, elapsed: 1, level: -20)
 
-        #expect(!held.showsCancelRecordingControl(isHovering: false))
-        #expect(held.showsCancelRecordingControl(isHovering: true))
-        #expect(locked.showsCancelRecordingControl(isHovering: false))
-        #expect(locked.showsCancelRecordingControl(isHovering: true))
-        #expect(!AppPhase.transcribing(attempt: 1, retryDelay: nil).showsCancelRecordingControl(isHovering: true))
+        #expect(!held.showsCancelControl(isHovering: false))
+        #expect(held.showsCancelControl(isHovering: true))
+        #expect(locked.showsCancelControl(isHovering: false))
+        #expect(locked.showsCancelControl(isHovering: true))
+        // Transcribing draws it without a hover, so the control does not move as
+        // a recording becomes a transcription.
+        #expect(AppPhase.transcribing(attempt: 1, retryDelay: nil).showsCancelControl(isHovering: false))
+        #expect(
+            HandsFreePillAction.cancel.disposition(for: .transcribing(attempt: 1, retryDelay: nil))
+                == .cancelTranscription
+        )
+        #expect(!AppPhase.idle.showsCancelControl(isHovering: true))
+        #expect(HandsFreePillAction.cancel.disposition(for: .idle) == nil)
     }
 
     @Test("Busy state is limited to recording and transcription")

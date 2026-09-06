@@ -157,13 +157,23 @@ final class PillController {
     /// meter slide inward to make room for Cancel and Confirm, and that is the
     /// only movement there is.
     ///
-    /// Measured: 320 is the smallest width both controls fit in without
-    /// squeezing the status text. The content is 18-point insets, a 28-point
-    /// control and a 10-point gap at each end, a 58-point meter, and
-    /// "Recording · 10:00" at 110 points — 300 of the 320, leaving 20 points
-    /// between text and meter. At 280 that last figure is negative: the gap the
-    /// controls eat into is 62 points and they need 76.
-    private static let oneLinerWidth: CGFloat = 320
+    /// A floor rather than a fixed size: a one-liner is never narrower than this
+    /// and grows only if its text needs more. Recording, transcribing, "Copied"
+    /// and "Canceled" all sit exactly on it, which is what keeps the recording
+    /// pill from changing width when its controls arrive — without them it wants
+    /// 146, and 146 is under the floor.
+    ///
+    /// Measured, at 13-point semibold with the controls pulled out to the
+    /// capsule's curve: 12-point outer insets, a 28-point control and a 10-point
+    /// gap at each end, the widest timer ("10:00") at 38.1, a 58-point meter, and
+    /// the 6-point minimum between text and meter. 222.1, rounded down.
+    private static let oneLinerWidth: CGFloat = 222
+
+    /// A message pill's width less its text: insets, the leading glyph, the
+    /// dismissal countdown, and the gaps between them. Too small shows as a
+    /// cramped message rather than a wrong one, since the text is measured
+    /// against what is left.
+    private static let messageChromeWidth: CGFloat = 110
 
     private static let log = Logger(subsystem: "com.gafiegarcia.scriber", category: "dictation")
     private let glassMargin: CGFloat = 8
@@ -380,9 +390,25 @@ final class PillController {
             NSSize(width: 390, height: 60)
         case .noSpeechDetected, .noAudioSignal:
             NSSize(width: 460, height: 60)
+        // Carries a dismiss control the other one-liners do not, and the longest
+        // title of them, so it is the one that does not fit the floor.
+        case .retryFoundNoWords:
+            NSSize(width: 240, height: 52)
+        case .message(let text):
+            NSSize(width: messageWidth(for: text), height: 52)
         default:
             NSSize(width: Self.oneLinerWidth, height: 52)
         }
+    }
+
+    /// A message is whatever the caller passed, and two of them are long enough
+    /// to have been truncated by the fixed width this replaces — the unavailable
+    /// microphone names a device, so its length is not even known here.
+    private func messageWidth(for text: String) -> CGFloat {
+        let measured = ceil((text as NSString).size(
+            withAttributes: [.font: NSFont.systemFont(ofSize: 13, weight: .semibold)]
+        ).width)
+        return min(max(Self.oneLinerWidth, Self.messageChromeWidth + measured), 460)
     }
 
     private func panelSize(for phase: AppPhase, pillSize: NSSize) -> NSSize {
@@ -700,11 +726,16 @@ private struct PillView: View {
 
     private var compactStatus: some View {
         HStack(spacing: 10) {
-            if case .recording = model.phase {
-                if model.phase.showsCancelRecordingControl(isHovering: model.isHovering) {
+            // A dictation in flight lays out from its Cancel control and puts its
+            // indicator on the trailing edge, so the status text starts at the
+            // same point whether the dictation is still recording or already
+            // transcribing, and Cancel does not move as one becomes the other.
+            if model.phase.isBusy {
+                if model.phase.showsCancelControl(isHovering: model.isHovering) {
                     recordingControl(
                         systemImage: "xmark",
-                        label: "Cancel recording",
+                        label: "Cancel dictation",
+                        edge: .leading,
                         action: { model.onCancelRecording?() }
                     )
                 }
@@ -715,6 +746,7 @@ private struct PillView: View {
                     recordingControl(
                         systemImage: "checkmark",
                         label: "Finish recording",
+                        edge: .trailing,
                         action: { model.onConfirmRecording?() }
                     )
                 }
@@ -730,7 +762,7 @@ private struct PillView: View {
         .padding(.vertical, 11)
         .animation(
             reduceMotion ? nil : .easeInOut(duration: pillResizeDuration),
-            value: model.phase.showsCancelRecordingControl(isHovering: model.isHovering)
+            value: model.phase.showsCancelControl(isHovering: model.isHovering)
         )
         .animation(
             reduceMotion ? nil : .easeInOut(duration: pillResizeDuration),
@@ -738,9 +770,16 @@ private struct PillView: View {
         )
     }
 
+    /// The outward pull is deliberate. The capsule's rounded end is a circle of
+    /// the pill's half-height — 26 points — so a 28-point control shares its
+    /// centre only when its outer edge sits 12 points from the pill's, and the
+    /// row's own inset is 18. The 6 points come off the outer side alone: the
+    /// gap between a control and the element beside it stays at the row's
+    /// spacing, which is what keeps the status text where it was.
     private func recordingControl(
         systemImage: String,
         label: String,
+        edge: HorizontalEdge,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -753,6 +792,7 @@ private struct PillView: View {
         .buttonStyle(.plain)
         .help(label)
         .accessibilityLabel(label)
+        .padding(edge == .leading ? .leading : .trailing, -6)
         .transition(.scale(scale: 0.72).combined(with: .opacity))
     }
 
@@ -766,6 +806,23 @@ private struct PillView: View {
                     .lineLimit(1)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityTitle)
+        .accessibilityValue(accessibilityDetail ?? "")
+    }
+
+    /// The recording pill shows a timer and nothing else, so VoiceOver is told
+    /// what the pill is rather than being handed four digits.
+    private var accessibilityTitle: String {
+        if case .recording = model.phase { return "Recording" }
+        return title
+    }
+
+    /// Read when the element is focused rather than announced as it changes, so
+    /// a timer that ticks every second never talks over anything.
+    private var accessibilityDetail: String? {
+        guard case .recording(_, let elapsed, _) = model.phase else { return subtitle }
+        return elapsed.formattedTimer
     }
 
     private var cancellationRecovery: some View {
@@ -891,7 +948,11 @@ private struct PillView: View {
     private var title: String {
         switch model.phase {
         case .idle: "Ready"
-        case .recording(_, let elapsed, _): "Recording · \(elapsed.formattedTimer)"
+        // The timer alone. A red level meter running beside a stopwatch inside
+        // the dictation app's own pill does not need to be told it is recording,
+        // and the word cost 73 points of a pill that floats over the user's work.
+        // `PillView`'s accessibility label carries it for VoiceOver.
+        case .recording(_, let elapsed, _): elapsed.formattedTimer
         case .transcribing(let attempt, let delay):
             if attempt == 1, delay == nil { "Transcribing…" }
             else { "Retrying \(min(attempt + (delay == nil ? 0 : 1), 3))/3…" }
