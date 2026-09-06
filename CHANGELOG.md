@@ -4,6 +4,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Fixed
+
+- **Opening Settings no longer costs memory for the rest of the session.** Its Dictation tab loaded every dictation you have ever made in order to show how many there were, and kept them for as long as Scriber ran — around 5 MB on a history of two thousand. It now asks the database for the number. The count is taken each time you open the tab rather than ticking up while Settings sits open.
+
 ## 0.9.4 (build 311) — 2026-09-05
 
 A history release. The dictation list was rebuilt on the list AppKit already knows how to scroll, so it stays smooth however much you have dictated, and failed dictations stop collecting at the bottom of it — an entry whose recording is gone now leaves with it, on a schedule you choose.
