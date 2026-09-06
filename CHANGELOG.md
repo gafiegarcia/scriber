@@ -6,6 +6,9 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Fixed
 
+- **Cancel no longer flickers in and out when you bring the pointer to the edge of a recording pill.** Resting the pointer just inside the pill could loop Cancel in and out around twenty times a second for as long as you left it there, without the pointer ever leaving the pill. The pill changed width to make room for Cancel, and changing width was itself what dropped the hover. The region that notices the pointer no longer moves.
+- **The pill's window stays one size while a recording is on screen.** Hovering Cancel in and locking a dictation hands-free move the capsule inside a window that holds still, rather than resizing the window and the capsule together.
+
 - **Opening Settings no longer costs memory for the rest of the session.** Its Dictation tab loaded every dictation you have ever made in order to show how many there were, and kept them for as long as Scriber ran — around 5 MB on a history of two thousand. It now asks the database for the number. The count is taken each time you open the tab rather than ticking up while Settings sits open.
 
 ## 0.9.4 (build 311) — 2026-09-05
