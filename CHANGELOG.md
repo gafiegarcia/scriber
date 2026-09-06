@@ -4,15 +4,16 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Changed
+
+- **The recording pill is a third smaller and no longer says the word "Recording".** It shows the elapsed time and the level meter — a red meter running beside a stopwatch in Scriber's own pill did not need the label — and the meter now takes whatever width Cancel and Confirm are not using, so it more than doubles in size while the pointer is away instead of leaving a gap beside the timer. Cancel and Confirm sit on the pill's curve rather than slightly inside it. VoiceOver is still told it is a recording, and reads the elapsed time when you ask for it rather than announcing it every second.
+- **The transcribing pill has a Cancel button.** Cancelling mid-transcription was previously possible only with `Escape`. It sits exactly where the recording pill's Cancel was, so nothing shifts as a recording becomes a transcription, and it does what the key does.
+
 ### Fixed
 
 - **Cancel no longer flickers in and out when you bring the pointer to the edge of a recording pill.** Resting the pointer just inside the pill could loop Cancel in and out around twenty times a second for as long as you left it there, without the pointer ever leaving the pill. The pill changed width to make room for Cancel, and changing width was itself what dropped the hover. The region that notices the pointer no longer moves.
-- **The recording pill is much smaller, and no longer says the word "Recording".** It shows the elapsed time and the level meter; a red meter running beside a stopwatch in Scriber's own pill did not need the label, and dropping it took 73 points off a pill that floats over whatever you are working in. VoiceOver is still told it is a recording, and reads the elapsed time when you ask for it rather than every second. **Cancel and Confirm now sit on the pill's curve** instead of slightly inside it.
-- **The transcribing pill has a Cancel button.** Cancelling mid-transcription was previously possible only with `Escape`. It sits exactly where the recording pill's Cancel was, so nothing shifts as a recording becomes a transcription, and it does the same thing the key does.
-- **A message too long for the pill is no longer cut off.** The pill that names an unavailable microphone now widens to fit the device's name.
-
-- **The recording pill no longer changes size, and its status text no longer wobbles when Cancel and Confirm appear.** Hovering Cancel in and locking a dictation hands-free used to widen the pill; the text was pushed right by the controls and left by the pill growing around it, on two schedules that only agreed once the movement had finished, so it swung about fifteen points and came back. The pill now holds one width and the controls slide in while the text and the level meter move inward to meet them. Every pill that fits on one line is that same width, so nothing jumps between them either.
-
+- **The recording pill's timer no longer wobbles when Cancel and Confirm appear.** Hovering Cancel in and locking a dictation hands-free used to widen the pill, and the text was pushed one way by the controls and the other by the pill growing around it, on two schedules that agreed only once the movement had finished — so it swung about fifteen points and came back. The pill now holds one width and only the contents move.
+- **Three pills no longer cut off what they were trying to tell you.** The one naming an unavailable microphone, **No words detected**, and **Transcription failed** were each given a width that had never counted the controls sharing their row, so their text ran out of room. Each is now measured against what it actually holds.
 - **Opening Settings no longer costs memory for the rest of the session.** Its Dictation tab loaded every dictation you have ever made in order to show how many there were, and kept them for as long as Scriber ran — around 5 MB on a history of two thousand. It now asks the database for the number. The count is taken each time you open the tab rather than ticking up while Settings sits open.
 
 ## 0.9.4 (build 311) — 2026-09-05

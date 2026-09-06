@@ -162,9 +162,9 @@ final class PillController {
 
     /// Every one-liner is this wide, whatever it says and whichever controls it
     /// carries. Nothing in the family resizes, so nothing inside one is ever
-    /// moved by the capsule and by SwiftUI at once: the status text and the
-    /// meter slide inward to make room for Cancel and Confirm, and that is the
-    /// only movement there is.
+    /// moved by the capsule and by SwiftUI at once: the status text moves inward
+    /// to make room for Cancel and Confirm while the meter gives up the width
+    /// they take, and that is the only movement there is.
     ///
     /// A floor rather than a fixed size: a one-liner is never narrower than this
     /// and grows only if its text needs more. Recording, transcribing, "Copied"
