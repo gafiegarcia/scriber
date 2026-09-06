@@ -48,6 +48,7 @@
 - Merges into `main` are fast-forward only: rebase the branch onto `main` first when `--ff-only` refuses, and merge locally rather than from GitHub's pull request buttons. Tag releases on `main` after the merge lands, never on the branch — a rebase gives the branch's commits new identities, and a tag made beforehand names one that never reaches `main`.
 - Do not push or publish unless explicitly asked.
 - `CLAUDE.md` is a symlink to this file. Apply edits to `AGENTS.md`.
+- Skills are intentionally gitignored.
 
 ## AI Collaboration
 
