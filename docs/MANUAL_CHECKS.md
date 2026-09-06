@@ -8,80 +8,82 @@ Before tagging, Gaf runs the baseline against the final installed candidate, the
 
 Never ask Gaf to risk irreplaceable history, the only copy of an API key, or account quota merely to manufacture a test state. **Every check that spends API credit requires explicit approval first.**
 
-## What a check says, and what it does not
+A check says how to reach a state and what will trip you up. It does not say what must then be true — that is a requirement, it lives in one document, and the check ends with a pointer to it:
 
-A check says **how to reach a state** and **what will trip you up getting there**. It does not say what must then be true — that is a requirement, it lives in one document, and the check points at it:
+> Spec: Section name — "verbatim fragment of the rule"
 
-```
-- **Title naming the state to reach**
-  Reach it: the procedure, including anything to restore afterwards
-  Watch: where attention goes, and what to capture — never a verdict
-  Spec: Section name — "verbatim fragment of the rule"
-  Trap: what makes a naive run lie
-  Cost: spends API credit — ask first | no credit | irreversible state at risk
-```
+Name the document when the rule is not in `PRODUCT_SPEC.md`. `./scripts/check-docs.sh` fails when a fragment stops appearing there, which is how a reworded requirement forces its checks to be re-read.
 
-Omit `Watch` and `Trap` when they are empty, and omit `Cost` when a check costs and risks nothing, so that its presence always means something. `Spec:` is required: a check with no anchor is either an automated check in the wrong file, or a requirement nobody has written down. An anchor names its document when the rule is not in `PRODUCT_SPEC.md`. `./scripts/check-docs.sh` fails when a fragment no longer appears in the document it names, which is how a reworded requirement forces its checks to be re-read.
-
-**Converting a check never edits a requirement.** Where a check and the spec disagree, say so and leave both alone — that is a question for Gaf, not a discrepancy to reconcile while converting. Where a check asserts something the spec does not contain at all, the requirement is real and homeless: file it as a spec bullet in the same change rather than deleting the only copy of it.
+**Converting a check never edits a requirement.** Where a check and the spec disagree, say so and leave both alone — a question for Gaf, not something to reconcile while converting. Where a check asserts something the spec does not contain at all, that requirement is real and homeless: file it as a spec bullet in the same change rather than deleting the only copy of it.
 
 ## Baseline for a tag candidate
 
-- **Dictate from the installed app, and move focus while it transcribes.**
-  Reach it: from the installed app rather than a build, hold to dictate, speak, and release — then click into a different app before the transcript arrives.
-  Watch: where the text lands, and which app held the cursor at the moment transcription finished rather than when you started speaking.
-  Spec: Product goal — "focused when transcription completes"
-  Cost: spends API credit — ask first.
+- From the installed app rather than a build, hold to dictate, speak, and release — then click into a different app before the transcript arrives. **Spends API credit; ask first.** Spec: Product goal — "focused when transcription completes"
+- Turn **Show in Dock** off, close the last window, start a recording with the global shortcut, and cancel with Escape before transcription begins. Restore the setting afterwards. Spec: Product goal — "menu-bar and dictation services continue"; Identity and workspace boundary — "reached from the menu bar item"
+- Quit Scriber and open it again, then restart macOS and open it once more. Only the installed Release app can answer this — a Debug build is re-identified on every build and prompts every time. Spec: Persistence and security — "survive a macOS restart, without a further login-Keychain prompt"
 
-- **Close the last window with Show in Dock off, then dictate and cancel.**
-  Reach it: turn **Show in Dock** off, close the last window, start a recording with the global shortcut, and cancel with Escape before transcription begins. Restore the setting afterwards.
-  Watch: whether the menu bar item is still there, and whether **Open Scriber** brings a window back.
-  Spec: Product goal — "menu-bar and dictation services continue"; Identity and workspace boundary — "reached from the menu bar item"
+## When cancellation, retry, or recovery changes
 
-- **Quit and reopen, then restart the Mac.**
-  Reach it: quit Scriber and open it again, then restart macOS and open it once more.
-  Watch: whether dictation still starts with no permission prompt, and whether the key still reads back with no login-Keychain prompt.
-  Spec: Persistence and security — "survive a macOS restart, without a further login-Keychain prompt"
-  Trap: only the installed Release app can answer this. A Debug build is re-identified by `Apple Development` on every build, so it prompts every time and proves nothing.
+Reach for these when the diff touches `AppCoordinator.swift`, `PillController.swift`, or `ScribeClient.swift`.
 
-## When recording shortcuts or the pill change
+- Cancel mid-transcription so **Recover canceled dictation?** appears, then press **Recover**, watching the crossing frame by frame. Do it again but start a fresh dictation from that panel instead of recovering — that crossing always looked right and must go on doing so. **Spends API credit; ask first.** Spec: Delivery and floating pill — "a crossing between the message box and the capsule is not animated"
+- Dictate a few seconds, stop normally, and press Escape while the pill reads **Transcribing…**, then Escape again. **Spends API credit; ask first.** Watch the app you were dictating into, not the pill — the paste that must not happen is the whole point. Spec: Shortcuts and job lifecycle — "Canceling after the transcription request has gone out"
+- Repeat that cancel, then click into a *different* app before pressing **Recover**. Spec: Shortcuts and job lifecycle — "Recover resolves its destination when it is pressed"
+- Cancel a dictation of a few seconds, once with Escape and once with the pill's Cancel, then take a third press and release it in well under a quarter second. Spec: Shortcuts and job lifecycle — "at least one second long and contain detected speech"; Shortcuts and job lifecycle — "A press too brief to have been a dictation ends in silence"; Recording and transcription — "Tink once when recording is cancelled"
+- Cancel mid-transcription and immediately start a second dictation without waiting. Spec: Shortcuts and job lifecycle — "**After a cancellation**, a press starts a new recording immediately"
+- Cancel mid-transcription, let the pill time out without pressing anything, then open the main window. Spec: Shortcuts and job lifecycle — "History always holds the canceled dictation the pill offered"
+- Retry a canceled row from History and press Escape while it runs. Spec: Shortcuts and job lifecycle — "Canceling a History retry stops in silence"
 
-- Cancel mid-transcription so **Recover canceled dictation?** appears, then press **Recover**. As the panel gives way to the one-line **Transcribing…**, it is a clean capsule from the first frame — never stretched taller than the text it holds. Do the same again but start a fresh dictation from that panel instead of recovering, which is the crossing that always looked right and must go on doing so. **This spends API credit; ask first.**
-- Watch a whole successful dictation through. What is being checked is timing, not whether anything fades: AppKit fades this panel in and out by itself, so a short fade in both directions is expected on every pill and is not Scriber's. What must be true is that nothing is ever *waited* on — **Transcribing…** and the result arrive as soon as there is something to say, and the pill starts leaving the moment the text lands in the other app rather than holding at full strength first. Any pill that grows, shrinks, or slides on its way in or out is this rule coming undone.
-- Cancel a dictation of a few seconds, once with Escape and once with the pill's Cancel. Tink plays, **Canceled** appears, and — having run over a second with speech in it — the dictation is in history with its audio retained, offering a retry. A cancel under a quarter second stays silent instead, with no message and no history row.
-- Dictate for a few seconds, stop normally, and press Escape while the pill reads **Transcribing…**. **This spends API credit; ask first.** Nothing is pasted anywhere, the cancellation sound plays, and the pill offers **Recover**. Press Escape again and it goes. The whole point of this one is the paste that must not happen: watch the app you were dictating into, not the pill.
-- Repeat that cancel, then click into a *different* app before pressing **Recover**. The transcript lands in the app you moved to, not the one you dictated from — the destination is chosen when Recover is pressed.
-- Cancel mid-transcription and immediately start a second dictation without waiting. The second one runs undisturbed: no pill of its own is replaced, no stray transcript arrives, and the canceled one is in history on its own row.
-- With Wi-Fi off and no Ethernet, dictate and stop. **No internet connection** appears at once — no attempt, no retry countdown, no waiting — on the same panel a cancellation uses, with **Retry** greyed out. Turn Wi-Fi back on with the pill still up: Retry lights up on its own. Press it and the dictation transcribes.
-- With Wi-Fi off, dictate and stop. The **Retrying 2/3…** pill is one line with no countdown, the same size and shape as **Transcribing…**, and carries the same rim highlight as every other pill. Left alone it gives up after about 90 seconds, not six minutes, and the row reads **Not connected to the Internet** rather than that sentence with Apple's appended to it. These states are only reachable offline and went years unlooked-at, so look properly.
-- Say nothing at all and release the shortcut within about two seconds. The pill closes silently — no **No words detected**. Hold it wordless for more than three and the warning appears as before.
-- With Wi-Fi off, dictate, stop, and press Escape while it is retrying. **No further attempt is made** — no third pill appears — whether the offer is then dismissed with Escape, taken away by **See History**, or left to time out on its own. The row settles and stops changing.
-- With Wi-Fi off, cancel during the countdown and immediately start another dictation, three or four times over. No abandoned attempt comes back: no pill hijacks a later dictation, no run of **Transcription failed** notices arrives, and a held dictation still stops when the key is released. An abandoned transcription must never put the app back to idle underneath a live one.
-- Cancel that same countdown and press **Recover** instead. The pill returns to the attempt it was on, in one move: no compact pill flashing before the real one.
-- Retry a canceled row from History and press Escape while it runs. Nothing appears — no pill, no sound — the row's own **Retry** comes back, and whatever the request returns still lands on that row.
-- Cancel mid-transcription, let the pill time out without pressing anything, then open the main window. The canceled dictation is there. If a transcript had arrived it shows the text; otherwise the row keeps its audio and **Retry** works on it like any other.
-- Press the dictation shortcut while the pill reads **Transcribing…**. Nothing happens and **Transcribing…** stays on screen — no **Still transcribing** message replaces it.
-- Opening Settings mid-dictation never cancels it. Start a hands-free dictation and open Settings by each route in turn, ending each run with Escape: **Settings** in the menu bar menu at the top right; **Settings…** in the Scriber menu at the top left; and Command-comma. Do Command-comma twice — once with the main window open and focused, and once with Scriber focused and no window at all, which **Show in Dock** makes reachable. The pill keeps running every time. Spends no API credit.
-- While a dictation runs, Settings greys out everything that would switch the shortcut off: on General, every preset, the recorded chord, **Record**, and **Redo Setup**; on Sound, **Check Input Level**. None of them answers a click. End the dictation and every one comes back. Spends no API credit.
-- With no dictation running, press **Redo Setup…** on General, then start a dictation with its confirmation on screen. The box closes on its own, no onboarding window flashes, and the pill's waveform and timer keep running smoothly with no sign of a hang. Spends no API credit.
-- Open the main window mid-dictation from the menu bar menu's **Open Scriber**, keep talking, switch back to where the text is going, and stop. The recording survives the window opening and the whole transcript lands at the cursor, including what was said while the window came up. **Spends API credit.** This is the one that proves the transcript itself, which is why it is run apart from the Settings routes above rather than folded into them. The toolbar's warning control is not a route here: it exists only while a recovery condition does, and every one of those either stops the dictation starting or fails its transcription.
-- Pick each preset in turn: the chosen one is tinted and the others are not, and the shortcut takes effect without any confirm step. Record a custom chord, switch to a preset, and switch back — the recorded chord is still offered as its own button.
-- With a resting pill on screen — a copied result, **No words detected**, or a canceled dictation offering Recover — open a Scriber window by Command-comma and again from the menu bar. The pill stays up both times: a route that is not the pill's own action must not throw the offer away. Then click the pill's own action, and it goes.
-- Hold a dictation for several seconds, then type. It survives: the first-second window for a stray key has long passed. Start another and type immediately, and that one is discarded without a sound.
-- Tap the dictation shortcut as fast as possible several times in a row, then hold it and dictate normally. Every dictation after the burst still works, nothing freezes, and the burst itself says nothing — no pill message and no **No sound from the microphone**. A tap pair too short to have held speech closes the way a misclick does. The burst puts a start, a stop, and a cancel inside the time the capture stack needs to close a recording, and both a recorder that refuses every later start and a deadlock between the capture queue and the main thread have reached Gaf this way. If it does freeze, run `sample Scriber 3` before quitting it: the main thread's stack and the capture queue's stack name the deadlock between them, and nothing recovered afterwards will.
-- Typing during the first second of a held recording and pressing Escape during either recording mode each cancel with the cancellation sound. A press too brief to have been a dictation instead closes silently, with no sound and no pill message.
-- Holding the shortcut shows no Cancel until the pointer moves over the pill, which widens it in; moving off narrows it back out. Escape still cancels while held with the pointer elsewhere. A quick tap of it locks hands-free instead: Cancel is shown unconditionally from then on (no hover needed), and the pill widens further, animating only Confirm in on its trailing edge. Tapping it again stops it. With the default binding, bare `fn` still opens the emoji picker — the tap must not swallow it. **Wispr Flow must be quit first.**
-- Tap the shortcut and speak immediately, without waiting for the pill to settle. The first word is in the transcript: recording starts on the press, so nothing is dropped while the tap and the hold are being told apart.
-- Hold the shortcut a beat past `DictationShortcutTiming.tapThreshold` and let go. It stops and transcribes rather than carrying on. The threshold is the only number here that a test cannot settle: it decides whether a deliberately short dictation is read as a tap, and only a hand knows where it belongs.
-- Bind the shortcut to a keyed chord such as `⌘⇧D`, hold it well past the auto-repeat delay, speak, and release. One recording starts, nothing restarts it, no repeated characters reach the app in front, and letting go stops it. `fn` cannot show this: a modifier-only chord never auto-repeats, which is why the default configuration looks fine either way. Then, while holding the same chord, let go of `⇧` before `D`: the recording stops there rather than outliving the chord. Restore the preferred shortcut afterward.
-- A refused chord such as `⌘Q` closes the recorder with its reason, leaves the stored binding alone, and leaves the keyboard usable. Pressing the **left** ⌘ or ⌥ alone is refused with a reason naming the right-hand one.
-- Bind **Right ⌥** alone, then press the left ⌥: nothing starts. Press the right one and dictate. Then hold both, and let go of the right one while the left stays down — the recording stops there. macOS reports only that Option is down, so a release read from the flags would never come.
-- Bind **Right ⌘+Right ⌥** together, then press the two left keys: nothing starts. One of each: nothing starts. Both right ones: it records, and letting go of either stops it. Restore the preferred shortcut afterward.
-- Record a new shortcut: the recorder shows the chord live and closes at the first key release, and a chord containing `fn` displays it first. Restore the preferred shortcut afterward.
-- Every pill still reads as tinted glass rather than a coloured slab, in light and dark and over both a light and a dark window behind it. Recording, transcribing, and cancellation carry no tint; a copied result is green; no-words, no-signal, permission, credential, and failure pills are amber. The glyph and the glass never disagree about which of the three a pill is.
-- Compare a green pill against an amber one **in light appearance**, which is where the tint has least to work with: they must be tellable apart from each other, not merely visible. Checking each tone on its own hides the failure that matters.
-- The pill's top and bottom edges carry a faint highlight, brightest at the edges and clear at the sides. It stays faint over a light background and never reads as a drawn outline over a dark one, and it follows the shape through the resize into a copied result rather than popping.
-- Clicking a pill's body opens what its button would have opened, and the pointer becomes a link cursor only on the pills that do something. Clicking the body of a recording, transcribing, copied-result, or cancellation pill does nothing — in particular it never cancels a recording, spends credit, or discards the cancelled-transcript recovery. Buttons still take their own clicks.
+### With Wi-Fi off and no Ethernet
+
+These four states are only reachable offline and went years unlooked-at, so look properly. None spends credit — nothing is sent.
+
+- Dictate and stop. Then turn Wi-Fi back on with the pill still up. Spec: Shortcuts and job lifecycle — "its Retry stays disabled until this Mac has a route again"
+- Dictate and stop, then leave it alone. Spec: Shortcuts and job lifecycle — "A transcription has 90 seconds in total"; Shortcuts and job lifecycle — "never appends the system's sentence to one that already says the same thing"
+- Dictate, stop, and press Escape while it is retrying — then dismiss the offer with Escape, once by taking **See History**, and once by letting it time out. Spec: Shortcuts and job lifecycle — "no further attempt is made and no pill is drawn"
+- Cancel during the countdown and immediately start another dictation, three or four times over. Then cancel one and press **Recover** instead. Spec: Shortcuts and job lifecycle — "An abandoned transcription touches nothing but its own history row"
+
+## When the hold and tap split, or hands-free, changes
+
+Reach for these when the diff touches `GlobalShortcutService.swift`, `RecordingStartGate.swift`, or `RecorderLifecycle.swift`.
+
+- Watch a whole successful dictation through. Timing is what is being checked, not whether anything fades — AppKit fades this panel in and out by itself, so a short fade both ways is expected and is not Scriber's. What must never happen is *waiting*. Spec: Delivery and floating pill — "Scriber animates no pill on or off screen"
+- Say nothing at all and release within about two seconds; then hold it wordless for more than three. Spec: Recording and transcription — "reported only when it ran at least three seconds"
+- Hold a dictation for several seconds and then type; start another and type immediately. Spec: Shortcuts and job lifecycle — "any non-modifier key cancels and discards it"
+- Tap the shortcut and speak immediately, without waiting for the pill to settle. Spec: Shortcuts and job lifecycle — "Recording begins on the press, before the mode is known"
+- Hold the shortcut a beat past `DictationShortcutTiming.tapThreshold` and let go. This threshold is the one number no test can settle — it decides whether a deliberately short dictation reads as a tap, and only a hand knows where it belongs. Spec: Shortcuts and job lifecycle — "Released within the tap threshold"
+- Holding the shortcut, move the pointer onto the pill and off again; then tap to lock hands-free and tap again to stop. With the default binding, bare `fn` must still open the emoji picker. **Wispr Flow must be quit first**, or it takes the key. Spec: Delivery and floating pill — "show Cancel on the pill's leading edge only while the pointer is over the pill"
+- Tap the shortcut as fast as possible several times over, then hold it and dictate normally, and press it once more while a later pill still reads **Transcribing…**. The burst has to put a start, a stop and a cancel inside the time the capture stack needs to close a recording, so speed is the procedure. Two failures have reached Gaf this way — a recorder that refuses every later start, and a deadlock between the capture queue and the main thread. **If it freezes, run `sample Scriber 3` before quitting it**: the two stacks name the deadlock between them, and nothing recovered afterwards will. Spec: Shortcuts and job lifecycle — "a press is refused — those are the busy phases"
+
+## When opening a window mid-dictation changes
+
+Reach for these when the diff touches `ScriberApp.swift`, `MainWindow.swift`, or `Views.swift`.
+
+- Start a hands-free dictation and open Settings by each route in turn, ending each run with Escape: **Settings** in the menu bar menu; **Settings…** in the Scriber menu; and Command-comma twice — once with the main window open and focused, once with Scriber focused and no window at all, which **Show in Dock** makes reachable. Spends no credit. Spec: Shortcuts and job lifecycle — "Opening a Scriber window changes nothing about a dictation"
+- Open the main window mid-dictation from the menu bar's **Open Scriber**, keep talking, switch back to where the text is going, and stop. **Spends API credit.** This is the one that proves the transcript itself, which is why it is run apart from the Settings routes rather than folded into them. The toolbar's warning control is not a route here — it exists only while a recovery condition does, and each of those either stops the dictation starting or fails its transcription. Spec: Product goal — "focused when transcription completes"
+- With a resting pill on screen — a copied result, **No words detected**, or a canceled dictation offering Recover — open a window by Command-comma and again from the menu bar, then click the pill's own action. Spec: Shortcuts and job lifecycle — "a route that is not the notice's own action must not throw away the recovery"
+- While a dictation runs, try everything Settings should have greyed out: on General every preset, the recorded chord, **Record**, and **Redo Setup**; on Sound, **Check Input Level**. Then end the dictation. Spends no credit. Spec: Shortcuts and job lifecycle — "No control may change the dictation shortcut while a dictation is running"
+- With no dictation running, press **Redo Setup…** on General, then start a dictation with its confirmation on screen. Spends no credit. Spec: Shortcuts and job lifecycle — "that confirmation closes when a dictation starts"
+
+## When shortcut binding or matching changes
+
+Reach for these when the diff touches `GlobalShortcutService.swift` or `ReservedShortcuts`. Restore the preferred shortcut after every one.
+
+- Bind a keyed chord such as `⌘⇧D`, hold it well past the auto-repeat delay, speak, and release. Then hold it again and let go of `⇧` before `D`. `fn` cannot show either half — a modifier-only chord never auto-repeats, which is why the default binding looks fine whatever is broken. Spec: Shortcuts and job lifecycle — "A keyed chord ends its hold when any of its modifiers is released"
+- Press the **left** ⌘ or ⌥ alone. Spec: Shortcuts and job lifecycle — "Refusing a left twin says the right one is free"
+- Bind **Right ⌥** alone, press the left ⌥, then the right one, then hold both and let go of the right while the left stays down. macOS reports only that Option is down, so a release read from the flags would never come. Spec: Shortcuts and job lifecycle — "Neither the modifier flags nor the event's report of them carry a side"
+- Bind **Right ⌘+Right ⌥** together, then press the two left keys, then one of each, then both right ones. Spec: Shortcuts and job lifecycle — "is a different shortcut from"
+- Record a new shortcut and watch the recorder as the chord is held. Spec: Shortcuts and job lifecycle — "recognized keys are displayed live"
+- Pick each preset in turn, and confirm the shortcut takes effect with no confirm step. Spec: Shortcuts and job lifecycle — "Presets and the recorded chord are one choice, not two"
+
+## When the pill's appearance changes
+
+Judged by eye, so these are Gaf's alone — the accessibility tree cannot answer any of them.
+
+- Every pill, in light and dark, over both a light and a dark window behind it. Spec: Delivery and floating pill — "Tint, never fill"
+- A green pill against an amber one **in light appearance**, which is where the tint has least to work with. Checking each tone on its own hides the failure that matters — they must be tellable apart from each other, not merely visible. Spec: Delivery and floating pill — "A success and a warning must be tellable apart at a glance"
+- The pill's top and bottom edges over a light background and over a dark one, and through the resize into a copied result. Spec: Delivery and floating pill — "Light the pill's top and bottom edges"
+- The pointer over each pill in turn: it becomes a link cursor only on the ones that do something. Spec: Delivery and floating pill — "Recovery UI may offer See History, Recover, Retry"
 
 ## When visual design changes
 

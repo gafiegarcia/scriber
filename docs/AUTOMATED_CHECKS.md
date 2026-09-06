@@ -231,6 +231,7 @@ Use this same isolated launch for the window, toolbar, Settings, and history int
 - Saving a dummy key and then choosing **Remove API Key…** on the ElevenLabs tab exercises only the confirmation, routing, and visible missing-key state. It is not evidence about the real Keychain.
 - Every route that opens Settings to fix something selects the tab that owns the problem, and opening Settings without naming one leaves the selected tab alone: press `⌘,` twice and the second opening stays where the first was left. Scroll that tab to the bottom, close the window, and reopen it: the same tab comes back, at its top.
 - Record `⌘Q` on the General tab. It is refused with a reason, the recorder closes, the stored binding is unchanged, and typing works everywhere in Scriber again. `⌘⇧D` is accepted.
+- Record a custom chord, switch to a preset, and switch back. The recorded chord is still offered as its own button — the tree reads which button exists and which is selected, so this needs no hand.
 - `Escape` closes Settings. While a shortcut recorder is capturing it ends the capture and leaves the window open; with a confirmation on screen it dismisses only the confirmation.
 - Type a keyterm and press Return. It is added, the field clears, and the Add button stays disabled for whitespace alone.
 - Every tab is reachable and usable, and the window cannot be resized on either axis. A pane taller than the window scrolls, which is expected; what is not is a control that cannot be reached at all.
