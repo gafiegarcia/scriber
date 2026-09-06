@@ -107,9 +107,15 @@ if checks_path.exists():
     # Both quote styles: the prose these fragments are copied from uses curly.
     fragment = re.compile(r'["“]([^"“”]{4,})["”]')
     names = re.compile(r"\b([A-Z_]+\.md)\b")
+    fenced = False
     for number, line in enumerate(checks_path.read_text().splitlines(), 1):
         stripped = line.strip()
-        if not stripped.startswith("Spec:"):
+        # The document explains its own format in a fenced block, and that
+        # example is not an anchor to anything.
+        if stripped.startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced or not stripped.startswith("Spec:"):
             continue
         quoted = fragment.findall(stripped)
         if not quoted:
