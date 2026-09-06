@@ -2,17 +2,47 @@
 
 This is a reusable catalog of checks that require Gaf's real environment, account, hardware, judgment, or physical participation. An agent selects and proposes the smallest relevant set — usually one to three checks — but never performs one itself or records completion in this file.
 
-`PRODUCT_SPEC.md` defines what must hold and the current diff identifies which behavior may have moved. Agent-runnable parsing, tests, builds, isolated UI fixtures, and visual inspection belong in `AUTOMATED_CHECKS.md`, not here.
+Agent-runnable parsing, tests, builds, isolated UI fixtures, and visual inspection belong in `AUTOMATED_CHECKS.md`, not here.
 
 Before tagging, Gaf runs the baseline against the final installed candidate, then any conditional checks implicated by changes since the previous tag. Results belong in the session and annotated tag message.
 
 Never ask Gaf to risk irreplaceable history, the only copy of an API key, or account quota merely to manufacture a test state. **Every check that spends API credit requires explicit approval first.**
 
+## What a check says, and what it does not
+
+A check says **how to reach a state** and **what will trip you up getting there**. It does not say what must then be true — that is a requirement, it lives in one document, and the check points at it:
+
+```
+- **Title naming the state to reach**
+  Reach it: the procedure, including anything to restore afterwards
+  Watch: where attention goes, and what to capture — never a verdict
+  Spec: Section name — "verbatim fragment of the rule"
+  Trap: what makes a naive run lie
+  Cost: spends API credit — ask first | no credit | irreversible state at risk
+```
+
+Omit `Watch` and `Trap` when they are empty, and omit `Cost` when a check costs and risks nothing, so that its presence always means something. `Spec:` is required: a check with no anchor is either an automated check in the wrong file, or a requirement nobody has written down. An anchor names its document when the rule is not in `PRODUCT_SPEC.md`. `./scripts/check-docs.sh` fails when a fragment no longer appears in the document it names, which is how a reworded requirement forces its checks to be re-read.
+
+**Converting a check never edits a requirement.** Where a check and the spec disagree, say so and leave both alone — that is a question for Gaf, not a discrepancy to reconcile while converting. Where a check asserts something the spec does not contain at all, the requirement is real and homeless: file it as a spec bullet in the same change rather than deleting the only copy of it.
+
 ## Baseline for a tag candidate
 
-- From the installed app, hold to dictate, speak, and release. **This spends API credit; ask first.** The text lands at the cursor focused when transcription completes, including when focus moves to another app during transcription.
-- With **Show in Dock** off, close the last window, start recording with a global shortcut, then cancel with Escape before transcription. The menu bar remains available and **Open Scriber** restores the window.
-- Quit and reopen Scriber, then check again after a macOS restart. Microphone and Accessibility grants and the stored key survive both without another login-Keychain prompt.
+- **Dictate from the installed app, and move focus while it transcribes.**
+  Reach it: from the installed app rather than a build, hold to dictate, speak, and release — then click into a different app before the transcript arrives.
+  Watch: where the text lands, and which app held the cursor at the moment transcription finished rather than when you started speaking.
+  Spec: Product goal — "focused when transcription completes"
+  Cost: spends API credit — ask first.
+
+- **Close the last window with Show in Dock off, then dictate and cancel.**
+  Reach it: turn **Show in Dock** off, close the last window, start a recording with the global shortcut, and cancel with Escape before transcription begins. Restore the setting afterwards.
+  Watch: whether the menu bar item is still there, and whether **Open Scriber** brings a window back.
+  Spec: Product goal — "menu-bar and dictation services continue"; Identity and workspace boundary — "reached from the menu bar item"
+
+- **Quit and reopen, then restart the Mac.**
+  Reach it: quit Scriber and open it again, then restart macOS and open it once more.
+  Watch: whether dictation still starts with no permission prompt, and whether the key still reads back with no login-Keychain prompt.
+  Spec: Persistence and security — "survive a macOS restart, without a further login-Keychain prompt"
+  Trap: only the installed Release app can answer this. A Debug build is re-identified by `Apple Development` on every build, so it prompts every time and proves nothing.
 
 ## When recording shortcuts or the pill change
 
