@@ -42,11 +42,27 @@ struct AudioLevelWaveform: View {
         /// page rather than an ornament on a row.
         case onboarding
 
+        /// The meter's width, or for `.pill` the widest it can be — see
+        /// `fillsAvailableWidth`. Height is exact in every case.
         var size: CGSize {
             switch self {
-            case .pill: CGSize(width: 58, height: 24)
+            case .pill: CGSize(width: 136, height: 24)
             case .inputTest: CGSize(width: 116, height: 24)
             case .onboarding: CGSize(width: 400, height: 72)
+            }
+        }
+
+        /// Whether the meter takes whatever width it is handed rather than its
+        /// own. The pill's does: the room its Cancel and Confirm controls are not
+        /// using belongs to the meter, so the pill keeps one width whether they
+        /// are showing or not, and the space between the timer and the meter
+        /// stays a gap rather than becoming a hole. `size.width` is then the
+        /// widest it can be — the held pill with no pointer on it — which is what
+        /// `sampleCount` buffers for.
+        var fillsAvailableWidth: Bool {
+            switch self {
+            case .pill: true
+            case .inputTest, .onboarding: false
             }
         }
 
@@ -84,6 +100,15 @@ struct AudioLevelWaveform: View {
 
     private static let spacing: CGFloat = 2
 
+    /// How many bars a meter of this size holds, never more than the buffer has.
+    /// Same 18:1 pitch `Presentation.sampleCount` buffers against, so a bar is
+    /// the same bar at every width the pill hands it.
+    private static func barCount(fitting size: CGSize, within available: Int) -> Int {
+        let targetBarWidth = size.height / 18
+        let fitting = Int(((size.width + spacing) / (targetBarWidth + spacing)).rounded())
+        return max(8, min(available, fitting))
+    }
+
     init(level: Float, presentation: Presentation) {
         self.level = level
         self.presentation = presentation
@@ -93,15 +118,20 @@ struct AudioLevelWaveform: View {
     var body: some View {
         GeometryReader { proxy in
             let spacing = Self.spacing
-            let count = CGFloat(samples.count)
+            // Only the most recent samples that fit. The buffer is one fixed
+            // length whatever the meter's width, so a width change draws fewer
+            // bars rather than resizing an array ten times a second — and a
+            // narrower meter shows recent history rather than a squeezed copy of
+            // the same span.
+            let visible = samples.suffix(Self.barCount(fitting: proxy.size, within: samples.count))
+            let count = CGFloat(visible.count)
             let barWidth = max(1, (proxy.size.width - spacing * (count - 1)) / count)
             // Proportional rather than a fixed 2pt, so a bar at rest is a dot at
             // any size. A fixed floor turns into a dash once the bars are wide,
             // and a dash is exactly what a quiet-but-real signal also draws.
             let floor = max(1, min(barWidth, proxy.size.height * 0.05))
             HStack(alignment: .center, spacing: spacing) {
-                ForEach(samples.indices, id: \.self) { index in
-                    let sample = samples[index]
+                ForEach(Array(visible.enumerated()), id: \.offset) { _, sample in
                     Capsule()
                         .fill(Self.barColor.opacity(sample == 0 ? 0.35 : 0.95))
                         .frame(width: barWidth, height: max(floor, proxy.size.height * sample))
@@ -109,7 +139,12 @@ struct AudioLevelWaveform: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: presentation.size.width, height: presentation.size.height)
+        .frame(
+            minWidth: presentation.fillsAvailableWidth ? 58 : presentation.size.width,
+            maxWidth: presentation.fillsAvailableWidth ? .infinity : presentation.size.width,
+            minHeight: presentation.size.height,
+            maxHeight: presentation.size.height
+        )
         .modifier(PlateBackground(plate: presentation.plate))
         .onAppear { append(level) }
         .onChange(of: level) { _, newLevel in append(newLevel) }

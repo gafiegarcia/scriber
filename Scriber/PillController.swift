@@ -165,8 +165,11 @@ final class PillController {
     ///
     /// Measured, at 13-point semibold with the controls pulled out to the
     /// capsule's curve: 12-point outer insets, a 28-point control and a 10-point
-    /// gap at each end, the widest timer ("10:00") at 38.1, a 58-point meter, and
-    /// the 6-point minimum between text and meter. 222.1, rounded down.
+    /// gap at each end, and the timer's 40-point slot. That leaves the meter 82
+    /// points with both controls showing and 136 with neither, since the meter
+    /// takes whatever the controls are not using. Narrower would still lay out —
+    /// the meter's own minimum is 58 — but a meter is not worth much at 58 while
+    /// a dictation is running, which is when this pill is looked at.
     private static let oneLinerWidth: CGFloat = 222
 
     /// A message pill's width less its text: insets, the leading glyph, the
@@ -386,14 +389,18 @@ final class PillController {
             NSSize(width: 450, height: 60)
         case .credentialsUnusable:
             NSSize(width: 430, height: 60)
+        // Measured: "Transcription failed" is 123 points, and this row also
+        // carries a glyph, a countdown, Retry, See History and a dismiss — the
+        // most crowded pill Scriber draws. 390 cut the title short.
         case .transcriptionFailed:
-            NSSize(width: 390, height: 60)
+            NSSize(width: 440, height: 60)
         case .noSpeechDetected, .noAudioSignal:
             NSSize(width: 460, height: 60)
-        // Carries a dismiss control the other one-liners do not, and the longest
-        // title of them, so it is the one that does not fit the floor.
+        // Measured: "No words detected" is 120 points, and this is the only
+        // one-liner carrying both a countdown and a dismiss control — 148 points
+        // of chrome against the 110 the message pills need.
         case .retryFoundNoWords:
-            NSSize(width: 240, height: 52)
+            NSSize(width: 270, height: 52)
         case .message(let text):
             NSSize(width: messageWidth(for: text), height: 52)
         default:
@@ -739,9 +746,20 @@ private struct PillView: View {
                         action: { model.onCancelRecording?() }
                     )
                 }
-                statusText
-                Spacer(minLength: 6)
-                symbol
+                // Measured: "10:00" is 38.1 points and every shorter time is
+                // 29.8, so a 40-point slot holds them all. Without it the pill's
+                // floor is set by the widest time and every shorter one leaves
+                // the difference sitting in the row.
+                statusText.frame(width: isRecording ? 40 : nil, alignment: .leading)
+                if isRecording {
+                    // No Spacer: the meter takes the room the controls are not
+                    // using, so the pill keeps one width either way and the space
+                    // beside the timer stays a gap rather than becoming a hole.
+                    symbol
+                } else {
+                    Spacer(minLength: 6)
+                    symbol
+                }
                 if model.phase.showsConfirmRecordingControl {
                     recordingControl(
                         systemImage: "checkmark",
@@ -809,6 +827,11 @@ private struct PillView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityTitle)
         .accessibilityValue(accessibilityDetail ?? "")
+    }
+
+    private var isRecording: Bool {
+        if case .recording = model.phase { return true }
+        return false
     }
 
     /// The recording pill shows a timer and nothing else, so VoiceOver is told
