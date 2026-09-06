@@ -38,5 +38,11 @@ swift test --disable-sandbox --package-path "$REPO_ROOT"
 echo "==> Info.plist"
 plutil -lint "$REPO_ROOT/Scriber/Info.plist"
 
+# Chained rather than left to be remembered: renaming a Swift symbol a document
+# cites rots the citation, and nothing above would notice. It is pure Python
+# with no build, so it costs nothing here.
+echo "==> Documents"
+"$REPO_ROOT/scripts/check-docs.sh"
+
 echo
 echo "Routine pass OK"

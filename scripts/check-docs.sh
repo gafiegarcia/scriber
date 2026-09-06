@@ -6,9 +6,19 @@
 #      catches them when they stop being true.
 #   2. Every symbol citation — `symbolName` (`File.swift`) — names something
 #      that file still declares.
-#   3. Every quoted spec fragment on a `Spec:` line in the checks document still
-#      appears verbatim in PRODUCT_SPEC.md. A reworded requirement is exactly
-#      when a check needs re-reading, so the anchor has to break loudly.
+#   3. Every quoted fragment on a `Spec:` line in the checks document still
+#      appears verbatim in the document that owns the rule. A reworded
+#      requirement is exactly when a check needs re-reading, so the anchor has
+#      to break loudly.
+#
+#      An anchor resolves against PRODUCT_SPEC.md unless it names another
+#      document, which is how a delivery check anchors to the paste engine:
+#
+#          Spec: Shortcuts and job lifecycle — "at least one second long"
+#          Spec: PASTE_ENGINE.md, Regression baseline — "Raycast's command bar"
+#
+#      Straight and curly quotes both count. Gaf's prose uses curly ones, so a
+#      converter copying a fragment verbatim will produce them.
 #
 # Gate 3 proves a fragment exists. It cannot prove it is the *right* rule — an
 # anchor can resolve to a plausible neighbour. That part is read by a human.
@@ -61,8 +71,13 @@ for doc in markdown:
                     f"{doc.relative_to(root)}:{number} cites {filename}, which does not exist"
                 )
                 continue
+            # Whole word, so a citation to `foo` is not satisfied by `fooBar`.
+            # This is a rot detector and no more: it does not check that the
+            # name is *declared* there, so a symbol surviving only in a comment
+            # still passes. Tightening it to a declaration would reject honest
+            # citations of enum cases and computed properties.
             bare = symbol.split(".")[-1]
-            if bare not in source.read_text():
+            if not re.search(rf"\b{re.escape(bare)}\b", source.read_text()):
                 failures.append(
                     f"{doc.relative_to(root)}:{number} cites `{symbol}` in {filename}, "
                     f"which no longer contains it"
@@ -77,11 +92,21 @@ def normalise(text):
         text = text.replace(fancy, plain)
     return " ".join(text.split())
 
-spec_path = root / "docs" / "PRODUCT_SPEC.md"
 checks_path = root / "docs" / "MANUAL_CHECKS.md"
-if spec_path.exists() and checks_path.exists():
-    spec = normalise(spec_path.read_text())
-    fragment = re.compile(r'"([^"]{4,})"')
+owners = {}
+
+
+def owning_document(name):
+    if name not in owners:
+        path = root / "docs" / name
+        owners[name] = normalise(path.read_text()) if path.exists() else None
+    return owners[name]
+
+
+if checks_path.exists():
+    # Both quote styles: the prose these fragments are copied from uses curly.
+    fragment = re.compile(r'["“]([^"“”]{4,})["”]')
+    names = re.compile(r"\b([A-Z_]+\.md)\b")
     for number, line in enumerate(checks_path.read_text().splitlines(), 1):
         stripped = line.strip()
         if not stripped.startswith("Spec:"):
@@ -92,11 +117,19 @@ if spec_path.exists() and checks_path.exists():
                 f"docs/MANUAL_CHECKS.md:{number} has a Spec: line with no quoted fragment"
             )
             continue
+        named = names.findall(stripped)
+        document = named[0] if named else "PRODUCT_SPEC.md"
+        owner = owning_document(document)
+        if owner is None:
+            failures.append(
+                f"docs/MANUAL_CHECKS.md:{number} anchors to {document}, which does not exist"
+            )
+            continue
         for piece in quoted:
-            if normalise(piece) not in spec:
+            if normalise(piece) not in owner:
                 failures.append(
                     f'docs/MANUAL_CHECKS.md:{number} anchors to "{piece}", '
-                    f"which PRODUCT_SPEC.md no longer contains"
+                    f"which {document} no longer contains"
                 )
 
 if failures:
