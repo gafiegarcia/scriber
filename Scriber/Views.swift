@@ -661,19 +661,35 @@ private struct GeneralSettingsPane: View {
 
 private struct DictationSettingsPane: View {
     @EnvironmentObject private var runtime: AppRuntime
-    /// Only so Clear Dictation History knows whether there is anything to clear,
-    /// and how much. Sorted to match the Dictation page rather than for display.
-    @Query(sort: \DictationRecord.createdAt, order: .reverse) private var records: [DictationRecord]
+    @Environment(\.modelContext) private var modelContext
     @State private var newKeyterm = ""
     @State private var keytermError: String?
     @State private var confirmClearHistory = false
     @State private var showsKeytermHelp = false
 
+    /// How many entries Clear Dictation History would remove.
+    ///
+    /// Measured: counted in the store, never fetched. A `@Query` here materialised
+    /// all 1,856 records — with the metadata and per-object observation registrars
+    /// SwiftData attaches to each — for about 5 MB, to render one number.
+    ///
+    /// Platform: SwiftUI keeps a `Window` scene alive after its window closes, so
+    /// that cost was paid for the rest of the launch once this tab had been opened
+    /// once.
+    ///
+    /// Not live, for the same reason `lastCheckedDescription` is not: nothing
+    /// redraws Settings while it sits open, and each visit recomputes this.
+    @State private var clearableCount = 0
+
     /// A dictation still being transcribed is not shown in history and must not
     /// be swept up by a clear — its audio is still in use. Matches the filter the
     /// Dictation page applies to what it displays.
-    private var clearableRecords: [DictationRecord] {
-        records.filter { $0.transcriptionState != .transcribing }
+    private func refreshClearableCount() {
+        let transcribing = TranscriptionState.transcribing.rawValue
+        let descriptor = FetchDescriptor<DictationRecord>(
+            predicate: #Predicate { $0.transcriptionStateRaw != transcribing }
+        )
+        clearableCount = (try? modelContext.fetchCount(descriptor)) ?? 0
     }
 
     var body: some View {
@@ -776,21 +792,26 @@ private struct DictationSettingsPane: View {
                     Button("Clear Dictation History…", role: .destructive) {
                         confirmClearHistory = true
                     }
-                    .disabled(clearableRecords.isEmpty)
+                    .disabled(clearableCount == 0)
                     .accessibilityIdentifier("clear-dictation-history")
                     Spacer()
-                    Text("\(clearableRecords.count) \(clearableRecords.count == 1 ? "entry" : "entries")")
+                    Text("\(clearableCount) \(clearableCount == 1 ? "entry" : "entries")")
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .confirmationDialog("Delete all dictation history?", isPresented: $confirmClearHistory) {
             Button("Delete All", role: .destructive) {
-                runtime.coordinator.clearDictationHistory(clearableRecords)
+                runtime.coordinator.clearDictationHistory()
+                refreshClearableCount()
             }
         } message: {
             Text("This permanently removes transcripts and any retained failed recordings.")
         }
+        // Covers both ways this tab is reached: switching into it, and reopening
+        // Settings on the tab it was left on. An unselected tab is not mounted,
+        // and `SettingsView` gives the picker a new identity per visit.
+        .task { refreshClearableCount() }
     }
 
     private var canAddKeyterm: Bool {

@@ -1157,9 +1157,21 @@ final class AppCoordinator: ObservableObject {
         try? modelContext.save()
     }
 
+    /// Removes every dictation except one still being transcribed, whose audio is
+    /// in use and which history does not show.
+    ///
+    /// Fetches its own records rather than being handed them, so that offering the
+    /// button costs nothing: Settings needs only the count, and holding the whole
+    /// store to produce it cost about 5 MB for the rest of the launch.
+    ///
     /// Known and unfixed: this saves once per record. Only worth batching if a
     /// large history makes it measurable.
-    func clearDictationHistory(_ records: [DictationRecord]) {
+    func clearDictationHistory() {
+        let transcribing = TranscriptionState.transcribing.rawValue
+        let descriptor = FetchDescriptor<DictationRecord>(
+            predicate: #Predicate { $0.transcriptionStateRaw != transcribing }
+        )
+        guard let records = try? modelContext.fetch(descriptor) else { return }
         for record in records { delete(record) }
     }
 
