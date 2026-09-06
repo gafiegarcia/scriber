@@ -81,6 +81,15 @@ final class PillModel: ObservableObject {
 /// in 1.43 seconds, measured, with the pointer motionless and never less than a
 /// point and a half inside the drawn capsule. This frame is set to the widest
 /// the phase can reach and then left alone, so the loop has nothing to feed on.
+///
+/// Known and unfixed: an `NSTrackingArea` is a rectangle and the capsule is not,
+/// so a sliver at each rounded end reads as hovered while the pointer is
+/// visibly outside the drawn shape — up to the 26-point corner radius at the
+/// very top and bottom rows, and nothing at all across the middle. Clicks there
+/// still reach the application underneath, because those are routed by the
+/// rendered pixels rather than by this. Closing it means dropping tracking areas
+/// for hand-rolled mouse tracking and a capsule hit test, which is a great deal
+/// of machinery for a sliver nobody has complained about.
 @MainActor
 private final class PillHoverRegion: NSView {
     var onHoverChanged: ((Bool) -> Void)?
