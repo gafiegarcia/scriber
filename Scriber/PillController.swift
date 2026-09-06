@@ -36,21 +36,19 @@ struct DismissalCountdown: Equatable {
     }
 }
 
-/// The capsule's resize and the reflow of the contents inside it are two halves
-/// of one movement, so they share a duration: a mismatch puts the capsule and
-/// what it holds on visibly different schedules.
+/// How long Cancel and Confirm take to arrive, and with them the status text and
+/// the meter sliding inward to make room. SwiftUI owns all of it: the capsule
+/// around them does not move, so there is nothing for this to keep in step with.
 ///
-/// Known and unfixed: sharing the number is not the same as sharing a clock.
-/// AppKit interpolates the glass and SwiftUI interpolates the content, and
-/// anything both of them move lands the difference as a correction. Measured on
-/// the locked-recording widening before the panel was held still: the window
-/// covered 77% of its 80-point growth in one frame and finished in 67ms, while
-/// the status text was still travelling 33ms after it had stopped — both engines
-/// asked for 0.15s, neither delivered it, and the text swung 15.5 points left
-/// before settling 3 points from where it began. Letting SwiftUI own the width
-/// outright was tried and reverted: `NSGlassEffectView` re-renders its blur
-/// synchronously on every frame written to it, which drops the pill to roughly
-/// 5fps. See `animateGlass`.
+/// Do not: give the capsule an animated width again and expect this to match it.
+/// Measured on the locked-recording widening back when it had one — the window
+/// covered 77% of its 80-point growth in a single frame and finished in 67ms,
+/// while the status text was still travelling 33ms after it had stopped. Both
+/// asked for this duration and neither delivered it, and the text swung 15.5
+/// points left to settle 3 points from where it began. Handing SwiftUI the
+/// capsule's width so they could share a clock was built and reverted:
+/// `NSGlassEffectView` re-renders its blur synchronously on every frame written
+/// to it, which drops the pill to roughly 5fps.
 private let pillResizeDuration: TimeInterval = 0.15
 
 @MainActor
@@ -137,8 +135,6 @@ final class PillController {
     private var preferredScreen: NSScreen?
     private var currentPanelSize = PillController.capsulePanelSize
     private var dismissalCountdown: DismissalCountdown?
-    private var isResizingGlass = false
-    private var glassResizeGeneration = 0
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
     private let presentationDuration: TimeInterval = 0.18
     private let hoverRegion = PillHoverRegion()
@@ -155,11 +151,19 @@ final class PillController {
     /// animated and has nothing to gain from a shared panel.
     private static let capsulePanelSize = NSSize(width: 476, height: 76)
 
-    /// Measured: the two controls and their spacing take 38 points a side, so a
-    /// locked pill 76 points wider than the 280-point held one leaves the status
-    /// text and the waveform exactly where they started. 360 left 4 points over
-    /// and moved both of them 2 points outward for nothing.
-    private static let lockedRecordingWidth: CGFloat = 356
+    /// Every one-liner is this wide, whatever it says and whichever controls it
+    /// carries. Nothing in the family resizes, so nothing inside one is ever
+    /// moved by the capsule and by SwiftUI at once: the status text and the
+    /// meter slide inward to make room for Cancel and Confirm, and that is the
+    /// only movement there is.
+    ///
+    /// Measured: 320 is the smallest width both controls fit in without
+    /// squeezing the status text. The content is 18-point insets, a 28-point
+    /// control and a 10-point gap at each end, a 58-point meter, and
+    /// "Recording · 10:00" at 110 points — 300 of the 320, leaving 20 points
+    /// between text and meter. At 280 that last figure is negative: the gap the
+    /// controls eat into is 62 points and they need 76.
+    private static let oneLinerWidth: CGFloat = 320
 
     private static let log = Logger(subsystem: "com.gafiegarcia.scriber", category: "dictation")
     private let glassMargin: CGFloat = 8
@@ -243,12 +247,8 @@ final class PillController {
         // from the recovery panel to `.transcribing` asked for a 296x68 panel and
         // settled at 296x80, a capsule's radius on a box twelve points too tall.
         // Recording never showed it because its own content is the short one.
-        //
-        // The outgoing phase is passed along instead, because the resize still
-        // has to know what it is leaving. Do not fold it back into `model.phase`.
-        let outgoingPhase = model.phase
         model.phase = phase
-        applyLayout(for: phase, from: outgoingPhase)
+        applyLayout(for: phase)
         show()
         if autoDismiss,
            !autoDismissalDisabledForUITesting,
@@ -275,11 +275,11 @@ final class PillController {
         // the accessibility tree can show it.
         let pointer = NSEvent.mouseLocation
         let capsule = panel.convertToScreen(glassView.frame)
-        Self.log.notice("pill hover=\(hovering, privacy: .public) pointer=\(Int(pointer.x), privacy: .public),\(Int(pointer.y), privacy: .public) capsule=\(Int(capsule.minX), privacy: .public)-\(Int(capsule.maxX), privacy: .public) inside=\(capsule.contains(pointer), privacy: .public) resizing=\(self.isResizingGlass, privacy: .public)")
+        Self.log.notice("pill hover=\(hovering, privacy: .public) pointer=\(Int(pointer.x), privacy: .public),\(Int(pointer.y), privacy: .public) capsule=\(Int(capsule.minX), privacy: .public)-\(Int(capsule.maxX), privacy: .public) inside=\(capsule.contains(pointer), privacy: .public)")
+        // Only the model changes. Hovering no longer touches the pill's geometry
+        // at all: Cancel arrives inside a capsule that holds its width, which is
+        // what stopped the region under the pointer moving because of the pointer.
         model.isHovering = hovering
-        if case .recording(.held, _, _) = model.phase {
-            applyLayout(for: model.phase, from: model.phase, forceAnimated: true)
-        }
         guard dismissalCountdown != nil else { return }
         hovering ? pauseAutoDismissal() : resumeAutoDismissal()
     }
@@ -366,10 +366,8 @@ final class PillController {
         }
     }
 
-    private func pillSize(for phase: AppPhase, isHovering: Bool) -> NSSize {
+    private func pillSize(for phase: AppPhase) -> NSSize {
         switch phase {
-        case .recording(let mode, _, _):
-            NSSize(width: mode == .locked ? Self.lockedRecordingWidth : (isHovering ? 320 : 280), height: 52)
         case .dictationCopied(let text, _), .dictationBlockedBySecureField(let text, _):
             copiedResultSize(for: text)
         case .cancelledTranscript, .noInternetConnection:
@@ -383,7 +381,7 @@ final class PillController {
         case .noSpeechDetected, .noAudioSignal:
             NSSize(width: 460, height: 60)
         default:
-            NSSize(width: 280, height: 52)
+            NSSize(width: Self.oneLinerWidth, height: 52)
         }
     }
 
@@ -412,35 +410,24 @@ final class PillController {
         )
     }
 
-    private func applyLayout(
-        for phase: AppPhase,
-        from outgoingPhase: AppPhase,
-        forceAnimated: Bool = false
-    ) {
-        let desiredPillSize = pillSize(for: phase, isHovering: model.isHovering)
+    private func applyLayout(for phase: AppPhase) {
+        let desiredPillSize = pillSize(for: phase)
         let desiredPanelSize = panelSize(for: phase, pillSize: desiredPillSize)
         let desiredGlassFrame = glassFrame(pillSize: desiredPillSize, panelSize: desiredPanelSize)
         let desiredCornerRadius = CGFloat(phase.pillCornerRadius(height: Double(desiredPillSize.height)))
-        // Asked for as though the pointer were already on the pill, so the region
-        // is the same rect whether it is or not. See `PillHoverRegion`.
-        let desiredHoverFrame = glassFrame(
-            pillSize: pillSize(for: phase, isHovering: true),
-            panelSize: desiredPanelSize
-        )
 
         // Captured before anything below mutates them, so the settled line at the
         // end can report on the same resize this one describes.
         let didResizePanel = desiredPanelSize != currentPanelSize
         let wasVisible = panel.isVisible
 
-        // Recording republishes its phase ten times a second to move the waveform and
-        // tick the timer, so most calls here change no geometry at all. Writing the
-        // destination anyway costs two forced layout passes per tick, and mid-resize it
-        // lands the animation's own target straight onto the glass, ending the animation
-        // a tenth of a second in: the capsule snaps to full width while still growing.
-        if !didResizePanel, glassView.cornerRadius == desiredCornerRadius {
-            if isResizingGlass { return }
-            if glassView.frame == desiredGlassFrame, hoverRegion.frame == desiredHoverFrame { return }
+        // Recording republishes its phase ten times a second to move the waveform
+        // and tick the timer, so most calls here change no geometry at all.
+        // Writing the destination anyway costs two forced layout passes per tick.
+        if !didResizePanel,
+           glassView.cornerRadius == desiredCornerRadius,
+           glassView.frame == desiredGlassFrame {
+            return
         }
 
         if didResizePanel {
@@ -459,7 +446,6 @@ final class PillController {
                 width: desiredPanelSize.width,
                 height: desiredPanelSize.height
             )
-            endGlassResize()
             applyingGeometryInstantly {
                 if panel.isVisible {
                     panel.setFrame(desiredPanelFrame, display: true)
@@ -469,26 +455,13 @@ final class PillController {
                 glassView.frame = desiredGlassFrame
             }
             currentPanelSize = desiredPanelSize
-        } else if glassView.frame != desiredGlassFrame {
-            // Within one shape only, for the reason the panel crossing above is
-            // never animated at all.
-            let animatesConfirmExpansion = outgoingPhase.showsConfirmRecordingControl == false
-                && phase.showsConfirmRecordingControl
-                && outgoingPhase.pillShapeStyle == phase.pillShapeStyle
-
-            if panel.isVisible, !shouldReduceMotion, forceAnimated || animatesConfirmExpansion {
-                animateGlass(to: desiredGlassFrame, label: phase.logLabel)
-            } else {
-                endGlassResize()
-                applyingGeometryInstantly { glassView.frame = desiredGlassFrame }
-            }
+        } else {
+            applyingGeometryInstantly { glassView.frame = desiredGlassFrame }
         }
 
-        // Set outside `applyingGeometryInstantly`: this frame is never animated
-        // and never follows the capsule, so there is no layer action to suppress.
-        if hoverRegion.frame != desiredHoverFrame {
-            hoverRegion.frame = desiredHoverFrame
-        }
+        // The region that decides hover is the capsule, exactly. Every one-liner
+        // is one width, so this never moves while a recording is on screen.
+        hoverRegion.frame = desiredGlassFrame
 
         // Apply the destination glass geometry directly on every phase change.
         // Relying on layout alone can leave NSGlassEffectView rendering the
@@ -513,51 +486,6 @@ final class PillController {
             Self.log.notice(
                 "pill settled to=\(phase.logLabel, privacy: .public) wasVisible=\(wasVisible, privacy: .public) asked=\(Int(desiredPanelSize.width), privacy: .public)x\(Int(desiredPanelSize.height), privacy: .public) final=\(Int(self.panel.frame.width), privacy: .public)x\(Int(self.panel.frame.height), privacy: .public) glass=\(Int(self.glassView.frame.width), privacy: .public)x\(Int(self.glassView.frame.height), privacy: .public) hosted=\(Int(self.glassView.contentView?.frame.height ?? -1), privacy: .public) radius=\(Int(self.glassView.cornerRadius), privacy: .public)"
             )
-        }
-    }
-
-    /// The pill's only animation, and the reason the panel is held still: with
-    /// the window out of the movement this is the one frame travelling, rather
-    /// than a window and a capsule interpolated by AppKit against contents
-    /// interpolated by SwiftUI.
-    ///
-    /// Known and unfixed: SwiftUI is still a second interpolator for anything
-    /// inside the capsule, so the two can disagree across the movement even
-    /// though they agree at its ends — see `pillResizeDuration` for what that
-    /// measured, and for why handing SwiftUI the width outright is not available.
-    private func animateGlass(to frame: NSRect, label: String) {
-        glassResizeGeneration += 1
-        let generation = glassResizeGeneration
-        isResizingGlass = true
-        Self.log.notice("pill glass resize to=\(label, privacy: .public) glass=\(Int(self.glassView.frame.width), privacy: .public)->\(Int(frame.width), privacy: .public)")
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = pillResizeDuration
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            glassView.animator().frame = frame
-        }, completionHandler: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, generation == self.glassResizeGeneration else { return }
-                self.isResizingGlass = false
-                // `hosted` is the field that matters: it is the width of the
-                // SwiftUI content inside the glass, and a `hosted` that disagrees
-                // with the glass is the capsule and its contents having settled
-                // at different sizes.
-                Self.log.notice("pill glass settled to=\(label, privacy: .public) glass=\(Int(self.glassView.frame.width), privacy: .public) hosted=\(Int(self.glassView.contentView?.frame.width ?? -1), privacy: .public)")
-            }
-        })
-    }
-
-    /// A resize already in flight keeps driving the glass after a plain setter
-    /// writes the new geometry, so the superseded animation wins and the capsule
-    /// settles at the outgoing phase's size. Retargeting the animator over zero
-    /// seconds ends it; whatever the caller sets next then holds.
-    private func endGlassResize() {
-        guard isResizingGlass else { return }
-        glassResizeGeneration += 1
-        isResizingGlass = false
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0
-            glassView.animator().frame = glassView.frame
         }
     }
 
@@ -647,10 +575,6 @@ final class PillController {
             )
             presentationTask = nil
         }
-    }
-
-    private var shouldReduceMotion: Bool {
-        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 
     private var autoDismissalDisabledForUITesting: Bool {

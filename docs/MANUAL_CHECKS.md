@@ -26,7 +26,7 @@ Name the document when the rule is not in `PRODUCT_SPEC.md`. `./scripts/check-do
 
 Reach for these when the diff touches `AppCoordinator.swift`, `PillController.swift`, or `ScribeClient.swift`.
 
-- Cancel mid-transcription so **Recover canceled dictation?** appears, then press **Recover**, watching the crossing frame by frame. Do it again but start a fresh dictation from that panel instead of recovering — that crossing always looked right and must go on doing so. **Spends API credit; ask first.** Spec: Delivery and floating pill — "a crossing between the message box and the capsule is not animated"
+- Cancel mid-transcription so **Recover canceled dictation?** appears, then press **Recover**, watching the crossing frame by frame. Do it again but start a fresh dictation from that panel instead of recovering — that crossing always looked right and must go on doing so. **Spends API credit; ask first.** Spec: Delivery and floating pill — "A crossing between the message box and the capsule does resize the window, and is not animated"
 - Dictate a few seconds, stop normally, and press Escape while the pill reads **Transcribing…**, then Escape again. **Spends API credit; ask first.** Watch the app you were dictating into, not the pill — the paste that must not happen is the whole point. Spec: Shortcuts and job lifecycle — "Canceling after the transcription request has gone out"
 - Repeat that cancel, then click into a *different* app before pressing **Recover**. Spec: Shortcuts and job lifecycle — "Recover resolves its destination when it is pressed"
 - Cancel a dictation of a few seconds, once with Escape and once with the pill's Cancel, then take a third press and release it in well under a quarter second. Spec: Shortcuts and job lifecycle — "at least one second long and contain detected speech"; Shortcuts and job lifecycle — "A press too brief to have been a dictation ends in silence"; Recording and transcription — "Tink once when recording is cancelled"
@@ -84,6 +84,9 @@ Judged by eye, so these are Gaf's alone — the accessibility tree cannot answer
 - A green pill against an amber one **in light appearance**, which is where the tint has least to work with. Checking each tone on its own hides the failure that matters — they must be tellable apart from each other, not merely visible. Spec: Delivery and floating pill — "A success and a warning must be tellable apart at a glance"
 - The pill's top and bottom edges over a light background and over a dark one, and through the resize into a copied result. Spec: Delivery and floating pill — "Light the pill's top and bottom edges"
 - The pointer over each pill in turn: it becomes a link cursor only on the ones that do something. Spec: Delivery and floating pill — "Recovery UI may offer See History, Recover, Retry"
+- Bring the pointer to a held recording pill's edge slowly and leave it resting there, from the left and then from the right. Cancel arrives once and stays; if it loops in and out, the region deciding hover has started moving again. Spec: Delivery and floating pill — "The pointer region that decides hover is the capsule itself"
+- Lock a recording hands-free with the pointer away from the pill, and watch **Recording · 0:00** rather than the controls. It must not move at all. Spec: Delivery and floating pill — "Nothing the user can see may be positioned by that animation and by a frame AppKit is interpolating at the same time"
+- Click a text field level with a recording pill and a centimetre to either side of it. The click reaches that field, not the pill's window. Spec: Delivery and floating pill — "Show a floating pill at the bottom center"
 
 ## When visual design changes
 
