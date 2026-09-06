@@ -115,15 +115,20 @@ if checks_path.exists():
         if stripped.startswith("```"):
             fenced = not fenced
             continue
-        if fenced or not stripped.startswith("Spec:"):
+        # An anchor ends a check's prose rather than owning its own line, so
+        # take everything from `Spec:` onwards — quoted words earlier in the
+        # sentence are the check talking, not a fragment of a requirement.
+        # A fenced or quoted line is the document showing its own format.
+        if fenced or stripped.startswith(">") or "Spec:" not in stripped:
             continue
-        quoted = fragment.findall(stripped)
+        anchor = stripped[stripped.index("Spec:"):]
+        quoted = fragment.findall(anchor)
         if not quoted:
             failures.append(
-                f"docs/MANUAL_CHECKS.md:{number} has a Spec: line with no quoted fragment"
+                f"docs/MANUAL_CHECKS.md:{number} has a Spec: anchor with no quoted fragment"
             )
             continue
-        named = names.findall(stripped)
+        named = names.findall(anchor)
         document = named[0] if named else "PRODUCT_SPEC.md"
         owner = owning_document(document)
         if owner is None:
