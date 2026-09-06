@@ -25,6 +25,8 @@ Every check a machine can run lives in `scripts/`. This document says what each 
 
 Neither parse invocation typechecks, so a Debug `xcodebuild` is the only real gate on `#if DEBUG` code. The second invocation exists because without `-D DEBUG` those regions are lexed but never parsed, so the first says nothing about `AppLaunchConfiguration`'s flags or `UITestingHistoryFixture`.
 
+The typecheck covers `ScriberCore` and not the app target, so **a passing routine pass does not mean the app compiles.** A wrong SwiftUI modifier in `Scriber/` — the wrong `frame` overload is the one that has happened — passes here and fails the Debug build. `./scripts/smoke.sh` builds the app, which is the reason it is required after a change to startup, the pill, or an `NSViewRepresentable`; run it after any app-target change whose compilation you have not otherwise seen.
+
 ## The documents
 
 `./scripts/check-docs.sh` — no line-numbered code citation anywhere, every symbol citation naming something its file still declares, and every quoted spec fragment in `MANUAL_CHECKS.md` still present in `PRODUCT_SPEC.md`.
