@@ -7,7 +7,6 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Move `AppCoordinator` to `@Observable`.** ([Notion task](https://app.notion.com/p/3c3719370402812895e1faced1634f97))
 - [ ] **Retire the main-thread instruments.** ([Notion task](https://app.notion.com/p/3d271937040281f99026f12251bf16dd))
 - [ ] **Give the transcription-failure pill a shape that fits Apple's wording.** ([Notion task](https://app.notion.com/p/3d371937040281019592e0c2e693c588))
-- [ ] **Salvage the dictation when the input device disconnects mid-recording.** ([Notion task](https://app.notion.com/p/3d37193704028113aa29c545db8f4944))
 - [ ] **Stop an abandoned transcription running on.** ([Notion task](https://app.notion.com/p/3d27193704028190adc6d6e71c6cc457))
 - [ ] **Give setup's flow one piece of state instead of fourteen.** ([Notion task](https://app.notion.com/p/3c37193704028104a1dad44d1de257e5))
 - [ ] **Stop the permissions step jumping when the microphone grant lands.** ([Notion task](https://app.notion.com/p/3c3719370402815cb958ee571110efcb))
