@@ -8,6 +8,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 - **The recording pill is a third smaller and no longer says the word "Recording".** It shows the elapsed time and the level meter — a red meter running beside a stopwatch in Scriber's own pill did not need the label — and the meter now takes whatever width Cancel and Confirm are not using, so it more than doubles in size while the pointer is away instead of leaving a gap beside the timer. Cancel and Confirm sit on the pill's curve rather than slightly inside it. VoiceOver is still told it is a recording, and reads the elapsed time when you ask for it rather than announcing it every second.
 - **The transcribing pill has a Cancel button.** Cancelling mid-transcription was previously possible only with `Escape`. It sits exactly where the recording pill's Cancel was, so nothing shifts as a recording becomes a transcription, and it does what the key does.
+- **A day's name in your history carries a little space above and below it.** Today, Yesterday, and every other day label used to sit flush against the rows on both sides; each now has 6 points of room.
 
 ### Fixed
 

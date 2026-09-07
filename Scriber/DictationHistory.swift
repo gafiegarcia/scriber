@@ -184,6 +184,7 @@ struct DictationHistoryView: View {
                         // colour, and a solid colour renders as a black band across
                         // the label.
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 6)
                 }
             }
         }
