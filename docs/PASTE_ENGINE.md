@@ -87,7 +87,7 @@ The destinations delivery is expected to reach, which nothing else records. Runn
 
 One destination once appeared to break the confirmation rule: Raycast Notes on a freshly opened note asked for the transcript and inserted nothing. It was asking honestly, and its paste was handed the user's previous clipboard by a restore that ran too early. The rule has no known exception.
 
-Two consequences of it are accepted rather than fixed. A web page runs its own paste handler and reads the clipboard whether or not anything was focused, so a page with no cursor reports a successful delivery. Finder with nothing focused pastes a `.textClipping` file and reports success, which is what a paste with no text target means to Finder. Both match what other dictation apps do, and both cost nothing: the user pressed dictate with no cursor.
+Two consequences of it are accepted rather than fixed. A web page runs its own paste handler and reads the clipboard whether or not anything was focused, so a page with no cursor reports a successful delivery. Finder with nothing focused pastes a `.textClipping` file and reports success, which is what a paste with no text target means to Finder. Both cost nothing: the user pressed dictate with no cursor. Wispr Flow reports the web-page case the same way — watched on x.com, not read from its source — and Scriber arrived there by choosing a confirmation for speed and simplicity rather than by copying one. Do not harden the engine against either case.
 
 ## The character count is for detection, not for belief
 

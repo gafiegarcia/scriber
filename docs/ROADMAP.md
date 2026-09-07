@@ -54,7 +54,6 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 
 ## Long-term
 
-- [ ] **Know reliably whether a dictation was actually pasted.** ([Notion task](https://app.notion.com/p/3ca71937040281148371f6c5d39cd260))
 - [ ] **Support other providers like Groq.** ([Notion task](https://app.notion.com/p/3d27193704028150b2eacbea0832c776))
 - [ ] **Decide what "Transcription" means once it is also a workspace.** ([Notion task](https://app.notion.com/p/3c571937040281b898b3c8a76b2c85d0))
 - [ ] **Build the long-form Transcription workspace.** ([Notion task](https://app.notion.com/p/3d27193704028172a0f1d76e0aadc180))
