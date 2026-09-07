@@ -997,22 +997,10 @@ final class AppCoordinator: ObservableObject {
 
     func handle(_ action: ShortcutAction) {
         guard preferences.onboardingComplete else { return }
-        // Stamped here rather than in `beginRecording`, because the wait the user
-        // feels starts at the key, not at the first thing Scriber chooses to do
-        // about it. Read by the start timing line and nothing else.
-        //
-        // This stamp still cannot be the whole wait: it is taken on the main
-        // actor, and the tap that produced the action is on the main run loop, so
-        // a press that arrived while the thread was busy has already finished
-        // waiting by the time this line runs. `queuedMs` is that missing piece,
-        // measured from the key itself. Measurement only, for the "Stop delivery
-        // holding the main thread" roadmap item; delete it with that item.
-        if case .pressed = action {
-            lastShortcutPressAt = ContinuousClock().now
-            lastShortcutQueuedMilliseconds = shortcuts.lastPressHardwareTime.map {
-                max(0, Int((GlobalShortcutService.monotonicNow() - $0) * 1_000))
-            }
-        }
+        // Measured: stamped here rather than in `beginRecording`, because the wait
+        // the user feels starts at the key, not at the first thing Scriber chooses
+        // to do about it. Read by the start timing line and nothing else.
+        if case .pressed = action { lastShortcutPressAt = ContinuousClock().now }
         // The pill's own dismissal, answered from what is on screen rather than
         // from what the recorder is doing.
         if case .cancel = action {
@@ -1317,6 +1305,11 @@ final class AppCoordinator: ObservableObject {
         // still ahead of the capture session, which is what the cue promises.
         playFeedback(.dictationStarted)
         let afterFeedback = ContinuousClock().now
+        // Measured: nothing times the capture session opening, and that is the
+        // gap a first word spoken on the cue would be lost in. Taken here because
+        // the line below clears `lastShortcutPressAt`. Temporary, for **Speech at
+        // the start cue is not recorded**; delete it with that item.
+        let pressedAtForSessionOpen = lastShortcutPressAt
         // Everything the press waits through before the pill can be asked for,
         // split by step. `pressToPill` is the number the user feels; the rest say
         // which step owns it. `soundAfterPill` sits outside that number by
@@ -1329,16 +1322,10 @@ final class AppCoordinator: ObservableObject {
         // down from 54-111, and every step in front of the pill is one somebody
         // can put back without noticing — this is what says so.
         if let pressedAt = lastShortcutPressAt {
-            // How long the key sat in the queue before Scriber was told about it,
-            // which no other number here can see. Everything else on this line
-            // starts once the main actor was already free, so `queuedMs` is the
-            // part a busy thread costs and `pressToPillMs` the part Scriber does.
-            // The two add up to what the user waited.
             Self.dictationLog.notice(
-                "dictation start queuedMs=\(self.lastShortcutQueuedMilliseconds.map(String.init) ?? "?", privacy: .public) pressToPillMs=\(pressedAt.duration(to: afterPill).pillMilliseconds, privacy: .public) permissionsMs=\(pressedAt.duration(to: afterPermissions).pillMilliseconds, privacy: .public) micTestMs=\(afterPermissions.duration(to: afterMicrophoneTest).pillMilliseconds, privacy: .public) captureTargetMs=\(afterMicrophoneTest.duration(to: afterCaptureTarget).pillMilliseconds, privacy: .public) soundAfterPillMs=\(afterPill.duration(to: afterFeedback).pillMilliseconds, privacy: .public)"
+                "dictation start pressToPillMs=\(pressedAt.duration(to: afterPill).pillMilliseconds, privacy: .public) permissionsMs=\(pressedAt.duration(to: afterPermissions).pillMilliseconds, privacy: .public) micTestMs=\(afterPermissions.duration(to: afterMicrophoneTest).pillMilliseconds, privacy: .public) captureTargetMs=\(afterMicrophoneTest.duration(to: afterCaptureTarget).pillMilliseconds, privacy: .public) soundAfterPillMs=\(afterPill.duration(to: afterFeedback).pillMilliseconds, privacy: .public)"
             )
             lastShortcutPressAt = nil
-            lastShortcutQueuedMilliseconds = nil
         }
         // Told at the press, not at the open. The tap machine reports another key
         // being typed only while it is in held mode, so a mode arriving with the
@@ -1354,6 +1341,15 @@ final class AppCoordinator: ObservableObject {
             guard let self else { return }
             do {
                 try await recorder.start(selection: preferences.audioInputSelection)
+                // Measured: `soundToOpenMs` is the window Gaf speaks into and
+                // loses. Logged before the gate, so it is the session opening
+                // rather than anything the phase change afterwards costs.
+                if let pressedAtForSessionOpen {
+                    let opened = ContinuousClock().now
+                    Self.dictationLog.notice(
+                        "mic open pressToOpenMs=\(pressedAtForSessionOpen.duration(to: opened).pillMilliseconds, privacy: .public) soundToOpenMs=\(afterFeedback.duration(to: opened).pillMilliseconds, privacy: .public)"
+                    )
+                }
                 apply(gate.apply(.sessionOpened))
             // Not this dictation's mute, which was never begun — a previous
             // one's pending unmute, which the failure would otherwise strand.
@@ -2178,11 +2174,6 @@ final class AppCoordinator: ObservableObject {
     /// and read once — see the start timing line in `beginRecording`.
     private var lastShortcutPressAt: ContinuousClock.Instant?
 
-    /// How long that press waited between the key going down and Scriber being
-    /// told about it. Measurement only; delete with the "Stop delivery holding
-    /// the main thread" roadmap item.
-    private var lastShortcutQueuedMilliseconds: Int?
-
     /// Whether a finished dictation is still being handed to another app. True
     /// only between the pill leaving and the delivery outcome being known.
     private var isDeliveringTranscript = false
@@ -2216,22 +2207,8 @@ final class AppCoordinator: ObservableObject {
         // So this property's level and elapsed time are stale for the length of a
         // recording, and the pill draws them from its own model instead. Anything
         // needing either live takes it as a parameter — do not read them here.
-        // Measurement only; delete with the delivery roadmap item. The run loop
-        // observer puts ~350 ms of main-thread CPU around the end of a dictation,
-        // most of it after the delivery outcome is already known, and a phase
-        // change is the one thing on that path that reaches SwiftUI. Split so a
-        // publish and a pill update can be told apart — they have different fixes.
-        let phaseStarted = ContinuousClock().now
         if !Self.differsOnlyByMeter(phase, self.phase) { self.phase = phase }
-        let afterPublish = ContinuousClock().now
         pill.update(phase)
-        let afterPill = ContinuousClock().now
-        let total = phaseStarted.duration(to: afterPill).pillMilliseconds
-        if total >= 16 {
-            Self.dictationLog.notice(
-                "setPhase to=\(String(describing: phase).prefix(24), privacy: .public) totalMs=\(total, privacy: .public) publishMs=\(phaseStarted.duration(to: afterPublish).pillMilliseconds, privacy: .public) pillMs=\(afterPublish.duration(to: afterPill).pillMilliseconds, privacy: .public)"
-            )
-        }
     }
 
 }

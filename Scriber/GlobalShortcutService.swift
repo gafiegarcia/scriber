@@ -22,18 +22,8 @@ final class GlobalShortcutService {
     /// Every decision this tap makes. Kept in `ScriberCore` so it can be tested:
     /// nothing in this file can be, and a mistake here stalls the whole machine.
     private var machine: ShortcutTapMachine
-    private var pendingEffects: [PendingEffect] = []
+    private var pendingEffects: [ShortcutTapEffect] = []
     private var isDrainScheduled = false
-
-    /// An effect and the timestamp of the input that produced it, kept together.
-    ///
-    /// The buffer holds several inputs' effects whenever the drain is late, which
-    /// is exactly when a press is worth timing, so the timestamp cannot live in a
-    /// property the next input overwrites.
-    private struct PendingEffect {
-        let effect: ShortcutTapEffect
-        let hardwareTime: TimeInterval
-    }
 
     init(dictation: ShortcutChord) {
         machine = ShortcutTapMachine(dictation: dictation)
@@ -64,27 +54,6 @@ final class GlobalShortcutService {
         let nanoseconds = Double(machTime) * Double(machTimebase.numer) / Double(machTimebase.denom)
         return nanoseconds / 1_000_000_000
     }
-
-    /// The same clock `ShortcutTapInput.timestamp` is on, so the two subtract.
-    static func monotonicNow() -> TimeInterval {
-        seconds(fromMachTime: mach_absolute_time())
-    }
-
-    /// When the key physically went down, for the press this service most
-    /// recently reported as `.pressed`.
-    ///
-    /// Measurement only, for the "Stop delivery holding the main thread" roadmap
-    /// item; delete it with that item. Nothing about a dictation depends on this.
-    /// The tap is on the main run loop, so a press arriving while the main thread
-    /// is busy waits in the queue and every timestamp taken on the main actor —
-    /// including the one the start line calls the press — is taken after that
-    /// wait is already over. This is the only stamp in the app that predates it.
-    ///
-    /// Written as the press is handed to `onAction`, not as the tap sees it. A
-    /// stall long enough to be worth measuring buffers several inputs into one
-    /// drain, so a slot written at tap time would hold the newest press by the
-    /// time the oldest one is read — understating the stall it is here to show.
-    private(set) var lastPressHardwareTime: TimeInterval?
 
     /// Never call this from inside the tap's own callback. Its first act is
     /// `stop()`, which releases the `CFMachPort` whose callout would be on the
@@ -185,7 +154,7 @@ final class GlobalShortcutService {
 
     private func process(_ input: ShortcutTapInput) -> Bool {
         let outcome = machine.handle(input, pillConsumesEscape: pillConsumesEscape?() ?? false)
-        schedule(outcome.effects, hardwareTime: input.timestamp)
+        schedule(outcome.effects)
         return outcome.suppressesEvent
     }
 
@@ -200,11 +169,9 @@ final class GlobalShortcutService {
     /// either leaves a recording nothing stops or stops one that never started.
     /// Ordering comes from the array here. `DispatchQueue.main.async` is FIFO too,
     /// but wants an `@escaping @Sendable` closure and this class is neither.
-    private func schedule(_ effects: [ShortcutTapEffect], hardwareTime: TimeInterval) {
+    private func schedule(_ effects: [ShortcutTapEffect]) {
         guard !effects.isEmpty else { return }
-        pendingEffects.append(
-            contentsOf: effects.map { PendingEffect(effect: $0, hardwareTime: hardwareTime) }
-        )
+        pendingEffects.append(contentsOf: effects)
         guard !isDrainScheduled else { return }
         isDrainScheduled = true
         Task { @MainActor in self.drainPendingEffects() }
@@ -214,12 +181,9 @@ final class GlobalShortcutService {
         isDrainScheduled = false
         let pending = pendingEffects
         pendingEffects.removeAll(keepingCapacity: true)
-        for entry in pending {
-            switch entry.effect {
-            case .action(let action):
-                // Measurement only — see `lastPressHardwareTime`.
-                if case .pressed = action { lastPressHardwareTime = entry.hardwareTime }
-                onAction?(action)
+        for effect in pending {
+            switch effect {
+            case .action(let action): onAction?(action)
             case .nonModifierKeyDown: onNonModifierKeyDown?()
             }
         }

@@ -140,12 +140,10 @@ final class PillController {
     private let panel: NSPanel
     private let glassView: NSGlassEffectView
     private var autoDismissTask: Task<Void, Never>?
-    private var presentationTask: Task<Void, Never>?
     private var preferredScreen: NSScreen?
     private var currentPanelSize = PillController.capsulePanelSize
     private var dismissalCountdown: DismissalCountdown?
     private let minimumHoverExitDismissalDelay: TimeInterval = 1.25
-    private let presentationDuration: TimeInterval = 0.18
     private let hoverRegion = PillHoverRegion()
 
     /// Every capsule phase shares this one panel, so the window neither resizes
@@ -249,12 +247,11 @@ final class PillController {
     func update(_ phase: AppPhase, autoDismiss: Bool = true) {
         clearAutoDismissal()
         guard phase != .idle else {
-            // A dictation reaches idle twice: once when the transcript arrives and
-            // again when delivery confirms, a few hundred milliseconds later. The
-            // second one has a pill already gone to take down, so it must not run
-            // again — it would clear the phase out from under whatever the first
-            // dismissal handed on to, and log a second thread probe for one
-            // dismissal.
+            // Do not: dismiss twice for one dictation. A dictation reaches idle
+            // once when the transcript arrives and again when delivery confirms,
+            // a few hundred milliseconds later. The second has a pill already
+            // gone to take down, and running it again clears the phase out from
+            // under whatever the first dismissal handed on to.
             guard isPresented else { return }
             resetHovering()
             hide(clearPhaseWhenFinished: true)
@@ -571,8 +568,6 @@ final class PillController {
     /// delays the user, not that no pixel ever fades.
     private func show() {
         isPresented = true
-        presentationTask?.cancel()
-        presentationTask = nil
         positionPanel()
         guard !panel.isVisible else {
             panel.alphaValue = 1
@@ -586,37 +581,9 @@ final class PillController {
     /// back to their own work, so nothing here is worth waiting behind.
     private func hide(clearPhaseWhenFinished: Bool) {
         isPresented = false
-        presentationTask?.cancel()
-        presentationTask = nil
-        let wasVisible = panel.isVisible
         panel.orderOut(nil)
         panel.alphaValue = 1
         if clearPhaseWhenFinished { model.phase = .idle }
-        if wasVisible { startMainThreadProbe() }
-    }
-
-    /// Not part of the dismissal — a measurement of the thread it happened on.
-    ///
-    /// Delivery is `@MainActor` and holds this thread for a couple of hundred
-    /// milliseconds after the pill goes, and nothing in any app draws while it
-    /// does. Dismissing instantly hid that; it did not fix it. `probeMs` is what
-    /// the sleep asked for and `tookMs` what it got, so the gap between them is
-    /// drawing time spent elsewhere. Measured against 180 ms because every
-    /// number recorded on this problem so far was measured against 180 ms.
-    ///
-    /// Delete this with **Stop delivery holding the main thread**; it exists to
-    /// judge that item and has no other reader.
-    private func startMainThreadProbe() {
-        let asked = presentationDuration
-        let startedAt = ContinuousClock().now
-        presentationTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(asked))
-            guard let self, !Task.isCancelled else { return }
-            Self.log.notice(
-                "pill dismissed probeMs=\(Int(asked * 1000), privacy: .public) tookMs=\(startedAt.elapsedMilliseconds, privacy: .public)"
-            )
-            presentationTask = nil
-        }
     }
 
     private var autoDismissalDisabledForUITesting: Bool {
