@@ -68,7 +68,6 @@ final class PillModel: ObservableObject {
     var onCancelRecording: (() -> Void)?
     var onConfirmRecording: (() -> Void)?
     var onDismiss: (() -> Void)?
-    var onDefaultAction: (() -> Void)?
 }
 
 /// The pointer region that decides hover, and the one thing in the pill whose
@@ -637,12 +636,11 @@ private struct PillView: View {
             // a smaller phase gave the content one layout pass to decide the
             // height, which drew the shape below the panel's bottom edge.
             .clipShape(pillShape(for: model.phase))
+            // Do not: hang a tap gesture on this. The pill's surface triggers
+            // nothing — see the rule in `PRODUCT_SPEC.md`. The shape stays because
+            // it is what keeps the pill's own controls and its selectable text
+            // hit-testing against the capsule rather than its bounding rectangle.
             .contentShape(pillShape(for: model.phase))
-            .onTapGesture { if hasDefaultAction { model.onDefaultAction?() } }
-            // Declarative rather than an `NSCursor` push/pop pair: the phase can
-            // change while the pointer is still inside the pill, and a manual
-            // stack cannot stay balanced across that.
-            .pointerStyle(hasDefaultAction ? .link : nil)
     }
 
     private var tintAlpha: CGFloat {
@@ -677,13 +675,6 @@ private struct PillView: View {
             )
             .padding(0.5)
             .allowsHitTesting(false)
-    }
-
-    /// The pill is presented whenever this view is on screen, so the phase alone
-    /// decides. Buttons inside still win the hit test; this only covers the body
-    /// around them.
-    private var hasDefaultAction: Bool {
-        model.phase.pillDefaultAction(isPresented: true) != .none
     }
 
     @ViewBuilder private var content: some View {

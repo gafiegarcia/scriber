@@ -328,11 +328,6 @@ struct NoInternetPhaseTests {
             == AppPhase.cancelledTranscript.pillShapeStyle)
     }
 
-    @Test("Its own controls answer a body click, so the body does nothing")
-    func inert() {
-        #expect(AppPhase.noInternetConnection.pillDefaultAction(isPresented: true) == .none)
-    }
-
     @Test("A resting notice does not hold up the next dictation")
     func doesNotBlockRecording() {
         #expect(AppPhase.noInternetConnection.acceptsRecordingStart)
@@ -484,19 +479,6 @@ struct PillToneTests {
         for phase in warning { #expect(phase.pillTone == .warning) }
     }
 
-    /// Both microphone outcomes are resolved in the same place, so both have to
-    /// offer the route there rather than leaving the user to find it.
-    @Test("Every microphone outcome routes to the input settings")
-    func microphoneOutcomesRouteToInput() {
-        let inputFailures: [AppPhase] = [
-            .noAudioSignal,
-            .noSpeechDetected
-        ]
-        for phase in inputFailures {
-            #expect(phase.pillDefaultAction(isPresented: true) == .openInputSettings)
-        }
-    }
-
     @Test("A dictation in flight, and a cancellation, carry no tint")
     func neutral() {
         let neutral: [AppPhase] = [
@@ -520,68 +502,6 @@ struct PillToneTests {
     @Test("The pill agrees with the toast the copy route posts")
     func agreesWithToastStack() {
         #expect(AppPhase.transcriptCopied.pillTone == Toast.transcriptCopied().tone)
-    }
-}
-
-@Suite("Pill default action")
-struct PillDefaultActionTests {
-    @Test("A hidden pill has no default action to take")
-    func hiddenPill() {
-        for phase in everyPhase {
-            #expect(phase.pillDefaultAction(isPresented: false) == .none)
-        }
-    }
-
-    @Test("Phases that own their own controls ignore a body click")
-    func inertPhases() {
-        let inert: [AppPhase] = [
-            .idle,
-            // Cancel and Confirm own the hands-free pill; a stray click on the
-            // body must not reach either.
-            .recording(mode: .locked, elapsed: 3, level: -20),
-            .transcribing(attempt: 1, retryDelay: nil),
-            // Their transcript is selectable, so a body tap would fight the
-            // selection it sits on.
-            .dictationCopied(text: "hi", message: "No target"),
-            .dictationBlockedBySecureField(text: "hi", message: "Paste it yourself"),
-            .cancelledTranscript
-        ]
-        for phase in inert { #expect(phase.pillDefaultAction(isPresented: true) == .none) }
-    }
-
-    @Test("Notices route to where they are resolved")
-    func routingPhases() {
-        #expect(AppPhase.transcriptCopied.pillDefaultAction(isPresented: true) == .openMainWindow)
-        #expect(AppPhase.transcriptionFailed("Offline")
-            .pillDefaultAction(isPresented: true) == .openMainWindow)
-        #expect(AppPhase.permissionsRequired([.microphone])
-            .pillDefaultAction(isPresented: true) == .openPermissionSettings)
-        #expect(AppPhase.credentialsUnusable(.missingAPIKey)
-            .pillDefaultAction(isPresented: true) == .openCredentialSettings)
-        #expect(AppPhase.noSpeechDetected.pillDefaultAction(isPresented: true) == .openInputSettings)
-        #expect(AppPhase.noAudioSignal.pillDefaultAction(isPresented: true) == .openInputSettings)
-        #expect(AppPhase.message("Copied").pillDefaultAction(isPresented: true) == .dismiss)
-    }
-
-    /// The whole reason the mapping is written down rather than inferred. Retry
-    /// and Undo both transcribe, and a click landed by accident must never reach
-    /// either — so the phases that offer them route somewhere harmless instead.
-    @Test("The phases whose button spends API credit keep it on the button")
-    func neverSpendsCredit() {
-        #expect(AppPhase.transcriptionFailed("Offline")
-            .pillDefaultAction(isPresented: true) == .openMainWindow)
-        #expect(AppPhase.cancelledTranscript.pillDefaultAction(isPresented: true) == .none)
-    }
-
-    /// Every phase resolves to something nameable. A phase added without a
-    /// deliberate mapping cannot reach this — the switch has no `default:` — but
-    /// this catches one silently given a wrong one.
-    @Test("Every phase has a mapping and only recording controls are inert")
-    func totality() {
-        let inertCount = everyPhase
-            .filter { $0.pillDefaultAction(isPresented: true) == .none }
-            .count
-        #expect(inertCount == 8)
     }
 }
 

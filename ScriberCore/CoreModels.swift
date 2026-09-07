@@ -714,17 +714,6 @@ public extension CancelledTranscriptionOutcome {
     }
 }
 
-public enum PillDefaultAction: Equatable, Sendable {
-    case none
-    case openMainWindow
-    case openPermissionSettings
-    /// Resolves to the key field or the usage pane at dispatch, from the same
-    /// `CredentialReadiness` the pill's own button reads.
-    case openCredentialSettings
-    case openInputSettings
-    case dismiss
-}
-
 public enum RecordingCancellationPolicy {
     public static let recoveryThreshold: TimeInterval = 1
 
@@ -945,24 +934,6 @@ public extension AppPhase {
         }
     }
 
-    /// What clicking the pill body does, decided per phase. No case here
-    /// transcribes, cancels, or discards: Retry and Undo spend API credit and
-    /// stay on their buttons, where reaching them is deliberate.
-    func pillDefaultAction(isPresented: Bool) -> PillDefaultAction {
-        guard isPresented else { return .none }
-        return switch self {
-        case .idle, .recording, .transcribing, .cancelledTranscript, .noInternetConnection: .none
-        // The transcript is selectable, so a body tap fights the selection it sits on.
-        // Both carry a selectable transcript, so a body tap fights the selection.
-        case .dictationCopied, .dictationBlockedBySecureField: .none
-        case .transcriptCopied, .transcriptionFailed: .openMainWindow
-        case .permissionsRequired: .openPermissionSettings
-        case .credentialsUnusable: .openCredentialSettings
-        case .noSpeechDetected, .noAudioSignal: .openInputSettings
-        case .retryFoundNoWords: .none
-        case .message: .dismiss
-        }
-    }
 }
 
 public enum TranscriptContent {

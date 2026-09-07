@@ -283,7 +283,6 @@ final class AppCoordinator: ObservableObject {
         pill.model.onCancelRecording = { [weak self] in self?.handleHandsFreePillAction(.cancel) }
         pill.model.onConfirmRecording = { [weak self] in self?.handleHandsFreePillAction(.confirm) }
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
-        pill.model.onDefaultAction = { [weak self] in self?.performPillDefaultAction() }
 
         preferences.$dictationShortcut
             .sink { [weak self] chord in self?.shortcuts.update(dictation: chord) }
@@ -1956,26 +1955,6 @@ final class AppCoordinator: ObservableObject {
             returnToIdle()
         }
         return true
-    }
-
-    /// Clicking the pill body. Every destination here is one the pill already
-    /// offers on a button; nothing transcribes, cancels, or discards, so landing
-    /// a click by accident costs a window at worst.
-    private func performPillDefaultAction() {
-        switch phase.pillDefaultAction(isPresented: pill.isPresented) {
-        case .none:
-            break
-        case .openMainWindow:
-            openMainWindow()
-        case .openPermissionSettings:
-            openPermissionSettings()
-        case .openCredentialSettings:
-            credentialReadiness.resolvesInUsageSettings ? openUsageSettings() : openAPIKeySettings()
-        case .openInputSettings:
-            openMicrophoneInputSettings()
-        case .dismiss:
-            returnToIdle()
-        }
     }
 
     private func retryCurrentFailure() {
