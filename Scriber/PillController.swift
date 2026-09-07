@@ -169,26 +169,28 @@ final class PillController {
     /// pill from changing width when its controls arrive — without them it wants
     /// 146, and 146 is under the floor.
     ///
-    /// Measured, at 13-point semibold with the controls pulled out to the
-    /// capsule's curve. Two rows set this floor and they are close together:
+    /// Measured on a SwiftUI harness — an `NSHostingView` of each row, read for
+    /// its `fittingSize` — because every attempt to add this row up by hand has
+    /// come out wrong. Two rows set the floor:
     ///
-    /// - `.recording` locked with the pointer on it, showing both controls:
-    ///   24 points of outer inset, three 10-point gaps, two 28-point controls
-    ///   and the timer's 40-point slot come to 150, leaving the meter 50 — which
-    ///   is what `AudioLevelWaveform`'s pill minimum is set to.
-    /// - `.transcribing`, which shows Cancel unconditionally: 30 points of inset,
-    ///   three 10-point gaps, a 28-point control, the 6-point spacer minimum, a
-    ///   16-point spinner and 90.7 points of "Transcribing…" come to 200.7.
+    /// - `.recording` locked with the pointer on it, so both controls show,
+    ///   fits in **160 points plus whatever the meter takes**. The meter is the
+    ///   row's flexible child, so this width decides its size: 210 leaves it the
+    ///   50 that `AudioLevelWaveform`'s pill minimum is set to.
+    /// - `.transcribing`, which shows Cancel unconditionally, fits at **201**
+    ///   with "Transcribing…" in it. Every "Retrying n/3…" is a point narrower.
     ///
-    /// So the second is the binding one and there is under a point of room in it.
-    /// If that title ever truncates, this goes to 204 and the meter minimum with
-    /// it; nothing else in the family is close.
+    /// Do not: derive either number by adding up insets, gaps and control sizes.
+    /// That arithmetic has been done three times and given 150, then 138, then
+    /// 150 again for a row the harness measures at 160 — the negative padding
+    /// that pulls the controls onto the capsule's curve does not come off the
+    /// row's width the way it reads as though it should. Measure the row.
     ///
-    /// Do not: read 82 here for the meter's width with both controls showing.
-    /// The figure that stood here before was 82 and did not reproduce — it looks
-    /// to have counted two of the three inter-item gaps. The 136 it gave for the
-    /// no-controls case is right and still is.
-    private static let oneLinerWidth: CGFloat = 200
+    /// Do not: trust a remembered figure for the meter's width with both
+    /// controls showing. It has been recorded here as 82 and as 72, and at the
+    /// 222 this used to be it was 62. The 136 recorded for the no-controls case
+    /// is right, and is the one number here that has always reproduced.
+    private static let oneLinerWidth: CGFloat = 210
 
     /// A message pill's width less its text: insets, the leading glyph, the
     /// dismissal countdown, and the gaps between them. Too small shows as a
@@ -585,12 +587,14 @@ final class PillController {
     /// for the one notice whose text nobody wrote to fit: the system's own
     /// account of a failed recording, with no History row to read it from later.
     ///
-    /// Measured: at this width the message column is 444 points, which holds the
-    /// worst real string in under two lines — a Cocoa permission failure with its
+    /// Measured: at this width the message column is 394 points, which holds the
+    /// worst real string in two lines — a Cocoa permission failure with its
     /// recovery suggestion appended runs about 760 points. Four lines is the cap
-    /// rather than the expectation.
+    /// rather than the expectation, and the width is set by how a short message
+    /// looks rather than by how a long one fits: most of these are one line, and
+    /// the 480 the copied-result box uses left them stranded in open space.
     private func dictationFailureSize(for message: String) -> NSSize {
-        let width: CGFloat = 480
+        let width: CGFloat = 430
         let messageFont = NSFont.systemFont(ofSize: 11)
         let messageWidth = width - 36 // Matches dictationFailure's horizontal padding.
         let lineHeight = ceil(messageFont.boundingRectForFont.height)

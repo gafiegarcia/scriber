@@ -140,15 +140,21 @@ struct AudioLevelWaveform: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(
-            // Measured: 50 is exactly what the pill's row leaves the meter in its
-            // tightest state — locked hands-free with the pointer on it, so both
-            // Cancel and Confirm are showing. It is a tripwire rather than a
-            // taste: the meter is the row's flexible child, so a minimum below
-            // what the row can give lets it quietly draw a stub, while one set at
-            // the true worst case makes the row overflow the glass visibly the
-            // moment anything squeezes it further. Bars need only ~25 points to
-            // draw — the floor is 8 of them at a 3.33-point pitch — so nothing
-            // here is protecting the drawing.
+            // Measured on a SwiftUI harness: the pill's row costs 160 points
+            // before the meter, so `PillController.oneLinerWidth` at 210 leaves
+            // exactly 50 in the tightest state — locked hands-free with the
+            // pointer on it, both Cancel and Confirm showing.
+            //
+            // Keep this equal to that leftover. It is a tripwire rather than a
+            // taste: the meter is the row's flexible child, so a smaller minimum
+            // lets a squeezed row quietly draw a stub meter, while one set at the
+            // true worst case makes the row overflow the glass instead. Bars need
+            // only ~25 points to draw — 8 of them at a 3.33-point pitch — so
+            // nothing here is protecting the drawing.
+            //
+            // Do not: lower `oneLinerWidth` without lowering this to match. At
+            // 200 against this same 50 the recording row overflowed its glass by
+            // 10 points, hidden inside the 8-point margin around the capsule.
             minWidth: presentation.fillsAvailableWidth ? 50 : presentation.size.width,
             maxWidth: presentation.fillsAvailableWidth ? .infinity : presentation.size.width,
             minHeight: presentation.size.height,
