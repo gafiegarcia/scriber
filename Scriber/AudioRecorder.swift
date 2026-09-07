@@ -15,16 +15,19 @@ enum AudioRecorderError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        // These reach the user, on a pill with no recovery to offer, so each says
+        // what happened to their dictation rather than what the recorder found.
+        // "No recording is active" was here and read as a state machine talking.
         case .microphoneDenied:
-            "Microphone access is required."
+            "Scriber does not have permission to use the microphone."
         case .inputUnavailable(let name):
             "The selected microphone “\(name)” is unavailable."
         case .couldNotStart:
-            "The microphone recording could not start."
+            "The microphone could not be opened."
         case .notRecording:
-            "No recording is active."
+            "The recording ended before it could be saved."
         case .didNotFinish:
-            "The microphone recording did not finish."
+            "The recording did not finish saving."
         }
     }
 }

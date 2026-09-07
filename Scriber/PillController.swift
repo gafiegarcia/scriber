@@ -564,7 +564,10 @@ final class PillController {
     }
 
     private func copiedResultSize(for text: String) -> NSSize {
-        let width: CGFloat = 480
+        // The two boxes Scriber draws share one width. They appear in the same
+        // place minutes apart, and at different widths the second reads as the
+        // window having moved rather than as a different notice.
+        let width: CGFloat = 430
         let previewFont = NSFont.systemFont(ofSize: 14)
         let previewWidth = width - 36 // Matches copiedResult's horizontal padding.
         let lineHeight = ceil(previewFont.boundingRectForFont.height)
@@ -590,9 +593,8 @@ final class PillController {
     /// Measured: at this width the message column is 394 points, which holds the
     /// worst real string in two lines — a Cocoa permission failure with its
     /// recovery suggestion appended runs about 760 points. Four lines is the cap
-    /// rather than the expectation, and the width is set by how a short message
-    /// looks rather than by how a long one fits: most of these are one line, and
-    /// the 480 the copied-result box uses left them stranded in open space.
+    /// rather than the expectation: the width is set by how a short message looks,
+    /// since nearly every one of these is a single line.
     private func dictationFailureSize(for message: String) -> NSSize {
         let width: CGFloat = 430
         let messageFont = NSFont.systemFont(ofSize: 11)
@@ -736,7 +738,7 @@ private struct PillView: View {
             // happened: the transcript is on the clipboard. The lock, the amber
             // tint and the caption carry what is different. The title row is the
             // narrowest in the panel — it shares with the icon, countdown and
-            // dismiss button, leaving about 343 points against the caption's 444 —
+            // dismiss button, leaving about 293 points against the caption's 394 —
             // so detail belongs in the caption, where there is room for it.
             copiedResult(text: text, message: message, symbol: "lock.fill")
         case .cancelledTranscript:
