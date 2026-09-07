@@ -140,7 +140,16 @@ struct AudioLevelWaveform: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(
-            minWidth: presentation.fillsAvailableWidth ? 58 : presentation.size.width,
+            // Measured: 50 is exactly what the pill's row leaves the meter in its
+            // tightest state — locked hands-free with the pointer on it, so both
+            // Cancel and Confirm are showing. It is a tripwire rather than a
+            // taste: the meter is the row's flexible child, so a minimum below
+            // what the row can give lets it quietly draw a stub, while one set at
+            // the true worst case makes the row overflow the glass visibly the
+            // moment anything squeezes it further. Bars need only ~25 points to
+            // draw — the floor is 8 of them at a 3.33-point pitch — so nothing
+            // here is protecting the drawing.
+            minWidth: presentation.fillsAvailableWidth ? 50 : presentation.size.width,
             maxWidth: presentation.fillsAvailableWidth ? .infinity : presentation.size.width,
             minHeight: presentation.size.height,
             maxHeight: presentation.size.height

@@ -170,13 +170,25 @@ final class PillController {
     /// 146, and 146 is under the floor.
     ///
     /// Measured, at 13-point semibold with the controls pulled out to the
-    /// capsule's curve: 12-point outer insets, a 28-point control and a 10-point
-    /// gap at each end, and the timer's 40-point slot. That leaves the meter 82
-    /// points with both controls showing and 136 with neither, since the meter
-    /// takes whatever the controls are not using. Narrower would still lay out —
-    /// the meter's own minimum is 58 — but a meter is not worth much at 58 while
-    /// a dictation is running, which is when this pill is looked at.
-    private static let oneLinerWidth: CGFloat = 222
+    /// capsule's curve. Two rows set this floor and they are close together:
+    ///
+    /// - `.recording` locked with the pointer on it, showing both controls:
+    ///   24 points of outer inset, three 10-point gaps, two 28-point controls
+    ///   and the timer's 40-point slot come to 150, leaving the meter 50 — which
+    ///   is what `AudioLevelWaveform`'s pill minimum is set to.
+    /// - `.transcribing`, which shows Cancel unconditionally: 30 points of inset,
+    ///   three 10-point gaps, a 28-point control, the 6-point spacer minimum, a
+    ///   16-point spinner and 90.7 points of "Transcribing…" come to 200.7.
+    ///
+    /// So the second is the binding one and there is under a point of room in it.
+    /// If that title ever truncates, this goes to 204 and the meter minimum with
+    /// it; nothing else in the family is close.
+    ///
+    /// Do not: read 82 here for the meter's width with both controls showing.
+    /// The figure that stood here before was 82 and did not reproduce — it looks
+    /// to have counted two of the three inter-item gaps. The 136 it gave for the
+    /// no-controls case is right and still is.
+    private static let oneLinerWidth: CGFloat = 200
 
     /// A message pill's width less its text: insets, the leading glyph, the
     /// dismissal countdown, and the gaps between them. Too small shows as a
