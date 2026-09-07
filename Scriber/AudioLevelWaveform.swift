@@ -141,9 +141,9 @@ struct AudioLevelWaveform: View {
         }
         .frame(
             // Measured on a SwiftUI harness: the pill's row costs 160 points
-            // before the meter, so `PillController.oneLinerWidth` at 210 leaves
-            // exactly 50 in the tightest state — locked hands-free with the
-            // pointer on it, both Cancel and Confirm showing.
+            // before the meter, so `PillController.oneLinerWidth` at 204 leaves
+            // exactly 44 in the tightest state — locked hands-free, where both
+            // Cancel and Confirm show whether or not the pointer is on the pill.
             //
             // Keep this equal to that leftover. It is a tripwire rather than a
             // taste: the meter is the row's flexible child, so a smaller minimum
@@ -155,7 +155,7 @@ struct AudioLevelWaveform: View {
             // Do not: lower `oneLinerWidth` without lowering this to match. At
             // 200 against this same 50 the recording row overflowed its glass by
             // 10 points, hidden inside the 8-point margin around the capsule.
-            minWidth: presentation.fillsAvailableWidth ? 50 : presentation.size.width,
+            minWidth: presentation.fillsAvailableWidth ? 44 : presentation.size.width,
             maxWidth: presentation.fillsAvailableWidth ? .infinity : presentation.size.width,
             minHeight: presentation.size.height,
             maxHeight: presentation.size.height

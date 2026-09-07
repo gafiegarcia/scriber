@@ -175,8 +175,8 @@ final class PillController {
     ///
     /// - `.recording` locked with the pointer on it, so both controls show,
     ///   fits in **160 points plus whatever the meter takes**. The meter is the
-    ///   row's flexible child, so this width decides its size: 210 leaves it the
-    ///   50 that `AudioLevelWaveform`'s pill minimum is set to.
+    ///   row's flexible child, so this width decides its size: 204 leaves it the
+    ///   44 that `AudioLevelWaveform`'s pill minimum is set to.
     /// - `.transcribing`, which shows Cancel unconditionally, fits at **201**
     ///   with "Transcribing…" in it. Every "Retrying n/3…" is a point narrower.
     ///
@@ -190,7 +190,7 @@ final class PillController {
     /// controls showing. It has been recorded here as 82 and as 72, and at the
     /// 222 this used to be it was 62. The 136 recorded for the no-controls case
     /// is right, and is the one number here that has always reproduced.
-    private static let oneLinerWidth: CGFloat = 210
+    private static let oneLinerWidth: CGFloat = 204
 
     /// A message pill's width less its text: insets, the leading glyph, the
     /// dismissal countdown, and the gaps between them. Too small shows as a
