@@ -579,10 +579,12 @@ final class PillController {
         ).height)
         let previewHeight = min(max(lineHeight, measuredPreviewHeight), lineHeight * 4)
 
-        // The result has four rows, three 10-point gaps, and 14-point vertical
-        // insets. Keeping this calculation independent of SwiftUI layout avoids
-        // resizing the AppKit host in response to its own layout pass.
-        let chromeHeight: CGFloat = 116
+        // The result has four rows, three 10-point gaps, 14-point vertical
+        // insets, and the 3 points the transcript takes above itself to separate
+        // it from the caption that belongs to the title. Keeping this calculation
+        // independent of SwiftUI layout avoids resizing the AppKit host in
+        // response to its own layout pass.
+        let chromeHeight: CGFloat = 119
         return NSSize(width: width, height: chromeHeight + previewHeight)
     }
 
@@ -973,6 +975,10 @@ private struct PillView: View {
             Text(text)
                 .font(.system(size: 14))
                 .foregroundStyle(.primary)
+                // The caption above belongs to the title and the transcript does
+                // not, so the transcript takes more air than the row gap gives.
+                // Counted in `copiedResultSize`'s chrome — change both together.
+                .padding(.top, 3)
                 .lineLimit(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .textSelection(.enabled)

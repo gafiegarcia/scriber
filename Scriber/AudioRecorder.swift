@@ -19,7 +19,7 @@ enum AudioRecorderError: LocalizedError {
         // what happened to their dictation rather than what the recorder found.
         // "No recording is active" was here and read as a state machine talking.
         case .microphoneDenied:
-            "Scriber does not have permission to use the microphone."
+            "Microphone access is required."
         case .inputUnavailable(let name):
             "The selected microphone “\(name)” is unavailable."
         case .couldNotStart:
