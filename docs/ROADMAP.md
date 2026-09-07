@@ -4,7 +4,6 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 
 ## Upcoming
 
-- [ ] **Speech at the start cue is not recorded.** ([Notion task](https://app.notion.com/p/3d47193704028188bf72d5df7a75c12b))
 - [ ] **Move `AppCoordinator` to `@Observable`.** ([Notion task](https://app.notion.com/p/3c3719370402812895e1faced1634f97))
 - [ ] **Retire the main-thread instruments.** ([Notion task](https://app.notion.com/p/3d271937040281f99026f12251bf16dd))
 - [ ] **Give the transcription-failure pill a shape that fits Apple's wording.** ([Notion task](https://app.notion.com/p/3d371937040281019592e0c2e693c588))

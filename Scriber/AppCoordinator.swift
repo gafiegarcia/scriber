@@ -1305,11 +1305,6 @@ final class AppCoordinator: ObservableObject {
         // still ahead of the capture session, which is what the cue promises.
         playFeedback(.dictationStarted)
         let afterFeedback = ContinuousClock().now
-        // Measured: nothing times the capture session opening, and that is the
-        // gap a first word spoken on the cue would be lost in. Taken here because
-        // the line below clears `lastShortcutPressAt`. Temporary, for **Speech at
-        // the start cue is not recorded**; delete it with that item.
-        let pressedAtForSessionOpen = lastShortcutPressAt
         // Everything the press waits through before the pill can be asked for,
         // split by step. `pressToPill` is the number the user feels; the rest say
         // which step owns it. `soundAfterPill` sits outside that number by
@@ -1341,15 +1336,6 @@ final class AppCoordinator: ObservableObject {
             guard let self else { return }
             do {
                 try await recorder.start(selection: preferences.audioInputSelection)
-                // Measured: `soundToOpenMs` is the window Gaf speaks into and
-                // loses. Logged before the gate, so it is the session opening
-                // rather than anything the phase change afterwards costs.
-                if let pressedAtForSessionOpen {
-                    let opened = ContinuousClock().now
-                    Self.dictationLog.notice(
-                        "mic open pressToOpenMs=\(pressedAtForSessionOpen.duration(to: opened).pillMilliseconds, privacy: .public) soundToOpenMs=\(afterFeedback.duration(to: opened).pillMilliseconds, privacy: .public)"
-                    )
-                }
                 apply(gate.apply(.sessionOpened))
             // Not this dictation's mute, which was never begun — a previous
             // one's pending unmute, which the failure would otherwise strand.

@@ -167,26 +167,6 @@ final class AudioRecorder {
 private final class CaptureBackend: NSObject, @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.gafiegarcia.scriber.audio-capture")
 
-    /// Measured: `mic open` stops at the session reporting itself started, which
-    /// is not the same moment audio begins arriving. This pair times the rest of
-    /// that gap — the part a first word spoken on the cue would fall into.
-    /// Both are `queue`-owned: the sample delegate is installed on `queue`, and
-    /// `startRecording` runs its body there too. Temporary, for **Speech at the
-    /// start cue is not recorded**; delete them with that item.
-    private static let startupLog = Logger(
-        subsystem: "com.gafiegarcia.scriber",
-        category: "dictation"
-    )
-    private var captureStartedInstant: ContinuousClock.Instant?
-
-    private static func elapsedMilliseconds(
-        _ from: ContinuousClock.Instant,
-        _ to: ContinuousClock.Instant
-    ) -> Int {
-        let components = from.duration(to: to).components
-        return Int(components.seconds * 1_000 + components.attoseconds / 1_000_000_000_000_000)
-    }
-
     /// Closes capture sessions away from `queue`, in the order they were retired.
     private static let teardownQueue = DispatchQueue(label: "com.gafiegarcia.scriber.audio-teardown")
     private var session: AVCaptureSession?
@@ -223,15 +203,7 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
                     // Reads `recordingURL` and `stopContinuation` while they still describe
                     // the superseded recording, which the assignments below then replace.
                     if case .supersedeThenStart = self.lifecycle.start(id) { self.abandonSupersededRecording() }
-                    // Measured: splits the ~100 ms between the cue and audio
-                    // arriving into the steps that own it. `makeMs` is device
-                    // lookup and session wiring, which could be done ahead of a
-                    // press; `runMs` is the microphone actually starting, which
-                    // could not. Temporary, for **Speech at the start cue is not
-                    // recorded**; delete it with that item.
-                    let enteredAt = ContinuousClock().now
                     self.tearDownSession()
-                    let afterTeardown = ContinuousClock().now
 
                     let output = AVCaptureAudioFileOutput()
                     output.audioSettings = [
@@ -242,7 +214,6 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
                         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
                     ]
                     let capture = try self.makeSession(selection: selection, fileOutput: output)
-                    let afterMakeSession = ContinuousClock().now
                     let url = directory.appendingPathComponent("\(id.uuidString).m4a")
 
                     self.recordingURL = url
@@ -253,15 +224,10 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
                     self.fileOutput = output
 
                     capture.session.startRunning()
-                    let afterStartRunning = ContinuousClock().now
                     // After the open, not before it. It backs the duration fallback,
                     // and the time spent opening is not recorded audio.
                     self.startedAt = .now
                     output.startRecording(to: url, outputFileType: .m4a, recordingDelegate: self)
-                    self.captureStartedInstant = .now
-                    Self.startupLog.notice(
-                        "session open teardownMs=\(Self.elapsedMilliseconds(enteredAt, afterTeardown), privacy: .public) makeMs=\(Self.elapsedMilliseconds(afterTeardown, afterMakeSession), privacy: .public) runMs=\(Self.elapsedMilliseconds(afterMakeSession, afterStartRunning), privacy: .public) fileMs=\(Self.elapsedMilliseconds(afterStartRunning, .now), privacy: .public)"
-                    )
                     continuation.resume()
                 } catch {
                     continuation.resume(throwing: error)
@@ -481,12 +447,6 @@ extension CaptureBackend: AVCaptureAudioDataOutputSampleBufferDelegate {
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        if let startedInstant = captureStartedInstant {
-            captureStartedInstant = nil
-            Self.startupLog.notice(
-                "first audio sample openToSampleMs=\(Self.elapsedMilliseconds(startedInstant, .now), privacy: .public)"
-            )
-        }
         let channels = connection.audioChannels
         guard !channels.isEmpty else { return }
         currentLevel.withLock { $0 = channels.map(\.averagePowerLevel).max() ?? -160 }
