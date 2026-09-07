@@ -516,7 +516,17 @@ public enum AppPhase: Equatable, Sendable {
     case dictationCopied(text: String, message: String)
     case permissionsRequired([ScriberPermission])
     case credentialsUnusable(CredentialReadiness)
+    /// A transcription that failed with a history row behind it. Retry and See
+    /// History both mean something here, and the row carries the full message,
+    /// so the pill stays a one-liner and lets History do the talking.
     case transcriptionFailed(String)
+    /// A dictation that ended before a history row existed — the microphone
+    /// failed to open, the recording failed to finish, or the row itself failed
+    /// to save. Distinct from `.transcriptionFailed` because nothing was kept:
+    /// there is no row to open and nothing to retry, so this offers neither, and
+    /// its message is the only account of what happened that the user will ever
+    /// get. That is why it is the one notice with room to print the whole thing.
+    case dictationFailed(String)
     /// The transcription succeeded but contained no words. Sound did reach the
     /// recorder, so the input is working — routes to input settings anyway, because
     /// an input that is too quiet is the next likeliest cause.
@@ -880,6 +890,7 @@ public extension AppPhase {
         case .permissionsRequired: "permissions"
         case .credentialsUnusable: "credentials"
         case .transcriptionFailed: "failed"
+        case .dictationFailed: "dictationFailed"
         case .noSpeechDetected: "noWords"
         case .retryFoundNoWords: "retryNoWords"
         case .noAudioSignal: "noSignal"
@@ -892,6 +903,7 @@ public extension AppPhase {
         if case .dictationBlockedBySecureField = self { return .roundedRectangle }
         if case .cancelledTranscript = self { return .roundedRectangle }
         if case .noInternetConnection = self { return .roundedRectangle }
+        if case .dictationFailed = self { return .roundedRectangle }
         return .capsule
     }
 
@@ -913,7 +925,7 @@ public extension AppPhase {
         // come to mean different things.
         case .transcribing: .cancelTranscription
         case .cancelledTranscript, .noInternetConnection, .dictationCopied, .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,
+             .transcriptionFailed, .dictationFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,
              .transcriptCopied, .dictationBlockedBySecureField, .message: .dismiss
         }
     }
@@ -928,7 +940,7 @@ public extension AppPhase {
         case .dictationCopied: .success
         case .transcriptCopied: .success
         case .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,
+             .transcriptionFailed, .dictationFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,
              .dictationBlockedBySecureField: .warning
         case .idle, .recording, .transcribing, .cancelledTranscript, .noInternetConnection, .message: .neutral
         }

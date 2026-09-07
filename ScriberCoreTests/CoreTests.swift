@@ -420,6 +420,16 @@ struct PillShapeTests {
         #expect(AppPhase.cancelledTranscript.pillShapeStyle == .roundedRectangle)
     }
 
+    /// The two failures are told apart by whether a history row survived, and the
+    /// shape is where the user sees that: one is a one-liner because History
+    /// carries its message, the other is a box because nothing else will.
+    @Test("Only the failure with no history row behind it gets the box")
+    func failuresDifferByShape() {
+        #expect(AppPhase.dictationFailed("Cannot Record").pillShapeStyle == .roundedRectangle)
+        #expect(AppPhase.dictationFailed("Cannot Record").pillCornerRadius(height: 90) == 24)
+        #expect(AppPhase.transcriptionFailed("Offline").pillShapeStyle == .capsule)
+    }
+
     @Test("Phases after a copied result restore their capsule radius")
     func restoresCapsuleAfterCopiedResult() {
         let destinations: [(AppPhase, Double)] = [
@@ -451,6 +461,7 @@ private let everyPhase: [AppPhase] = [
     .permissionsRequired([.microphone, .accessibility]),
     .credentialsUnusable(.missingAPIKey),
     .transcriptionFailed("Offline"),
+    .dictationFailed("Cannot Record"),
     .noSpeechDetected,
     .retryFoundNoWords,
     .noAudioSignal,

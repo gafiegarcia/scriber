@@ -415,6 +415,7 @@ final class AppCoordinator: ObservableObject {
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"
+        case .dictationFailed: "Dictation failed"
         case .noSpeechDetected, .retryFoundNoWords: "No words detected"
         case .noAudioSignal: "No microphone signal"
         case .message(let value): value
@@ -1346,7 +1347,7 @@ final class AppCoordinator: ObservableObject {
                 showMessage("Microphone “\(name)” is unavailable")
             } catch {
                 _ = gate.apply(.startFailed)
-                showFailure(error.localizedDescription)
+                showFailure(failureText(for: error))
             }
         }
     }
@@ -1418,7 +1419,7 @@ final class AppCoordinator: ObservableObject {
                     returnToIdle()
                     return
                 }
-                showFailure(error.localizedDescription)
+                showFailure(failureText(for: error))
             }
         }
     }
@@ -1468,7 +1469,7 @@ final class AppCoordinator: ObservableObject {
             Task { await transcribeCurrentRecord(delivery: .automaticPaste) }
         } catch {
             shortcuts.setMode(.idle)
-            showFailure(error.localizedDescription)
+            showFailure(failureText(for: error))
         }
     }
 
@@ -1783,7 +1784,7 @@ final class AppCoordinator: ObservableObject {
                 retainCancelledRecording(completed)
             } catch {
                 shortcuts.setMode(.idle)
-                showFailure(error.localizedDescription)
+                showFailure(failureText(for: error))
             }
         }
     }
@@ -1822,7 +1823,7 @@ final class AppCoordinator: ObservableObject {
             setPhase(.cancelledTranscript)
         } catch {
             shortcuts.setMode(.idle)
-            showFailure(error.localizedDescription)
+            showFailure(failureText(for: error))
         }
     }
 
@@ -2003,11 +2004,39 @@ final class AppCoordinator: ObservableObject {
         setPhase(.permissionsRequired(permissionReadiness.missingPermissions))
     }
 
+    /// A dictation that ended with no history row behind it. Every caller is a
+    /// failure before `finishRecording` inserts one, so there is nothing to
+    /// retry and nothing for See History to open — which is why this is a
+    /// `.dictationFailed` and not the transcription failure it used to be.
     private func showFailure(_ message: String, playTerminalFeedback: Bool = true) {
         endOtherAudioMuting()
         if playTerminalFeedback { playFeedback(.terminalFailure) }
         shortcuts.setMode(.idle)
-        setPhase(.transcriptionFailed(message))
+        setPhase(.dictationFailed(message))
+    }
+
+    /// The whole of what an error has to say, because this pill is the only place
+    /// it will ever be said.
+    ///
+    /// Platform: `localizedDescription` is a *title* on the system's own errors.
+    /// AVFoundation answers a recording that could not start with "Cannot
+    /// Record" and puts the sentence explaining it in
+    /// `localizedRecoverySuggestion`, so passing the description alone shows
+    /// nine characters of nothing.
+    ///
+    /// Measured: `localizedFailureReason` is deliberately not used. Cocoa builds
+    /// its description out of the reason already — error 513 reads "The file
+    /// couldn't be saved because you don't have permission" against a reason of
+    /// "You don't have permission" — so appending it says the same thing twice.
+    /// Only the recovery suggestion adds anything, on both families.
+    private func failureText(for error: Error) -> String {
+        let error = error as NSError
+        let description = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let suggestion = error.localizedRecoverySuggestion?
+            .trimmingCharacters(in: .whitespacesAndNewlines), !suggestion.isEmpty,
+            suggestion != description else { return description }
+        let separator = description.last.map { ".!?…".contains($0) } == true ? " " : ". "
+        return description + separator + suggestion
     }
 
     private func playFeedback(_ cue: DictationFeedbackCue) {

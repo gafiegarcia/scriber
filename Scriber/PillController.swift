@@ -379,6 +379,12 @@ final class PillController {
             5
         case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
             6
+        // Longer than every other notice because it is the only one carrying a
+        // message nobody wrote for this pill — the system's own account of a
+        // failure, up to four lines of it, with no row in History to read it
+        // from afterwards. A notice that has grown to be read needs time to be.
+        case .dictationFailed:
+            8
         default:
             nil
         }
@@ -388,6 +394,8 @@ final class PillController {
         switch phase {
         case .dictationCopied(let text, _), .dictationBlockedBySecureField(let text, _):
             copiedResultSize(for: text)
+        case .dictationFailed(let message):
+            dictationFailureSize(for: message)
         case .cancelledTranscript, .noInternetConnection:
             NSSize(width: 430, height: 104)
         case .permissionsRequired:
@@ -561,6 +569,32 @@ final class PillController {
         return NSSize(width: width, height: chromeHeight + previewHeight)
     }
 
+    /// The same measured-height treatment `copiedResultSize` gives a transcript,
+    /// for the one notice whose text nobody wrote to fit: the system's own
+    /// account of a failed recording, with no History row to read it from later.
+    ///
+    /// Measured: at this width the message column is 444 points, which holds the
+    /// worst real string in under two lines — a Cocoa permission failure with its
+    /// recovery suggestion appended runs about 760 points. Four lines is the cap
+    /// rather than the expectation.
+    private func dictationFailureSize(for message: String) -> NSSize {
+        let width: CGFloat = 480
+        let messageFont = NSFont.systemFont(ofSize: 11)
+        let messageWidth = width - 36 // Matches dictationFailure's horizontal padding.
+        let lineHeight = ceil(messageFont.boundingRectForFont.height)
+        let measured = ceil((message as NSString).boundingRect(
+            with: NSSize(width: messageWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: messageFont],
+            context: nil
+        ).height)
+
+        // Two rows, one 10-point gap, and 11-point vertical insets. No button
+        // row: this pill offers no recovery, which is what it exists to say.
+        let chromeHeight: CGFloat = 54
+        return NSSize(width: width, height: chromeHeight + min(max(lineHeight, measured), lineHeight * 4))
+    }
+
     /// Every pill is put on screen at once. Scriber animates nothing here, and
     /// what fading remains is AppKit's own for a utility-window panel, which is
     /// left to AppKit deliberately: the rule being kept is that Scriber never
@@ -693,9 +727,38 @@ private struct PillView: View {
             cancellationRecovery
         case .noInternetConnection:
             noInternetRecovery
+        case .dictationFailed(let message):
+            dictationFailure(message: message)
         default:
             compactStatus
         }
+    }
+
+    /// No Retry, no See History: nothing was kept, so there is no row to open and
+    /// nothing to transcribe again. The message gets the whole width instead —
+    /// it is the only account of this failure the user will ever see, and it is
+    /// selectable because copying it into a bug report is what it is for.
+    private func dictationFailure(message: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(toneAccent)
+                Text("Dictation failed")
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer(minLength: 6)
+                countdown
+                dismissButton
+            }
+
+            Text(message)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 11)
     }
 
     private var compactStatus: some View {
@@ -957,6 +1020,10 @@ private struct PillView: View {
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"
+        // Never drawn from here — `.dictationFailed` renders expanded and titles
+        // itself there — but the switch is exhaustive so that a phase added later
+        // cannot slip past it.
+        case .dictationFailed: "Dictation failed"
         case .noSpeechDetected, .retryFoundNoWords: "No words detected"
         case .noAudioSignal: "No sound from the microphone"
         case .message(let value): value
