@@ -4,6 +4,7 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 
 ## Upcoming
 
+- [ ] **Widen the Transcription failed pill so it stops cutting off short messages.** ([Notion task](https://app.notion.com/p/3d571937040281a5931bfe161ea345cf))
 - [ ] **Move `AppCoordinator` to `@Observable`.** ([Notion task](https://app.notion.com/p/3c3719370402812895e1faced1634f97))
 - [ ] **Retire the main-thread instruments.** ([Notion task](https://app.notion.com/p/3d271937040281f99026f12251bf16dd))
 - [ ] **Stop an abandoned transcription running on.** ([Notion task](https://app.notion.com/p/3d27193704028190adc6d6e71c6cc457))
