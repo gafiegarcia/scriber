@@ -423,18 +423,24 @@ final class PillController {
         // the others, for the second line.
         case .inputDisconnected:
             NSSize(width: 430, height: 120)
-        // Measured: with no caption the row lays out at 312x44, so it takes the
-        // 52 every other one-liner uses. 450x60 was sized for a caption that did
-        // not fit in it — "Enable Accessibility so Scriber can detect global
-        // shortcuts and insert text." needed 390 points against the 288 left
-        // beside Review, and lost 102 of them to the ellipsis.
-        case .permissionsRequired:
-            NSSize(width: 320, height: 52)
-        // Measured: the widest of the three is "ElevenLabs credits exhausted"
-        // beside View Credits, at 395x44. Its caption overran by 10 points and
-        // "Add your key in Settings to start dictating." by 2.
-        case .credentialsUnusable:
-            NSSize(width: 404, height: 52)
+        // One width for both, because they are the same notice in two subjects
+        // and appear in the same place — at different widths the second reads as
+        // the pill having moved rather than as a different notice, which is the
+        // reasoning the copied-result box and the failure box already share.
+        //
+        // Measured: the widest of the four rows is "ElevenLabs credits exhausted"
+        // beside View Credits at 421x44, and the narrowest is "Permissions
+        // required" beside Review at 338. 430 clears the widest with a real gap
+        // rather than pinning the spacer at its floor. Their captions never fitted
+        // any of it — "Enable Accessibility so Scriber can detect global shortcuts
+        // and insert text." wanted 390 points against the 245 left beside Review,
+        // and lost 144 of them to the ellipsis.
+        //
+        // Do not: count either row's chrome without the countdown ring. Both
+        // phases dwell, so both draw one, and leaving out its 16 points and the
+        // 10 beside them is what produced a 320 that still truncated.
+        case .permissionsRequired, .credentialsUnusable:
+            NSSize(width: 430, height: 52)
         // Measured: "Transcription failed" is 123 points, and this row also
         // carries a glyph, a countdown, Retry, See History and a dismiss — the
         // most crowded pill Scriber draws. 390 cut the title short.
