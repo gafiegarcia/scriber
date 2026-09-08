@@ -17,7 +17,7 @@
 #          Spec: Shortcuts and job lifecycle — "at least one second long"
 #          Spec: PASTE_ENGINE.md, Regression baseline — "Raycast's command bar"
 #
-#      Straight and curly quotes both count. Gaf's prose uses curly ones, so a
+#      Straight and curly quotes both count. The prose uses curly ones, so a
 #      converter copying a fragment verbatim will produce them.
 #
 # Gate 3 proves a fragment exists. It cannot prove it is the *right* rule — an
