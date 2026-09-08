@@ -943,19 +943,28 @@ private struct PillView: View {
             body: "Everything recorded up to that point is saved. Recover pastes it wherever your cursor is now.",
             actionTitle: "Recover",
             isActionEnabled: true,
+            symbol: "exclamationmark.triangle.fill",
             action: { model.onRecover?() }
         )
     }
 
+    /// - Parameter symbol: drawn ahead of the title, in the phase's own tone.
+    ///   Only the tinted offer carries one; the neutral two would be marking a
+    ///   recording that is waiting intact as something to worry about.
     private func recoveryOffer(
         title: String,
         body: String,
         actionTitle: String,
         isActionEnabled: Bool,
+        symbol: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 9) {
+                if let symbol {
+                    Image(systemName: symbol)
+                        .foregroundStyle(toneAccent)
+                }
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 8)
