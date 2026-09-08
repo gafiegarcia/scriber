@@ -61,4 +61,7 @@ kill "$pid"
 
 echo
 echo "Launched, rendered and exited. Read the log with:"
-echo "  log show --last 5m --predicate 'subsystem == \"com.gafiegarcia.scriber\"' --style compact"
+# By absolute path, because `log` can be shadowed by a shell builtin or function
+# — it then fails with "too many arguments", which reads exactly like a query
+# that ran and found nothing.
+echo "  /usr/bin/log show --last 5m --predicate 'subsystem == \"com.gafiegarcia.scriber\"' --style compact"

@@ -45,4 +45,7 @@ echo "==> Documents"
 "$REPO_ROOT/scripts/check-docs.sh"
 
 echo
-echo "Routine pass OK"
+# Says what it did not do, because "OK" alone was read as "the app compiles".
+# Nothing above typechecks the app target — the parse stages accept a wrong
+# SwiftUI modifier overload, which has shipped a broken build before.
+echo "Routine pass OK — app target parsed, not typechecked. Run ./scripts/smoke.sh to know it compiles."
