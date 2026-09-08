@@ -38,7 +38,7 @@
 
     `Legacy:` carries an obligation the others do not: say **whether the live code can still produce** the state being defended against. A guard whose comment explains its rule but not its provenance reads as evidence of a live bug, and has already produced a confident report of one against correct code.
 
-    An existing untagged comment is not a licence to delete on sight. Delete one when it restates the code it sits on, or while you are already editing that code and it no longer describes what is there. If it carries something a tag covers — a measured number, a platform behavior, a mistake worth not repeating — **give it the tag instead of deleting it.** Much of what is untagged is the only record of a finding: the rule about a separator landing a point from the day label's own is a measurement nothing else holds.
+    An existing untagged comment is not a licence to delete on sight. Delete one when it restates the code it sits on, or while you are already editing that code and it no longer describes what is there. If it carries something a tag covers — a measured number, a platform behavior, a mistake worth not repeating — **give it the tag instead of deleting it.** Much of what is untagged is the only record of a finding.
 
 - **A doc comment (`///`) is governed by length, not by tag**: what the symbol is for, plus any parameter whose meaning is not already in its name.
 - **Docs cite code by symbol, never by line**: `` `discardExpiredDictations` (`DictationHistoryMaintenance.swift`) ``, qualified by type where the same name appears in two files. Where the interesting line is a statement rather than a declaration, cite the declaration enclosing it; where it is a string the user sees, quote the string. This holds in Notion task bodies too, which no script can reach. `./scripts/check-docs.sh` is the gate.
@@ -52,4 +52,4 @@
 
 ## AI Collaboration
 
-- The user is asking you for help with coding—you can ask for help from the user too when stuck. Remember that there are tasks where human involvement can be either mandatory or make the process 10x more efficient.
+- Ask the user rather than pushing on alone: when a decision is theirs to make, when two readings of a request would produce different work, or when a second attempt at the same problem has failed. Spending a turn on the question beats spending a session on the wrong answer.
