@@ -1353,7 +1353,7 @@ final class AppCoordinator: ObservableObject {
                 _ = gate.apply(.startFailed)
                 endOtherAudioMuting()
                 shortcuts.setMode(.idle)
-                playFeedback(.terminalFailure)
+                playFeedback(.dictationDidNotLand)
                 showMessage("Microphone “\(name)” is unavailable")
             } catch {
                 _ = gate.apply(.startFailed)
@@ -1462,7 +1462,7 @@ final class AppCoordinator: ObservableObject {
                 paste.clearTarget()
                 pill.setPreferredScreen(nil)
                 shortcuts.setMode(.idle)
-                playFeedback(.terminalFailure)
+                playFeedback(.dictationDidNotLand)
                 setPhase(.noAudioSignal)
                 return
             }
@@ -1527,7 +1527,7 @@ final class AppCoordinator: ObservableObject {
             paste.clearTarget()
             pill.setPreferredScreen(nil)
             if gate.isIdle { shortcuts.setMode(.idle) }
-            playFeedback(.terminalFailure)
+            playFeedback(.dictationDidNotLand)
             setPhase(.noInternetConnection)
             return
         }
@@ -1636,7 +1636,7 @@ final class AppCoordinator: ObservableObject {
                 Self.dictationLog.notice("dictation parked run=\(run, privacy: .public) outcome=failed")
                 return
             }
-            playFeedback(.terminalFailure)
+            playFeedback(.dictationDidNotLand)
             record.transcriptionState = .failed
             record.errorMessage = error.localizedDescription
             try? modelContext.save()
@@ -1703,7 +1703,7 @@ final class AppCoordinator: ObservableObject {
             // this is Scriber declining to do what was asked, next to a
             // password box, and it deserves the same alert the other
             // warnings use.
-            playFeedback(.terminalFailure)
+            playFeedback(.dictationDidNotLand)
             setPhase(.dictationBlockedBySecureField(
                 text: transcript,
                 message: "Secure field detected, not pasted. Paste with ⌘V if you wish."
@@ -1743,7 +1743,7 @@ final class AppCoordinator: ObservableObject {
         // intent — the recording was made at some earlier time, and pressing
         // Retry is the question being asked now.
         guard !wasRetry else {
-            playFeedback(.terminalFailure)
+            playFeedback(.dictationDidNotLand)
             setPhase(.retryFoundNoWords)
             return
         }
@@ -1756,7 +1756,7 @@ final class AppCoordinator: ObservableObject {
             returnToIdle()
             return
         }
-        playFeedback(.terminalFailure)
+        playFeedback(.dictationDidNotLand)
         setPhase(.noSpeechDetected)
     }
 
@@ -1782,7 +1782,7 @@ final class AppCoordinator: ObservableObject {
             }
             paste.clearTarget()
             shortcuts.setMode(.idle)
-            playFeedback(.cancellationOrCopyFallback)
+            playFeedback(.dictationDidNotLand)
             showMessage("Canceled")
             return
         }
@@ -1833,8 +1833,12 @@ final class AppCoordinator: ObservableObject {
         // it every time. An alert on a healthy route does not do it, so what draws
         // it is this cue reaching an audio route that is collapsing — which is
         // every disconnect, because the output goes with the input on one headset.
-        // Bears on any change that spends `.terminalFailure` more widely.
-        playFeedback(.terminalFailure)
+        //
+        // One cue now covers every ending, so this is no longer the only way to
+        // see it: cancelling a dictation while a headset is disconnecting reaches
+        // the same alert. Accepted deliberately — playing a sound the user chose
+        // away from is the worse of the two.
+        playFeedback(.dictationDidNotLand)
         Self.dictationLog.notice(
             "dictation ended by device kept=\(completed != nil, privacy: .public)"
         )
@@ -1879,7 +1883,7 @@ final class AppCoordinator: ObservableObject {
             AudioRecorder.delete(relativePath: completed.relativePath)
             paste.clearTarget()
             shortcuts.setMode(.idle)
-            playFeedback(.cancellationOrCopyFallback)
+            playFeedback(.dictationDidNotLand)
             showMessage("Canceled")
             return
         }
@@ -1896,7 +1900,7 @@ final class AppCoordinator: ObservableObject {
             currentRecord = record
             currentRecording = completed
             shortcuts.setMode(.idle)
-            playFeedback(.cancellationOrCopyFallback)
+            playFeedback(.dictationDidNotLand)
             setPhase(.cancelledTranscript)
         } catch {
             shortcuts.setMode(.idle)
@@ -1946,7 +1950,7 @@ final class AppCoordinator: ObservableObject {
         paste.clearTarget()
         pill.setPreferredScreen(nil)
         if gate.isIdle { shortcuts.setMode(.idle) }
-        playFeedback(.cancellationOrCopyFallback)
+        playFeedback(.dictationDidNotLand)
         setPhase(.cancelledTranscript)
     }
 
@@ -2087,7 +2091,7 @@ final class AppCoordinator: ObservableObject {
     /// `.dictationFailed` and not the transcription failure it used to be.
     private func showFailure(_ message: String, playTerminalFeedback: Bool = true) {
         endOtherAudioMuting()
-        if playTerminalFeedback { playFeedback(.terminalFailure) }
+        if playTerminalFeedback { playFeedback(.dictationDidNotLand) }
         shortcuts.setMode(.idle)
         setPhase(.dictationFailed(message))
     }
