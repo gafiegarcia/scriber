@@ -423,10 +423,18 @@ final class PillController {
         // the others, for the second line.
         case .inputDisconnected:
             NSSize(width: 430, height: 120)
+        // Measured: with no caption the row lays out at 312x44, so it takes the
+        // 52 every other one-liner uses. 450x60 was sized for a caption that did
+        // not fit in it — "Enable Accessibility so Scriber can detect global
+        // shortcuts and insert text." needed 390 points against the 288 left
+        // beside Review, and lost 102 of them to the ellipsis.
         case .permissionsRequired:
-            NSSize(width: 450, height: 60)
+            NSSize(width: 320, height: 52)
+        // Measured: the widest of the three is "ElevenLabs credits exhausted"
+        // beside View Credits, at 395x44. Its caption overran by 10 points and
+        // "Add your key in Settings to start dictating." by 2.
         case .credentialsUnusable:
-            NSSize(width: 430, height: 60)
+            NSSize(width: 404, height: 52)
         // Measured: "Transcription failed" is 123 points, and this row also
         // carries a glyph, a countdown, Retry, See History and a dismiss — the
         // most crowded pill Scriber draws. 390 cut the title short.
@@ -1092,12 +1100,15 @@ private struct PillView: View {
         }
     }
 
+    /// Neither the permission nor the credential pill carries one. Their captions
+    /// said what their titles and buttons already do — Review opens Settings on
+    /// the tab naming the missing permission, and "ElevenLabs API key is missing"
+    /// leaves nothing for a second line to add — and both were too long to fit
+    /// beside that button anyway. The window's own banner still carries the full
+    /// message, which is where it is read.
     private var subtitle: String? {
         switch model.phase {
-        case .credentialsUnusable(let readiness): readiness.recoveryMessage
         case .cancelledTranscript: "Recover pastes it wherever your cursor is now"
-        case .permissionsRequired(let missing):
-            PermissionReadiness(missingPermissions: missing).recoveryMessage
         case .dictationCopied(_, let message), .dictationBlockedBySecureField(_, let message),
              .transcriptionFailed(let message): message
         // Keep these short: the compact pill gives its subtitle one line and
