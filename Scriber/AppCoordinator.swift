@@ -686,7 +686,13 @@ final class AppCoordinator: ObservableObject {
     }
 
     func refreshAudioInputDevices() {
-        let shouldRestartTest = microphoneTestTask != nil
+        // Whether the meter is running, never whether a task reference survives.
+        // A test whose device was unplugged has already failed and said so, and
+        // its task is left holding a finished run — so asking the task reopened
+        // the microphone the moment that device came back, which is not something
+        // the user asked for twice. Restarting is for a meter that is genuinely
+        // running: an Automatic selection following a device that just appeared.
+        let shouldRestartTest = isMicrophoneTestRunning
         let devices = AudioRecorder.availableInputDevices()
         if audioInputDevices != devices { audioInputDevices = devices }
         if shouldRestartTest { startMicrophoneTest() }
@@ -1817,6 +1823,17 @@ final class AppCoordinator: ObservableObject {
         shortcuts.setMode(.idle)
         paste.clearTarget()
         pill.setPreferredScreen(nil)
+        // Known and unfixed: this cue makes macOS wash the whole screen white for
+        // about a second — a 32% white layer over everything, menu bar included,
+        // rising in 66 ms and fading over 600. It is macOS's own doing and is left
+        // alone rather than suppressed. Measured on a screen recording, and
+        // isolated by elimination: it needs Scriber dictating (an input device
+        // dying under the Settings meter draws nothing), it is not the mute tap
+        // (off throughout), and turning **Play sounds while dictating** off stops
+        // it every time. An alert on a healthy route does not do it, so what draws
+        // it is this cue reaching an audio route that is collapsing — which is
+        // every disconnect, because the output goes with the input on one headset.
+        // Bears on any change that spends `.terminalFailure` more widely.
         playFeedback(.terminalFailure)
         Self.dictationLog.notice(
             "dictation ended by device kept=\(completed != nil, privacy: .public)"
