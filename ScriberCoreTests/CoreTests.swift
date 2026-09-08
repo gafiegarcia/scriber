@@ -457,6 +457,7 @@ private let everyPhase: [AppPhase] = [
     .transcribing(attempt: 1, retryDelay: nil),
     .cancelledTranscript,
     .noInternetConnection,
+    .inputDisconnected,
     .dictationCopied(text: "hi", message: "No target"),
     .permissionsRequired([.microphone, .accessibility]),
     .credentialsUnusable(.missingAPIKey),
@@ -485,9 +486,22 @@ struct PillToneTests {
             .credentialsUnusable(.missingAPIKey),
             .transcriptionFailed("Offline"),
             .noSpeechDetected,
-            .noAudioSignal
+            .noAudioSignal,
+            .inputDisconnected
         ]
         for phase in warning { #expect(phase.pillTone == .warning) }
+    }
+
+    /// The one warning that offers a working button. It is tinted for the state
+    /// of the recording behind it — cut off mid-sentence — where the offline
+    /// pill holds a whole recording and stays neutral. The pair is asserted
+    /// together so neither can be tidied into agreeing with the other.
+    @Test("A disconnected input warns where an absent network does not")
+    func aTruncatedRecordingWarnsWhereAWaitingOneDoesNot() {
+        #expect(AppPhase.inputDisconnected.pillTone == .warning)
+        #expect(AppPhase.noInternetConnection.pillTone == .neutral)
+        #expect(AppPhase.inputDisconnected.pillShapeStyle == .roundedRectangle)
+        #expect(AppPhase.inputDisconnected.pillCornerRadius(height: 104) == 24)
     }
 
     @Test("A dictation in flight, and a cancellation, carry no tint")

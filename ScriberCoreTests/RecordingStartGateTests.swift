@@ -188,6 +188,33 @@ struct RecordingStartGateTests {
         }
     }
 
+    /// The device disappearing ends the recording without anyone asking, so the
+    /// gate has to be idle afterwards — the next press is how the user retries.
+    @Test("A recording its device ended leaves the gate free to start again")
+    func endedByDeviceLeavesTheGateIdle() {
+        var gate = RecordingStartGate()
+        _ = gate.apply(.shortcut(.pressed))
+        _ = gate.apply(.sessionOpened)
+
+        #expect(gate.apply(.endedByDevice) == .ignore)
+        #expect(gate.isIdle)
+        #expect(gate.apply(.startRequested(mode: .held)) == .beginStart(mode: .held))
+    }
+
+    /// The report follows the file output beginning, and the session opening is
+    /// resumed ahead of that, so this ordering does not occur. It is asserted
+    /// because resolving the start here instead would leave one unanswered — an
+    /// open microphone with no pill, which nothing in the app would say.
+    @Test("A start still opening is left for its own answer")
+    func endedByDeviceLeavesAnOpeningStartAlone() {
+        var gate = RecordingStartGate()
+        _ = gate.apply(.shortcut(.pressed))
+
+        #expect(gate.apply(.endedByDevice) == .ignore)
+        #expect(gate.isStarting)
+        #expect(gate.apply(.sessionOpened) == .beginMetering(mode: .held))
+    }
+
     /// A start whose session is never answered is an open microphone with no pill
     /// on screen, and nothing in the app would say so.
     @Test("Every start is answered exactly once")
@@ -215,12 +242,13 @@ struct RecordingStartGateTests {
     private func randomEvent(using generator: inout SeededGenerator) -> RecordingStartGate.Event {
         let modes: [RecordingMode] = [.held, .locked]
         let actions: [ShortcutAction] = [.pressed, .releasedAfterHold, .releasedAsTap, .cancel]
-        switch Int.random(in: 0..<6, using: &generator) {
+        switch Int.random(in: 0..<7, using: &generator) {
         case 0: return .startRequested(mode: modes.randomElement(using: &generator)!)
         case 1: return .sessionOpened
         case 2: return .startFailed
         case 3: return .shortcut(actions.randomElement(using: &generator)!)
         case 4: return .stopRequested
+        case 5: return .endedByDevice
         default: return .cancelRequested
         }
     }

@@ -123,6 +123,15 @@ final class AudioRecorder {
         backend.cancelRecording()
     }
 
+    /// Called when the capture stack ended a recording nobody asked it to end,
+    /// which only the input device disappearing does. Carries whatever survived,
+    /// or `nil` when nothing usable did, and the name of the device that went.
+    func onEndedByDevice(_ handler: @escaping @MainActor (CompletedRecording?, String) -> Void) {
+        backend.onEndedByDevice = { completed, deviceName in
+            Task { @MainActor in handler(completed, deviceName) }
+        }
+    }
+
     nonisolated static func url(for relativePath: String) throws -> URL {
         try pendingAudioDirectory().appendingPathComponent(relativePath)
     }
@@ -186,6 +195,12 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     private var lifecycle = RecorderLifecycle()
     private var recordingURL: URL?
     private var startedAt: Date?
+    /// What the open actually got, so a recording that ends when the device goes
+    /// can name it. `.automatic` does not know it any other way.
+    private var openedDeviceName: String?
+    /// A recording the capture stack ended on its own, with whatever it managed
+    /// to keep — `nil` when nothing usable survived. Called on `queue`.
+    var onEndedByDevice: ((CompletedRecording?, String) -> Void)?
     /// The only capture state read from off `queue`: the meter polls it ten times
     /// a second, and a `queue.sync` for it would queue behind a session opening.
     /// `maximumPeakLevel` stays queue-owned because nothing outside reads it.
@@ -361,7 +376,19 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
             device = selectedDevice
         }
 
-        let input = try AVCaptureDeviceInput(device: device)
+        // Platform: a device that is going away is still listed for a moment after
+        // it stops being openable — a Bluetooth input tearing down is the case
+        // that produces it — and AVFoundation answers the open with "Cannot
+        // Record", a title with the whole explanation in its recovery suggestion.
+        // The user's question is the same one `.inputUnavailable` already
+        // answers, so it is answered in Scriber's words rather than that pair.
+        let input: AVCaptureDeviceInput
+        do {
+            input = try AVCaptureDeviceInput(device: device)
+        } catch {
+            throw AudioRecorderError.inputUnavailable(device.localizedName)
+        }
+        openedDeviceName = device.localizedName
         let dataOutput = AVCaptureAudioDataOutput()
         dataOutput.setSampleBufferDelegate(self, queue: queue)
         let session = AVCaptureSession()
@@ -410,10 +437,16 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
         let duration = max(fileOutput?.recordedDuration.seconds ?? 0, startedAt.map { Date.now.timeIntervalSince($0) } ?? 0)
         let peak = maximumPeakLevel
         let continuation = stopContinuation
+        // Nobody asked for this stop, so the input device ended it. A cancel is
+        // the one other way to get here with no continuation, and it arrives as
+        // `.discard` below, which returns before this is read.
+        let endedByDevice = continuation == nil
+        let deviceName = openedDeviceName ?? "The microphone"
 
         recordingURL = nil
         self.startedAt = nil
         stopContinuation = nil
+        openedDeviceName = nil
         tearDownSession()
 
         if case .discard = outcome {
@@ -425,22 +458,29 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
         if let error {
             let recordingSucceeded = (error as NSError).userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool == true
             if !recordingSucceeded {
-                continuation?.resume(throwing: error)
+                if endedByDevice { onEndedByDevice?(nil, deviceName) } else { continuation?.resume(throwing: error) }
                 return
             }
         }
 
         guard case .deliver(let id) = outcome, startedAt != nil else {
-            continuation?.resume(throwing: AudioRecorderError.notRecording)
+            if endedByDevice { onEndedByDevice?(nil, deviceName) } else {
+                continuation?.resume(throwing: AudioRecorderError.notRecording)
+            }
             return
         }
-        continuation?.resume(returning: CompletedRecording(
+        let completed = CompletedRecording(
             id: id,
             url: url,
             relativePath: url.lastPathComponent,
             duration: duration,
             maximumPeakLevel: peak
-        ))
+        )
+        // Do not: drop this because nothing is waiting on it. Resuming a nil
+        // continuation here is what lost every mid-dictation disconnect — the
+        // audio stayed on disk unreferenced until the next launch swept it up,
+        // and the release that came afterwards found no recording to stop.
+        if endedByDevice { onEndedByDevice?(completed, deviceName) } else { continuation?.resume(returning: completed) }
     }
 }
 

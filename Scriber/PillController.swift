@@ -393,7 +393,13 @@ final class PillController {
             5
         case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
             6
-        // Longer than every other notice because it is the only one carrying a
+        // Longer than the recovery panel it shares a shape with, because of when
+        // it arrives: the device dies mid-sentence, so this appears while the
+        // shortcut is still held and the user is still talking. Five seconds is
+        // gone before they have finished the sentence and looked up.
+        case .inputDisconnected:
+            8
+        // As long as the longest, because it is the only notice carrying a
         // message nobody wrote for this pill — the system's own account of a
         // failure, up to four lines of it, with no row in History to read it
         // from afterwards. A notice that has grown to be read needs time to be.
@@ -410,7 +416,7 @@ final class PillController {
             copiedResultSize(for: text)
         case .dictationFailed(let message):
             dictationFailureSize(for: message)
-        case .cancelledTranscript, .noInternetConnection:
+        case .cancelledTranscript, .noInternetConnection, .inputDisconnected:
             NSSize(width: 430, height: 104)
         case .permissionsRequired:
             NSSize(width: 450, height: 60)
@@ -747,6 +753,8 @@ private struct PillView: View {
             cancellationRecovery
         case .noInternetConnection:
             noInternetRecovery
+        case .inputDisconnected:
+            inputDisconnectionRecovery
         case .dictationFailed(let message):
             dictationFailure(message: message)
         default:
@@ -921,6 +929,19 @@ private struct PillView: View {
         )
     }
 
+    /// The device went away mid-dictation. The body says what was kept rather
+    /// than what the button does — the title has already named the cause, and
+    /// "Transcribe" needs no explaining the way "Recover" does.
+    private var inputDisconnectionRecovery: some View {
+        recoveryOffer(
+            title: "Microphone disconnected",
+            body: "Everything recorded up to that point is saved.",
+            actionTitle: "Transcribe",
+            isActionEnabled: true,
+            action: { model.onRecover?() }
+        )
+    }
+
     private func recoveryOffer(
         title: String,
         body: String,
@@ -1041,6 +1062,9 @@ private struct PillView: View {
         case .dictationBlockedBySecureField: "Copied"
         case .cancelledTranscript: "You can recover your canceled dictation"
         case .noInternetConnection: "No internet connection"
+        // Never drawn from here either — `.inputDisconnected` renders as the
+        // recovery panel, which titles itself.
+        case .inputDisconnected: "Microphone disconnected"
         case .permissionsRequired: "Permissions required"
         case .credentialsUnusable(let readiness): readiness.title
         case .transcriptionFailed: "Transcription failed"

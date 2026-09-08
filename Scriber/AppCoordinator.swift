@@ -283,6 +283,9 @@ final class AppCoordinator: ObservableObject {
         pill.model.onCancelRecording = { [weak self] in self?.handleHandsFreePillAction(.cancel) }
         pill.model.onConfirmRecording = { [weak self] in self?.handleHandsFreePillAction(.confirm) }
         pill.model.onDismiss = { [weak self] in _ = self?.dismissVisiblePill() }
+        recorder.onEndedByDevice { [weak self] completed, deviceName in
+            self?.endDictationLosingItsInput(completed, deviceName: deviceName)
+        }
 
         preferences.$dictationShortcut
             .sink { [weak self] chord in self?.shortcuts.update(dictation: chord) }
@@ -410,6 +413,7 @@ final class AppCoordinator: ObservableObject {
         case .transcribing: "Transcribing"
         case .cancelledTranscript: "Cancelled"
         case .noInternetConnection: "No internet connection"
+        case .inputDisconnected: "Microphone disconnected"
         case .dictationCopied, .transcriptCopied: "Copied"
         case .dictationBlockedBySecureField: "Copied"
         case .permissionsRequired: "Permissions required"
@@ -1792,6 +1796,62 @@ final class AppCoordinator: ObservableObject {
     private func cancelHeldRecordingForTypingIfNeeded() {
         guard gate.cancelsForTyping(elapsed: elapsedSincePress) else { return }
         apply(gate.apply(.cancelRequested))
+    }
+
+    /// The input device went away while the microphone was open. AVFoundation
+    /// closes the file itself when that happens and reports it finished, so the
+    /// dictation ends here rather than running on against an input that is gone
+    /// — and what was captured is kept and offered, because the words already
+    /// spoken are the whole of what the user wanted from it.
+    private func endDictationLosingItsInput(_ completed: CompletedRecording?, deviceName: String) {
+        guard case .recording = phase else {
+            // A stop or a cancel got here first and owns this dictation's ending.
+            // Only a recording still on screen has anything left to end.
+            if let completed { AudioRecorder.deleteOffMainThread(relativePath: completed.relativePath) }
+            return
+        }
+        _ = gate.apply(.endedByDevice)
+        meterTask?.cancel()
+        meterTask = nil
+        endOtherAudioMuting()
+        shortcuts.setMode(.idle)
+        paste.clearTarget()
+        pill.setPreferredScreen(nil)
+        playFeedback(.terminalFailure)
+        Self.dictationLog.notice(
+            "dictation ended by device kept=\(completed != nil, privacy: .public)"
+        )
+
+        // Judged by the same thresholds as every other recording: a partial too
+        // brief or too quiet to transcribe is not made offerable by the reason it
+        // ended. It is still said out loud, where a slipped finger is not — a
+        // device that vanished is not something the user did, and silence leaves
+        // them pressing the shortcut again into the same dead input.
+        guard let completed,
+              !RecordingCancellationPolicy.isMisclick(elapsed: completed.duration),
+              completed.detectedSignal
+        else {
+            if let completed { AudioRecorder.deleteOffMainThread(relativePath: completed.relativePath) }
+            showMessage("Microphone “\(deviceName)” disconnected")
+            return
+        }
+
+        let record = DictationRecord(
+            id: completed.id,
+            durationSeconds: completed.duration,
+            transcriptionState: .failed,
+            errorMessage: "The microphone disconnected before this dictation finished.",
+            pendingAudioRelativePath: completed.relativePath
+        )
+        modelContext.insert(record)
+        do {
+            try modelContext.save()
+            currentRecord = record
+            currentRecording = completed
+            setPhase(.inputDisconnected)
+        } catch {
+            showFailure(failureText(for: error), playTerminalFeedback: false)
+        }
     }
 
     private func retainCancelledRecording(_ completed: CompletedRecording) {

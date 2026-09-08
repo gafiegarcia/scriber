@@ -513,6 +513,12 @@ public enum AppPhase: Equatable, Sendable {
     /// network at all. Distinct from a transcription that failed: nothing left
     /// the machine, no credit moved, and the recording is waiting intact.
     case noInternetConnection
+    /// The input device went away while the microphone was open, ending the
+    /// dictation where the device stopped. The same offer `.noInternetConnection`
+    /// makes — the recording is kept and its row is written, so both buttons
+    /// mean something — and tinted where that one is not, because this recording
+    /// is incomplete rather than merely waiting.
+    case inputDisconnected
     case dictationCopied(text: String, message: String)
     case permissionsRequired([ScriberPermission])
     case credentialsUnusable(CredentialReadiness)
@@ -883,6 +889,7 @@ public extension AppPhase {
         case .recording: "recording"
         case .transcribing: "transcribing"
         case .cancelledTranscript: "cancelled"
+        case .inputDisconnected: "inputDisconnected"
         case .noInternetConnection: "noInternet"
         case .dictationCopied: "dictationCopied"
         case .transcriptCopied: "transcriptCopied"
@@ -903,6 +910,7 @@ public extension AppPhase {
         if case .dictationBlockedBySecureField = self { return .roundedRectangle }
         if case .cancelledTranscript = self { return .roundedRectangle }
         if case .noInternetConnection = self { return .roundedRectangle }
+        if case .inputDisconnected = self { return .roundedRectangle }
         if case .dictationFailed = self { return .roundedRectangle }
         return .capsule
     }
@@ -924,9 +932,9 @@ public extension AppPhase {
         // too, through `HandsFreePillAction`, so the key and the control cannot
         // come to mean different things.
         case .transcribing: .cancelTranscription
-        case .cancelledTranscript, .noInternetConnection, .dictationCopied, .permissionsRequired, .credentialsUnusable,
-             .transcriptionFailed, .dictationFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,
-             .transcriptCopied, .dictationBlockedBySecureField, .message: .dismiss
+        case .cancelledTranscript, .noInternetConnection, .inputDisconnected, .dictationCopied, .permissionsRequired,
+             .credentialsUnusable, .transcriptionFailed, .dictationFailed, .noSpeechDetected, .retryFoundNoWords,
+             .noAudioSignal, .transcriptCopied, .dictationBlockedBySecureField, .message: .dismiss
         }
     }
 
@@ -935,13 +943,19 @@ public extension AppPhase {
     /// Nothing maps to `.failure` — every phase that could claim red is
     /// recoverable in place, from the pill. Cancelling stays neutral, because the
     /// user asked for it and the Undo button carries the recovery on its own.
+    ///
+    /// `.inputDisconnected` is the one warning that does offer a working button.
+    /// It is tinted for what the recording is rather than for what the pill can
+    /// do: the audio behind it stops mid-sentence, which no other recoverable
+    /// notice can say. Do not read this as licence to tint the rest of them —
+    /// `.noInternetConnection` holds a whole recording and stays neutral.
     var pillTone: ToastTone {
         switch self {
         case .dictationCopied: .success
         case .transcriptCopied: .success
         case .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .dictationFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,
-             .dictationBlockedBySecureField: .warning
+             .inputDisconnected, .dictationBlockedBySecureField: .warning
         case .idle, .recording, .transcribing, .cancelledTranscript, .noInternetConnection, .message: .neutral
         }
     }

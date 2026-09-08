@@ -41,6 +41,10 @@ public struct RecordingStartGate: Equatable, Sendable {
         case stopRequested
         /// Escape, typing during a held recording, the pill's Cancel.
         case cancelRequested
+        /// The capture stack ended the recording on its own, because the input
+        /// device went away. Not a stop: nothing asked for it, and the audio has
+        /// already been handed back by the time this arrives.
+        case endedByDevice
     }
 
     public enum Decision: Equatable, Sendable {
@@ -175,6 +179,20 @@ public struct RecordingStartGate: Equatable, Sendable {
             state = .idle
             return .stop
         case (.idle, .stopRequested):
+            return .ignore
+
+        // Answered by the recorder's own report rather than by a decision, so
+        // there is nothing to hand back — the gate only has to let go.
+        case (.running, .endedByDevice):
+            state = .idle
+            return .ignore
+        // A start still opening is left alone on purpose. The report cannot
+        // arrive before the file output has begun, and the session opening is
+        // resumed ahead of that on the same queue, so `.sessionOpened` always
+        // lands first. Do not: resolve the start here as well — a start the gate
+        // has forgotten is a start nothing answers, which is the one state
+        // `RecordingStartGate` exists to prevent.
+        case (.starting, .endedByDevice), (.idle, .endedByDevice):
             return .ignore
 
         case (.starting(let mode, let resolution), .cancelRequested):
