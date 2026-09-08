@@ -242,6 +242,29 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
                     self.fileOutput = output
 
                     capture.session.startRunning()
+                    // Platform: `startRecording` raises an Objective-C exception when
+                    // there is no active connection behind it, and an Objective-C
+                    // exception is not catchable from Swift — it aborts the process.
+                    // A device that dies between the session opening and this line
+                    // leaves exactly that, which is what a Bluetooth input tearing
+                    // down as the shortcut is pressed produces.
+                    //
+                    // Known and unfixed: this narrows the window rather than closing
+                    // it. A device disappearing between the check and the call still
+                    // aborts, and only an Objective-C exception handler could catch
+                    // that one.
+                    guard capture.session.isRunning,
+                          output.connection(with: .audio)?.isActive == true else {
+                        // Off the books as well as closed. Nothing was ever recorded,
+                        // so leaving the lifecycle holding this id would make the next
+                        // start supersede a recording that never began.
+                        let name = self.openedDeviceName ?? "System Default"
+                        self.recordingURL = nil
+                        self.openedDeviceName = nil
+                        self.lifecycle = RecorderLifecycle()
+                        self.tearDownSession()
+                        throw AudioRecorderError.inputUnavailable(name)
+                    }
                     // After the open, not before it. It backs the duration fallback,
                     // and the time spent opening is not recorded audio.
                     self.startedAt = .now

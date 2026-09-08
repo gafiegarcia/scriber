@@ -416,8 +416,13 @@ final class PillController {
             copiedResultSize(for: text)
         case .dictationFailed(let message):
             dictationFailureSize(for: message)
-        case .cancelledTranscript, .noInternetConnection, .inputDisconnected:
+        case .cancelledTranscript, .noInternetConnection:
             NSSize(width: 430, height: 104)
+        // Measured: its body is 486 points against the 394 the panel leaves, so
+        // it is the one recovery offer whose caption wraps. 16 points taller than
+        // the others, for the second line.
+        case .inputDisconnected:
+            NSSize(width: 430, height: 120)
         case .permissionsRequired:
             NSSize(width: 450, height: 60)
         case .credentialsUnusable:
@@ -929,14 +934,14 @@ private struct PillView: View {
         )
     }
 
-    /// The device went away mid-dictation. The body says what was kept rather
-    /// than what the button does — the title has already named the cause, and
-    /// "Transcribe" needs no explaining the way "Recover" does.
+    /// The device went away mid-dictation. Recover, not a name of its own: the
+    /// button does what the cancelled dictation's does, and one action under two
+    /// names is the inconsistency, not the shared word.
     private var inputDisconnectionRecovery: some View {
         recoveryOffer(
             title: "Microphone disconnected",
-            body: "Everything recorded up to that point is saved.",
-            actionTitle: "Transcribe",
+            body: "Everything recorded up to that point is saved. Recover pastes it wherever your cursor is now.",
+            actionTitle: "Recover",
             isActionEnabled: true,
             action: { model.onRecover?() }
         )
