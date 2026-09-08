@@ -10,7 +10,7 @@ import SwiftData
 ///    `pendingAudioRelativePath` is a real path, `PendingAudio` is one directory
 ///    that `--ui-testing` does **not** isolate, and `AppCoordinator.delete` calls
 ///    `AudioRecorder.delete` unconditionally. A name that cannot collide with a
-///    real `<uuid>.m4a` makes that a no-op rather than a deletion in Gaf's own
+///    real `<uuid>.m4a` makes that a no-op rather than a deletion in the user's own
 ///    directory.
 /// 2. **No entry is older than the 30-day retention period**, or
 ///    `discardExpiredDictations` deletes failed and cancelled rows out from under

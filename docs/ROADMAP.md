@@ -1,6 +1,6 @@
 # Roadmap
 
-Work Scriber has committed to. Each item is a title and a link; the detail — the problem, what has been measured, and any approach already ruled in or out — lives in its Notion task. Read the task before building, and treat a mechanism written there as a proposal unless Gaf settled it.
+Work Scriber has committed to. Each item is a title and a link; the detail — the problem, what has been measured, and any approach already ruled in or out — lives in its Notion task. Read the task before building, and treat a mechanism written there as a proposal unless the user settled it.
 
 ## Upcoming
 

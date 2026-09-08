@@ -71,7 +71,7 @@ final class DictationHistoryMaintenance {
     func discardExpiredDictations(keptFor retention: RetainedAudioRetention) -> [UUID] {
         // Never from a test build. `PendingAudio` is one real directory that
         // `--ui-testing` does not isolate while the history store under it *is*
-        // in-memory, so the sweep below sees every one of Gaf's genuinely retained
+        // in-memory, so the sweep below sees every one of the user's genuinely retained
         // recordings as referenced by nothing and deletes the expired ones. This
         // guard has to cover every entry point, not just the launch call site.
         guard servicesAllowed, retention != .never,

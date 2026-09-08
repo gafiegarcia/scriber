@@ -1,12 +1,12 @@
-# Checks Only Gaf Can Run
+# Checks Only the User Can Run
 
-This is a reusable catalog of checks that require Gaf's real environment, account, hardware, judgment, or physical participation. An agent selects and proposes the smallest relevant set — usually one to three checks — but never performs one itself or records completion in this file.
+This is a reusable catalog of checks that require the user's real environment, account, hardware, judgment, or physical participation. An agent selects and proposes the smallest relevant set — usually one to three checks — but never performs one itself or records completion in this file.
 
 Agent-runnable parsing, tests, builds, isolated UI fixtures, and visual inspection belong in `AUTOMATED_CHECKS.md`, not here.
 
-Before tagging, Gaf runs the baseline against the final installed candidate, then any conditional checks implicated by changes since the previous tag. Results belong in the session and annotated tag message.
+Before tagging, the user runs the baseline against the final installed candidate, then any conditional checks implicated by changes since the previous tag. Results belong in the session and annotated tag message.
 
-Never ask Gaf to risk irreplaceable history, the only copy of an API key, or account quota merely to manufacture a test state. **Every check that spends API credit requires explicit approval first.**
+Never ask the user to risk irreplaceable history, the only copy of an API key, or account quota merely to manufacture a test state. **Every check that spends API credit requires explicit approval first.**
 
 A check says how to reach a state and what will trip you up. It does not say what must then be true — that is a requirement, it lives in one document, and the check ends with a pointer to it:
 
@@ -14,7 +14,7 @@ A check says how to reach a state and what will trip you up. It does not say wha
 
 Name the document when the rule is not in `PRODUCT_SPEC.md`. `./scripts/check-docs.sh` fails when a fragment stops appearing there, which is how a reworded requirement forces its checks to be re-read.
 
-**Converting a check never edits a requirement.** Where a check and the spec disagree, say so and leave both alone — a question for Gaf, not something to reconcile while converting. Where a check asserts something the spec does not contain at all, that requirement is real and homeless: file it as a spec bullet in the same change rather than deleting the only copy of it.
+**Converting a check never edits a requirement.** Where a check and the spec disagree, say so and leave both alone — a question for the user, not something to reconcile while converting. Where a check asserts something the spec does not contain at all, that requirement is real and homeless: file it as a spec bullet in the same change rather than deleting the only copy of it.
 
 ## Baseline for a tag candidate
 
@@ -53,7 +53,7 @@ Reach for these when the diff touches `GlobalShortcutService.swift`, `RecordingS
 - Tap the shortcut and speak immediately, without waiting for the pill to settle. Spec: Shortcuts and job lifecycle — "Recording begins on the press, before the mode is known"
 - Hold the shortcut a beat past `DictationShortcutTiming.tapThreshold` and let go. This threshold is the one number no test can settle — it decides whether a deliberately short dictation reads as a tap, and only a hand knows where it belongs. Spec: Shortcuts and job lifecycle — "Released within the tap threshold"
 - Holding the shortcut, move the pointer onto the pill and off again; then tap to lock hands-free and tap again to stop. With the default binding, bare `fn` must still open the emoji picker. **Wispr Flow must be quit first**, or it takes the key. Spec: Delivery and floating pill — "show Cancel on the pill's leading edge only while the pointer is over the pill"
-- Tap the shortcut as fast as possible several times over, then hold it and dictate normally, and press it once more while a later pill still reads **Transcribing…**. The burst has to put a start, a stop and a cancel inside the time the capture stack needs to close a recording, so speed is the procedure. Two failures have reached Gaf this way — a recorder that refuses every later start, and a deadlock between the capture queue and the main thread. **If it freezes, run `sample Scriber 3` before quitting it**: the two stacks name the deadlock between them, and nothing recovered afterwards will. Spec: Shortcuts and job lifecycle — "a press is refused — those are the busy phases"
+- Tap the shortcut as fast as possible several times over, then hold it and dictate normally, and press it once more while a later pill still reads **Transcribing…**. The burst has to put a start, a stop and a cancel inside the time the capture stack needs to close a recording, so speed is the procedure. Two failures have reached the user this way — a recorder that refuses every later start, and a deadlock between the capture queue and the main thread. **If it freezes, run `sample Scriber 3` before quitting it**: the two stacks name the deadlock between them, and nothing recovered afterwards will. Spec: Shortcuts and job lifecycle — "a press is refused — those are the busy phases"
 
 ## When opening a window mid-dictation changes
 
@@ -78,7 +78,7 @@ Reach for these when the diff touches `GlobalShortcutService.swift` or `Reserved
 
 ## When the pill's appearance changes
 
-Judged by eye, so these are Gaf's alone — the accessibility tree cannot answer any of them.
+Judged by eye, so these are the user's alone — the accessibility tree cannot answer any of them.
 
 - Every pill, in light and dark, over both a light and a dark window behind it. Spec: Delivery and floating pill — "Tint, never fill"
 - A green pill against an amber one **in light appearance**, which is where the tint has least to work with. Checking each tone on its own hides the failure that matters — they must be tellable apart from each other, not merely visible. Spec: Delivery and floating pill — "A success and a warning must be tellable apart at a glance"
@@ -136,7 +136,7 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 
 ### Its shortcut step
 
-- **On a keyboard with no `fn` key macOS can see** — most keyboards Apple did not make. Press the key as hard as you like, then record `⌃+⌥` instead. This is the case the step exists for, and the only one that cannot be staged on Gaf's own machine. Spec: Permissions and app lifecycle — "a shortcut that was actually pressed"
+- **On a keyboard with no `fn` key macOS can see** — most keyboards Apple did not make. Press the key as hard as you like, then record `⌃+⌥` instead. This is the case the step exists for, and the only one that cannot be staged on the user's own machine. Spec: Permissions and app lifecycle — "a shortcut that was actually pressed"
 - Choose each option in turn and press the shortcut it names, then switch away from a confirmed one. Confirmation follows the choice rather than surviving it. Spec: Permissions and app lifecycle — "A step gates only on what it exists to establish"
 - Press a sided shortcut's left twin. Setup's test and the global shortcut have to agree about which key counts, or setup passes a binding that then does nothing. Spec: Shortcuts and job lifecycle — "the global tap and setup's own test of it both"
 - Record a custom shortcut, confirm it, finish, and check what reaches Settings. Spec: Shortcuts and job lifecycle — "The last recorded chord is kept when a preset is chosen"

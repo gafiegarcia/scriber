@@ -4,14 +4,14 @@
 #
 # Builds Debug, launches that build with activation, Dock presence and the menu
 # bar item all suppressed, and kills it again. The before_pid guard and the
-# absolute APP_PATH are what keep the final kill off Gaf's installed copy; they
+# absolute APP_PATH are what keep the final kill off the user's installed copy; they
 # are the reason this is a script rather than a block to paste.
 #
 # What it cannot show: anything that needs a window to be presented a second
 # time. Under --ui-testing-no-activate a closed window never comes back, while
 # the window-lifecycle log still reports "ordering front" — so onAppear,
 # didBecomeKey, and Settings tab routing all go quiet and read as broken. Take
-# reopening behaviour to an activating launch or to Gaf.
+# reopening behaviour to an activating launch or to the user.
 #
 # Pass --login to add --simulate-login-launch, which makes the app treat its
 # launch as one macOS made at login. Run both: the app must come up with no

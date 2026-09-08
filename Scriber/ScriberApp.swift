@@ -28,7 +28,7 @@ enum AppLaunchConfiguration {
     }
 
     /// Fills the in-memory history so the Dictation list can be checked without
-    /// touching Gaf's real entries. See `UITestingHistoryFixture`.
+    /// touching the user's real entries. See `UITestingHistoryFixture`.
     static var seedsDictationHistory: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-history")
     }
@@ -103,7 +103,7 @@ enum AppLaunchConfiguration {
 
     /// The launch smoke check's flag. The app still builds and renders its window —
     /// that is the path the check exists to exercise — but never activates, so it
-    /// does not steal the front from whatever Gaf is doing. Only the smoke check
+    /// does not steal the front from whatever the user is doing. Only the smoke check
     /// passes it; a visual-inspection launch wants the real activation behaviour.
     static var launchesWithoutActivating: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-no-activate")
@@ -128,8 +128,8 @@ enum AppLaunchConfiguration {
     /// reachable.
     @MainActor
     static var startsInBackground: Bool {
-        // Ahead of the preference reads, so the check does not depend on how Gaf
-        // has these set at the time.
+        // Ahead of the preference reads, so the check does not depend on how the
+        // user has these set at the time.
         if simulatesLoginLaunch { return true }
         // Nothing here asks whether the login item is registered: macOS starting
         // Scriber at login is the proof, and `isLoginItemLaunch` is how that

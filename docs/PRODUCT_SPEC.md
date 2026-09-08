@@ -1,6 +1,6 @@
 # Product Specification
 
-A sentence marked **Implementation:** describes how a requirement is met today, not what Scriber owes its user. Verify one against the code before relying on it — a framework mechanism can be replaced without the requirement above it changing at all. Everything unmarked is intent, and holds until Gaf changes it.
+A sentence marked **Implementation:** describes how a requirement is met today, not what Scriber owes its user. Verify one against the code before relying on it — a framework mechanism can be replaced without the requirement above it changing at all. Everything unmarked is intent, and holds until the user changes it.
 
 ## Product goal
 

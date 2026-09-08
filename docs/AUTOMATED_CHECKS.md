@@ -66,7 +66,7 @@ The app itself needs no separate proof here. The cask fetches the same release a
 
 This launch suppresses activation, Dock presence, and the menu-bar item, but still creates and renders the window. A process that stays at high CPU or never idles is an app failure worth sampling before blaming the harness.
 
-It creates and renders a window once. It cannot put a closed one back on screen: after a window closes under this flag, `openWindow(id:)` and the front-ordering path both leave `isVisible == false`, and the `window-lifecycle` log still reports `showWindow: ordering front`, so the log agrees with a reopening that did not happen. Nothing that depends on a window being presented a second time can be measured here — `onAppear`, `didBecomeKey`, and any routing that selects a Settings tab on the way in all go quiet, and read as broken. Take reopening behaviour to an activating launch or to Gaf, never to this flag.
+It creates and renders a window once. It cannot put a closed one back on screen: after a window closes under this flag, `openWindow(id:)` and the front-ordering path both leave `isVisible == false`, and the `window-lifecycle` log still reports `showWindow: ordering front`, so the log agrees with a reopening that did not happen. Nothing that depends on a window being presented a second time can be measured here — `onAppear`, `didBecomeKey`, and any routing that selects a Settings tab on the way in all go quiet, and read as broken. Take reopening behaviour to an activating launch or to the user, never to this flag.
 
 ```bash
 /usr/bin/log show --last 5m --predicate 'subsystem == "com.gafiegarcia.scriber"' --style compact
@@ -92,15 +92,15 @@ Every launch also writes `launchEvent:` twice and one `launchContext:` line, rec
 
 ## Driving the app without computer-use
 
-Most of what an inspection needs is readable, and pressable, from the accessibility tree. Reach for this before asking for computer-use or for Gaf: a build succeeding says nothing about what the app ended up showing, and SwiftUI contributes menu items, sizes, and defaults that no Scriber file names.
+Most of what an inspection needs is readable, and pressable, from the accessibility tree. Reach for this before asking for computer-use or for the user: a build succeeding says nothing about what the app ended up showing, and SwiftUI contributes menu items, sizes, and defaults that no Scriber file names.
 
-What this reaches: menu bar contents and menu items, window titles, sizes and positions, resize limits, tab selection, buttons and links by accessibility identifier, sheets and their contents, scroll areas and the geometry of anything inside them. What it does not: colour, translucency, glass, spacing judged by eye, and anything about appearance — those still need a computer-use tool or Gaf.
+What this reaches: menu bar contents and menu items, window titles, sizes and positions, resize limits, tab selection, buttons and links by accessibility identifier, sheets and their contents, scroll areas and the geometry of anything inside them. What it does not: colour, translucency, glass, spacing judged by eye, and anything about appearance — those still need a computer-use tool or the user.
 
 Needs Accessibility permission for whatever runs `osascript`, usually the terminal.
 
 ### Address the process by pid, not by name
 
-`process "Scriber"` is ambiguous the moment a second Scriber exists, and the installed app is usually running. Capture the pid at launch with the `before_pid` guard and address that instead, which lets the build under test be inspected without quitting Gaf's copy:
+`process "Scriber"` is ambiguous the moment a second Scriber exists, and the installed app is usually running. Capture the pid at launch with the `before_pid` guard and address that instead, which lets the build under test be inspected without quitting the user's copy:
 
 ```bash
 before_pid="$(pgrep -n -x Scriber || true)"
@@ -144,7 +144,7 @@ Assign `position` and `size` to variables before reading their items; concatenat
 osascript -e "tell application \"System Events\" to tell (first process whose unix id is $pid) to perform action \"AXPress\" of (item 4 of (UI elements of (item 1 of (UI elements of (item 1 of (UI elements of (toolbar 1 of window \"Settings\")))))))"
 ```
 
-`AXPress` sends the action rather than moving the pointer, so it does not disturb whatever Gaf is doing. `set size of window 1 to {w, h}` then reading the size back is how a window's own limits are measured — what it settles on is what the app allowed, not what was asked for.
+`AXPress` sends the action rather than moving the pointer, so it does not disturb whatever the user is doing. `set size of window 1 to {w, h}` then reading the size back is how a window's own limits are measured — what it settles on is what the app allowed, not what was asked for.
 
 Anything a Debug build should expose to this needs an `accessibilityIdentifier`. A glyph-only button reports its SF Symbol name instead, which reads as an identifier and is not one.
 
@@ -171,7 +171,7 @@ Try **Driving the app without computer-use** first. Much of what follows was wri
 
 Use a computer-use tool with the capture restricted to **Scriber**, so no other application appears.
 
-If `CLAUDE_CODE_ENTRYPOINT=cli`, stop and ask Gaf to run these from the desktop app: `request_access` cannot see Scriber from the CLI, under any identifier.
+If `CLAUDE_CODE_ENTRYPOINT=cli`, stop and ask the user to run these from the desktop app: `request_access` cannot see Scriber from the CLI, under any identifier.
 
 It moves the real pointer and can press keys, so do not start one while the user is typing. Check whether the window on screen belongs to the installed app or a test build before drawing any conclusion from it.
 
@@ -185,7 +185,7 @@ Confirm the window is centred and fully visible above the Dock, then relaunch an
 
 Walk all seven steps. Each one fills the window without scrolling and centres in it, the footer's page dots track the step, and no step's controls move as the step changes.
 
-Also launch ordinary `--ui-testing`, open Settings, and choose **Redo Setup…** on the General tab while the main window is already open. The setup window comes to the front, remains centred above the Dock, and shows the throwaway setup state; never reset Gaf's real `onboardingComplete` preference for this inspection.
+Also launch ordinary `--ui-testing`, open Settings, and choose **Redo Setup…** on the General tab while the main window is already open. The setup window comes to the front, remains centred above the Dock, and shows the throwaway setup state; never reset the user's real `onboardingComplete` preference for this inspection.
 
 ### Seeded history
 
@@ -204,7 +204,7 @@ pid="$(pgrep -n -x Scriber || true)"
 kill "$pid"
 ```
 
-While inspecting: the toolbar must read **22 dictations** — 23 means the in-flight filter regressed. Copy writes to the real `NSPasteboard.general`, so leave it untouched unless Gaf has said the current clipboard is disposable; only then confirm a known fixture transcript by pasting elsewhere. Every `--ui-testing` launch also raises the credential condition in the toolbar's warning control, because the throwaway defaults suite starts with no key.
+While inspecting: the toolbar must read **22 dictations** — 23 means the in-flight filter regressed. Copy writes to the real `NSPasteboard.general`, so leave it untouched unless the user has said the current clipboard is disposable; only then confirm a known fixture transcript by pasting elsewhere. Every `--ui-testing` launch also raises the credential condition in the toolbar's warning control, because the throwaway defaults suite starts with no key.
 
 ### Scroll-load history
 

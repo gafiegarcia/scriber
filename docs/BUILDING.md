@@ -20,7 +20,7 @@ The local file is ignored by Git. Without it, the project leaves the team empty 
 
 A free Apple ID works here. The seven-day expiry people associate with free accounts is an iOS provisioning-profile rule; this app ships no entitlements and no embedded profile, so nothing expires out from under a macOS build.
 
-Release builds sign with a **Developer ID Application** certificate for team `24U8BM54A3` under the hardened runtime, using `Scriber/Scriber.entitlements`. That certificate exists only on Gaf's machine; if you are not Gaf, build Debug with your own team and ignore this configuration. Keep the password-protected `.p12` backup private and outside the repository — Apple caps how many Developer ID certificates an account may hold, so losing it is expensive.
+Release builds sign with a **Developer ID Application** certificate for team `24U8BM54A3` under the hardened runtime, using `Scriber/Scriber.entitlements`. That certificate exists only on the user's machine; if that machine is not yours, build Debug with your own team and ignore this configuration. Keep the password-protected `.p12` backup private and outside the repository — Apple caps how many Developer ID certificates an account may hold, so losing it is expensive.
 
 The identity is what keeps the app's designated requirement stable across rebuilds, so Accessibility, Microphone, Launch at Login, and Keychain grants survive a reinstall. An automatic `Apple Development` signature changes identity every build and loses them.
 
@@ -43,7 +43,7 @@ Two files inside `Scriber/` are deliberately not members: `Info.plist` and `Scri
 
 ## Build from the command line
 
-Run from the repository root. This builds Release, so it completes only with the local identity described above; build `-configuration Debug` with your own team instead if you are not Gaf.
+Run from the repository root. This builds Release, so it completes only with the local identity described above; build `-configuration Debug` with your own team instead if that identity is not yours.
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \

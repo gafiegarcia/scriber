@@ -1778,7 +1778,7 @@ struct ReservedShortcutsTests {
 
     @Test("⌘⇧D stays bindable")
     func commandShiftDIsAllowed() {
-        // Gaf uses this one. Nothing in macOS claims it, and the single-Command
+        // The user uses this one. Nothing in macOS claims it, and the single-Command
         // rule must never be widened to "any chord containing Command".
         #expect(ReservedShortcuts.refusal(for: chord([.command, .shift], "D")) == nil)
     }
