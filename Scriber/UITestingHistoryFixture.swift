@@ -67,7 +67,7 @@ enum UITestingHistoryFixture {
         // Failed *with* retained audio, so it shows Retry…
         Entry(
             index: 3, dayOffset: 0, hour: 16, minute: 3, duration: 12.8,
-            errorMessage: "ElevenLabs is temporarily unavailable.",
+            errorMessage: "ElevenLabs is unavailable",
             state: .failed, audioFileName: "ui-testing-fixture-service-unavailable.m4a"
         ),
         // …and immediately below it, failed *without* audio, so it shows none.

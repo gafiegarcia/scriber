@@ -441,11 +441,19 @@ final class PillController {
         // 10 beside them is what produced a 320 that still truncated.
         case .permissionsRequired, .credentialsUnusable:
             NSSize(width: 430, height: 52)
-        // Measured: "Transcription failed" is 123 points, and this row also
-        // carries a glyph, a countdown, Retry, See History and a dismiss — the
-        // most crowded pill Scriber draws. 390 cut the title short.
+        // The most crowded pill Scriber draws: glyph, title, caption, countdown,
+        // Retry, See History and a dismiss. Its caption is the one Scriber does
+        // not write — a failed request supplies it — so this takes the widest
+        // pill there is rather than a width fitted to today's messages.
+        //
+        // Measured: 460 is the ceiling, not a preference. `panelSize` holds the
+        // capsule panel at 476 and the glass sits `glassMargin` inside each edge,
+        // so 460 is the widest pill that leaves the window alone; past it the
+        // panel grows and a capsule phase resizes the window, which
+        // `PRODUCT_SPEC.md` forbids. At 440 the row truncated captions Scriber
+        // writes itself — "ElevenLabs rate limit exceeded" wants 448.
         case .transcriptionFailed:
-            NSSize(width: 440, height: 60)
+            NSSize(width: 460, height: 60)
         case .noSpeechDetected, .noAudioSignal:
             NSSize(width: 460, height: 60)
         // Measured: "No words detected" is 120 points, and this is the only

@@ -1615,7 +1615,7 @@ final class AppCoordinator: ObservableObject {
         guard reachability.hasNetworkRoute else {
             Self.dictationLog.notice("dictation refused run=\(run, privacy: .public) reason=noRoute")
             record.transcriptionState = .failed
-            record.errorMessage = "Not connected to the Internet"
+            record.errorMessage = "No internet connection"
             try? modelContext.save()
             paste.clearTarget()
             pill.setPreferredScreen(nil)

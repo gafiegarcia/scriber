@@ -128,6 +128,19 @@ public enum ScribeError: LocalizedError, Sendable {
     case network(String)
     case timedOut
 
+    /// Also the caption of the Transcription failed pill, which gives it one
+    /// truncated line.
+    ///
+    /// Measured: the pill is 460 points wide and a caption that carries the row
+    /// past that loses the rest to an ellipsis. "ElevenLabs is temporarily
+    /// unavailable." wanted 485; the longest that fits is "ElevenLabs rate limit
+    /// exceeded" at 448. Length in characters does not predict this — measure a
+    /// new caption by building the row in an `NSHostingView` and reading
+    /// `fittingSize`, the way `oneLinerWidth` (`PillController.swift`) describes.
+    ///
+    /// Whatever ElevenLabs sends back — `invalidRequest`, `http`, `authorization`
+    /// — is exempt: those truncate by design, and the history row holds the whole
+    /// message.
     public var errorDescription: String? {
         switch self {
         case .invalidKeyterm(let term): "Invalid keyterm: \(term)"
@@ -135,8 +148,8 @@ public enum ScribeError: LocalizedError, Sendable {
         case .authorization(let message): message
         case .insufficientCredits: "Your ElevenLabs credits are exhausted. Add credits or wait for your quota to reset."
         case .invalidRequest(let message): message
-        case .rateLimited: "ElevenLabs rate limit exceeded."
-        case .serviceUnavailable: "ElevenLabs is temporarily unavailable."
+        case .rateLimited: "ElevenLabs rate limit exceeded"
+        case .serviceUnavailable: "ElevenLabs is unavailable"
         case .http(_, let message): message
         case .network(let message): message
         case .timedOut: "Connection timed out"
@@ -436,7 +449,7 @@ public struct ScribeClient: Sendable {
     static func networkError(_ error: Error) -> ScribeError {
         guard let error = error as? URLError else { return .network("Could not reach ElevenLabs") }
         return switch error.code {
-        case .notConnectedToInternet: .network("Not connected to the Internet")
+        case .notConnectedToInternet: .network("No internet connection")
         case .networkConnectionLost: .network("The connection was lost")
         case .timedOut: .timedOut
         default: .network("Could not reach ElevenLabs")
