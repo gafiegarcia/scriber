@@ -1192,19 +1192,37 @@ final class AppCoordinator: ObservableObject {
     /// Reinserts a deleted dictation. Registering the delete again from in here is
     /// what gives redo, so ⇧⌘Z removes the row a second time.
     private func restore(_ snapshot: DeletedDictation, audioHeld: Bool, undoManager: UndoManager?) {
-        if audioHeld, let path = snapshot.audioRelativePath {
-            AudioRecorder.restoreDeletedAudio(relativePath: path)
-        }
-        let record = snapshot.makeRecord(keepingAudio: audioHeld)
+        // What the move back reported, never what the hold reported. A recording
+        // held on the way out can still fail to come back — and a row carrying a
+        // path to a file that is not there offers a Retry whose only outcome is
+        // to report the recording gone, which is the case `keepingAudio` exists
+        // to keep off the row.
+        let audioRestored = audioHeld
+            && snapshot.audioRelativePath.map { AudioRecorder.restoreDeletedAudio(relativePath: $0) } ?? false
+        let record = snapshot.makeRecord(keepingAudio: audioRestored)
         modelContext.insert(record)
         try? modelContext.save()
 
         undoManager?.setActionName("Delete Dictation")
         undoManager?.registerUndo(withTarget: self) { coordinator in
             MainActor.assumeIsolated {
-                coordinator.delete(record, undoManager: undoManager)
+                coordinator.deleteRestoredDictation(id: snapshot.id, undoManager: undoManager)
             }
         }
+    }
+
+    /// Redo's way back to the row undo has just restored.
+    ///
+    /// It looks the record up rather than holding it. An undo action outlives
+    /// what it describes, and between the restore and the redo either Clear
+    /// History or the expiry sweep — which runs on every presentation of the main
+    /// window — can delete that model; reading a deleted SwiftData model is a
+    /// trap, and `delete` reads one on its first line. A row already gone needs
+    /// no deleting, so redo does nothing rather than something dangerous.
+    private func deleteRestoredDictation(id: UUID, undoManager: UndoManager?) {
+        let descriptor = FetchDescriptor<DictationRecord>(predicate: #Predicate { $0.id == id })
+        guard let record = try? modelContext.fetch(descriptor).first else { return }
+        delete(record, undoManager: undoManager)
     }
 
     /// Removes every dictation except one still being transcribed, whose audio is
