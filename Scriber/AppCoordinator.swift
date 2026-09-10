@@ -1165,6 +1165,31 @@ final class AppCoordinator: ObservableObject {
     /// Pass the window's undo manager to make the deletion undoable; a `nil` one
     /// deletes just as thoroughly, minus the way back.
     func delete(_ record: DictationRecord, undoManager: UndoManager? = nil) {
+        // Do not: rely on the row's disabled Delete alone to keep a dictation
+        // being transcribed out of here. `retry` sets `retryingRecordID`
+        // synchronously, but SwiftUI redraws the row that reads it on a later
+        // pass — so a click already in the event queue is delivered while the
+        // control is still enabled and still hit-testable. A stalled main thread
+        // is what makes that ordinary rather than exotic: events queue during the
+        // stall and arrive in a burst, and the honest version is pressing Retry,
+        // seeing nothing happen, and pressing Delete.
+        //
+        // What it costs is not a lost row. `transcribeCurrentRecord` holds its
+        // own reference to the record and the recording, so a delete underneath
+        // it moves the audio out from under a live upload and leaves the
+        // transcription writing its result into a deleted model.
+        //
+        // The record's own state, not `currentRecord`, which is not cleared when
+        // a dictation finishes — `returnToIdle` leaves it naming the most recent
+        // one until the next replaces it, so guarding on it would make the newest
+        // entry in the list permanently undeletable. `retry` writes
+        // `.transcribing` before it starts, an outcome overwrites it, and a launch
+        // rewrites any stranded one to `.failed`, so this is true exactly while a
+        // transcription owns the row.
+        //
+        // `clearDictationHistory` cannot trip it: its fetch predicate already
+        // excludes transcribing records.
+        guard record.transcriptionState != .transcribing else { return }
         let snapshot = DeletedDictation(record: record)
         // Held only when something can reach it again. Without an undo manager
         // there is no way back, so holding the recording would fill the hold with
