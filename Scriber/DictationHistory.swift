@@ -312,7 +312,10 @@ private struct DictationHistoryRow: View {
     @Bindable var record: DictationRecord
     @EnvironmentObject private var toasts: ToastPresenter
 
-    @State private var confirmDelete = false
+    /// The window's, supplied by SwiftUI. Deleting registers its own undo here, so
+    /// Edit ▸ Undo and ⌘Z put a row back — which is the only safety net a delete
+    /// has now that it asks nothing first.
+    @Environment(\.undoManager) private var undoManager
 
     fileprivate static let timePointSize: CGFloat = 13
 
@@ -399,8 +402,8 @@ private struct DictationHistoryRow: View {
             // A group rather than three more children of the row's HStack, which
             // spaces its columns by `timeColumnGap` — meant to separate the time
             // from the transcript, not one button from the next. Retry leads so
-            // copy and the overflow menu land on the same two x positions in every
-            // row; trailing a variable-width button shifts both on the rows with one.
+            // copy and delete land on the same two x positions in every row;
+            // trailing a variable-width button shifts both on the rows with one.
             HStack(spacing: 8) {
                 if isRetrying {
                     ProgressView()
@@ -415,44 +418,29 @@ private struct DictationHistoryRow: View {
                 }
 
                 // Shown on every entry, including the ones with nothing to copy.
-                // Dropping it on a failed row leaves the overflow menu alone under
-                // a column of two controls, which reads as a rendering fault.
-                Button(action: copy) {
-                    Image(systemName: "doc.on.doc")
-                        // Not a hardcoded accent colour: an explicit
-                        // `foregroundStyle` overrides the dimming `.disabled`
-                        // applies, leaving a dead button a confident blue.
-                        .foregroundStyle(copyTint)
-                        // Both axes keep the glyph and its hover target aligned
-                        // with the other row controls on entries of every height.
-                        .frame(width: 16, height: 16)
-                }
-                .buttonStyle(.borderless)
-                .modifier(RowIconHover())
-                .disabled(!canCopy)
+                // Dropping it on a failed row leaves delete alone under a column
+                // of two controls, which reads as a rendering fault.
+                RowIconButton(
+                    systemImage: "doc.on.doc",
+                    activeTint: .accentColor,
+                    isEnabled: canCopy,
+                    action: copy
+                )
                 .help(canCopy ? "Copy transcription" : "Nothing to copy")
                 .accessibilityLabel("Copy transcription")
 
-                // Known and accepted: a `Menu` keeps the width of its disclosure
-                // indicator even under `.menuIndicator(.hidden)`, so the hover
-                // background — which wraps the control — sits slightly right of
-                // the glyph. Three attempts to correct that from outside the
-                // control failed; the offset lives inside it. Do not spend a
-                // fourth on it.
-                Menu {
-                    // Confirmed, and with the ellipsis that says so: a transcript
-                    // is not recoverable, and this is the item reached by mis-aiming.
-                    Button("Delete…", role: .destructive) { confirmDelete = true }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .frame(width: 16, height: 16)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .modifier(RowIconHover())
-                .help("More actions")
-                .accessibilityLabel("More actions")
+                // Unconfirmed, and destructive. The safety is ⌘Z rather than a
+                // question: `AppCoordinator.delete` registers an undo that puts
+                // the row and its retained recording back, which is what Finder
+                // and Mail do and what a dialog on every row was standing in for.
+                RowIconButton(
+                    systemImage: "trash",
+                    activeTint: .red,
+                    isEnabled: true,
+                    action: delete
+                )
+                .help("Delete dictation")
+                .accessibilityLabel("Delete dictation")
             }
         }
         // Do not add a row hover state or click-to-copy. A whole-row copy target
@@ -469,33 +457,16 @@ private struct DictationHistoryRow: View {
                 Button("Retry") { runtime.coordinator.retry(record) }
             }
             Divider()
-            // Same confirmation as the overflow menu's. Two routes to the same
-            // irreversible action must not disagree about whether it asks first.
-            Button("Delete…", role: .destructive) { confirmDelete = true }
-        }
-        // On the row rather than on either menu: a `confirmationDialog` attached
-        // inside a menu's content closure goes with the menu when it closes, so it
-        // never gets presented.
-        .confirmationDialog(
-            "Delete this dictation?",
-            isPresented: $confirmDelete
-        ) {
-            Button("Delete", role: .destructive) { runtime.coordinator.delete(record) }
-        } message: {
-            Text("This permanently removes the transcript and any recording kept for retry.")
+            // No ellipsis and no confirmation, matching the row's own button. Two
+            // routes to the same action must not disagree about whether it asks
+            // first, and neither asks: ⌘Z is the way back.
+            Button("Delete", role: .destructive, action: delete)
         }
     }
 
     private var canCopy: Bool {
         guard let text = record.text else { return false }
         return !text.isEmpty
-    }
-
-    /// Dimmed here rather than by `.disabled`, which cannot dim a colour the view
-    /// sets itself. Plain `.secondary` is not enough — it lands level with the
-    /// row's quietest text, so a dead copy button still reads as live.
-    private var copyTint: Color {
-        return canCopy ? .accentColor : Color.secondary.opacity(0.4)
     }
 
     /// Both the button and context-menu route report through the page-level
@@ -506,32 +477,83 @@ private struct DictationHistoryRow: View {
         toasts.post(.transcriptCopied())
     }
 
+    /// Nothing announces the deletion: the row leaving is the acknowledgement, and
+    /// a toast on every delete is noise while a history is being cleared out.
+    private func delete() {
+        // Platform: clicking a button never takes focus from a text field on
+        // macOS, and the window opens with search focused — so without this the
+        // caret is still in the field, and its editor answers ⌘Z first.
+        //
+        // Measured: with `batch` typed in search, deleting a row and pressing ⌘Z
+        // cleared the search field instead of restoring the row. An empty field
+        // has nothing to undo and falls through correctly, so this only mattered
+        // once something had been typed. ⌘Z is the whole safety net for a delete
+        // that asks nothing first, which is why it is worth surrendering the
+        // caret for.
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        runtime.coordinator.delete(record, undoManager: undoManager)
+    }
+
     private var rowText: String {
         if let text = record.text, !text.isEmpty { return text }
         return record.errorMessage ?? "Transcription failed."
     }
 }
 
-/// Hover feedback for the borderless icon controls in a history row. `.borderless`
-/// draws no background in any state, so these give no sign they are controls until
-/// clicked, and the padding is what gives a 16pt glyph a target to aim at.
+/// One of a history row's borderless icon controls: copy, delete.
+///
+/// **The padding is inside the button's own label**, which is the whole point of
+/// this being a view rather than a modifier wrapped around one. Applied from
+/// outside, the padding grew the lit square and the hover region while the click
+/// target stayed the 16pt glyph — a 5pt ring that highlighted and did nothing.
+/// A label's padding is part of the control, so all three describe one square.
+///
+/// Colour is the danger signal rather than distance: both controls rest in the
+/// row's quiet grey and take their own colour under the pointer, so the warning
+/// arrives while aiming rather than sitting in every row all the way down.
 ///
 /// Keep the fill near the threshold of visible: anything heavier parks a grey box
 /// in a quiet row and the eye catches the box rather than the transcript.
-private struct RowIconHover: ViewModifier {
+private struct RowIconButton: View {
     private static let fill: Double = 0.055
+
+    let systemImage: String
+    let activeTint: Color
+    let isEnabled: Bool
+    let action: () -> Void
 
     @State private var isHovered = false
 
-    func body(content: Content) -> some View {
-        content
-            .padding(5)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.primary.opacity(isHovered ? Self.fill : 0))
-            )
-            .onHover { isHovered = $0 }
-            .animation(.easeOut(duration: 0.12), value: isHovered)
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                // Not `.disabled`'s dimming: an explicit `foregroundStyle`
+                // overrides it, so the disabled shade has to be named here too.
+                .foregroundStyle(tint)
+                // Both axes keep the glyph and its target aligned with the other
+                // row controls on entries of every height.
+                .frame(width: 16, height: 16)
+                .padding(5)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.primary.opacity(showsHover ? Self.fill : 0))
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .buttonStyle(.borderless)
+        .disabled(!isEnabled)
+        .onHover { isHovered = $0 }
+        .animation(.easeOut(duration: 0.12), value: showsHover)
+    }
+
+    /// A dead control reacts to nothing — no colour, no square. Once colour is
+    /// what says "live", absence of any response says "dead" more plainly than a
+    /// shade of grey can at this size.
+    private var showsHover: Bool { isHovered && isEnabled }
+
+    private var tint: Color {
+        if !isEnabled { return Color.secondary.opacity(0.4) }
+        return showsHover ? activeTint : .secondary
     }
 }
 

@@ -396,6 +396,10 @@ final class AppCoordinator: ObservableObject {
             .store(in: &cancellables)
 
         if persistenceAvailable, servicesAllowed {
+            // Launch is the whole retention policy for a held recording: an undo
+            // stack does not survive one, so everything in the hold is already
+            // beyond the ⌘Z that was its only reader.
+            AudioRecorder.purgeDeletedAudio()
             historyMaintenance.recoverPersistedAndOrphanedRecords()
             discardExpiredDictations()
         }
@@ -1150,11 +1154,57 @@ final class AppCoordinator: ObservableObject {
         try? modelContext.save()
     }
 
-    func delete(_ record: DictationRecord) {
-        if let path = record.pendingAudioRelativePath { AudioRecorder.delete(relativePath: path) }
+    /// Deletes a dictation now, and teaches `undoManager` how to put it back.
+    ///
+    /// Nothing is deferred and nothing is pending: this is the model Finder and
+    /// Mail use, where a delete happens at once and undo is a recorded inverse
+    /// rather than a countdown. Every field of a dictation but its recording can
+    /// be rebuilt from the snapshot below, and the recording is held rather than
+    /// removed, so undo restores the row and its Retry both.
+    ///
+    /// Pass the window's undo manager to make the deletion undoable; a `nil` one
+    /// deletes just as thoroughly, minus the way back.
+    func delete(_ record: DictationRecord, undoManager: UndoManager? = nil) {
+        let snapshot = DeletedDictation(record: record)
+        // Held only when something can reach it again. Without an undo manager
+        // there is no way back, so holding the recording would fill the hold with
+        // files nothing will ever restore — which is the whole of Clear History.
+        //
+        // A move that fails leaves the file where the record expects it and no
+        // record naming it, which orphan recovery would reimport as a fresh
+        // failed dictation. Delete it instead: the row still comes back, without
+        // the audio to retry.
+        let audioHeld = undoManager != nil
+            && snapshot.audioRelativePath.map { AudioRecorder.holdDeletedAudio(relativePath: $0) } ?? false
+        if let path = snapshot.audioRelativePath, !audioHeld { AudioRecorder.delete(relativePath: path) }
         if currentRecord?.id == record.id { currentRecord = nil; currentRecording = nil }
         modelContext.delete(record)
         try? modelContext.save()
+
+        undoManager?.setActionName("Delete Dictation")
+        undoManager?.registerUndo(withTarget: self) { coordinator in
+            MainActor.assumeIsolated {
+                coordinator.restore(snapshot, audioHeld: audioHeld, undoManager: undoManager)
+            }
+        }
+    }
+
+    /// Reinserts a deleted dictation. Registering the delete again from in here is
+    /// what gives redo, so ⇧⌘Z removes the row a second time.
+    private func restore(_ snapshot: DeletedDictation, audioHeld: Bool, undoManager: UndoManager?) {
+        if audioHeld, let path = snapshot.audioRelativePath {
+            AudioRecorder.restoreDeletedAudio(relativePath: path)
+        }
+        let record = snapshot.makeRecord(keepingAudio: audioHeld)
+        modelContext.insert(record)
+        try? modelContext.save()
+
+        undoManager?.setActionName("Delete Dictation")
+        undoManager?.registerUndo(withTarget: self) { coordinator in
+            MainActor.assumeIsolated {
+                coordinator.delete(record, undoManager: undoManager)
+            }
+        }
     }
 
     /// Removes every dictation except one still being transcribed, whose audio is

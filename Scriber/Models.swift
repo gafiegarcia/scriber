@@ -59,3 +59,50 @@ final class DictationRecord {
         set { deliveryStateRaw = newValue.rawValue }
     }
 }
+
+/// Everything about a deleted dictation that undo needs to rebuild it.
+///
+/// A plain value rather than the model: an undo action outlives the record it
+/// describes, and reading a deleted SwiftData model is a trap. The recording is
+/// named here but lives on disk, held by `AudioRecorder` for as long as this
+/// snapshot can still be used.
+struct DeletedDictation: Sendable {
+    let id: UUID
+    let createdAt: Date
+    let durationSeconds: Double
+    let text: String?
+    let detectedLanguageCode: String?
+    let transcriptionState: TranscriptionState
+    let deliveryState: DeliveryState
+    let errorMessage: String?
+    let audioRelativePath: String?
+
+    init(record: DictationRecord) {
+        self.id = record.id
+        self.createdAt = record.createdAt
+        self.durationSeconds = record.durationSeconds
+        self.text = record.text
+        self.detectedLanguageCode = record.detectedLanguageCode
+        self.transcriptionState = record.transcriptionState
+        self.deliveryState = record.deliveryState
+        self.errorMessage = record.errorMessage
+        self.audioRelativePath = record.pendingAudioRelativePath
+    }
+
+    /// - Parameter keepingAudio: whether the recording was restored to where a
+    ///   record expects it. When it was not, the path is dropped rather than
+    ///   carried, so the row comes back without a Retry that could only fail.
+    func makeRecord(keepingAudio: Bool) -> DictationRecord {
+        DictationRecord(
+            id: id,
+            createdAt: createdAt,
+            durationSeconds: durationSeconds,
+            text: text,
+            detectedLanguageCode: detectedLanguageCode,
+            transcriptionState: transcriptionState,
+            deliveryState: deliveryState,
+            errorMessage: errorMessage,
+            pendingAudioRelativePath: keepingAudio ? audioRelativePath : nil
+        )
+    }
+}

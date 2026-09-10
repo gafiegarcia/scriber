@@ -148,6 +148,57 @@ final class AudioRecorder {
         try? FileManager.default.removeItem(at: url)
     }
 
+    /// Moves a deleted dictation's recording somewhere undo can reach it, and
+    /// reports whether it got there. A `false` means the caller still owns the
+    /// file and must delete it, or the recording outlives every record naming it.
+    ///
+    /// Platform: `contentsOfDirectory` does not descend, and every listing here
+    /// filters to `.m4a`, so a subdirectory of `PendingAudio` is invisible to
+    /// `recoverableAudioFiles` — which is what keeps orphan recovery from
+    /// reimporting a held recording as a fresh failed dictation on the next
+    /// launch. Do not flatten this into a filename prefix in the same directory.
+    static func holdDeletedAudio(relativePath: String) -> Bool {
+        guard let source = try? url(for: relativePath),
+              let destination = try? deletedAudioDirectory().appendingPathComponent(relativePath)
+        else { return false }
+        try? FileManager.default.removeItem(at: destination)
+        do {
+            try FileManager.default.moveItem(at: source, to: destination)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Puts a held recording back where a record expects to find it. Undoing a
+    /// deletion restores the row either way; this is what also restores Retry.
+    @discardableResult
+    static func restoreDeletedAudio(relativePath: String) -> Bool {
+        guard let source = try? deletedAudioDirectory().appendingPathComponent(relativePath),
+              let destination = try? url(for: relativePath)
+        else { return false }
+        do {
+            try FileManager.default.moveItem(at: source, to: destination)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Empties the hold. Called once at launch: an undo stack does not survive a
+    /// relaunch, so nothing still in here can be undone, and a build that crashed
+    /// mid-session is collected by the next start rather than kept forever.
+    static func purgeDeletedAudio() {
+        guard let directory = try? deletedAudioDirectory(),
+              let files = try? FileManager.default.contentsOfDirectory(
+                  at: directory,
+                  includingPropertiesForKeys: nil,
+                  options: [.skipsHiddenFiles]
+              )
+        else { return }
+        for file in files { try? FileManager.default.removeItem(at: file) }
+    }
+
     static func recoverableAudioFiles() throws -> [URL] {
         try FileManager.default.contentsOfDirectory(
             at: pendingAudioDirectory(),
@@ -171,6 +222,14 @@ final class AudioRecorder {
             create: true
         )
         let directory = support.appendingPathComponent("Scriber/PendingAudio", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    /// Where a deleted dictation's recording waits for an undo that may never come.
+    /// Inside `PendingAudio` on purpose — see `holdDeletedAudio`.
+    nonisolated private static func deletedAudioDirectory() throws -> URL {
+        let directory = try pendingAudioDirectory().appendingPathComponent("Deleted", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
