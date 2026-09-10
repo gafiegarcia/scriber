@@ -508,9 +508,11 @@ private struct DictationHistoryRow: View {
 /// target stayed the 16pt glyph — a 5pt ring that highlighted and did nothing.
 /// A label's padding is part of the control, so all three describe one square.
 ///
-/// Colour is the danger signal rather than distance: both controls rest in the
-/// row's quiet grey and take their own colour under the pointer, so the warning
-/// arrives while aiming rather than sitting in every row all the way down.
+/// Each control keeps its colour at rest — copy blue, delete red. Resting them in
+/// the row's grey and colouring them on hover was tried and rejected on sight: a
+/// column of grey glyphs reads as a column of disabled controls, and delete's red
+/// is worth having before the pointer is on it rather than at the moment it is
+/// too late to help. Hover adds the background and nothing else.
 ///
 /// Keep the fill near the threshold of visible: anything heavier parks a grey box
 /// in a quiet row and the eye catches the box rather than the transcript.
@@ -546,14 +548,13 @@ private struct RowIconButton: View {
         .animation(.easeOut(duration: 0.12), value: showsHover)
     }
 
-    /// A dead control reacts to nothing — no colour, no square. Once colour is
-    /// what says "live", absence of any response says "dead" more plainly than a
-    /// shade of grey can at this size.
+    /// A dead control reacts to nothing, so hovering one draws no square either.
     private var showsHover: Bool { isHovered && isEnabled }
 
+    /// Plain `.secondary` is not enough for the disabled shade — it lands level
+    /// with the row's quietest text, so a dead copy button still reads as live.
     private var tint: Color {
-        if !isEnabled { return Color.secondary.opacity(0.4) }
-        return showsHover ? activeTint : .secondary
+        isEnabled ? activeTint : Color.secondary.opacity(0.4)
     }
 }
 
