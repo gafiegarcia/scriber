@@ -801,8 +801,7 @@ private struct PillView: View {
                 Text("Dictation failed")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 6)
-                countdown
-                dismissButton
+                dismissControls
             }
 
             Text(message)
@@ -857,7 +856,6 @@ private struct PillView: View {
                 symbol
                 statusText
                 Spacer(minLength: 6)
-                countdown
                 actions
             }
         }
@@ -990,8 +988,7 @@ private struct PillView: View {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 8)
-                countdown
-                dismissButton
+                dismissControls
             }
 
             Text(body)
@@ -1020,8 +1017,7 @@ private struct PillView: View {
                 Text("Copied to clipboard")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 6)
-                countdown
-                dismissButton
+                dismissControls
             }
 
             Text(message)
@@ -1136,13 +1132,20 @@ private struct PillView: View {
         }
     }
 
+    /// A row's trailing controls, in the order every pill in the app uses: what
+    /// the notice offers, then the countdown, then the dismiss control. The
+    /// countdown and the dismiss are one view rather than two so that a phase
+    /// added later cannot put a button between them — see the pill rules in
+    /// `PRODUCT_SPEC.md`. Where a phase offers nothing, `dismissControls` is the
+    /// whole of it; where it also has no way out but the keyboard, the countdown
+    /// stands alone.
     @ViewBuilder private var actions: some View {
         switch model.phase {
         case .permissionsRequired:
             Button("Review") { model.onOpenPermissionSettings?() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-            dismissButton
+            dismissControls
         case .credentialsUnusable(let readiness):
             if readiness.resolvesInUsageSettings {
                 Button("View Credits") { model.onOpenUsageSettings?() }
@@ -1153,22 +1156,29 @@ private struct PillView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
             }
-            dismissButton
+            dismissControls
         case .transcriptionFailed:
             Button("Retry") { model.onRetry?() }.buttonStyle(.borderedProminent).controlSize(.small)
             Button("See History") { model.onOpen?() }.controlSize(.small)
-            dismissButton
+            dismissControls
         // No recovery to offer — the input it would send you to is not what was
         // wrong — but still a way out that is not a keystroke.
         case .retryFoundNoWords:
-            dismissButton
+            dismissControls
         case .noSpeechDetected, .noAudioSignal:
             Button("Check Input") { model.onOpenInputSettings?() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-            dismissButton
+            dismissControls
         default:
-            EmptyView()
+            countdown
+        }
+    }
+
+    private var dismissControls: some View {
+        Group {
+            countdown
+            dismissButton
         }
     }
 
