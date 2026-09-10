@@ -433,13 +433,28 @@ private struct DictationHistoryRow: View {
                 // question: `AppCoordinator.delete` registers an undo that puts
                 // the row and its retained recording back, which is what Finder
                 // and Mail do and what a dialog on every row was standing in for.
+                //
+                // Do not: offer it while this row is retrying. The transcription
+                // holds the record and the recording it is uploading, so deleting
+                // moves the file out from under the request and leaves it writing
+                // to a model that is gone — and the row would come back from ⌘Z
+                // still marked transcribing, which the window's filter hides.
+                // Disabling here is what makes that state unreachable, so nothing
+                // downstream has to defend against it.
+                //
+                // Known and unfixed: this waits on `retryingRecordID`, cleared
+                // when the run finishes, and an abandoned run is left to finish
+                // rather than torn down — so a request that stalls to its
+                // 90-second timeout leaves the row undeletable for that long.
+                // Cancelling the run before deleting would fix it; see "Stop an
+                // abandoned transcription running on" for why one is left running.
                 RowIconButton(
                     systemImage: "trash",
                     activeTint: .red,
-                    isEnabled: true,
+                    isEnabled: !isRetrying,
                     action: delete
                 )
-                .help("Delete dictation")
+                .help(isRetrying ? "Retrying — cannot delete yet" : "Delete dictation")
                 .accessibilityLabel("Delete dictation")
             }
         }
@@ -459,8 +474,10 @@ private struct DictationHistoryRow: View {
             Divider()
             // No ellipsis and no confirmation, matching the row's own button. Two
             // routes to the same action must not disagree about whether it asks
-            // first, and neither asks: ⌘Z is the way back.
+            // first, and neither asks: ⌘Z is the way back — nor about when it is
+            // offered, which is why this carries the retry guard as well.
             Button("Delete", role: .destructive, action: delete)
+                .disabled(isRetrying)
         }
     }
 
