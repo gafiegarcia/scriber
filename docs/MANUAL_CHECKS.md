@@ -101,6 +101,7 @@ Judged by eye. Switch appearance only — a Scriber window cannot see the deskto
 ## When real history or transcription recovery changes
 
 - Create a disposable retryable dictation by speaking for more than one second and cancelling with Escape, then retry that generated entry. **Retry spends API credit; ask first.** Delete only this synthetic entry afterwards, having checked its content and timestamp tell it apart from real history. Spec: Shortcuts and job lifecycle — "History retry transcribes and copies the result without inserting it"
+- While that retry is still running, try to delete its row from both the trash button and the right-click menu. Both must refuse. No `--ui-testing` build can reach this: it bails before contacting ElevenLabs, so the retrying state never arrives and only a real retry produces it. Spec: Persistence and security — "Never offer Delete on an entry that is retrying"
 - On the first launch after an update that changes the retention sweep, count the history before and after. **Irreplaceable history is at stake, so read Settings → Dictation first** — whatever **Delete failed and cancelled dictations** says is what will have been applied, and **Never** must leave the count untouched. Spec: Persistence and security — "it may keep an entry past its period but never deletes one before it"
 
 ## When the data-use guidance changes
