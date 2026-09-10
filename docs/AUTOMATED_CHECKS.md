@@ -146,6 +146,8 @@ osascript -e "tell application \"System Events\" to tell (first process whose un
 
 `AXPress` sends the action rather than moving the pointer, so it does not disturb whatever the user is doing. `set size of window 1 to {w, h}` then reading the size back is how a window's own limits are measured — what it settles on is what the app allowed, not what was asked for.
 
+A menu item's `enabled` and title are true only with the app frontmost and its menu actually opened: AppKit validates a menu when it opens, and the menu bar renders for the front application. Read either without both and the answer is stale, which has already read as proof that a working command was inert. Set `frontmost`, read it back in the same script and report what it said, then `click menu bar item` before reading anything inside it. The first `AXPress` after a launch is frequently swallowed as well — read the state it should have changed rather than assuming it landed.
+
 Anything a Debug build should expose to this needs an `accessibilityIdentifier`. A glyph-only button reports its SF Symbol name instead, which reads as an identifier and is not one.
 
 ### Asking whether an AppKit call still does anything
