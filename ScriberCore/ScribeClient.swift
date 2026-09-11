@@ -138,9 +138,10 @@ public enum ScribeError: LocalizedError, Sendable {
     /// new caption by building the row in an `NSHostingView` and reading
     /// `fittingSize`, the way `oneLinerWidth` (`PillController.swift`) describes.
     ///
-    /// Whatever ElevenLabs sends back — `invalidRequest`, `http`, `authorization`
-    /// — is exempt: those truncate by design, and the history row holds the whole
-    /// message.
+    /// Only Scriber's own fixed text needs measuring. Anything carrying
+    /// ElevenLabs' words truncates by design, and the three cases the credentials
+    /// pill takes — `authentication`, `authorization`, `insufficientCredits` —
+    /// draw no caption at all.
     public var errorDescription: String? {
         switch self {
         case .invalidKeyterm(let term): "Invalid keyterm: \(term)"
@@ -449,6 +450,11 @@ public struct ScribeClient: Sendable {
     static func networkError(_ error: Error) -> ScribeError {
         guard let error = error as? URLError else { return .network("Could not reach ElevenLabs") }
         return switch error.code {
+        // Do not: let this drift from the pre-flight refusal in
+        // `transcribeCurrentRecord` (`AppCoordinator.swift`), which writes the
+        // same sentence; the two disagreed until today. That guard takes every
+        // dictation started with no route, leaving this the narrow case where the
+        // path monitor is satisfied and the request still cannot connect.
         case .notConnectedToInternet: .network("No internet connection")
         case .networkConnectionLost: .network("The connection was lost")
         case .timedOut: .timedOut
