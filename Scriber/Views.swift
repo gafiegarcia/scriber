@@ -782,8 +782,8 @@ private struct DictationSettingsPane: View {
                     // Two `Text`s inside AppKit's own label, for the reason
                     // `SettingsToggle` gives: a caption written as its own row is
                     // divided from the setting it explains.
-                    Text("Delete failed and cancelled dictations")
-                    Text("A failed or cancelled dictation keeps its recording so you can retry it. This sets how long it is kept before both the recording and the entry are deleted.")
+                    Text("Delete failed and canceled dictations")
+                    Text("A failed or canceled dictation keeps its recording so you can retry it. This sets how long it is kept before both the recording and the entry are deleted.")
                         .padding(.top, SettingsPaneLayout.captionGap)
                 }
                 .accessibilityIdentifier("retained-audio-retention")
@@ -949,7 +949,7 @@ private struct SoundSettingsPane: View {
             Section {
                 SettingsToggle(
                     "Play sounds while dictating",
-                    caption: "You hear one sound when a dictation starts, and another when one fails or is cancelled.",
+                    caption: "You hear one sound when a dictation starts, and another when one fails or is canceled.",
                     isOn: $runtime.preferences.playDictationFeedbackSounds
                 )
                 .accessibilityIdentifier("recording-feedback-sounds-toggle")

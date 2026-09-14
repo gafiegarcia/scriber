@@ -81,8 +81,8 @@ enum UITestingHistoryFixture {
         ),
         Entry(
             index: 5, dayOffset: 0, hour: 14, minute: 21, duration: 5.9,
-            errorMessage: "Cancelled before transcription.",
-            state: .canceled, audioFileName: "ui-testing-fixture-cancelled.m4a"
+            errorMessage: "Canceled before transcription.",
+            state: .canceled, audioFileName: "ui-testing-fixture-canceled.m4a"
         ),
         // Must never appear. Not a placeholder: this is the assertion that an
         // in-flight dictation stays out of the list until its outcome lands.
@@ -129,7 +129,7 @@ enum UITestingHistoryFixture {
             text: """
                 Client feedback, verbatim: "the third angle feels flat — can we get \
                 more separation from the background?" Which means the rim light is \
-                too soft and too close. Move it back a metre and drop the diffusion \
+                too soft and too close. Move it back a meter and drop the diffusion \
                 to a single layer, then reshoot only that angle.
                 """,
             errorMessage: "No text box was focused to paste into.",

@@ -1126,7 +1126,7 @@ private struct PillView: View {
         // dismiss control on the same row. The cause goes here; the fix is the
         // button. Keep the two distinct — sound arriving with no words in it is a
         // different problem from no sound arriving.
-        case .noSpeechDetected: "No recognisable words in the recording"
+        case .noSpeechDetected: "No recognizable words in the recording"
         case .noAudioSignal: "Check the selected input and its volume"
         default: nil
         }

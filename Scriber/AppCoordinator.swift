@@ -415,7 +415,7 @@ final class AppCoordinator: ObservableObject {
         case .idle: shortcutMonitorAvailable ? "Ready" : "Shortcut access needed"
         case .recording: "Recording"
         case .transcribing: "Transcribing"
-        case .canceledTranscript: "Cancelled"
+        case .canceledTranscript: "Canceled"
         case .noInternetConnection: "No internet connection"
         case .inputDisconnected: "Microphone disconnected"
         case .dictationCopied, .transcriptCopied: "Copied"

@@ -383,7 +383,7 @@ private struct DictationHistoryRow: View {
                         Label("Retrying", systemImage: "arrow.clockwise")
                             .foregroundStyle(.secondary)
                     } else if record.transcriptionState == .canceled {
-                        Label("Cancelled", systemImage: "xmark.circle.fill")
+                        Label("Canceled", systemImage: "xmark.circle.fill")
                             .foregroundStyle(.orange)
                     } else if record.transcriptionState == .failed {
                         Label("Failed", systemImage: "exclamationmark.circle.fill")
