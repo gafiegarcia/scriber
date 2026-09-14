@@ -446,8 +446,10 @@ private struct DictationHistoryRow: View {
                 // when the run finishes, and an abandoned run is left to finish
                 // rather than torn down — so a request that stalls to its
                 // 90-second timeout leaves the row undeletable for that long.
-                // Canceling the run before deleting would fix it; see "Stop an
-                // abandoned transcription running on" for why one is left running.
+                // Canceling the run before deleting would fix it, but a run is
+                // left to finish on purpose: its audio is uploaded and billed
+                // before a cancellation can land, and Recover reuses the
+                // transcript it returns rather than paying for a second one.
                 RowIconButton(
                     systemImage: "trash",
                     activeTint: .red,
