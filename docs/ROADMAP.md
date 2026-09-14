@@ -38,7 +38,7 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Offer a top pill position.** ([Notion task](https://app.notion.com/p/3a671937040280e9869df52acd0c13a7))
 - [ ] **Integrate the pill into the MacBook notch.** ([Notion task](https://app.notion.com/p/3d2719370402819b9589ccb4dbfe73f7))
 - [ ] **Accept non-key dictation triggers.** ([Notion task](https://app.notion.com/p/3b3719370402804d88cfe80d730c6943))
-- [ ] **Add the missing space when pasting after a sentence.** ([Notion task](https://app.notion.com/p/3b771937040280e69390c2ba149af794))
+- [ ] **Add the spaces the text around the cursor needs.** ([Notion task](https://app.notion.com/p/3b771937040280e69390c2ba149af794))
 - [ ] **Let a truncated dictation entry expand in place.** ([Notion task](https://app.notion.com/p/3ba719370402803a8978eb4d1c39da5c))
 - [ ] **Let keyterm prompting be switched off without deleting the terms.** ([Notion task](https://app.notion.com/p/3be71937040280b19edac6e9b0476d8e))
 - [ ] **Offer a Reset to default shortcut button.** ([Notion task](https://app.notion.com/p/3bf7193704028091915fd03840d0d35d))
