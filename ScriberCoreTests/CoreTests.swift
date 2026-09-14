@@ -23,7 +23,7 @@ struct ShortcutMatcherTests {
         #expect(!ShortcutAction.releasedAsTap.stopsRecording(mode: .held))
     }
 
-    @Test("Cancelling is permitted in every recording mode; confirming only while locked")
+    @Test("Canceling is permitted in every recording mode; confirming only while locked")
     func handsFreePillActionPermissions() {
         let held = AppPhase.recording(mode: .held, elapsed: 1, level: -20)
         let locked = AppPhase.recording(mode: .locked, elapsed: 1, level: -20)
@@ -271,13 +271,13 @@ struct PillDismissalTests {
         #expect(AppPhase.idle.pillDismissalAction(isPresented: false) == .passThrough)
     }
 
-    @Test("A visible recording is cancelled")
+    @Test("A visible recording is canceled")
     func recording() {
         #expect(AppPhase.recording(mode: .locked, elapsed: 2, level: -20)
             .pillDismissalAction(isPresented: true) == .cancelRecording)
     }
 
-    @Test("A visible transcription is cancelled")
+    @Test("A visible transcription is canceled")
     func transcribing() {
         #expect(AppPhase.transcribing(attempt: 2, retryDelay: 3)
             .pillDismissalAction(isPresented: true) == .cancelTranscription)
@@ -335,7 +335,7 @@ struct NoInternetPhaseTests {
     }
 }
 
-@Suite("Cancelled transcription recovery")
+@Suite("Canceled transcription recovery")
 struct CanceledTranscriptionTests {
     @Test("A request still in flight is waited for, never restarted")
     func stillRunning() {

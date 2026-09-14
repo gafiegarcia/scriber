@@ -43,7 +43,7 @@ struct DismissalCountdown: Equatable {
 /// Do not: give the capsule an animated width again and expect this to match it.
 /// Measured on the locked-recording widening back when it had one — the window
 /// covered 77% of its 80-point growth in a single frame and finished in 67ms,
-/// while the status text was still travelling 33ms after it had stopped. Both
+/// while the status text was still traveling 33ms after it had stopped. Both
 /// asked for this duration and neither delivered it, and the text swung 15.5
 /// points left to settle 3 points from where it began. Handing SwiftUI the
 /// capsule's width so they could share a clock was built and reverted:
@@ -146,7 +146,7 @@ final class PillController {
     private let hoverRegion = PillHoverRegion()
 
     /// Every capsule phase shares this one panel, so the window neither resizes
-    /// nor recentres while a recording is on screen and the capsule moves inside
+    /// nor recenters while a recording is on screen and the capsule moves inside
     /// it instead. Measured: the widest capsule is the 460-point no-signal
     /// notice and the tallest is the 60-point two-line ones, plus `glassMargin`
     /// on all four sides. `panelSize(for:pillSize:)` grows it rather than let a
@@ -490,9 +490,9 @@ final class PillController {
         )
     }
 
-    /// The capsule is centred across the panel and sits `glassMargin` up from its
+    /// The capsule is centered across the panel and sits `glassMargin` up from its
     /// bottom edge, so the 52-point one-liners and the 60-point two-liners rest
-    /// on the same line above the screen's edge rather than being centred against
+    /// on the same line above the screen's edge rather than being centered against
     /// each other.
     private func glassFrame(pillSize: NSSize, panelSize: NSSize) -> NSRect {
         NSRect(
@@ -574,7 +574,7 @@ final class PillController {
             // `hosted` is the field that matters: it is the height of the
             // SwiftUI content inside the glass, and a `hosted` that disagrees
             // with the glass is this bug returning. On an animated resize the
-            // frame is still travelling when this runs, so `final` reporting the
+            // frame is still traveling when this runs, so `final` reporting the
             // outgoing size there is expected and not a fault.
             Self.log.notice(
                 "pill settled to=\(phase.logLabel, privacy: .public) wasVisible=\(wasVisible, privacy: .public) asked=\(Int(desiredPanelSize.width), privacy: .public)x\(Int(desiredPanelSize.height), privacy: .public) final=\(Int(self.panel.frame.width), privacy: .public)x\(Int(self.panel.frame.height), privacy: .public) glass=\(Int(self.glassView.frame.width), privacy: .public)x\(Int(self.glassView.frame.height), privacy: .public) hosted=\(Int(self.glassView.contentView?.frame.height ?? -1), privacy: .public) radius=\(Int(self.glassView.cornerRadius), privacy: .public)"
@@ -743,7 +743,7 @@ private struct PillView: View {
     /// Neither `NSGlassEffectView` nor SwiftUI's `Glass` exposes a specular rim to
     /// switch on, so the pill paints its own, following Apple's glass: the top and
     /// bottom edges carry the light and the sides stay clear. The half-point
-    /// padding keeps the centred stroke inside the glass edge, which would
+    /// padding keeps the centered stroke inside the glass edge, which would
     /// otherwise clip its outer half away.
     private var specularHighlight: some View {
         pillShape(for: model.phase)
@@ -873,7 +873,7 @@ private struct PillView: View {
 
     /// The outward pull is deliberate. The capsule's rounded end is a circle of
     /// the pill's half-height — 26 points — so a 28-point control shares its
-    /// centre only when its outer edge sits 12 points from the pill's, and the
+    /// center only when its outer edge sits 12 points from the pill's, and the
     /// row's own inset is 18. The 6 points come off the outer side alone: the
     /// gap between a control and the element beside it stays at the row's
     /// spacing, which is what keeps the status text where it was.
@@ -941,7 +941,7 @@ private struct PillView: View {
         )
     }
 
-    /// The same offer the cancelled dictation makes, for a recording that never
+    /// The same offer the canceled dictation makes, for a recording that never
     /// went out. Retry is dead until this Mac has a route again: pressing a
     /// button that cannot possibly work is a worse answer than one that says so.
     private var noInternetRecovery: some View {
@@ -955,7 +955,7 @@ private struct PillView: View {
     }
 
     /// The device went away mid-dictation. Recover, not a name of its own: the
-    /// button does what the cancelled dictation's does, and one action under two
+    /// button does what the canceled dictation's does, and one action under two
     /// names is the inconsistency, not the shared word.
     private var inputDisconnectionRecovery: some View {
         recoveryOffer(
@@ -1071,7 +1071,7 @@ private struct PillView: View {
         }
     }
 
-    /// Which glyph appears is still per phase; only its colour comes from the
+    /// Which glyph appears is still per phase; only its color comes from the
     /// outcome, so a glyph and the glass behind it can never disagree.
     private var toneAccent: Color { model.phase.pillTone.accent ?? .primary }
 

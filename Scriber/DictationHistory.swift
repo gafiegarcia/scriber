@@ -96,7 +96,7 @@ struct DictationHistoryView: View {
     ///
     /// **Do not hand-draw what this already draws.** `List` supplies the row
     /// separators, and makes a `Section` header stick to the top of the scroll
-    /// area on its way past — the Apple Notes behaviour Scriber used to
+    /// area on its way past — the Apple Notes behavior Scriber used to
     /// approximate with a titlebar strip and a preference key tracking every
     /// card's offset. All of that is deleted. Adding a divider, a card, or a day
     /// label back here draws a second one on top of the framework's.
@@ -136,7 +136,7 @@ struct DictationHistoryView: View {
                                 )
                             )
                             // Left to itself a separator follows the row's leading
-                            // *text*, which on a cancelled or failed row is the
+                            // *text*, which on a canceled or failed row is the
                             // status badge rather than the transcript, so the rule
                             // stepped right on those rows alone. Naming both edges
                             // pins it to the row instead.
@@ -181,7 +181,7 @@ struct DictationHistoryView: View {
                         // by styling them. And covering the strip with a background
                         // fails: the fill would have to match a `List` background
                         // that is an `NSVisualEffectView` material rather than a
-                        // colour, and a solid colour renders as a black band across
+                        // color, and a solid color renders as a black band across
                         // the label.
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 6)
@@ -189,14 +189,14 @@ struct DictationHistoryView: View {
             }
         }
         // The style decides three things at once and they cannot be picked
-        // separately: whether the separator preferences below are honoured, how
+        // separately: whether the separator preferences below are honored, how
         // much space sits between one section and the next, and how far a day
         // label travels under the toolbar before handing over to the next.
         //
         // `.inset` is the only one that gives all three. `.automatic` ignored
         // every separator preference in this file — Apple's reference says "the
         // list style is the final arbiter of separator visibility" — and `.plain`
-        // honours them but supplies no section spacing and hands a day label over
+        // honors them but supplies no section spacing and hands a day label over
         // only once it is entirely under the toolbar, a scroll of its length
         // during which the label names the wrong day.
         //
@@ -446,7 +446,7 @@ private struct DictationHistoryRow: View {
                 // when the run finishes, and an abandoned run is left to finish
                 // rather than torn down — so a request that stalls to its
                 // 90-second timeout leaves the row undeletable for that long.
-                // Cancelling the run before deleting would fix it; see "Stop an
+                // Canceling the run before deleting would fix it; see "Stop an
                 // abandoned transcription running on" for why one is left running.
                 RowIconButton(
                     systemImage: "trash",
@@ -525,13 +525,13 @@ private struct DictationHistoryRow: View {
 /// target stayed the 16pt glyph — a 5pt ring that highlighted and did nothing.
 /// A label's padding is part of the control, so all three describe one square.
 ///
-/// Each control keeps its colour at rest — copy blue, delete red. Resting them in
-/// the row's grey and colouring them on hover was tried and rejected on sight: a
-/// column of grey glyphs reads as a column of disabled controls, and delete's red
+/// Each control keeps its color at rest — copy blue, delete red. Resting them in
+/// the row's gray and coloring them on hover was tried and rejected on sight: a
+/// column of gray glyphs reads as a column of disabled controls, and delete's red
 /// is worth having before the pointer is on it rather than at the moment it is
 /// too late to help. Hover adds the background and nothing else.
 ///
-/// Keep the fill near the threshold of visible: anything heavier parks a grey box
+/// Keep the fill near the threshold of visible: anything heavier parks a gray box
 /// in a quiet row and the eye catches the box rather than the transcript.
 private struct RowIconButton: View {
     private static let fill: Double = 0.055

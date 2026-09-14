@@ -29,7 +29,7 @@ final class DictationFeedbackSoundPlayer: DictationFeedbackSoundPlaying {
 
     // Known and unfixed: on a built-in speaker that has idled a few seconds the cue
     // can pop. It is the amplifier powering back up under the sound — a system-wide
-    // macOS behaviour any app triggers, not Scriber's doing. Scheduling playback a
+    // macOS behavior any app triggers, not Scriber's doing. Scheduling playback a
     // warm-up ahead of the amplifier hides it, and fading a cue out avoids the click of
     // cutting one that is still playing — but the warm-up adds lag to a cue that fires
     // on every dictation, a worse trade than the rare pop, so cues play immediately and

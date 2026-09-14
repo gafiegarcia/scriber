@@ -298,7 +298,7 @@ public struct ScribeClient: Sendable {
     }
 
     /// `permitsRetry` is asked before every attempt after the first. A dictation
-    /// cancelled mid-transcription answers false: the attempt already sent is
+    /// canceled mid-transcription answers false: the attempt already sent is
     /// left to finish because it is billed either way, but a fresh one would
     /// spend the user's credit on a recording they have just abandoned.
     public func transcribe(

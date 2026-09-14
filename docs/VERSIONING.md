@@ -43,7 +43,7 @@ Prerelease labels are retired. `alpha.N` was answering an unanswerable question:
 
 ## Every tag on `main` ships a build
 
-From `v0.9.0`, a tag and a release are the same event. Notarization is free and unmetered, so there is no reason to freeze a snapshot and then withhold it — and a rule with no exceptions removes the per-tag judgement call about whether this one is worth publishing.
+From `v0.9.0`, a tag and a release are the same event. Notarization is free and unmetered, so there is no reason to freeze a snapshot and then withhold it — and a rule with no exceptions removes the per-tag judgment call about whether this one is worth publishing.
 
 Creating a tag therefore commits you to the whole of [`RELEASING.md`](RELEASING.md): a notarized, stapled DMG attached to a GitHub release, and a Homebrew cask pointing at it. Do not tag until you are ready to do that.
 

@@ -91,7 +91,7 @@ Two consequences of it are accepted rather than fixed. A web page runs its own p
 
 ## The character count is for detection, not for belief
 
-An element qualifies as text input when it exposes a character count, which is how a custom control with no editable role is recognised at all. That is used to decide whether keyboard focus should redirect delivery to a nonactivating panel, and for nothing else. It was once also used to conclude a cursor was present, which it cannot: a page presents an `AXGroup` reporting zero characters, no editable role and no settable selection after a text field is clicked and then left.
+An element qualifies as text input when it exposes a character count, which is how a custom control with no editable role is recognized at all. That is used to decide whether keyboard focus should redirect delivery to a nonactivating panel, and for nothing else. It was once also used to conclude a cursor was present, which it cannot: a page presents an `AXGroup` reporting zero characters, no editable role and no settable selection after a text field is clicked and then left.
 
 ## Rejected changes
 

@@ -27,7 +27,7 @@ struct AudioLevelMeter: View {
 ///
 /// The pill and the microphone test both draw it, so it takes a `Presentation`
 /// rather than raw numbers. Sharing the view alone is not enough to stop the two
-/// drifting: left to choose its own frame, colour and backing, a call site can
+/// drifting: left to choose its own frame, color and backing, a call site can
 /// stretch the bars until a quiet signal looks like no signal at all.
 struct AudioLevelWaveform: View {
     /// Where this meter is being drawn, which decides everything about how it
@@ -67,7 +67,7 @@ struct AudioLevelWaveform: View {
         }
 
         /// The plate the bars sit on, where there is one. The pill draws over
-        /// its own material and wants none. Kept here with size and colour
+        /// its own material and wants none. Kept here with size and color
         /// because it is the same recipe — leaving it at the call sites is how
         /// the two meters drifted before this type existed.
         var plate: (insets: EdgeInsets, cornerRadius: CGFloat)? {

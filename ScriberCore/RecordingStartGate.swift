@@ -9,7 +9,7 @@ import Foundation
 /// then, and a dropped release leaves a recording nothing can stop.
 ///
 /// So the pending gesture is state here: the mode is installed on the press, and
-/// an ending that arrives early is remembered until the session can honour it.
+/// an ending that arrives early is remembered until the session can honor it.
 ///
 /// Paired with `RecorderLifecycle`, which tracks the capture stack's bookkeeping.
 /// This type never learns what a recording is; that one never learns what the
@@ -59,7 +59,7 @@ public struct RecordingStartGate: Equatable, Sendable {
         /// The gesture ending this recording arrived before the microphone
         /// opened, so the file holds nothing. Close it without ever showing it.
         case abandonOpenedSession
-        /// Cancelled while the session is still opening. It will be abandoned on
+        /// Canceled while the session is still opening. It will be abandoned on
         /// arrival, but the gesture is answered now — a pill still up after the
         /// user typed or pressed Escape reads as having been ignored.
         case cancelPendingStart
@@ -95,7 +95,7 @@ public struct RecordingStartGate: Equatable, Sendable {
         }
     }
 
-    /// Cancelling outranks stopping, and repeating either changes nothing. That
+    /// Canceling outranks stopping, and repeating either changes nothing. That
     /// makes the order two endings arrive in irrelevant, which is the one thing
     /// about this that cannot be checked by reading it. `RecorderLifecycle`
     /// resolves a stop racing a cancel the same way, so the two agree on what a

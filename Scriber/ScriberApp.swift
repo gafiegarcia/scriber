@@ -104,7 +104,7 @@ enum AppLaunchConfiguration {
     /// The launch smoke check's flag. The app still builds and renders its window —
     /// that is the path the check exists to exercise — but never activates, so it
     /// does not steal the front from whatever the user is doing. Only the smoke check
-    /// passes it; a visual-inspection launch wants the real activation behaviour.
+    /// passes it; a visual-inspection launch wants the real activation behavior.
     static var launchesWithoutActivating: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-no-activate")
     }
@@ -674,7 +674,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var escapeMonitor: Any?
     private var onboardingCenterMonitor: Any?
     /// Windows already placed. `fitPageWindow` runs from `didBecomeKey`,
-    /// which fires every time setup is clicked back into — re-centring there
+    /// which fires every time setup is clicked back into — re-centering there
     /// takes the window's position away from whoever moved it.
     private var fittedPageWindows = Set<ObjectIdentifier>()
     private var fittedSettingsWindows = Set<ObjectIdentifier>()
@@ -821,7 +821,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Everything else macOS says about this launch, beside the Apple event.
-    /// Written every launch on purpose: a launch decides behaviour before anyone
+    /// Written every launch on purpose: a launch decides behavior before anyone
     /// can watch it, and the alternative is restarting the Mac once per guess.
     private func logLaunchContext(_ notification: Notification) {
         let isDefaultLaunch = notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool
@@ -871,9 +871,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// first. The two keys are only separable before that resolution, where Enter
     /// reports 0x03 with no modifier and Control-C reports "c" with Control held.
     ///
-    /// Offer the event to the menu rather than centring the window here, so the
+    /// Offer the event to the menu rather than centering the window here, so the
     /// shortcut matches the menu item exactly — `NSWindow.center` rests a window
-    /// above centre and moves it in one jump, which is not that command.
+    /// above center and moves it in one jump, which is not that command.
     ///
     /// App-lifetime, for the same reason as the Settings escape monitor above.
     private func installOnboardingCenterMonitor() {

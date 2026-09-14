@@ -572,7 +572,7 @@ public enum AppPhase: Equatable, Sendable {
     /// deadlocks both shortcuts until the pill is dismissed by hand.
     public var acceptsRecordingStart: Bool { !isBusy }
 
-    /// Cancelling is permitted in every recording mode. Governs
+    /// Canceling is permitted in every recording mode. Governs
     /// `HandsFreePillAction.disposition(for:)`, so it covers clicks on the pill's
     /// Cancel control only: it says nothing about whether that control is drawn —
     /// see `showsCancelRecordingControl(isHovering:)` — and nothing about Escape,
@@ -687,7 +687,7 @@ public enum PillDismissalAction: Equatable, Sendable {
     case dismiss
 }
 
-/// What a transcription that was cancelled after its request went out came back
+/// What a transcription that was canceled after its request went out came back
 /// with. The request is left to finish because it is already billed, but it must
 /// not speak: its result is held here until the user asks for it.
 public enum CanceledTranscriptionOutcome: Equatable, Sendable {
@@ -775,7 +775,7 @@ public enum RecordingCancellationPolicy {
     }
 }
 
-/// How long a failed or cancelled dictation is kept, as the user chose it.
+/// How long a failed or canceled dictation is kept, as the user chose it.
 public enum RetainedAudioRetention: String, CaseIterable, Codable, Sendable {
     case sevenDays
     case thirtyDays
@@ -802,14 +802,14 @@ public enum RetainedAudioRetention: String, CaseIterable, Codable, Sendable {
 
     /// Carries over the answer someone gave the **Delete unused recordings after
     /// 30 days** toggle this replaced. Nobody chose 30 days — it was the only
-    /// behaviour on offer — so an enabled toggle means "yes, clean up" and takes
+    /// behavior on offer — so an enabled toggle means "yes, clean up" and takes
     /// the new default. Only switching it off was ever a decision of its own.
     public static func migrating(fromDeletesExpiredRetainedAudio wasEnabled: Bool) -> RetainedAudioRetention {
         wasEnabled ? standard : .never
     }
 }
 
-/// When Scriber stops keeping a failed or cancelled dictation. Unretried audio
+/// When Scriber stops keeping a failed or canceled dictation. Unretried audio
 /// left in Application Support is a privacy cost as much as a disk one, so
 /// retention is bounded unless the user asks otherwise, and a dictation that
 /// never produced a transcript goes with its recording: what is left offers
@@ -825,7 +825,7 @@ public enum RetainedAudioRetentionPolicy {
     }
 
     /// What the sweep does with one dictation. Ask only about a failed or
-    /// cancelled dictation holding no transcript — anything else is either still
+    /// canceled dictation holding no transcript — anything else is either still
     /// in flight or has a transcript to keep, and neither is this sweep's
     /// business.
     public enum Disposition: Equatable, Sendable {
@@ -941,13 +941,13 @@ public extension AppPhase {
     /// What the outcome was, in the vocabulary the window's toast stack already
     /// speaks, so the two surfaces cannot tint the same outcome differently.
     /// Nothing maps to `.failure` — every phase that could claim red is
-    /// recoverable in place, from the pill. Cancelling stays neutral, because the
+    /// recoverable in place, from the pill. Canceling stays neutral, because the
     /// user asked for it and the Undo button carries the recovery on its own.
     ///
     /// `.inputDisconnected` is the one warning that does offer a working button.
     /// It is tinted for what the recording is rather than for what the pill can
     /// do: the audio behind it stops mid-sentence, which no other recoverable
-    /// notice can say. Do not read this as licence to tint the rest of them —
+    /// notice can say. Do not read this as license to tint the rest of them —
     /// `.noInternetConnection` holds a whole recording and stays neutral.
     var pillTone: ToastTone {
         switch self {
@@ -1141,7 +1141,7 @@ public struct ShortcutTapMachine: Sendable {
     private var heldKeys = HeldModifierKeys()
     private var suppressedKeyCodes = Set<UInt16>()
     /// Whether the Escape press that began a run of repeats was consumed, so the
-    /// repeats agree with it without asking again or cancelling a second time.
+    /// repeats agree with it without asking again or canceling a second time.
     private var escapeConsumed = false
 
     public init(dictation: ShortcutChord) {
@@ -1182,7 +1182,7 @@ public struct ShortcutTapMachine: Sendable {
     }
 
     /// Clears what is held without forgetting what to swallow on the way up. A
-    /// chord still physically down when a recording is cancelled still owes a
+    /// chord still physically down when a recording is canceled still owes a
     /// key-up, and letting that one through types the character into whatever the
     /// user was aiming at.
     private mutating func resetLatches() {
@@ -1437,7 +1437,7 @@ public enum ReservedShortcuts {
         // Help
         chord([.command, .shift], "/"),
 
-        // Text editing every macOS text field honours. AppKit implements these in
+        // Text editing every macOS text field honors. AppKit implements these in
         // the field editor, so binding one replaces it in every app at once.
         chord([.control], "A"),
         chord([.control], "B"),

@@ -36,7 +36,7 @@ func render(scale: CGFloat, to path: String) {
 
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
-    // Centred between the two icons, on their shared line. Finder counts y down
+    // Centered between the two icons, on their shared line. Finder counts y down
     // from the top of the content area; Core Graphics counts up.
     tinted.draw(in: NSRect(x: 330 - size.width / 2,
                            y: CGFloat(height) - 170 - size.height / 2,

@@ -3,8 +3,8 @@ import Foundation
 /// What an outcome was, which is what tints it.
 ///
 /// Shared vocabulary on purpose: the floating pill is due the same treatment,
-/// and one mapping from outcome to colour is what keeps the two surfaces saying
-/// the same thing in the same colour.
+/// and one mapping from outcome to color is what keeps the two surfaces saying
+/// the same thing in the same color.
 public enum ToastTone: Hashable, Sendable {
     case success
     case warning

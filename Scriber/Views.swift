@@ -203,7 +203,7 @@ private struct SettingsToggle: View {
             Toggle(isOn: $isOn) {
                 Text(title)
                 // Inside AppKit's label rather than a stack of our own: AppKit sets
-                // the caption's font and colour and reports neither. All this adds
+                // the caption's font and color and reports neither. All this adds
                 // is the gap, which it otherwise draws too tight to read as an
                 // explanation rather than a wrapped second line.
                 Text(caption).padding(.top, SettingsPaneLayout.captionGap)
@@ -413,7 +413,7 @@ private struct GeneralSettingsPane: View {
                 // Both toggles share one row, because a divider between a setting
                 // and the setting that depends on it reads as two unrelated
                 // settings — the same divider the group boundary uses. The indent
-                // is what names the owner; the greying only confirms it.
+                // is what names the owner; the graying only confirms it.
                 VStack(alignment: .leading, spacing: SettingsPaneLayout.nestedSettingGap) {
                     // Reads what macOS has registered, not what Scriber last
                     // asked for, so removing Scriber from Login Items in System
@@ -452,7 +452,7 @@ private struct GeneralSettingsPane: View {
                     )
                     .accessibilityIdentifier("start-in-background-toggle")
                     // `.disabled` alone only lowers the alpha a little and keeps the
-                    // accent colour, so a switch left on still reads as live.
+                    // accent color, so a switch left on still reads as live.
                     // Draining the tint is what makes it read as governed by the
                     // setting above.
                     .tint(
@@ -838,7 +838,7 @@ private struct DictationSettingsPane: View {
 }
 
 /// The added keyterms as their own card: one shape, one outline, one rule
-/// between neighbouring rows. Not drawn when there are no keyterms, and not
+/// between neighboring rows. Not drawn when there are no keyterms, and not
 /// indented — the border and per-row padding already mark this as the contents
 /// of Keyterms.
 ///
@@ -873,7 +873,7 @@ private struct KeytermsCard: View {
                         Image(systemName: "minus.circle")
                     }
                     .buttonStyle(.plain)
-                    // Named for its own row. Unlabelled, every term's button
+                    // Named for its own row. Unlabeled, every term's button
                     // announces identically, so nothing says which one this
                     // deletes — the sighted cue is the row it sits in.
                     .accessibilityLabel("Remove \(term)")
@@ -1145,12 +1145,12 @@ private struct ElevenLabsSettingsPane: View {
             .popover(isPresented: $showsDataUseHelp) {
                 // Scriber does keep something: every transcript goes into
                 // Dictation history on disk. Saying it keeps nothing would be the
-                // one claim here a sceptical reader could check and disprove.
+                // one claim here a skeptical reader could check and disprove.
                 Text("Your recordings go to ElevenLabs to be transcribed, and nowhere else. The transcripts are saved locally on your Mac, in Dictation history.")
                     .font(.callout)
                     // A Form footer styles everything inside it as secondary, and
                     // a popover presented from one inherits that — which is why
-                    // this reads grey where the Keyterms popover, which hangs off
+                    // this reads gray where the Keyterms popover, which hangs off
                     // a section label, reads white.
                     .foregroundStyle(.primary)
                     .padding()

@@ -93,7 +93,7 @@ struct MainWindowView: View {
         let visible = visibleRecords
         return workspaceContent(visible)
             // Where the width cap is enforced. SwiftUI derives a `Window` scene's
-            // resize limits from its content, and only honours the maximum under
+            // resize limits from its content, and only honors the maximum under
             // `.windowResizability(.contentSize)` — which the scene declares.
             // Setting it in AppKit alone let the window be dragged wider and only
             // snapped it back on the next activation.

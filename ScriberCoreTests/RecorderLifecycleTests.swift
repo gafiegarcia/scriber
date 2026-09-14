@@ -12,7 +12,7 @@ struct RecorderLifecycleTests {
         #expect(lifecycle.activeRecording == id)
     }
 
-    /// The case a tremor on the shortcut key produces: cancelling returns the app to
+    /// The case a tremor on the shortcut key produces: canceling returns the app to
     /// idle without waiting for the capture stack to close the microphone, so the
     /// next press arrives while the last recording is still winding down.
     @Test("A press arriving before the last recording is resolved supersedes it")
@@ -40,7 +40,7 @@ struct RecorderLifecycleTests {
         #expect(lifecycle.activeRecording == second)
     }
 
-    @Test("A stopped recording is delivered, a cancelled one discarded")
+    @Test("A stopped recording is delivered, a canceled one discarded")
     func resolutionFollowsHowItEnded() {
         var lifecycle = RecorderLifecycle()
         let stopped = UUID()

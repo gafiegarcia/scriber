@@ -19,7 +19,7 @@ public enum HomebrewInstall {
     public static let upgradeCommand = "brew upgrade --cask scriber"
 
     /// Matches on the resolved path rather than the app's name, so a cask that
-    /// renames its artifact is still recognised.
+    /// renames its artifact is still recognized.
     public static func manages(
         bundlePath: String,
         caskName: String = "scriber",

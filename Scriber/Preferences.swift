@@ -111,7 +111,7 @@ final class Preferences: ObservableObject {
         playDictationFeedbackSounds = defaults.object(forKey: Keys.playDictationFeedbackSounds) == nil
             ? true
             : defaults.bool(forKey: Keys.playDictationFeedbackSounds)
-        // Off by default, unlike its neighbours above: turning it on is what
+        // Off by default, unlike its neighbors above: turning it on is what
         // makes macOS demand System Audio Recording, and an opt-out default
         // would spend that prompt during a first dictation.
         muteOtherAudioWhileDictating = defaults.bool(forKey: Keys.muteOtherAudioWhileDictating)

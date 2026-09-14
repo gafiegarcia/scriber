@@ -141,7 +141,7 @@ final class AppCoordinator: ObservableObject {
     private var currentRecord: DictationRecord?
     private var currentRecording: CompletedRecording?
 
-    /// A dictation cancelled after its request had gone out. The request is left
+    /// A dictation canceled after its request had gone out. The request is left
     /// to finish because it is billed either way, but it must not speak: it
     /// writes its result here and touches nothing else, because by the time it
     /// lands the user may already be part-way through the next dictation and
@@ -150,7 +150,7 @@ final class AppCoordinator: ObservableObject {
     /// In memory only. Nothing about this outlives the pill it belongs to, so a
     /// history row left behind by one retries like any other.
     private struct CanceledTranscription {
-        /// The run this cancelled, never the record. The same recording can be
+        /// The run this canceled, never the record. The same recording can be
         /// transcribed again from History, and an earlier cancellation of it must
         /// not silence that new attempt — which is what left a pill saying
         /// Transcribing… with nothing behind it.
@@ -172,7 +172,7 @@ final class AppCoordinator: ObservableObject {
     /// Kept apart from the offer above on purpose: dismissing the pill — by
     /// Escape, by See History, or by its own timeout — retires the offer and must
     /// not revive a request still working through its retries. A set rather than
-    /// one value for the same reason, since a cancelled run outlives the pill by
+    /// one value for the same reason, since a canceled run outlives the pill by
     /// the length of its backoff and the user can start another dictation inside
     /// that window. Holding one value let the new run's start clear the old run's
     /// silence, which is how retries came to queue up behind each other.
@@ -190,7 +190,7 @@ final class AppCoordinator: ObservableObject {
     /// pill still says — a stale phase must not be mistaken for a live request.
     private var liveTranscriptionRun: Int?
 
-    /// What the run in flight was going to do with its transcript. Cancelling one
+    /// What the run in flight was going to do with its transcript. Canceling one
     /// bound for the clipboard has nothing to offer to recover, so it says nothing.
     private var liveTranscriptionDelivery: RetryDelivery?
 
@@ -1090,7 +1090,7 @@ final class AppCoordinator: ObservableObject {
 
     /// Cancels a running dictation the way the pill's own Cancel does, for a
     /// caller that is taking the surface it belongs to off screen. Transcription
-    /// already in flight is left alone: `HandsFreePillAction` permits cancelling
+    /// already in flight is left alone: `HandsFreePillAction` permits canceling
     /// only while recording, and the audio is spent by then.
     func cancelDictationInProgress() {
         handleHandsFreePillAction(.cancel)
@@ -1351,7 +1351,7 @@ final class AppCoordinator: ObservableObject {
         NotificationCenter.default.post(name: .openScriberMainWindow, object: nil)
         // Every pill action arrives from a nonactivating panel, so Scriber has no
         // activation for the cooperative `activate(from:)` inside `showWindow` to
-        // build on: that call reports success and macOS declines to honour it,
+        // build on: that call reports success and macOS declines to honor it,
         // leaving the window at the front of Scriber's own layer and no further.
         // Ask outright, as the menu bar item and Command-comma both do.
         NSApp.activate(ignoringOtherApps: true)
@@ -1431,8 +1431,8 @@ final class AppCoordinator: ObservableObject {
         // this cancel exists for.
         shortcuts.setMode(mode == .held ? .held : .locked)
         handedOff = true
-        // Never cancelled, and never more than one: the gate only begins a start
-        // from idle, and it leaves idle here until this task answers. Cancelling
+        // Never canceled, and never more than one: the gate only begins a start
+        // from idle, and it leaves idle here until this task answers. Canceling
         // would not interrupt the session opening anyway — it would only risk
         // skipping the answer, which is the one thing that wedges the gate.
         Task { [weak self] in
@@ -1594,7 +1594,7 @@ final class AppCoordinator: ObservableObject {
         defer {
             silencedRuns.remove(run)
             // Only the run still in charge may put the app back to rest. A
-            // cancelled run finishes after the user has moved on — often into
+            // canceled run finishes after the user has moved on — often into
             // another dictation — and `shortcuts.setMode(.idle)` from one of those
             // takes the live recording's shortcut monitor out from under it, so a
             // held key stops meaning stop when released.
@@ -1662,8 +1662,8 @@ final class AppCoordinator: ObservableObject {
                     canceledTranscription?.outcome = .transcript(normalized)
                     Self.dictationLog.notice("dictation parked run=\(run, privacy: .public) outcome=transcript")
                 } else {
-                    // Kept as a cancelled row holding its audio rather than
-                    // discarded the way an uncancelled empty result is: See
+                    // Kept as a canceled row holding its audio rather than
+                    // discarded the way an uncanceled empty result is: See
                     // History has to find something, and Retry there transcribes
                     // like any other row instead of replaying a lost verdict.
                     record.transcriptionState = .canceled
@@ -1718,7 +1718,7 @@ final class AppCoordinator: ObservableObject {
             preferences.apiCreditsExhausted = false
             Task { [weak self] in await self?.refreshSubscriptionUsage() }
         } catch {
-            // Cancelled and then failed. Same rule as a cancelled success: write
+            // Canceled and then failed. Same rule as a canceled success: write
             // it down, say nothing. The row keeps its audio, so Recover — or
             // Retry in History later — can transcribe it afresh.
             if isSilenced(run: run) {
@@ -1753,7 +1753,7 @@ final class AppCoordinator: ObservableObject {
     /// be able to tell "no words" from "nothing happened".
     /// Hands a finished transcript to whatever holds the cursor. Reached both by
     /// a dictation that ran to completion and by Recover on one that was
-    /// cancelled after its transcript had already arrived — the target is
+    /// canceled after its transcript had already arrived — the target is
     /// resolved here rather than when the recording started, so Recover lands
     /// the text wherever the user is standing when they press it.
     /// Callers take the pill down *before* awaiting this. Transcription is over
@@ -1928,7 +1928,7 @@ final class AppCoordinator: ObservableObject {
         // every disconnect, because the output goes with the input on one headset.
         //
         // One cue now covers every ending, so this is no longer the only way to
-        // see it: cancelling a dictation while a headset is disconnecting reaches
+        // see it: canceling a dictation while a headset is disconnecting reaches
         // the same alert. Accepted deliberately — playing a sound the user chose
         // away from is the worse of the two.
         playFeedback(.dictationDidNotLand)
@@ -2019,13 +2019,13 @@ final class AppCoordinator: ObservableObject {
             "dictation canceled run=\(run, privacy: .public) delivery=\(self.liveTranscriptionDelivery == .copy ? "copy" : "paste", privacy: .public)"
         )
         // Recorded now rather than when the request lands, so a quit in between
-        // leaves a cancelled row holding its audio instead of a transcribing one.
+        // leaves a canceled row holding its audio instead of a transcribing one.
         record.transcriptionState = .canceled
         record.errorMessage = "Canceled before the transcript arrived."
         try? modelContext.save()
 
         // A History retry was only ever going to reach the clipboard, and the user
-        // cancelling one is looking at the window that holds the row. There is no
+        // canceling one is looking at the window that holds the row. There is no
         // paste to prevent and nothing to offer, so it stops in silence and the
         // row's own Retry stays where it is. The request still finishes and still
         // writes what it got.
@@ -2047,8 +2047,8 @@ final class AppCoordinator: ObservableObject {
         setPhase(.canceledTranscript)
     }
 
-    /// The Recover button, for both kinds of cancellation. A dictation cancelled
-    /// before its request went out has only one thing it can do; one cancelled
+    /// The Recover button, for both kinds of cancellation. A dictation canceled
+    /// before its request went out has only one thing it can do; one canceled
     /// after has four, decided by `CanceledTranscriptionOutcome`.
     private func recoverCanceledDictation() {
         guard let record = currentRecord, let recording = currentRecording else {
@@ -2319,7 +2319,7 @@ final class AppCoordinator: ObservableObject {
     /// Only the pill's own actions reach this. Command-comma, the menu bar item,
     /// and the toolbar's warning open the same windows and leave the pill alone:
     /// opening a window says nothing about the dictation a notice reports, and a
-    /// cancelled-dictation pill would otherwise have its Undo thrown away by a
+    /// canceled-dictation pill would otherwise have its Undo thrown away by a
     /// trip to Settings.
     ///
     /// A dictation still in flight is never ended here, so do not drop the guard.

@@ -13,7 +13,7 @@ import SwiftData
 ///    real `<uuid>.m4a` makes that a no-op rather than a deletion in the user's own
 ///    directory.
 /// 2. **No entry is older than the 30-day retention period**, or
-///    `discardExpiredDictations` deletes failed and cancelled rows out from under
+///    `discardExpiredDictations` deletes failed and canceled rows out from under
 ///    a check in progress. Its `servicesAllowed` gate is belt and braces; do not
 ///    depend on it.
 /// 3. **Every field combination is one the app itself can produce.** Success sets
@@ -21,7 +21,7 @@ import SwiftData
 ///    `errorMessage`, and keeps the path; cancellation is always textless; a
 ///    `.copied` delivery arises only from the paste fallback, leaving an
 ///    `errorMessage` on an otherwise succeeded record. **No code path produces a
-///    failed or cancelled record with text**, which is why copy is always
+///    failed or canceled record with text**, which is why copy is always
 ///    unavailable on those rows.
 /// 4. **Today's rows use fixed wall-clock times**, so a run before 18:42 shows a
 ///    few timestamps in the future. Times computed from `.now` either drift out of
@@ -73,7 +73,7 @@ enum UITestingHistoryFixture {
         // …and immediately below it, failed *without* audio, so it shows none.
         // Adjacent on purpose: copy and the overflow must land on the same two x
         // positions in both rows, which is the whole point of Retry leading, and
-        // that only reads at a glance when the two cases are neighbours.
+        // that only reads at a glance when the two cases are neighbors.
         Entry(
             index: 4, dayOffset: 0, hour: 15, minute: 58, duration: 8.1,
             errorMessage: "The retained recording is no longer available.",
@@ -164,7 +164,7 @@ enum UITestingHistoryFixture {
                 """,
             state: .succeeded, delivery: .pasted
         ),
-        // Cancelled *without* audio, so the orange Cancelled label is checked in
+        // Canceled *without* audio, so the orange Canceled label is checked in
         // the state where Retry is absent as well as the state where it is not.
         Entry(
             index: 16, dayOffset: 3, hour: 17, minute: 26, duration: 1.8,

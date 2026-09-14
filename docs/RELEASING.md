@@ -83,7 +83,7 @@ It emits UDZO, the same format the three commands below expect, so signing and n
 
 The window is light in both appearances, deliberately and unavoidably: Finder draws a volume window's labels black whenever a background picture is set, whatever that picture holds, so a dark design renders black text on a dark backdrop. Verified on macOS 27. Regenerate the background with `swift Branding/DMGBackground.swift Branding` after editing it.
 
-`hdiutil` still works but is deprecated across the board on macOS 27 in favour of `diskutil image`. Nothing here calls it directly any more; `create-dmg` does, and its warnings are expected.
+`hdiutil` still works but is deprecated across the board on macOS 27 in favor of `diskutil image`. Nothing here calls it directly any more; `create-dmg` does, and its warnings are expected.
 
 The disk image is notarized separately from the app inside it, and both need it. Sign the image before submitting: an unsigned one still passes the checks below, but reports `no usable signature` to any tool that assesses it as an installer.
 
@@ -150,7 +150,7 @@ What each part is for, since none of it is decoration:
 - **Link the asset directly.** GitHub puts Assets below the notes, so a release with anything to say buries its own disk image under prose. A named link at the top costs a reader no scrolling and no guessing which file is the app.
 - **State the requirements beside the download**, because that link is now the first thing anyone can click and nothing above it mentions them. A Mac that cannot run Scriber says so only when macOS refuses to open it.
 - **Say to quit, and to choose Replace**, under a heading an updater reads and a newcomer skips. Do not say *from the menu bar icon*: that icon can be switched off.
-- **Summarise before the lists.** Someone who came to see what changed should not have to read fourteen bullets to find out whether it matters.
+- **Summarize before the lists.** Someone who came to see what changed should not have to read fourteen bullets to find out whether it matters.
 
 Do not explain that permissions, history and the key survive an update. They do, because the app was built that way; describing seamlessness adds a seam.
 

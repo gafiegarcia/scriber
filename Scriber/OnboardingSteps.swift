@@ -4,11 +4,11 @@ import SwiftUI
 // MARK: - Shared page chrome
 
 /// The shape every setup step takes: a title, a sentence, and the controls that
-/// step owns — ranged left in a column that is centred in the page.
+/// step owns — ranged left in a column that is centered in the page.
 ///
-/// Keep the text ranged left: a centred sentence that wraps leaves a ragged last
+/// Keep the text ranged left: a centered sentence that wraps leaves a ragged last
 /// line, fixable only by rewording each string until it happens to fit, which
-/// holds for one window and one font. Centring the column is what keeps a short
+/// holds for one window and one font. Centering the column is what keeps a short
 /// step out of the top corner of a half-empty page.
 struct OnboardingPage<Content: View>: View {
     let title: String
@@ -27,10 +27,10 @@ struct OnboardingPage<Content: View>: View {
         // Measuring is also what keeps this right once the window can be resized.
         GeometryReader { viewport in
             ScrollView {
-                // Title, sentence and controls travel as one block, centred in
+                // Title, sentence and controls travel as one block, centered in
                 // the page. Pinning the title holds it still between steps but
                 // strands every short step's content against the bottom of a
-                // half-empty page. Only the column is centred; its contents stay
+                // half-empty page. Only the column is centered; its contents stay
                 // ranged left.
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 12) {
@@ -70,7 +70,7 @@ struct OnboardingPage<Content: View>: View {
 
 /// One ladder for the whole flow, a step above what Settings uses, because setup
 /// is read once and often on a display the reader is not sitting close to. Three
-/// sizes and two colours: primary for anything acted on, secondary for support.
+/// sizes and two colors: primary for anything acted on, secondary for support.
 enum OnboardingType {
     /// The step's own sentence, under the title.
     static let subtitle = Font.title3
@@ -179,8 +179,8 @@ struct APIKeyStep: View {
                 // part of it.
                 VStack(alignment: .leading, spacing: 10) {
                     OnboardingNumberedStep(1, "[Create a free ElevenLabs account](https://elevenlabs.io/app/sign-up) if you do not have one.")
-                    // ElevenLabs' own labels, capitalised as their dashboard
-                    // capitalises them, so the words on this step are the words
+                    // ElevenLabs' own labels, capitalized as their dashboard
+                    // capitalizes them, so the words on this step are the words
                     // to look for on the page it sends people to.
                     OnboardingNumberedStep(2, "[Create an API key](https://elevenlabs.io/app/developers/api-keys). If you turn **Restrict Key** on (recommended), enable **Speech to Text** under Endpoints, and **User** under Administration if you want Scriber to show your remaining credits.")
                     OnboardingNumberedStep(3, "Paste the key below.")
@@ -216,7 +216,7 @@ struct APIKeyStep: View {
                             .disabled(!canSubmit)
                         }
                         // Given its row up front. Letting it appear on the
-                        // first save would move the card, and the page centred
+                        // first save would move the card, and the page centered
                         // under the title moves with it.
                         status.frame(minHeight: 15, alignment: .leading)
                     }
@@ -398,7 +398,7 @@ struct DataUseWindowView: View {
 ///
 /// The route through ElevenLabs' own interface, as a sheet rather than a
 /// hand-drawn scrim: a sheet already dims what is behind it, keeps its buttons
-/// in normal control colours against the window rather than against a dark
+/// in normal control colors against the window rather than against a dark
 /// wash, answers Escape, and cannot cover the footer it is presented from.
 ///
 /// The steps are numbered to match the marks drawn on the screenshot, so the
@@ -464,7 +464,7 @@ struct DataUseGuideSheet: View {
                             .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                     }
                     .accessibilityLabel("The ElevenLabs profile menu. One, the profile button at the top right. Two, Terms and privacy near the bottom of the menu. Three, Data use in the submenu that opens beside it.")
-                    // Centred against the column while the prose stays ranged
+                    // Centered against the column while the prose stays ranged
                     // left. Safe to place the picture with a frame now that it
                     // carries its own size: this is where it sits, not how big
                     // it is.

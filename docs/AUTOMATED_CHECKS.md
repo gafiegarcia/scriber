@@ -31,7 +31,7 @@ The typecheck covers `ScriberCore` and not the app target, so **a passing routin
 
 `./scripts/check-docs.sh` — no line-numbered code citation anywhere, every symbol citation naming something its file still declares, and every quoted spec fragment in `MANUAL_CHECKS.md` still present in `PRODUCT_SPEC.md`.
 
-It proves a spec fragment exists. It cannot prove it is the *right* rule: an anchor can resolve to a plausible neighbour, and only reading the check beside the bullet it names settles that.
+It proves a spec fragment exists. It cannot prove it is the *right* rule: an anchor can resolve to a plausible neighbor, and only reading the check beside the bullet it names settles that.
 
 ## Release bundle inspection
 
@@ -66,7 +66,7 @@ The app itself needs no separate proof here. The cask fetches the same release a
 
 This launch suppresses activation, Dock presence, and the menu-bar item, but still creates and renders the window. A process that stays at high CPU or never idles is an app failure worth sampling before blaming the harness.
 
-It creates and renders a window once. It cannot put a closed one back on screen: after a window closes under this flag, `openWindow(id:)` and the front-ordering path both leave `isVisible == false`, and the `window-lifecycle` log still reports `showWindow: ordering front`, so the log agrees with a reopening that did not happen. Nothing that depends on a window being presented a second time can be measured here — `onAppear`, `didBecomeKey`, and any routing that selects a Settings tab on the way in all go quiet, and read as broken. Take reopening behaviour to an activating launch or to the user, never to this flag.
+It creates and renders a window once. It cannot put a closed one back on screen: after a window closes under this flag, `openWindow(id:)` and the front-ordering path both leave `isVisible == false`, and the `window-lifecycle` log still reports `showWindow: ordering front`, so the log agrees with a reopening that did not happen. Nothing that depends on a window being presented a second time can be measured here — `onAppear`, `didBecomeKey`, and any routing that selects a Settings tab on the way in all go quiet, and read as broken. Take reopening behavior to an activating launch or to the user, never to this flag.
 
 ```bash
 /usr/bin/log show --last 5m --predicate 'subsystem == "com.gafiegarcia.scriber"' --style compact
@@ -94,7 +94,7 @@ Every launch also writes `launchEvent:` twice and one `launchContext:` line, rec
 
 Most of what an inspection needs is readable, and pressable, from the accessibility tree. Reach for this before asking for computer-use or for the user: a build succeeding says nothing about what the app ended up showing, and SwiftUI contributes menu items, sizes, and defaults that no Scriber file names.
 
-What this reaches: menu bar contents and menu items, window titles, sizes and positions, resize limits, tab selection, buttons and links by accessibility identifier, sheets and their contents, scroll areas and the geometry of anything inside them. What it does not: colour, translucency, glass, spacing judged by eye, and anything about appearance — those still need a computer-use tool or the user.
+What this reaches: menu bar contents and menu items, window titles, sizes and positions, resize limits, tab selection, buttons and links by accessibility identifier, sheets and their contents, scroll areas and the geometry of anything inside them. What it does not: color, translucency, glass, spacing judged by eye, and anything about appearance — those still need a computer-use tool or the user.
 
 Needs Accessibility permission for whatever runs `osascript`, usually the terminal.
 
@@ -169,7 +169,7 @@ Pair it with `--ui-testing-no-activate`, where the window never becomes key. Any
 
 ### Visual and interaction inspection
 
-Try **Driving the app without computer-use** first. Much of what follows was written before the accessibility tree was used this way, and asks for a computer-use tool to establish something readable — a window's size, which tab is selected, what a sheet contains. Reach for computer-use for what is genuinely visual: colour, translucency, glass, spacing judged by eye.
+Try **Driving the app without computer-use** first. Much of what follows was written before the accessibility tree was used this way, and asks for a computer-use tool to establish something readable — a window's size, which tab is selected, what a sheet contains. Reach for computer-use for what is genuinely visual: color, translucency, glass, spacing judged by eye.
 
 Use a computer-use tool with the capture restricted to **Scriber**, so no other application appears.
 
@@ -183,11 +183,11 @@ It moves the real pointer and can press keys, so do not start one while the user
 
 Add `--ui-testing-onboarding-unlocked` to reach the steps that gate on a real grant, a real microphone signal, or a real keypress. Without it those steps can only be passed by granting permissions to the Debug build, which writes that build's identity into the Mac's privacy lists. The gates still render — only Continue stops obeying them — so any check *of* a gate has to be run without the flag.
 
-Confirm the window is centred and fully visible above the Dock, then relaunch and confirm it again — a restored frame behaves differently from a fresh one, and `fitOnboardingWindow` in `Scriber/ScriberApp.swift` is what overrides AppKit here.
+Confirm the window is centered and fully visible above the Dock, then relaunch and confirm it again — a restored frame behaves differently from a fresh one, and `fitOnboardingWindow` in `Scriber/ScriberApp.swift` is what overrides AppKit here.
 
-Walk all seven steps. Each one fills the window without scrolling and centres in it, the footer's page dots track the step, and no step's controls move as the step changes.
+Walk all seven steps. Each one fills the window without scrolling and centers in it, the footer's page dots track the step, and no step's controls move as the step changes.
 
-Also launch ordinary `--ui-testing`, open Settings, and choose **Redo Setup…** on the General tab while the main window is already open. The setup window comes to the front, remains centred above the Dock, and shows the throwaway setup state; never reset the user's real `onboardingComplete` preference for this inspection.
+Also launch ordinary `--ui-testing`, open Settings, and choose **Redo Setup…** on the General tab while the main window is already open. The setup window comes to the front, remains centered above the Dock, and shows the throwaway setup state; never reset the user's real `onboardingComplete` preference for this inspection.
 
 ### Seeded history
 
@@ -228,7 +228,7 @@ kill "$pid"
 Use this same isolated launch for the window, toolbar, Settings, and history interaction checks:
 
 - `⌘F` focuses Dictation search. In Settings, the command is disabled and leaves focus unchanged.
-- Launch, the Dock icon, and reopening after `⌘W` all present the main window with search focused. Returning from another app, `⌘H`, or minimising preserves an existing transcript selection and search/scroll position.
+- Launch, the Dock icon, and reopening after `⌘W` all present the main window with search focused. Returning from another app, `⌘H`, or minimizing preserves an existing transcript selection and search/scroll position.
 - The main window has no displayed title. Workspace, total rendered count, and warning control stay grouped without reflow; search does not change the total.
 - Each day's label sits above its entries and sticks to the top of the list as that day passes under, handing over to the next. Scroll the full 45 days, then drag the scrollbar hard from top to bottom and back several times: content is on screen at every position and the list never blanks. Rows and toolbar survive minimum window size.
 - A row's Delete asks nothing and `⌘Z` puts the row back; a second `⌘Z` puts back the one before it, and `⇧⌘Z` deletes it again. Type a query into search first and delete from the results — without the focus surrender this reports success while `⌘Z` merely clears the search field, so read the field's value as well as the row count. Clear Dictation History, on Settings' Dictation tab, still asks: exercise Cancel and confirmation against the in-memory fixture, verify the rendered count, and never repeat this against the installed app's real history.
@@ -258,7 +258,7 @@ Never drag a test build's item out of the menu bar either: the list macOS keeps 
 
 Do not combine it with `--ui-testing-no-activate`, which is for launches nobody is watching.
 
-This shows the menu and what is in it. It proves nothing about menu-bar *behaviour* that depends on real state — the warning symbol tracking a real key, or the recording indicator — which stays on the installed app.
+This shows the menu and what is in it. It proves nothing about menu-bar *behavior* that depends on real state — the warning symbol tracking a real key, or the recording indicator — which stays on the installed app.
 
 ### An update being available
 
@@ -290,7 +290,7 @@ The version in the **Scriber v0.8.0 (build)** line is the pretended one, which i
 
 #### The Homebrew route
 
-Scriber offers a Homebrew install the `brew upgrade` command instead of the release page, and recognises one by resolving the Caskroom's symlink against its own bundle. Reaching that state on a Mac whose Scriber is not Homebrew-managed means building the link by hand, pointed at **the Debug build**, which is what will be running:
+Scriber offers a Homebrew install the `brew upgrade` command instead of the release page, and recognizes one by resolving the Caskroom's symlink against its own bundle. Reaching that state on a Mac whose Scriber is not Homebrew-managed means building the link by hand, pointed at **the Debug build**, which is what will be running:
 
 ```bash
 DEBUG_APP="$(git rev-parse --show-toplevel)/.build/xcode-debug/Build/Products/Debug/Scriber.app"

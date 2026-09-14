@@ -74,7 +74,7 @@ private struct ToastView: View {
 
 /// Lives here rather than beside the tone itself because `ScriberCore` is
 /// deliberately free of SwiftUI. The floating pill reads the same two properties,
-/// which is what stops it and the toast stack from colouring one outcome twice.
+/// which is what stops it and the toast stack from coloring one outcome twice.
 extension ToastTone {
     /// Symbols carry this at full strength.
     var accent: Color? {

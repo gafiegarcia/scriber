@@ -26,7 +26,7 @@ final class DictationHistoryMaintenance {
         // A row holding a transcript succeeded, whatever its state says. Nothing
         // writes text to a record except a transcription that finished, and the
         // audio is only released once it has, so this pair cannot describe a
-        // dictation that failed or was cancelled. Rows in that shape are left
+        // dictation that failed or was canceled. Rows in that shape are left
         // stranded: History offers no Retry, because there is no audio to retry.
         for record in records
         where record.transcriptionState != .succeeded
@@ -71,7 +71,7 @@ final class DictationHistoryMaintenance {
         try? modelContext.save()
     }
 
-    /// Removes failed and cancelled dictations that have nothing left to offer,
+    /// Removes failed and canceled dictations that have nothing left to offer,
     /// along with any retained audio still behind them. Such a dictation earns its
     /// row by being retryable; once the recording has expired or gone missing and
     /// no transcript ever arrived, the row can only be scrolled past.

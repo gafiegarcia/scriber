@@ -12,7 +12,7 @@ public struct RecorderLifecycle: Equatable, Sendable {
     public enum Start: Equatable, Sendable {
         case start
         /// Something was still in flight. It is dropped rather than allowed to
-        /// refuse the new recording, having already been stopped or cancelled.
+        /// refuse the new recording, having already been stopped or canceled.
         case supersedeThenStart(abandoning: UUID)
     }
 
@@ -53,7 +53,7 @@ public struct RecorderLifecycle: Equatable, Sendable {
         return .stop(current)
     }
 
-    /// Cancelling after a stop keeps the same single stop and only changes what
+    /// Canceling after a stop keeps the same single stop and only changes what
     /// happens to the audio, so a stop and a cancel racing cannot issue two.
     public mutating func cancel() -> Stop {
         guard let current else { return .nothingToStop }

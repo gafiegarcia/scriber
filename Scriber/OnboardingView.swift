@@ -5,7 +5,7 @@ enum OnboardingLayout {
     /// The width the window is pinned to, and the height it opens at. Width never
     /// changes, so every step is laid out against a column that never changes
     /// shape; height gives way on a display too short to show it. Sitting between
-    /// Settings (660×520) and the main window (900×640) keeps setup recognisably
+    /// Settings (660×520) and the main window (900×640) keeps setup recognizably
     /// part of the same app.
     static let windowWidth: CGFloat = 660
     static let windowHeight: CGFloat = 700
@@ -388,7 +388,7 @@ struct OnboardingView: View {
     }
 
     /// Applies the default once, on Done or on the window going away — whichever
-    /// comes first, so closing setup at Try it still honours the box nobody
+    /// comes first, so closing setup at Try it still honors the box nobody
     /// touched rather than silently dropping it. A box that was touched has
     /// already been applied, and this leaves it alone.
     private func applyLaunchAtLoginOnce() {
@@ -460,7 +460,7 @@ struct OnboardingView: View {
 }
 
 /// Page dots. Non-interactive, and announced as one control rather than seven, so
-/// VoiceOver reads a position instead of a row of unlabelled circles.
+/// VoiceOver reads a position instead of a row of unlabeled circles.
 private struct StepIndicator: View {
     let step: OnboardingStep
 
