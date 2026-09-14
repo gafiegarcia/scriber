@@ -41,7 +41,6 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Let a truncated dictation entry expand in place.** ([Notion task](https://app.notion.com/p/3ba719370402803a8978eb4d1c39da5c))
 - [ ] **Let keyterm prompting be switched off without deleting the terms.** ([Notion task](https://app.notion.com/p/3be71937040280b19edac6e9b0476d8e))
 - [ ] **Offer a Reset to default shortcut button.** ([Notion task](https://app.notion.com/p/3bf7193704028091915fd03840d0d35d))
-- [ ] **Say why a secure field refused the dictation.** ([Notion task](https://app.notion.com/p/3bf71937040280b7bae9fd6d0fd65c64))
 - [ ] **Let someone turn off saving dictation history.** ([Notion task](https://app.notion.com/p/3be71937040280979aefe6d76c42c9ae))
 - [ ] **Delete dictation entries once they reach a chosen age.** ([Notion task](https://app.notion.com/p/3cf71937040280b3b7edd3fb8c566ab0))
 - [ ] **Say so when a stored setting is dropped on load.** ([Notion task](https://app.notion.com/p/3d27193704028114869acb94f0990204))
