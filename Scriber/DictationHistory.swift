@@ -382,7 +382,7 @@ private struct DictationHistoryRow: View {
                     if isRetrying {
                         Label("Retrying", systemImage: "arrow.clockwise")
                             .foregroundStyle(.secondary)
-                    } else if record.transcriptionState == .cancelled {
+                    } else if record.transcriptionState == .canceled {
                         Label("Cancelled", systemImage: "xmark.circle.fill")
                             .foregroundStyle(.orange)
                     } else if record.transcriptionState == .failed {
@@ -577,6 +577,6 @@ private struct RowIconButton: View {
 
 private extension DictationRecord {
     var isRetryable: Bool {
-        transcriptionState == .failed || transcriptionState == .cancelled
+        transcriptionState == .failed || transcriptionState == .canceled
     }
 }

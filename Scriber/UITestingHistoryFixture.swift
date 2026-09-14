@@ -82,7 +82,7 @@ enum UITestingHistoryFixture {
         Entry(
             index: 5, dayOffset: 0, hour: 14, minute: 21, duration: 5.9,
             errorMessage: "Cancelled before transcription.",
-            state: .cancelled, audioFileName: "ui-testing-fixture-cancelled.m4a"
+            state: .canceled, audioFileName: "ui-testing-fixture-cancelled.m4a"
         ),
         // Must never appear. Not a placeholder: this is the assertion that an
         // in-flight dictation stays out of the list until its outcome lands.
@@ -169,7 +169,7 @@ enum UITestingHistoryFixture {
         Entry(
             index: 16, dayOffset: 3, hour: 17, minute: 26, duration: 1.8,
             errorMessage: "The retained recording is no longer available.",
-            state: .cancelled
+            state: .canceled
         ),
         // Second tall row, deliberately mid-scroll rather than at a card edge.
         Entry(

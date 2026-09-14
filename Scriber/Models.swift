@@ -5,7 +5,7 @@ enum TranscriptionState: String, Codable, CaseIterable, Sendable {
     case transcribing
     case succeeded
     case failed
-    case cancelled
+    case canceled
 }
 
 enum DeliveryState: String, Codable, CaseIterable, Sendable {

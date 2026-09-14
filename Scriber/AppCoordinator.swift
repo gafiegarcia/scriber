@@ -1116,7 +1116,7 @@ final class AppCoordinator: ObservableObject {
             showTransientMessage("Already transcribing")
             return
         }
-        guard (record.transcriptionState == .failed || record.transcriptionState == .cancelled),
+        guard (record.transcriptionState == .failed || record.transcriptionState == .canceled),
               let relativePath = record.pendingAudioRelativePath else {
             showMessage("This dictation is no longer retryable")
             return
@@ -1666,7 +1666,7 @@ final class AppCoordinator: ObservableObject {
                     // discarded the way an uncancelled empty result is: See
                     // History has to find something, and Retry there transcribes
                     // like any other row instead of replaying a lost verdict.
-                    record.transcriptionState = .cancelled
+                    record.transcriptionState = .canceled
                     cancelledTranscription?.outcome = .noWords
                     Self.dictationLog.notice("dictation parked run=\(run, privacy: .public) outcome=noWords")
                 }
@@ -1722,7 +1722,7 @@ final class AppCoordinator: ObservableObject {
             // it down, say nothing. The row keeps its audio, so Recover — or
             // Retry in History later — can transcribe it afresh.
             if isSilenced(run: run) {
-                record.transcriptionState = .cancelled
+                record.transcriptionState = .canceled
                 record.errorMessage = error.localizedDescription
                 try? modelContext.save()
                 cancelledTranscription?.outcome = .failed(error.localizedDescription)
@@ -1983,7 +1983,7 @@ final class AppCoordinator: ObservableObject {
         let record = DictationRecord(
             id: completed.id,
             durationSeconds: completed.duration,
-            transcriptionState: .cancelled,
+            transcriptionState: .canceled,
             errorMessage: "Canceled before transcription.",
             pendingAudioRelativePath: completed.relativePath
         )
@@ -2020,7 +2020,7 @@ final class AppCoordinator: ObservableObject {
         )
         // Recorded now rather than when the request lands, so a quit in between
         // leaves a cancelled row holding its audio instead of a transcribing one.
-        record.transcriptionState = .cancelled
+        record.transcriptionState = .canceled
         record.errorMessage = "Canceled before the transcript arrived."
         try? modelContext.save()
 
@@ -2099,7 +2099,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func retranscribeCancelledDictation(_ record: DictationRecord) {
-        guard record.transcriptionState == .cancelled || record.transcriptionState == .failed,
+        guard record.transcriptionState == .canceled || record.transcriptionState == .failed,
               currentRecording != nil else {
             showMessage("Recording unavailable")
             return

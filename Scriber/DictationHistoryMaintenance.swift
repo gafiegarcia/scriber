@@ -13,6 +13,16 @@ final class DictationHistoryMaintenance {
 
     func recoverPersistedAndOrphanedRecords() {
         guard let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
+        // Legacy: rows from before this state was spelled the American way. Nothing
+        // writes "cancelled" any more, so only a build older than the rename can have
+        // left one; without this the getter's `?? .failed` relabels every one of them
+        // Failed. Reads the stored string because `transcriptionState` has already
+        // become `.failed` by the time it can be asked, and runs before the passes
+        // below so they see the state the row actually holds.
+        for record in records where record.transcriptionStateRaw == "cancelled" {
+            record.transcriptionState = .canceled
+        }
+
         // A row holding a transcript succeeded, whatever its state says. Nothing
         // writes text to a record except a transcription that finished, and the
         // audio is only released once it has, so this pair cannot describe a
@@ -93,7 +103,7 @@ final class DictationHistoryMaintenance {
             // one the user is retrying right now, from the very window this sweep
             // may have been run by.
             guard record.text?.isEmpty ?? true,
-                  record.transcriptionState == .failed || record.transcriptionState == .cancelled
+                  record.transcriptionState == .failed || record.transcriptionState == .canceled
             else {
                 survivors.append(record)
                 continue
