@@ -149,7 +149,7 @@ final class AppCoordinator: ObservableObject {
     ///
     /// In memory only. Nothing about this outlives the pill it belongs to, so a
     /// history row left behind by one retries like any other.
-    private struct CancelledTranscription {
+    private struct CanceledTranscription {
         /// The run this cancelled, never the record. The same recording can be
         /// transcribed again from History, and an earlier cancellation of it must
         /// not silence that new attempt — which is what left a pill saying
@@ -160,11 +160,11 @@ final class AppCoordinator: ObservableObject {
         /// run back where it was instead of inventing a first attempt for one that
         /// is on its third.
         let interruptedPhase: AppPhase
-        var outcome: CancelledTranscriptionOutcome = .stillRunning
+        var outcome: CanceledTranscriptionOutcome = .stillRunning
     }
 
     /// The offer on screen. Belongs to the pill and dies with it.
-    private var cancelledTranscription: CancelledTranscription?
+    private var canceledTranscription: CanceledTranscription?
 
     /// The runs that must stay quiet. Each belongs to a run and is dropped only
     /// when that run ends.
@@ -273,7 +273,7 @@ final class AppCoordinator: ObservableObject {
         pill.model.onOpenPermissionSettings = { [weak self] in self?.openPermissionSettings() }
         pill.model.onOpenInputSettings = { [weak self] in self?.openMicrophoneInputSettings() }
         pill.model.onRetry = { [weak self] in self?.retryCurrentFailure() }
-        pill.model.onRecover = { [weak self] in self?.recoverCancelledDictation() }
+        pill.model.onRecover = { [weak self] in self?.recoverCanceledDictation() }
         // Live, so the offline pill's Retry lights up the moment a route returns
         // rather than only when the pill is next drawn.
         pill.model.hasNetworkRoute = reachability.hasNetworkRoute
@@ -415,7 +415,7 @@ final class AppCoordinator: ObservableObject {
         case .idle: shortcutMonitorAvailable ? "Ready" : "Shortcut access needed"
         case .recording: "Recording"
         case .transcribing: "Transcribing"
-        case .cancelledTranscript: "Cancelled"
+        case .canceledTranscript: "Cancelled"
         case .noInternetConnection: "No internet connection"
         case .inputDisconnected: "Microphone disconnected"
         case .dictationCopied, .transcriptCopied: "Copied"
@@ -1590,7 +1590,7 @@ final class AppCoordinator: ObservableObject {
         // A fresh run retires the previous offer. Without this a cancellation
         // whose pill has already timed out silences the next transcription of the
         // same recording, which then finishes without ever taking its pill down.
-        cancelledTranscription = nil
+        canceledTranscription = nil
         defer {
             silencedRuns.remove(run)
             // Only the run still in charge may put the app back to rest. A
@@ -1659,7 +1659,7 @@ final class AppCoordinator: ObservableObject {
                     record.errorMessage = nil
                     AudioRecorder.delete(relativePath: recording.relativePath)
                     record.pendingAudioRelativePath = nil
-                    cancelledTranscription?.outcome = .transcript(normalized)
+                    canceledTranscription?.outcome = .transcript(normalized)
                     Self.dictationLog.notice("dictation parked run=\(run, privacy: .public) outcome=transcript")
                 } else {
                     // Kept as a cancelled row holding its audio rather than
@@ -1667,7 +1667,7 @@ final class AppCoordinator: ObservableObject {
                     // History has to find something, and Retry there transcribes
                     // like any other row instead of replaying a lost verdict.
                     record.transcriptionState = .canceled
-                    cancelledTranscription?.outcome = .noWords
+                    canceledTranscription?.outcome = .noWords
                     Self.dictationLog.notice("dictation parked run=\(run, privacy: .public) outcome=noWords")
                 }
                 try? modelContext.save()
@@ -1725,7 +1725,7 @@ final class AppCoordinator: ObservableObject {
                 record.transcriptionState = .canceled
                 record.errorMessage = error.localizedDescription
                 try? modelContext.save()
-                cancelledTranscription?.outcome = .failed(error.localizedDescription)
+                canceledTranscription?.outcome = .failed(error.localizedDescription)
                 Self.dictationLog.notice("dictation parked run=\(run, privacy: .public) outcome=failed")
                 return
             }
@@ -1884,7 +1884,7 @@ final class AppCoordinator: ObservableObject {
             guard let self else { return }
             do {
                 let completed = try await recorder.stop()
-                retainCancelledRecording(completed)
+                retainCanceledRecording(completed)
             } catch {
                 shortcuts.setMode(.idle)
                 showFailure(failureText(for: error))
@@ -1968,7 +1968,7 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    private func retainCancelledRecording(_ completed: CompletedRecording) {
+    private func retainCanceledRecording(_ completed: CompletedRecording) {
         guard RecordingCancellationPolicy.retainsAudio(
             elapsed: completed.duration,
             detectedSignal: completed.detectedSignal
@@ -1994,7 +1994,7 @@ final class AppCoordinator: ObservableObject {
             currentRecording = completed
             shortcuts.setMode(.idle)
             playFeedback(.dictationDidNotLand)
-            setPhase(.cancelledTranscript)
+            setPhase(.canceledTranscript)
         } catch {
             shortcuts.setMode(.idle)
             showFailure(failureText(for: error))
@@ -2031,51 +2031,51 @@ final class AppCoordinator: ObservableObject {
         // writes what it got.
         guard liveTranscriptionDelivery != .copy else {
             returnToIdle()
-            cancelledTranscription = CancelledTranscription(
+            canceledTranscription = CanceledTranscription(
                 run: run, recordID: record.id, interruptedPhase: interrupted
             )
             return
         }
 
-        cancelledTranscription = CancelledTranscription(
+        canceledTranscription = CanceledTranscription(
             run: run, recordID: record.id, interruptedPhase: interrupted
         )
         paste.clearTarget()
         pill.setPreferredScreen(nil)
         if gate.isIdle { shortcuts.setMode(.idle) }
         playFeedback(.dictationDidNotLand)
-        setPhase(.cancelledTranscript)
+        setPhase(.canceledTranscript)
     }
 
     /// The Recover button, for both kinds of cancellation. A dictation cancelled
     /// before its request went out has only one thing it can do; one cancelled
-    /// after has four, decided by `CancelledTranscriptionOutcome`.
-    private func recoverCancelledDictation() {
+    /// after has four, decided by `CanceledTranscriptionOutcome`.
+    private func recoverCanceledDictation() {
         guard let record = currentRecord, let recording = currentRecording else {
             showMessage("Recording unavailable")
             return
         }
-        guard let cancelled = cancelledTranscription, cancelled.recordID == record.id else {
-            retranscribeCancelledDictation(record)
+        guard let canceled = canceledTranscription, canceled.recordID == record.id else {
+            retranscribeCanceledDictation(record)
             return
         }
         Self.dictationLog.notice(
-            "dictation recover run=\(cancelled.run, privacy: .public) outcome=\(cancelled.outcome.label, privacy: .public)"
+            "dictation recover run=\(canceled.run, privacy: .public) outcome=\(canceled.outcome.label, privacy: .public)"
         )
-        switch cancelled.outcome.recovery {
+        switch canceled.outcome.recovery {
         // Clearing this un-silences the request still in flight: the next thing
         // it does reaches the pill normally, and it delivers as it always would.
         case .waitForTranscript:
             // Only worth waiting for while the run is still going. If it ended
             // without recording its outcome, transcribe afresh rather than sit on
             // a Transcribing… pill nothing will ever take down.
-            guard liveTranscriptionRun == cancelled.run else {
-                cancelledTranscription = nil
-                retranscribeCancelledDictation(record)
+            guard liveTranscriptionRun == canceled.run else {
+                canceledTranscription = nil
+                retranscribeCanceledDictation(record)
                 return
             }
-            cancelledTranscription = nil
-            silencedRuns.remove(cancelled.run)
+            canceledTranscription = nil
+            silencedRuns.remove(canceled.run)
             record.transcriptionState = .transcribing
             record.errorMessage = nil
             try? modelContext.save()
@@ -2084,21 +2084,21 @@ final class AppCoordinator: ObservableObject {
             // The phase Escape interrupted, not a fabricated first attempt. A run
             // on its third attempt drew the compact pill for one moment and the
             // real one the next, which read as the pill breaking.
-            setPhase(cancelled.interruptedPhase)
+            setPhase(canceled.interruptedPhase)
         case .deliver(let transcript):
-            cancelledTranscription = nil
+            canceledTranscription = nil
             setPhase(.idle)
             Task { await deliverTranscript(transcript, record: record) }
         case .reportNoWords:
-            cancelledTranscription = nil
+            canceledTranscription = nil
             discardNoContent(record: record, recording: recording)
         case .transcribeAgain:
-            cancelledTranscription = nil
-            retranscribeCancelledDictation(record)
+            canceledTranscription = nil
+            retranscribeCanceledDictation(record)
         }
     }
 
-    private func retranscribeCancelledDictation(_ record: DictationRecord) {
+    private func retranscribeCanceledDictation(_ record: DictationRecord) {
         guard record.transcriptionState == .canceled || record.transcriptionState == .failed,
               currentRecording != nil else {
             showMessage("Recording unavailable")
@@ -2135,7 +2135,7 @@ final class AppCoordinator: ObservableObject {
     private func retryCurrentFailure() {
         guard let currentRecord else { return }
         if case .noInternetConnection = phase {
-            retranscribeCancelledDictation(currentRecord)
+            retranscribeCanceledDictation(currentRecord)
             return
         }
         retry(currentRecord)
@@ -2357,7 +2357,7 @@ final class AppCoordinator: ObservableObject {
         // The parked outcome belongs to the pill that offered Recover. Once that
         // pill is gone the row in history is the only route back, which is the
         // point: nothing about a cancellation is remembered beyond the offer.
-        cancelledTranscription = nil
+        canceledTranscription = nil
         paste.clearTarget()
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)

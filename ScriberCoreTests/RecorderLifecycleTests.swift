@@ -48,10 +48,10 @@ struct RecorderLifecycleTests {
         #expect(lifecycle.stop() == .stop(stopped))
         #expect(lifecycle.finished(stopped) == .deliver(stopped))
 
-        let cancelled = UUID()
-        _ = lifecycle.start(cancelled)
-        #expect(lifecycle.cancel() == .stop(cancelled))
-        #expect(lifecycle.finished(cancelled) == .discard(cancelled))
+        let canceled = UUID()
+        _ = lifecycle.start(canceled)
+        #expect(lifecycle.cancel() == .stop(canceled))
+        #expect(lifecycle.finished(canceled) == .discard(canceled))
     }
 
     @Test("A stop and a cancel racing issue one stop, and the audio is discarded")

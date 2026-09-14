@@ -43,7 +43,7 @@ struct HomebrewInstallTests {
     }
 
     @Test("A Caskroom link pointing at this bundle is a Homebrew install")
-    func recognisesManagedInstall() throws {
+    func recognizesManagedInstall() throws {
         let layout = try makeLayout()
         #expect(HomebrewInstall.manages(
             bundlePath: layout.appPath,

@@ -672,7 +672,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// sequence stops trying to put that window back on screen.
     private var initialWindowDismissed = false
     private var escapeMonitor: Any?
-    private var onboardingCentreMonitor: Any?
+    private var onboardingCenterMonitor: Any?
     /// Windows already placed. `fitPageWindow` runs from `didBecomeKey`,
     /// which fires every time setup is clicked back into — re-centring there
     /// takes the window's position away from whoever moved it.
@@ -736,7 +736,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             : UserDefaults.standard.bool(forKey: "showAppInDock")
         NSApp.setActivationPolicy(AppLaunchConfiguration.keepsRegularActivationPolicy ? .regular : .accessory)
         installSettingsEscapeMonitor()
-        installOnboardingCentreMonitor()
+        installOnboardingCenterMonitor()
         let center = NotificationCenter.default
         NSApp.windows.filter(AppWindowIdentity.isManagedWindow).forEach {
             $0.isReleasedWhenClosed = false
@@ -876,8 +876,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// above centre and moves it in one jump, which is not that command.
     ///
     /// App-lifetime, for the same reason as the Settings escape monitor above.
-    private func installOnboardingCentreMonitor() {
-        onboardingCentreMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+    private func installOnboardingCenterMonitor() {
+        onboardingCenterMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard event.modifierFlags.contains(.control),
                   !event.modifierFlags.contains(.command),
                   event.charactersIgnoringModifiers?.lowercased() == "c",

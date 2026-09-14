@@ -86,7 +86,7 @@ struct ShortcutMatcherTests {
         #expect(AppPhase.noAudioSignal.acceptsRecordingStart)
         #expect(AppPhase.idle.acceptsRecordingStart)
         #expect(AppPhase.message("Copied").acceptsRecordingStart)
-        #expect(AppPhase.cancelledTranscript.acceptsRecordingStart)
+        #expect(AppPhase.canceledTranscript.acceptsRecordingStart)
         #expect(AppPhase.dictationCopied(text: "hi", message: "No target").acceptsRecordingStart)
         #expect(AppPhase.permissionsRequired([.microphone]).acceptsRecordingStart)
         #expect(AppPhase.credentialsUnusable(.missingAPIKey).acceptsRecordingStart)
@@ -325,7 +325,7 @@ struct NoInternetPhaseTests {
     @Test("Carries the recovery layout, like the cancellation it resembles")
     func shape() {
         #expect(AppPhase.noInternetConnection.pillShapeStyle
-            == AppPhase.cancelledTranscript.pillShapeStyle)
+            == AppPhase.canceledTranscript.pillShapeStyle)
     }
 
     @Test("A resting notice does not hold up the next dictation")
@@ -336,25 +336,25 @@ struct NoInternetPhaseTests {
 }
 
 @Suite("Cancelled transcription recovery")
-struct CancelledTranscriptionTests {
+struct CanceledTranscriptionTests {
     @Test("A request still in flight is waited for, never restarted")
     func stillRunning() {
-        #expect(CancelledTranscriptionOutcome.stillRunning.recovery == .waitForTranscript)
+        #expect(CanceledTranscriptionOutcome.stillRunning.recovery == .waitForTranscript)
     }
 
     @Test("A transcript that already arrived is delivered rather than fetched again")
     func arrived() {
-        #expect(CancelledTranscriptionOutcome.transcript("hello").recovery == .deliver("hello"))
+        #expect(CanceledTranscriptionOutcome.transcript("hello").recovery == .deliver("hello"))
     }
 
     @Test("An empty result is reported, not retranscribed")
     func empty() {
-        #expect(CancelledTranscriptionOutcome.noWords.recovery == .reportNoWords)
+        #expect(CanceledTranscriptionOutcome.noWords.recovery == .reportNoWords)
     }
 
     @Test("A failure is the only outcome that spends a second request")
     func failure() {
-        #expect(CancelledTranscriptionOutcome.failed("Offline").recovery == .transcribeAgain)
+        #expect(CanceledTranscriptionOutcome.failed("Offline").recovery == .transcribeAgain)
     }
 }
 
@@ -417,7 +417,7 @@ struct PillShapeTests {
 
         #expect(copied.pillShapeStyle == .roundedRectangle)
         #expect(copied.pillCornerRadius(height: 230) == 24)
-        #expect(AppPhase.cancelledTranscript.pillShapeStyle == .roundedRectangle)
+        #expect(AppPhase.canceledTranscript.pillShapeStyle == .roundedRectangle)
     }
 
     /// The two failures are told apart by whether a history row survived, and the
@@ -455,7 +455,7 @@ private let everyPhase: [AppPhase] = [
     .idle,
     .recording(mode: .held, elapsed: 1, level: -20),
     .transcribing(attempt: 1, retryDelay: nil),
-    .cancelledTranscript,
+    .canceledTranscript,
     .noInternetConnection,
     .inputDisconnected,
     .dictationCopied(text: "hi", message: "No target"),
@@ -510,7 +510,7 @@ struct PillToneTests {
             .idle,
             .recording(mode: .locked, elapsed: 3, level: -20),
             .transcribing(attempt: 2, retryDelay: 3),
-            .cancelledTranscript,
+            .canceledTranscript,
             .message("Copied")
         ]
         for phase in neutral { #expect(phase.pillTone == .neutral) }
@@ -1306,7 +1306,7 @@ struct ShortcutTapMachineTests {
     }
 
     @Test("A typing cancel cannot be restarted by the chord still being held")
-    func cancelledHoldDoesNotRestartItself() {
+    func canceledHoldDoesNotRestartItself() {
         var machine = machine(dictation: keyedHold)
         #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false).effects == [.action(.pressed)])
         machine.setMode(.held)

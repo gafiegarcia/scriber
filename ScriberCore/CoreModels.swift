@@ -508,7 +508,7 @@ public enum AppPhase: Equatable, Sendable {
     case idle
     case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)
     case transcribing(attempt: Int, retryDelay: TimeInterval?)
-    case cancelledTranscript
+    case canceledTranscript
     /// Stopped before anything was sent, because this Mac has no route to a
     /// network at all. Distinct from a transcription that failed: nothing left
     /// the machine, no credit moved, and the recording is waiting intact.
@@ -690,7 +690,7 @@ public enum PillDismissalAction: Equatable, Sendable {
 /// What a transcription that was cancelled after its request went out came back
 /// with. The request is left to finish because it is already billed, but it must
 /// not speak: its result is held here until the user asks for it.
-public enum CancelledTranscriptionOutcome: Equatable, Sendable {
+public enum CanceledTranscriptionOutcome: Equatable, Sendable {
     case stillRunning
     case transcript(String)
     case noWords
@@ -698,14 +698,14 @@ public enum CancelledTranscriptionOutcome: Equatable, Sendable {
 }
 
 /// What Recover does with it.
-public enum CancelledTranscriptionRecovery: Equatable, Sendable {
+public enum CanceledTranscriptionRecovery: Equatable, Sendable {
     case waitForTranscript
     case deliver(String)
     case reportNoWords
     case transcribeAgain
 }
 
-public extension CancelledTranscriptionOutcome {
+public extension CanceledTranscriptionOutcome {
     /// Names the outcome without carrying it. `String(describing:)` would put the
     /// transcript itself into a log line.
     var label: String {
@@ -720,7 +720,7 @@ public extension CancelledTranscriptionOutcome {
     /// `stillRunning` waits rather than starting a second transcription: the
     /// first request is in flight and paid for, and racing it would bill the
     /// user twice for one recording and return two transcripts.
-    var recovery: CancelledTranscriptionRecovery {
+    var recovery: CanceledTranscriptionRecovery {
         switch self {
         case .stillRunning: .waitForTranscript
         case .transcript(let text): .deliver(text)
@@ -888,7 +888,7 @@ public extension AppPhase {
         case .idle: "idle"
         case .recording: "recording"
         case .transcribing: "transcribing"
-        case .cancelledTranscript: "cancelled"
+        case .canceledTranscript: "canceled"
         case .inputDisconnected: "inputDisconnected"
         case .noInternetConnection: "noInternet"
         case .dictationCopied: "dictationCopied"
@@ -908,7 +908,7 @@ public extension AppPhase {
     var pillShapeStyle: PillShapeStyle {
         if case .dictationCopied = self { return .roundedRectangle }
         if case .dictationBlockedBySecureField = self { return .roundedRectangle }
-        if case .cancelledTranscript = self { return .roundedRectangle }
+        if case .canceledTranscript = self { return .roundedRectangle }
         if case .noInternetConnection = self { return .roundedRectangle }
         if case .inputDisconnected = self { return .roundedRectangle }
         if case .dictationFailed = self { return .roundedRectangle }
@@ -932,7 +932,7 @@ public extension AppPhase {
         // too, through `HandsFreePillAction`, so the key and the control cannot
         // come to mean different things.
         case .transcribing: .cancelTranscription
-        case .cancelledTranscript, .noInternetConnection, .inputDisconnected, .dictationCopied, .permissionsRequired,
+        case .canceledTranscript, .noInternetConnection, .inputDisconnected, .dictationCopied, .permissionsRequired,
              .credentialsUnusable, .transcriptionFailed, .dictationFailed, .noSpeechDetected, .retryFoundNoWords,
              .noAudioSignal, .transcriptCopied, .dictationBlockedBySecureField, .message: .dismiss
         }
@@ -956,7 +956,7 @@ public extension AppPhase {
         case .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .dictationFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,
              .inputDisconnected, .dictationBlockedBySecureField: .warning
-        case .idle, .recording, .transcribing, .cancelledTranscript, .noInternetConnection, .message: .neutral
+        case .idle, .recording, .transcribing, .canceledTranscript, .noInternetConnection, .message: .neutral
         }
     }
 

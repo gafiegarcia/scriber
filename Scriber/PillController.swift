@@ -389,7 +389,7 @@ final class PillController {
         // holding it as long as an apology makes a deliberate action feel slow.
         case .transcriptCopied:
             1.5
-        case .cancelledTranscript, .noInternetConnection, .noSpeechDetected, .retryFoundNoWords:
+        case .canceledTranscript, .noInternetConnection, .noSpeechDetected, .retryFoundNoWords:
             5
         case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
             6
@@ -416,7 +416,7 @@ final class PillController {
             copiedResultSize(for: text)
         case .dictationFailed(let message):
             dictationFailureSize(for: message)
-        case .cancelledTranscript, .noInternetConnection:
+        case .canceledTranscript, .noInternetConnection:
             NSSize(width: 430, height: 104)
         // Measured: its body is 486 points against the 394 the panel leaves, so
         // it is the one recovery offer whose caption wraps. 16 points taller than
@@ -776,7 +776,7 @@ private struct PillView: View {
             // dismiss button, leaving about 293 points against the caption's 394 —
             // so detail belongs in the caption, where there is room for it.
             copiedResult(text: text, message: message, symbol: "lock.fill")
-        case .cancelledTranscript:
+        case .canceledTranscript:
             cancellationRecovery
         case .noInternetConnection:
             noInternetRecovery
@@ -1092,7 +1092,7 @@ private struct PillView: View {
         // so this one must not read like the apology the expanded pill is making.
         case .dictationCopied, .transcriptCopied: "Copied"
         case .dictationBlockedBySecureField: "Copied"
-        case .cancelledTranscript: "You can recover your canceled dictation"
+        case .canceledTranscript: "You can recover your canceled dictation"
         case .noInternetConnection: "No internet connection"
         // Never drawn from here either — `.inputDisconnected` renders as the
         // recovery panel, which titles itself.
@@ -1118,7 +1118,7 @@ private struct PillView: View {
     /// message, which is where it is read.
     private var subtitle: String? {
         switch model.phase {
-        case .cancelledTranscript: "Recover pastes it wherever your cursor is now"
+        case .canceledTranscript: "Recover pastes it wherever your cursor is now"
         case .dictationCopied(_, let message), .dictationBlockedBySecureField(_, let message),
              .transcriptionFailed(let message): message
         // Keep these short: the compact pill gives its subtitle one line and
