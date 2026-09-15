@@ -48,8 +48,15 @@ public enum RecoveryConditions {
     /// Missing permissions outrank an unusable credential, matching the pill: with
     /// no Microphone or Accessibility there is nothing for a working key to do.
     /// Unfinished setup outranks both and replaces them, since setup is where all
-    /// of them get resolved. It reports at all because the setup window can be
-    /// closed with ⌘W, leaving nothing granted and nothing saying why.
+    /// of them get resolved.
+    ///
+    /// Measured: that banner is not reachable by any ordinary route. The main
+    /// window is suppressed for the whole of setup and the menu bar offers no way
+    /// to it while setup is outstanding — only **Finish Setup…** — so the one path
+    /// found is a dictation started on setup's own dictation step, canceled by
+    /// stepping off it, and then **See History** on the pill it leaves behind. Keep
+    /// both wordings correct anyway; a rule that is hard to reach is not a rule
+    /// that may lie when it is.
     ///
     /// `servicesEnabled` decides only the wording. Setup closed before its
     /// dictation step has granted nothing and Scriber genuinely cannot dictate;
