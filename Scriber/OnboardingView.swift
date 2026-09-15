@@ -91,6 +91,10 @@ struct OnboardingView: View {
         .onAppear(perform: prepare)
         .onDisappear {
             runtime.coordinator.stopMicrophoneTest()
+            // Before anything that can fail: a window that goes away leaving this
+            // set has left the shortcut deaf in every app, with no surface still
+            // on screen to clear it.
+            runtime.coordinator.setSetupBeforeDictationStep(false)
             applyLaunchAtLoginOnce()
             // The window going away ends the step too, so a Try it dictation does
             // not outlive it on the ⌘W route any more than on Back or Continue.
@@ -101,7 +105,10 @@ struct OnboardingView: View {
             didClampAfterValidation = true
             clampToFirstUnmetStep()
         }
-        .onChange(of: step) { _, _ in syncMicrophoneTest() }
+        .onChange(of: step) { _, _ in
+            syncMicrophoneTest()
+            syncSetupShortcutCapture()
+        }
         .onChange(of: runtime.coordinator.microphoneGranted) { _, _ in syncMicrophoneTest() }
         .onChange(of: runtime.preferences.audioInputSelection) { _, _ in
             microphoneSignalObserved = false
@@ -317,6 +324,27 @@ struct OnboardingView: View {
         runtime.coordinator.validateStoredAPIKey()
         step = resumedStep
         syncMicrophoneTest()
+        // Called rather than left to the `step` watcher: a reopened window can
+        // resume on the step it closed on, and an assignment that changes nothing
+        // publishes nothing.
+        syncSetupShortcutCapture()
+    }
+
+    /// Holds the chord off every step ahead of Try it, which is the first step
+    /// with anything for a dictation to do.
+    ///
+    /// These steps are walkable with the tap live: `completeSetup` starts it on
+    /// the way into Try it, and Back does not undo that. On the shortcut step
+    /// that is disabling — its test reads the chord through a local key monitor,
+    /// and the tap swallows a chord with an ordinary key in it before any monitor
+    /// can see it, so the step cannot be passed at all.
+    ///
+    /// The cancel is the way out for a dictation that started before this took
+    /// hold, since suspending the tap takes `Escape` and the chord with it.
+    private func syncSetupShortcutCapture() {
+        let precedesDictationStep = step < .tryIt
+        if precedesDictationStep { runtime.coordinator.cancelDictationInProgress() }
+        runtime.coordinator.setSetupBeforeDictationStep(precedesDictationStep)
     }
 
     /// Where setup left off, clamped to the first step whose gate is not yet met.

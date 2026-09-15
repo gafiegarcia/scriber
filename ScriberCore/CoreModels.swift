@@ -1127,6 +1127,15 @@ public struct ShortcutTapOutcome: Equatable, Sendable {
 }
 
 /// Every decision the global shortcut tap makes, with no CoreGraphics in reach.
+/// Why the tap is passing keys through without interpreting them.
+public enum ShortcutMatchingSuspension: Hashable, Sendable {
+    /// Settings' shortcut recorder is capturing a new chord.
+    case settingsRecorder
+    /// Setup is on a step ahead of its dictation step, where the chord belongs to
+    /// setup's own test of it rather than to a dictation.
+    case setupBeforeDictationStep
+}
+
 /// Kept apart from the tap because that tap is head-inserted at the HID level:
 /// the whole machine's event stream advances only when its callback replies, so
 /// a wrong decision there wedges the Mac rather than misbehaving quietly.
@@ -1135,7 +1144,7 @@ public struct ShortcutTapMachine: Sendable {
     public private(set) var holdLatched = false
 
     private var matcher: ShortcutMatcher
-    private var isConfigurationCaptureActive = false
+    private var suspensions: Set<ShortcutMatchingSuspension> = []
     /// When the latched press happened, so the release can tell a tap from a hold.
     private var pressedAt: TimeInterval?
     private var heldKeys = HeldModifierKeys()
@@ -1164,10 +1173,29 @@ public struct ShortcutTapMachine: Sendable {
         self.mode = mode
     }
 
-    /// Leaves the tap running while a Settings shortcut recorder owns keyboard
+    /// Whether any surface is currently holding matching off.
+    public var isMatchingSuspended: Bool { !suspensions.isEmpty }
+
+    /// Leaves the tap running while a surface of Scriber's own owns keyboard
     /// input, but passes every event through without interpreting it.
-    public mutating func setConfigurationCaptureActive(_ active: Bool) {
-        isConfigurationCaptureActive = active
+    ///
+    /// Reasons rather than a flag, because two surfaces suspend matching on their
+    /// own terms and can be on screen together — Settings' shortcut recorder and
+    /// setup's shortcut step — so neither may speak for the other on the way out.
+    /// A single flag let whichever finished first leave the tap matching under
+    /// the one still open, or deaf under neither.
+    ///
+    /// Resets only when the answer changes: a reset forgets what is held, and a
+    /// reason clearing while another stands is not a moment to forget a chord
+    /// still down.
+    public mutating func setMatchingSuspended(_ suspended: Bool, for reason: ShortcutMatchingSuspension) {
+        let wasSuspended = isMatchingSuspended
+        if suspended {
+            suspensions.insert(reason)
+        } else {
+            suspensions.remove(reason)
+        }
+        guard wasSuspended != isMatchingSuspended else { return }
         reset()
     }
 
@@ -1202,7 +1230,7 @@ public struct ShortcutTapMachine: Sendable {
         _ input: ShortcutTapInput,
         pillConsumesEscape: @autoclosure () -> Bool
     ) -> ShortcutTapOutcome {
-        guard !isConfigurationCaptureActive else { return .passedThrough }
+        guard !isMatchingSuspended else { return .passedThrough }
 
         if input.kind == .keyDown, input.keyCode == Self.escapeKeyCode {
             // Known and unfixed: this consumes Escape key-down while a pill is

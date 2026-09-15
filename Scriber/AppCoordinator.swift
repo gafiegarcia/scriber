@@ -1075,7 +1075,17 @@ final class AppCoordinator: ObservableObject {
 
     func setShortcutConfigurationCaptureActive(_ active: Bool) {
         ShortcutConfigurationCapture.isActive = active
-        shortcuts.setConfigurationCaptureActive(active)
+        shortcuts.setMatchingSuspended(active, for: .settingsRecorder)
+    }
+
+    /// Whether setup is showing a step ahead of its dictation step, where the
+    /// chord has to reach setup's own test of it instead of starting a dictation.
+    ///
+    /// Separate from `setShortcutConfigurationCaptureActive` because that one also
+    /// claims Escape away from Settings, and setup can be open beside an open
+    /// Settings window.
+    func setSetupBeforeDictationStep(_ active: Bool) {
+        shortcuts.setMatchingSuspended(active, for: .setupBeforeDictationStep)
     }
 
     func startHandsFreeFromMenu() {

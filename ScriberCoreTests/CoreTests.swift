@@ -1454,15 +1454,47 @@ struct ShortcutTapMachineTests {
         #expect(repeated.effects.isEmpty)
     }
 
-    @Test("Configuration capture passes every key through")
-    func configurationCapturePassesEverythingThrough() {
+    @Test("Suspended matching passes every key through")
+    func suspendedMatchingPassesEverythingThrough() {
         var machine = machine(dictation: keyedHold)
-        machine.setConfigurationCaptureActive(true)
+        machine.setMatchingSuspended(true, for: .settingsRecorder)
 
         #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false) == .passedThrough)
         #expect(machine.handle(down(49, [.function]), pillConsumesEscape: false) == .passedThrough)
         #expect(machine.handle(flags([.function]), pillConsumesEscape: false) == .passedThrough)
         #expect(machine.handle(down(53, []), pillConsumesEscape: true) == .passedThrough)
+    }
+
+    /// A chord with a key in it is swallowed by the tap, so setup's shortcut step
+    /// cannot see its own test press while matching is live. Both surfaces that
+    /// suspend it can be open at once, and the one that finishes first must not
+    /// speak for the other.
+    @Test("Matching resumes only once every reason has cleared")
+    func matchingResumesOnlyWhenEveryReasonClears() {
+        var machine = machine(dictation: keyedHold)
+        machine.setMatchingSuspended(true, for: .setupBeforeDictationStep)
+        machine.setMatchingSuspended(true, for: .settingsRecorder)
+
+        machine.setMatchingSuspended(false, for: .settingsRecorder)
+        #expect(machine.isMatchingSuspended)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false) == .passedThrough)
+
+        machine.setMatchingSuspended(false, for: .setupBeforeDictationStep)
+        #expect(!machine.isMatchingSuspended)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false)
+            .effects == [.action(.pressed)])
+    }
+
+    /// Clearing a reason that was never set must not resume matching under the
+    /// one that is: the step's own teardown runs on routes where it never ran.
+    @Test("Clearing a reason that was never set changes nothing")
+    func clearingAnUnsetReasonChangesNothing() {
+        var machine = machine(dictation: keyedHold)
+        machine.setMatchingSuspended(true, for: .setupBeforeDictationStep)
+
+        machine.setMatchingSuspended(false, for: .settingsRecorder)
+        #expect(machine.isMatchingSuspended)
+        #expect(machine.handle(down(2, [.command, .shift]), pillConsumesEscape: false) == .passedThrough)
     }
 
     @Test("A modifier-only chord presses and releases exactly once")

@@ -37,8 +37,8 @@ final class GlobalShortcutService {
         machine.setMode(mode)
     }
 
-    func setConfigurationCaptureActive(_ active: Bool) {
-        machine.setConfigurationCaptureActive(active)
+    func setMatchingSuspended(_ suspended: Bool, for reason: ShortcutMatchingSuspension) {
+        machine.setMatchingSuspended(suspended, for: reason)
     }
 
     /// `CGEvent.timestamp` counts in mach units, whose ratio to nanoseconds is
