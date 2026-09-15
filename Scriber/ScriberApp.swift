@@ -861,8 +861,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !hasVisibleManagedWindow { showMainWindow() }
+        guard !hasVisibleManagedWindow else { return true }
+        // The same question launch asks. Reopening into the main window whatever
+        // the flag said put an unfinished setup behind it — the main window
+        // resumes setup as it appears — so closing setup and coming back brought
+        // two windows up with the one that cannot be used in front.
+        guard hasCompletedSetup else {
+            // The scene has to exist before it can be ordered, and nothing on this
+            // route creates it: Redo Setup's own caller does that for that route.
+            SceneOpeners.shared.openOnboardingWindow?()
+            showOnboardingWindow()
+            return true
+        }
+        showMainWindow()
         return true
+    }
+
+    /// Whether setup has been finished, asked where `AppDelegate` can reach it.
+    /// SwiftUI builds this object itself and hands it no runtime, so this reads the
+    /// defaults `Preferences` writes rather than the preference object.
+    ///
+    /// A `--ui-testing` launch keeps its preferences in a throwaway suite, so this
+    /// reads false there however far setup has been walked — the same caveat
+    /// `AppLaunchConfiguration.launchesIntoOnboarding` carries, and harmless for
+    /// the same reason: an automated run has no Dock icon to reopen from.
+    private var hasCompletedSetup: Bool {
+        UserDefaults.standard.bool(forKey: "onboardingComplete")
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
