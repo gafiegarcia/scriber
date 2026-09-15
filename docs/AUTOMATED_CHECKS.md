@@ -80,7 +80,9 @@ The subsystem holds four categories: `window-lifecycle`, `paste-target`, `permis
 
 `main thread stalled ms=N` is one uninterrupted stretch of main-thread work, from a run loop observer rather than a poll, logged only at 16 ms or more. The line's timestamp is the **end** of the stall, so subtract `ms` to place its start against the lines around it — that pairing is what says which step owns one. It found the login-item reading that stalled an idle app for 21-30 ms every five seconds, on a cadence nothing else in the log showed. An idle Scriber should now produce none of these at all; a periodic one means something has been put back on a timer. Stalls of 100-400 ms while a window is being dragged are macOS, not Scriber. Every dictation start is followed by one of 72-157 ms, most of it the start cue; that is expected and is not a fault to chase.
 
-`permissions` writes a line only when a reading actually changes — the permission or the shortcut monitor, its new value, and which refresh path saw it. Silence means nothing changed, not that nothing was observed, and a launch is silent because the published values start from the same readings the first refresh takes. A `--ui-testing` launch cannot produce a transition at all: it grants no permission and its missing-permission flag injects a fixed state. Read this category on the installed app.
+`permissions` writes a line only when a reading actually changes — the permission or the shortcut monitor, its new value, and which refresh path saw it. Silence means nothing changed, not that nothing was observed, and a launch is silent because the published values start from the same readings the first refresh takes. A `--ui-testing` launch cannot produce a permission transition at all: it grants no permission and its missing-permission flag injects a fixed state. Read those on the installed app.
+
+`servicesEnabled: true|false` is the exception, and the one line in this category a `--ui-testing` launch does answer. It is written whenever the derived flag changes, before anything is done about it, precisely because the monitor's own `action=start` and `action=stop` lines say nothing when the tap was already where it is being asked to go — which is every run where it never started. Walking setup forward into its dictation step, back off it, and forward again must print `true`, `false`, `true` and nothing on the steps before. That sequence is how the flag's wiring is read; the tap itself cannot be, since `--ui-testing` never starts one.
 
 ## A launch macOS made at login
 
@@ -115,6 +117,16 @@ osascript -e "tell application \"System Events\" to tell (first process whose un
 ```
 
 Swap `"Window"` for any other menu title; separators report `missing value`. A named process that is not running reports `-1728`.
+
+### Front the process before reading its windows
+
+A freshly launched build can report `windows=0` and answer `-1719 Invalid index` for `window 1` while its own log already says the window was ordered front. Reading is not blocked by permission there — the tree is simply empty until the process is fronted. Do this once after launching, before anything else:
+
+```bash
+osascript -e "tell application \"System Events\" to set frontmost of (first process whose unix id is $pid) to true"
+```
+
+A launch carrying `--ui-testing-no-activate` never becomes frontmost, so its windows cannot be read this way at all; take those questions to an activating launch.
 
 ### Reading and pressing
 

@@ -261,13 +261,12 @@ struct OnboardingView: View {
             finish()
             return
         }
-        // Setup is over once every decision has been made, and Try it is the
-        // first step that needs the real thing running: the shortcut tap refuses
-        // to start until setup is complete, so it cannot be demonstrated before
-        // this point.
         endTryItDictation()
-        // Before the services start, not after: `servicesEnabled` is derived from
-        // the stored step, so the step has to be written for it to be true.
+        // Try it is the first step with anything for a dictation to do, so it is
+        // where the services come up. The move goes first, because `servicesEnabled`
+        // is derived from the stored step and the step has to be written before it
+        // can be true. Arriving here says nothing about setup being over — that is
+        // `finish`, and conflating the two was fault 1.
         move(to: next, advancing: true)
         if next == .tryIt { startDictationServices() }
     }
@@ -426,8 +425,6 @@ struct OnboardingView: View {
         }
     }
 
-    /// Marks setup finished and brings the app's services up. Idempotent: Back
-    /// out of Try it and forward into it again, and this runs once.
     /// Switches the dictation services on for the step that demonstrates them.
     ///
     /// It no longer says setup is over, which is the whole of fault 1: claiming
@@ -485,10 +482,11 @@ struct OnboardingView: View {
     }
 
     /// Skipping means the same thing to the person pressing it as Done does —
-    /// stop presenting this — which is why both set the same flag and why the
-    /// button no longer says "Set Up Later". Nothing has been answered, and
-    /// nothing pretends otherwise: the window's warning control, the menu bar's
-    /// mark and the recovery pills all report what is still missing.
+    /// stop presenting this — which is why both set the same flag, and why the
+    /// button's name has to promise dismissal rather than a deferral it does not
+    /// perform. Nothing has been answered, and nothing pretends otherwise: the
+    /// window's warning control, the menu bar's mark and the recovery pills all
+    /// report what is still missing.
     private func skipSetup() {
         runtime.preferences.onboardingDismissed = true
         close()

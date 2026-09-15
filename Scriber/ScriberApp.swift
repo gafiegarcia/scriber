@@ -917,7 +917,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// answers that by returning false and logging nothing: setup closed onto an
     /// empty screen and the app dropped to accessory. Reached on a true first run
     /// as much as on a relaunch into an unfinished setup, and by both ways out —
-    /// Done and Set Up Later share `close` (`OnboardingView.swift`).
+    /// Done and Skip Setup share `close` (`OnboardingView.swift`).
     private func showMainWindow() {
         SceneOpeners.shared.openMainWindow?()
         mainWindowTask?.cancel()

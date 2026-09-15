@@ -473,8 +473,10 @@ final class AppCoordinator: ObservableObject {
     }
 
     func startServices() {
-        // Setup is behind us either way by the time services start, so the redo
-        // marker has nothing left to distinguish.
+        // Every route here has left the steps a redo would present differently
+        // behind it — the main window appearing, or setup reaching the step that
+        // demonstrates the shortcut, which is past every step that asks anything.
+        // So the redo marker has nothing left to distinguish.
         isRedoingSetup = false
         let presentInitialRecovery = permissionRecoveryLaunchGate.consume(
             onboardingDismissed: preferences.onboardingDismissed
@@ -780,10 +782,10 @@ final class AppCoordinator: ObservableObject {
     ///
     /// Restarting returns the step to zero, which stops the shortcut tap through
     /// `servicesEnabled`, and that tap carries `Escape` as well as the dictation
-    /// chord — so a hands-free
-    /// recording running at this moment loses every keyboard way out and sits
-    /// until the duration cap. Every control that offers a restart reads this, so
-    /// the disabled state and the refusal below cannot drift apart.
+    /// chord — so a hands-free recording running at this moment loses every
+    /// keyboard way out and sits until the duration cap. Every control that offers
+    /// a restart reads this, so the disabled state and the refusal below cannot
+    /// drift apart.
     var canRestartOnboarding: Bool { !phase.isBusy }
 
     /// Sends the user back through onboarding. Only the flag is cleared — the key,

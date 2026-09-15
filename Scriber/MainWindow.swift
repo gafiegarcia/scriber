@@ -261,8 +261,8 @@ struct MainWindowView: View {
     /// main window and on every change of the flag, so a version that cleared
     /// `onboardingDismissed` the way `restartOnboarding` does would restart setup
     /// each time the window came up. Resuming and restarting are different asks
-    /// and only the second may touch the flag — clearing it stops the shortcut
-    /// monitor, and that shortcut carries `Escape`.
+    /// and only the second may touch the flag — a restart also returns the step to
+    /// zero, which stops the shortcut monitor, and that shortcut carries `Escape`.
     private func openOnboardingIfNeeded() {
         guard !runtime.preferences.onboardingDismissed else { return }
         NSApp.setActivationPolicy(.regular)
