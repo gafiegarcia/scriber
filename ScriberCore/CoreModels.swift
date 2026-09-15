@@ -459,10 +459,10 @@ public enum CredentialRecoveryPolicy {
     public static func shouldPresent(
         previous: CredentialReadiness,
         current: CredentialReadiness,
-        onboardingComplete: Bool,
+        onboardingDismissed: Bool,
         force: Bool
     ) -> Bool {
-        onboardingComplete && !current.isReady && (force || current != previous)
+        onboardingDismissed && !current.isReady && (force || current != previous)
     }
 }
 
@@ -470,21 +470,21 @@ public enum PermissionRecoveryPolicy {
     public static func shouldPresent(
         previous: PermissionReadiness,
         current: PermissionReadiness,
-        onboardingComplete: Bool,
+        onboardingDismissed: Bool,
         force: Bool
     ) -> Bool {
-        onboardingComplete && !current.isReady && (force || current != previous)
+        onboardingDismissed && !current.isReady && (force || current != previous)
     }
 }
 
 /// Allows the current missing-permission state to be forced onto the pill once
-/// after completed onboarding, without making every later activation another
+/// after setup has been put away, without making every later activation another
 /// forced presentation of the same state.
 struct PermissionRecoveryLaunchGate: Equatable, Sendable {
     private(set) var hasRequestedPresentation = false
 
-    mutating func consume(onboardingComplete: Bool) -> Bool {
-        guard onboardingComplete, !hasRequestedPresentation else { return false }
+    mutating func consume(onboardingDismissed: Bool) -> Bool {
+        guard onboardingDismissed, !hasRequestedPresentation else { return false }
         hasRequestedPresentation = true
         return true
     }

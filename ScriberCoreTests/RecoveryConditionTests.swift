@@ -11,7 +11,8 @@ struct RecoveryConditionTests {
     @Test("Unfinished setup is itself the one thing reported")
     func unfinishedSetupIsReported() throws {
         let conditions = RecoveryConditions.current(
-            onboardingComplete: false,
+            onboardingDismissed: false,
+            servicesEnabled: false,
             permission: blockedPermissions,
             credential: .missingAPIKey
         )
@@ -25,7 +26,8 @@ struct RecoveryConditionTests {
     @Test("Unfinished setup hides the conditions it is going to fix")
     func unfinishedSetupSubsumesTheRest() {
         let conditions = RecoveryConditions.current(
-            onboardingComplete: false,
+            onboardingDismissed: false,
+            servicesEnabled: false,
             permission: blockedPermissions,
             credential: .missingAPIKey
         )
@@ -33,10 +35,36 @@ struct RecoveryConditionTests {
         #expect(!conditions.contains { $0.kind == .apiKey })
     }
 
+    /// Closing setup on its dictation step leaves everything granted and the
+    /// shortcut live, so the banner must not claim dictation is unavailable. It is
+    /// the state the services flag exists to make reachable, and the only one
+    /// where an unfinished setup is not also a broken app.
+    @Test("Setup left at its dictation step does not claim dictation is unavailable")
+    func unfinishedSetupWithServicesRunningSaysSo() throws {
+        let stuck = RecoveryConditions.current(
+            onboardingDismissed: false,
+            servicesEnabled: false,
+            permission: blockedPermissions,
+            credential: .missingAPIKey
+        )
+        let working = RecoveryConditions.current(
+            onboardingDismissed: false,
+            servicesEnabled: true,
+            permission: PermissionReadiness(missingPermissions: []),
+            credential: .ready
+        )
+        #expect(try #require(working.first).kind == .setupUnfinished)
+        #expect(working.count == 1)
+        #expect(try #require(working.first).message != #require(stuck.first).message)
+        #expect(!(try #require(working.first).message.contains("cannot dictate")))
+        #expect(try #require(stuck.first).message.contains("cannot dictate"))
+    }
+
     @Test("A ready app reports no conditions")
     func silentWhenReady() {
         let conditions = RecoveryConditions.current(
-            onboardingComplete: true,
+            onboardingDismissed: true,
+            servicesEnabled: true,
             permission: PermissionReadiness(missingPermissions: []),
             credential: .ready
         )
@@ -48,7 +76,8 @@ struct RecoveryConditionTests {
     @Test("Both blocked states are reported together, permissions first")
     func reportsEveryCondition() {
         let conditions = RecoveryConditions.current(
-            onboardingComplete: true,
+            onboardingDismissed: true,
+            servicesEnabled: true,
             permission: blockedPermissions,
             credential: .missingAPIKey
         )
@@ -59,7 +88,8 @@ struct RecoveryConditionTests {
     @Test("Resolving one condition leaves the other standing")
     func keepsTheRemainingCondition() {
         let conditions = RecoveryConditions.current(
-            onboardingComplete: true,
+            onboardingDismissed: true,
+            servicesEnabled: true,
             permission: PermissionReadiness(missingPermissions: []),
             credential: .invalidAPIKey
         )
@@ -72,7 +102,8 @@ struct RecoveryConditionTests {
     @Test("Exhausted credit routes to usage rather than the key")
     func routesExhaustedCreditToUsage() {
         let conditions = RecoveryConditions.current(
-            onboardingComplete: true,
+            onboardingDismissed: true,
+            servicesEnabled: true,
             permission: PermissionReadiness(missingPermissions: []),
             credential: .creditsExhausted
         )
@@ -83,7 +114,8 @@ struct RecoveryConditionTests {
     @Test("Condition copy comes from readiness, not from a second copy of it")
     func reusesReadinessCopy() {
         let conditions = RecoveryConditions.current(
-            onboardingComplete: true,
+            onboardingDismissed: true,
+            servicesEnabled: true,
             permission: blockedPermissions,
             credential: .ready
         )
@@ -95,7 +127,8 @@ struct RecoveryConditionTests {
     @Test("Accessibility identifiers are the ones inspection looks for")
     func keepsAccessibilityIdentifiers() {
         let conditions = RecoveryConditions.current(
-            onboardingComplete: true,
+            onboardingDismissed: true,
+            servicesEnabled: true,
             permission: blockedPermissions,
             credential: .missingAPIKey
         )

@@ -50,17 +50,26 @@ public enum RecoveryConditions {
     /// Unfinished setup outranks both and replaces them, since setup is where all
     /// of them get resolved. It reports at all because the setup window can be
     /// closed with ⌘W, leaving nothing granted and nothing saying why.
+    ///
+    /// `servicesEnabled` decides only the wording. Setup closed before its
+    /// dictation step has granted nothing and Scriber genuinely cannot dictate;
+    /// setup closed at that step or later has everything it needs and owes only
+    /// the test and the last step's two options, where saying dictation is
+    /// unavailable would be plainly false — the shortcut works.
     public static func current(
-        onboardingComplete: Bool,
+        onboardingDismissed: Bool,
+        servicesEnabled: Bool,
         permission: PermissionReadiness,
         credential: CredentialReadiness
     ) -> [RecoveryCondition] {
-        guard onboardingComplete else {
+        guard onboardingDismissed else {
             return [
                 RecoveryCondition(
                     kind: .setupUnfinished,
                     title: "Setup is not finished",
-                    message: "Scriber cannot dictate until setup is done. It takes a minute.",
+                    message: servicesEnabled
+                        ? "Your shortcut works already. Setup has a quick test and two options left."
+                        : "Scriber cannot dictate until setup is done. It takes a minute.",
                     actionTitle: "Finish Setup",
                     accessibilityIdentifier: "setup-unfinished-banner"
                 )

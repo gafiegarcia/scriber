@@ -40,7 +40,8 @@ struct MainWindowView: View {
 
     private var recoveryConditions: [RecoveryCondition] {
         RecoveryConditions.current(
-            onboardingComplete: runtime.preferences.onboardingComplete,
+            onboardingDismissed: runtime.preferences.onboardingDismissed,
+            servicesEnabled: runtime.preferences.servicesEnabled,
             permission: runtime.coordinator.permissionReadiness,
             credential: runtime.coordinator.credentialReadiness
         )
@@ -185,7 +186,7 @@ struct MainWindowView: View {
                     focusSearchForPresentation()
                 }
             }
-            .onChange(of: runtime.preferences.onboardingComplete) { _, _ in openOnboardingIfNeeded() }
+            .onChange(of: runtime.preferences.onboardingDismissed) { _, _ in openOnboardingIfNeeded() }
     }
 
     /// Present only while something is wrong, and carrying every condition at
@@ -258,12 +259,12 @@ struct MainWindowView: View {
     /// Resumes an unfinished setup. The guard is this method's meaning, not a
     /// ritual to be hoisted into the opener: it runs on every appearance of the
     /// main window and on every change of the flag, so a version that cleared
-    /// `onboardingComplete` the way `restartOnboarding` does would restart setup
+    /// `onboardingDismissed` the way `restartOnboarding` does would restart setup
     /// each time the window came up. Resuming and restarting are different asks
     /// and only the second may touch the flag — clearing it stops the shortcut
     /// monitor, and that shortcut carries `Escape`.
     private func openOnboardingIfNeeded() {
-        guard !runtime.preferences.onboardingComplete else { return }
+        guard !runtime.preferences.onboardingDismissed else { return }
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "onboarding")
         NSApp.activate(ignoringOtherApps: true)
@@ -332,12 +333,12 @@ struct MenuBarContent: View {
             // window is suppressed for the whole of setup, so the toolbar's
             // warning control does not exist to carry this — and Open Scriber
             // would put on screen the window that suppression exists to keep away.
-            if !runtime.preferences.onboardingComplete {
+            if !runtime.preferences.onboardingDismissed {
                 Button { openOnboarding() } label: {
                     Label("Finish Setup…", systemImage: "exclamationmark.triangle.fill")
                 }
             }
-            if runtime.preferences.onboardingComplete {
+            if runtime.preferences.onboardingDismissed {
                 Button("Open Scriber") { openMain(destination: .dictation) }
                 Button("Settings") { openMain(destination: .settings) }
                 // One divider for the whole group, not one per item. A separator
@@ -399,7 +400,7 @@ struct MenuBarContent: View {
         }
         .onAppear {
             runtime.coordinator.startServices()
-            if !runtime.preferences.onboardingComplete { openOnboarding() }
+            if !runtime.preferences.onboardingDismissed { openOnboarding() }
         }
     }
 

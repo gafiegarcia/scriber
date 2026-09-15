@@ -56,6 +56,7 @@ struct OnboardingView: View {
     @State private var microphoneSignalObserved = false
     @State private var microphoneTestSkipped = false
     @State private var showsDataUseGuide = false
+    @State private var confirmSkipSetup = false
     @State private var guideHostHeight = OnboardingLayout.windowHeight
     @State private var tryItText = ""
     @State private var error: String?
@@ -87,6 +88,27 @@ struct OnboardingView: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { guideHostHeight = $0 }
         .sheet(isPresented: $showsDataUseGuide) {
             DataUseGuideSheet(hostHeight: guideHostHeight) { showsDataUseGuide = false }
+        }
+        // Skipping is the one route out that answers nothing, and this is the only
+        // moment Scriber can say where setup went. The route back is named outright
+        // rather than left to be found: the control is called Redo Setup, which is
+        // not a word anyone would search for having never done setup once.
+        .confirmationDialog("Skip setup?", isPresented: $confirmSkipSetup) {
+            Button("Skip Setup") {
+                // Measured: `dismissWindow` called straight from here is dropped —
+                // the confirmation is still dismissing, and setup stayed on screen
+                // behind the main window with no `willClose` logged at all. A turn
+                // is enough, and it is the same deferral `close` already makes for
+                // the main window it opens.
+                Task { @MainActor in
+                    await Task.yield()
+                    skipSetup()
+                }
+            }
+            .keyboardShortcut(.defaultAction)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Scriber cannot dictate until its key and permissions are set, and you can come back to setup any time from Settings ▸ General ▸ Redo Setup.")
         }
         .onAppear(perform: prepare)
         .onDisappear {
@@ -183,7 +205,7 @@ struct OnboardingView: View {
                     // Nothing else on the welcome step takes focus, so without
                     // this the ring lands here and a quiet secondary control
                     // reads as the one being offered.
-                    Button("Set Up Later", action: setUpLater)
+                    Button("Skip Setup") { confirmSkipSetup = true }
                         .buttonStyle(.link)
                         .focusEffectDisabled()
                         .accessibilityIdentifier("onboarding-skip")
@@ -243,9 +265,11 @@ struct OnboardingView: View {
         // first step that needs the real thing running: the shortcut tap refuses
         // to start until setup is complete, so it cannot be demonstrated before
         // this point.
-        if next == .tryIt { completeSetup() }
         endTryItDictation()
+        // Before the services start, not after: `servicesEnabled` is derived from
+        // the stored step, so the step has to be written for it to be true.
         move(to: next, advancing: true)
+        if next == .tryIt { startDictationServices() }
     }
 
     private func goBack() {
@@ -291,15 +315,15 @@ struct OnboardingView: View {
     /// a second run of setup starts holding the first run's answers. Clear
     /// everything the flow accumulates here rather than trusting it to be fresh.
     ///
-    /// Nothing here closes the window, whatever `onboardingComplete` says.
+    /// Nothing here closes the window, whatever `onboardingDismissed` says.
     /// Dismissing on appearance is what wedged the Mac: SwiftUI answers a scene
     /// that dismissed itself by presenting it again, and the two spin on the main
     /// thread until the app is force-quit. Every appearance converges here, so
     /// this is the one place that can promise that loop cannot start — a promise
     /// no arrangement of guards at the call sites can make on behalf of a route
     /// nobody has written yet. Setup shown when none was needed is harmless by
-    /// comparison: `completeSetup` refuses to run twice, so walking it changes
-    /// nothing.
+    /// comparison: walking a setup that was already put away only sets the same
+    /// flag again, so it changes nothing.
     private func prepare() {
         apiKey = ""
         keyFeedback = nil
@@ -318,7 +342,7 @@ struct OnboardingView: View {
         // to turn on something already on — or quietly re-enable what the user has
         // since turned off. A finished setup counts as answered too, since this
         // view no longer closes itself when one appears over it.
-        let alreadyAnswered = runtime.coordinator.isRedoingSetup || runtime.preferences.onboardingComplete
+        let alreadyAnswered = runtime.coordinator.isRedoingSetup || runtime.preferences.onboardingDismissed
         launchAtLogin = LaunchAtLoginService.state.isOn || !alreadyAnswered
         runtime.coordinator.refreshPermissions(source: .onboarding)
         runtime.coordinator.validateStoredAPIKey()
@@ -333,11 +357,15 @@ struct OnboardingView: View {
     /// Holds the chord off every step ahead of Try it, which is the first step
     /// with anything for a dictation to do.
     ///
-    /// These steps are walkable with the tap live: `completeSetup` starts it on
-    /// the way into Try it, and Back does not undo that. On the shortcut step
-    /// that is disabling — its test reads the chord through a local key monitor,
-    /// and the tap swallows a chord with an ordinary key in it before any monitor
-    /// can see it, so the step cannot be passed at all.
+    /// Legacy: this was the whole defense when arriving at Try it switched the tap
+    /// on permanently, since Back did not switch it off again. `servicesEnabled`
+    /// now stops the tap outright on any step before Try it, so that state is no
+    /// longer reachable by walking backwards — but the stop is driven by a
+    /// subscription and this runs with the step change itself, so it still closes
+    /// the gap between the two. On the shortcut step that gap is disabling rather
+    /// than untidy: the step reads the chord through a local key monitor, and a
+    /// live tap swallows a chord with an ordinary key in it before any monitor can
+    /// see it, so the step cannot be passed at all.
     ///
     /// The cancel is the way out for a dictation that started before this took
     /// hold, since suspending the tap takes `Escape` and the chord with it.
@@ -400,9 +428,14 @@ struct OnboardingView: View {
 
     /// Marks setup finished and brings the app's services up. Idempotent: Back
     /// out of Try it and forward into it again, and this runs once.
-    private func completeSetup() {
-        guard !runtime.preferences.onboardingComplete else { return }
-        runtime.preferences.onboardingComplete = true
+    /// Switches the dictation services on for the step that demonstrates them.
+    ///
+    /// It no longer says setup is over, which is the whole of fault 1: claiming
+    /// that here — two steps early, so the shortcut could be shown working — meant
+    /// quitting on this step skipped the rest of setup forever. `servicesEnabled`
+    /// now reads the stored step instead, so this only has to make the rest of the
+    /// app catch up.
+    private func startDictationServices() {
         runtime.coordinator.startServices()
     }
 
@@ -451,17 +484,22 @@ struct OnboardingView: View {
         }
     }
 
-    private func setUpLater() {
-        completeSetup()
+    /// Skipping means the same thing to the person pressing it as Done does —
+    /// stop presenting this — which is why both set the same flag and why the
+    /// button no longer says "Set Up Later". Nothing has been answered, and
+    /// nothing pretends otherwise: the window's warning control, the menu bar's
+    /// mark and the recovery pills all report what is still missing.
+    private func skipSetup() {
+        runtime.preferences.onboardingDismissed = true
         close()
     }
 
     private func finish() {
-        // Reaching the last step is its own proof that setup is done. Leaving
-        // that to the Try it transition alone made Done a button that closed the
-        // window and finished nothing whenever that transition had been taken on
-        // a previous run of the flow.
-        completeSetup()
+        // The only place setup declares itself over, besides Skip Setup. Done and
+        // Skip mean the same thing to the person pressing them — stop presenting
+        // this — so they set the same flag; nothing else may, and the Try it
+        // transition in particular must not, which is what fault 1 was.
+        runtime.preferences.onboardingDismissed = true
         // Whether the refusal is already on screen. Setup closes over it the
         // second time Done is pressed rather than trapping someone on a step
         // whose only control refuses to finish.

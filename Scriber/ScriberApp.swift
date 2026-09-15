@@ -142,7 +142,7 @@ enum AppLaunchConfiguration {
     /// Whether this launch begins in setup.
     ///
     /// A `--ui-testing` launch never does: its throwaway defaults suite has no
-    /// `onboardingComplete`, which would otherwise start every automated run in
+    /// stored dismissal, which would otherwise start every automated run in
     /// setup. `--show-onboarding` forces it either way.
     @MainActor
     static var launchesIntoOnboarding: Bool {
@@ -368,7 +368,7 @@ final class AppRuntime: ObservableObject {
             servicesAllowed: !isUITesting
         )
         if isUITesting {
-            preferences.onboardingComplete = !AppLaunchConfiguration.showsOnboarding
+            preferences.onboardingDismissed = !AppLaunchConfiguration.showsOnboarding
             if AppLaunchConfiguration.presentsInvalidKeyPill {
                 Task { @MainActor [coordinator] in
                     try? await Task.sleep(for: .milliseconds(100))
@@ -634,7 +634,7 @@ struct ScriberApp: App {
     )
 
     private var needsAttention: Bool {
-        guard runtime.preferences.onboardingComplete else { return false }
+        guard runtime.preferences.onboardingDismissed else { return false }
         return !runtime.coordinator.permissionReadiness.isReady
             || !runtime.coordinator.credentialReadiness.isReady
     }
@@ -852,7 +852,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         Task { @MainActor [weak self] in
             await self?.showInitialWindowWhenAvailable(
-                onboardingComplete: !AppLaunchConfiguration.launchesIntoOnboarding
+                onboardingDismissed: !AppLaunchConfiguration.launchesIntoOnboarding
             )
         }
     }
@@ -881,7 +881,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // the flag said put an unfinished setup behind it — the main window
         // resumes setup as it appears — so closing setup and coming back brought
         // two windows up with the one that cannot be used in front.
-        guard hasCompletedSetup else {
+        guard hasDismissedSetup else {
             // The scene has to exist before it can be ordered, and nothing on this
             // route creates it: Redo Setup's own caller does that for that route.
             SceneOpeners.shared.openOnboardingWindow?()
@@ -892,15 +892,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    /// Whether setup has been finished, asked where `AppDelegate` can reach it.
+    /// Whether setup has been put away, asked where `AppDelegate` can reach it.
     /// SwiftUI builds this object itself and hands it no runtime, so this reads the
-    /// defaults `Preferences` writes rather than the preference object.
+    /// defaults `Preferences` writes rather than the preference object — under the
+    /// stored name, which still says "complete" for the reason `Preferences.Keys`
+    /// gives.
     ///
     /// A `--ui-testing` launch keeps its preferences in a throwaway suite, so this
     /// reads false there however far setup has been walked — the same caveat
     /// `AppLaunchConfiguration.launchesIntoOnboarding` carries, and harmless for
     /// the same reason: an automated run has no Dock icon to reopen from.
-    private var hasCompletedSetup: Bool {
+    private var hasDismissedSetup: Bool {
         UserDefaults.standard.bool(forKey: "onboardingComplete")
     }
 
@@ -1073,8 +1075,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Known and unfixed: this polls for the startup window by title. Remove it
     /// only after proving which launch paths still depend on it; the Dock
     /// lifecycle is the constraint.
-    private func showInitialWindowWhenAvailable(onboardingComplete: Bool) async {
-        let title = onboardingComplete ? AppWindowIdentity.mainTitle : AppWindowIdentity.onboardingTitle
+    private func showInitialWindowWhenAvailable(onboardingDismissed: Bool) async {
+        let title = onboardingDismissed ? AppWindowIdentity.mainTitle : AppWindowIdentity.onboardingTitle
         for attempt in 0..<40 {
             guard !Task.isCancelled else { return }
             guard !initialWindowDismissed else {

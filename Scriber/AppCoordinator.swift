@@ -206,7 +206,7 @@ final class AppCoordinator: ObservableObject {
     /// twenty-second request each time.
     private var lastUpdateAttempt: Date?
     private var credentialRevision = CredentialRevision()
-    /// Whether setup is being walked a second time. `onboardingComplete` cannot
+    /// Whether setup is being walked a second time. `onboardingDismissed` cannot
     /// answer it — Redo Setup clears that — and the two differ in what a step
     /// offers: a first run recommends, a redo shows what is already there.
     private(set) var isRedoingSetup = false
@@ -295,6 +295,27 @@ final class AppCoordinator: ObservableObject {
             .compactMap { $0.object as? NSWindow }
             .filter { $0.title == AppWindowIdentity.onboardingTitle }
             .sink { [weak self] _ in self?.setSetupBeforeDictationStep(false) }
+            .store(in: &cancellables)
+
+        // What makes `servicesEnabled` take effect. It is derived from these two,
+        // so the tap has to answer to both: arriving at setup's dictation step
+        // starts it, walking back off that step stops it again, and a restart
+        // returns the step to zero and does the same. Recomputed here rather than
+        // read back, for the `willSet` reason `reconcileShortcutMonitor` gives.
+        Publishers.CombineLatest(preferences.$onboardingDismissed, preferences.$onboardingStep)
+            .map { dismissed, step in dismissed || step >= OnboardingStep.tryIt.rawValue }
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] servicesEnabled in
+                // Logged unconditionally, unlike the monitor's own start and stop
+                // lines: those say nothing when the tap was already in the state
+                // asked for, which is every run where it never started at all. This
+                // is the only place the derived flag can be watched changing.
+                Self.permissionLog.notice(
+                    "servicesEnabled: \(servicesEnabled, privacy: .public)"
+                )
+                self?.reconcileShortcutMonitor(servicesEnabled: servicesEnabled, source: .onboarding)
+            }
             .store(in: &cancellables)
 
         preferences.$muteOtherAudioWhileDictating
@@ -414,7 +435,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     var statusText: String {
-        if !preferences.onboardingComplete { return "Setup required" }
+        if !preferences.onboardingDismissed { return "Setup required" }
         if !persistenceAvailable { return "Dictation history unavailable" }
         if !permissionReadiness.isReady { return "Permissions required" }
         return switch phase {
@@ -456,7 +477,7 @@ final class AppCoordinator: ObservableObject {
         // marker has nothing left to distinguish.
         isRedoingSetup = false
         let presentInitialRecovery = permissionRecoveryLaunchGate.consume(
-            onboardingComplete: preferences.onboardingComplete
+            onboardingDismissed: preferences.onboardingDismissed
         )
         refreshPermissions(
             presentRecoveryWhenMissing: presentInitialRecovery,
@@ -471,7 +492,7 @@ final class AppCoordinator: ObservableObject {
             shortcutMonitorAvailable = false
             return
         }
-        guard preferences.onboardingComplete, accessibilityGranted else {
+        guard preferences.servicesEnabled, accessibilityGranted else {
             shortcuts.stop()
             shortcutMonitorAvailable = false
             return
@@ -552,22 +573,7 @@ final class AppCoordinator: ObservableObject {
         }
         if refreshAudioInputs { refreshAudioInputDevices() }
 
-        if shortcutMonitoringAllowed, accessibilityGranted, preferences.onboardingComplete {
-            if !shortcutMonitorAvailable {
-                shortcuts.start()
-                Self.permissionLog.notice(
-                    "shortcutMonitor: action=start source=\(source.rawValue, privacy: .public)"
-                )
-            }
-        } else {
-            shortcuts.stop()
-            if shortcutMonitorAvailable {
-                shortcutMonitorAvailable = false
-                Self.permissionLog.notice(
-                    "shortcutMonitor: action=stop source=\(source.rawValue, privacy: .public)"
-                )
-            }
-        }
+        reconcileShortcutMonitor(servicesEnabled: preferences.servicesEnabled, source: source)
 
         let currentReadiness = permissionReadiness
         if currentReadiness.isReady {
@@ -576,7 +582,7 @@ final class AppCoordinator: ObservableObject {
         } else if PermissionRecoveryPolicy.shouldPresent(
             previous: previousReadiness,
             current: currentReadiness,
-            onboardingComplete: preferences.onboardingComplete,
+            onboardingDismissed: preferences.onboardingDismissed,
             force: presentRecoveryWhenMissing
         ) {
             permissionRecoveryPresentationPending = true
@@ -772,8 +778,9 @@ final class AppCoordinator: ObservableObject {
 
     /// Whether setup can be walked again right now.
     ///
-    /// Restarting clears `onboardingComplete`, which stops the shortcut tap, and
-    /// that tap carries `Escape` as well as the dictation chord — so a hands-free
+    /// Restarting returns the step to zero, which stops the shortcut tap through
+    /// `servicesEnabled`, and that tap carries `Escape` as well as the dictation
+    /// chord — so a hands-free
     /// recording running at this moment loses every keyboard way out and sits
     /// until the duration cap. Every control that offers a restart reads this, so
     /// the disabled state and the refusal below cannot drift apart.
@@ -785,7 +792,7 @@ final class AppCoordinator: ObservableObject {
     func restartOnboarding() {
         guard canRestartOnboarding else { return }
         isRedoingSetup = true
-        preferences.onboardingComplete = false
+        preferences.onboardingDismissed = false
         // A redo is a fresh run, not a resumption of the one that finished.
         preferences.onboardingStep = 0
         // And the flow has to be rebuilt to honor that. The window is re-ordered
@@ -812,7 +819,7 @@ final class AppCoordinator: ObservableObject {
     /// `apiKeyConfigured` and `apiKeyValidity` are preferences, and neither deleting
     /// the Keychain item nor revoking the key at ElevenLabs touches them, so left
     /// alone the app reports a key it may no longer hold. `validateStoredAPIKeyOnce`
-    /// reconciles that at launch but sits behind `startServices`' `onboardingComplete`
+    /// reconciles that at launch but sits behind `startServices`' `servicesEnabled`
     /// guard, so setup has to ask again each time it returns to the step.
     ///
     /// Spends no transcription credit — validation reads the account, not audio.
@@ -989,7 +996,7 @@ final class AppCoordinator: ObservableObject {
         guard CredentialRecoveryPolicy.shouldPresent(
             previous: previous,
             current: current,
-            onboardingComplete: preferences.onboardingComplete,
+            onboardingDismissed: preferences.onboardingDismissed,
             force: force
         ) else { return }
         credentialRecoveryPresentationPending = true
@@ -1002,7 +1009,7 @@ final class AppCoordinator: ObservableObject {
     private func presentPendingCredentialRecoveryIfPossible() {
         let readiness = credentialReadiness
         guard credentialRecoveryPresentationPending,
-              preferences.onboardingComplete,
+              preferences.onboardingDismissed,
               !readiness.isReady,
               !phase.isBusy,
               permissionReadiness.isReady,
@@ -1021,7 +1028,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func handle(_ action: ShortcutAction) {
-        guard preferences.onboardingComplete else { return }
+        guard preferences.servicesEnabled else { return }
         // Measured: stamped here rather than in `beginRecording`, because the wait
         // the user feels starts at the key, not at the first thing Scriber chooses
         // to do about it. Read by the start timing line and nothing else.
@@ -1084,6 +1091,31 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
+    /// Starts or stops the tap to match `servicesEnabled`.
+    ///
+    /// Takes the value rather than reading it from `preferences`. `@Published`
+    /// delivers on `willSet`, so a subscriber that asked the preference object
+    /// would be told the answer from before the change that woke it — and this is
+    /// reached from a subscription on the two properties the flag is made of.
+    private func reconcileShortcutMonitor(servicesEnabled: Bool, source: PermissionRefreshSource) {
+        if shortcutMonitoringAllowed, accessibilityGranted, servicesEnabled {
+            if !shortcutMonitorAvailable {
+                shortcuts.start()
+                Self.permissionLog.notice(
+                    "shortcutMonitor: action=start source=\(source.rawValue, privacy: .public)"
+                )
+            }
+        } else {
+            shortcuts.stop()
+            if shortcutMonitorAvailable {
+                shortcutMonitorAvailable = false
+                Self.permissionLog.notice(
+                    "shortcutMonitor: action=stop source=\(source.rawValue, privacy: .public)"
+                )
+            }
+        }
+    }
+
     func setShortcutConfigurationCaptureActive(_ active: Bool) {
         ShortcutConfigurationCapture.isActive = active
         shortcuts.setMatchingSuspended(active, for: .settingsRecorder)
@@ -1109,7 +1141,7 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var setupRunToken = 0
 
     func startHandsFreeFromMenu() {
-        guard preferences.onboardingComplete else { return }
+        guard preferences.servicesEnabled else { return }
         if gate.isIdle {
             guard phase.acceptsRecordingStart else { return }
             apply(gate.apply(.startRequested(mode: .locked)))
@@ -1139,7 +1171,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     func retry(_ record: DictationRecord) {
-        guard preferences.onboardingComplete else { return }
+        guard preferences.servicesEnabled else { return }
         guard canUseHistoryStorage() else { return }
         guard canUseConfiguredAPIKey() else { return }
         guard !phase.isBusy else {
@@ -1412,7 +1444,7 @@ final class AppCoordinator: ObservableObject {
         var handedOff = false
         defer { if !handedOff { _ = gate.apply(.startFailed) } }
 
-        guard preferences.onboardingComplete else { return }
+        guard preferences.servicesEnabled else { return }
         guard canUseHistoryStorage() else { return }
         refreshPermissions(
             presentRecoveryWhenMissing: false,
@@ -2208,7 +2240,7 @@ final class AppCoordinator: ObservableObject {
 
     private func presentPendingPermissionRecoveryIfPossible() {
         guard permissionRecoveryPresentationPending,
-              preferences.onboardingComplete,
+              preferences.onboardingDismissed,
               !permissionReadiness.isReady,
               !phase.isBusy else { return }
         permissionRecoveryPresentationPending = false

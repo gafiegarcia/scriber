@@ -208,25 +208,25 @@ struct PermissionReadinessTests {
         #expect(PermissionRecoveryPolicy.shouldPresent(
             previous: ready,
             current: missing,
-            onboardingComplete: true,
+            onboardingDismissed: true,
             force: false
         ))
         #expect(!PermissionRecoveryPolicy.shouldPresent(
             previous: missing,
             current: missing,
-            onboardingComplete: true,
+            onboardingDismissed: true,
             force: false
         ))
         #expect(PermissionRecoveryPolicy.shouldPresent(
             previous: missing,
             current: missing,
-            onboardingComplete: true,
+            onboardingDismissed: true,
             force: true
         ))
         #expect(!PermissionRecoveryPolicy.shouldPresent(
             previous: ready,
             current: missing,
-            onboardingComplete: false,
+            onboardingDismissed: false,
             force: true
         ))
     }
@@ -235,9 +235,9 @@ struct PermissionReadinessTests {
     func launchRecoveryPresentation() {
         var gate = PermissionRecoveryLaunchGate()
 
-        let beforeOnboarding = gate.consume(onboardingComplete: false)
-        let firstCompletedLaunch = gate.consume(onboardingComplete: true)
-        let repeatedActivation = gate.consume(onboardingComplete: true)
+        let beforeOnboarding = gate.consume(onboardingDismissed: false)
+        let firstCompletedLaunch = gate.consume(onboardingDismissed: true)
+        let repeatedActivation = gate.consume(onboardingDismissed: true)
 
         #expect(!beforeOnboarding)
         #expect(firstCompletedLaunch)
@@ -841,25 +841,25 @@ struct CredentialReadinessTests {
         #expect(CredentialRecoveryPolicy.shouldPresent(
             previous: .invalidAPIKey,
             current: .invalidAPIKey,
-            onboardingComplete: true,
+            onboardingDismissed: true,
             force: true
         ))
         #expect(!CredentialRecoveryPolicy.shouldPresent(
             previous: .invalidAPIKey,
             current: .invalidAPIKey,
-            onboardingComplete: true,
+            onboardingDismissed: true,
             force: false
         ))
         #expect(!CredentialRecoveryPolicy.shouldPresent(
             previous: .ready,
             current: .ready,
-            onboardingComplete: true,
+            onboardingDismissed: true,
             force: true
         ))
         #expect(!CredentialRecoveryPolicy.shouldPresent(
             previous: .ready,
             current: .invalidAPIKey,
-            onboardingComplete: false,
+            onboardingDismissed: false,
             force: true
         ))
     }

@@ -19,7 +19,11 @@ final class Preferences: ObservableObject {
         static let languageCode = "languageCode"
         static let noVerbatim = "noVerbatim"
         static let keyterms = "keyterms"
-        static let onboardingComplete = "onboardingComplete"
+        /// Legacy: the stored name still says "complete" because every install
+        /// already carries it under that key and the flag's meaning did not
+        /// change when the property was renamed — only its honesty did. Renaming
+        /// the key would cost a migration and buy nothing a reader can see.
+        static let onboardingDismissed = "onboardingComplete"
         static let onboardingStep = "onboardingStep"
         static let startInBackground = "startInBackground"
         static let showInMenuBar = "showInMenuBar"
@@ -51,10 +55,31 @@ final class Preferences: ObservableObject {
     @Published var languageCode: String { didSet { defaults.set(languageCode, forKey: Keys.languageCode) } }
     @Published var noVerbatim: Bool { didSet { defaults.set(noVerbatim, forKey: Keys.noVerbatim) } }
     @Published var keyterms: [String] { didSet { save(keyterms, key: Keys.keyterms) } }
-    @Published var onboardingComplete: Bool { didSet { defaults.set(onboardingComplete, forKey: Keys.onboardingComplete) } }
+    /// Whether Scriber may stop presenting setup on its own. **Done** and **Skip
+    /// Setup** both set it and nothing else does, because both mean the same
+    /// thing to the person pressing them; **Redo Setup** is how they ask for it
+    /// back. It says nothing about how much of setup was actually answered —
+    /// a skip sets it having answered none of it.
+    @Published var onboardingDismissed: Bool { didSet { defaults.set(onboardingDismissed, forKey: Keys.onboardingDismissed) } }
     /// How far setup had got, so granting a permission macOS then wants the app
     /// relaunched for returns to the step that asked rather than to the start.
     @Published var onboardingStep: Int { didSet { defaults.set(onboardingStep, forKey: Keys.onboardingStep) } }
+
+    /// Whether the dictation services — the shortcut tap above all — may run.
+    ///
+    /// Derived rather than stored, so it cannot drift from the two answers it is
+    /// made of. Setup switches services on by *arriving* at its dictation step,
+    /// which is the first step with anything for a dictation to do; walking back
+    /// off that step switches them off again, and a restart returns the step to
+    /// zero and does the same. Nothing else has to remember to.
+    ///
+    /// Do not: fold this back into `onboardingDismissed`. One flag answered both
+    /// questions once, which meant setup had to claim it was finished two steps
+    /// early so the shortcut could be demonstrated — and a quit at that point
+    /// then skipped setup forever.
+    var servicesEnabled: Bool {
+        onboardingDismissed || onboardingStep >= OnboardingStep.tryIt.rawValue
+    }
     @Published var startInBackground: Bool { didSet { defaults.set(startInBackground, forKey: Keys.startInBackground) } }
     @Published var showInMenuBar: Bool { didSet { defaults.set(showInMenuBar, forKey: Keys.showInMenuBar) } }
     @Published var showAppInDock: Bool {
@@ -102,7 +127,7 @@ final class Preferences: ObservableObject {
         languageCode = defaults.string(forKey: Keys.languageCode) ?? "auto"
         noVerbatim = defaults.object(forKey: Keys.noVerbatim) == nil ? true : defaults.bool(forKey: Keys.noVerbatim)
         keyterms = Self.decode([String].self, key: Keys.keyterms, defaults: defaults) ?? []
-        onboardingComplete = defaults.bool(forKey: Keys.onboardingComplete)
+        onboardingDismissed = defaults.bool(forKey: Keys.onboardingDismissed)
         onboardingStep = defaults.integer(forKey: Keys.onboardingStep)
         startInBackground = Self.optInFlag(Keys.startInBackground, in: defaults)
         showInMenuBar = defaults.object(forKey: Keys.showInMenuBar) == nil ? true : defaults.bool(forKey: Keys.showInMenuBar)
