@@ -162,8 +162,7 @@ enum AppLaunchConfiguration {
     /// activation policy can be settled without cost. An app that finishes
     /// launching as an accessory and is promoted to regular afterwards is handed a
     /// menu bar macOS draws but does not track until the app is deactivated and
-    /// activated again, and it never registers its help book — `⌘⇧/` answers "Help
-    /// isn't available" for the rest of the process.
+    /// activated again.
     @MainActor
     static var presentsAnyWindowAtLaunch: Bool { !startsInBackground }
 
@@ -751,8 +750,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 #endif
         LoginItemLaunch.capture(phase: "willFinishLaunching")
         // Before AppKit activates the app, and only here. Promoting later is what
-        // `presentsAnyWindowAtLaunch` describes: a drawn but dead menu bar and no
-        // help book. The steady state is the same either way — `wantsRegular`
+        // `presentsAnyWindowAtLaunch` describes: a menu bar macOS draws but does
+        // not track. The steady state is the same either way — `wantsRegular`
         // holds regular for as long as a managed window is visible — so this only
         // moves the decision earlier, it does not change what the app settles on.
         if AppLaunchConfiguration.presentsAnyWindowAtLaunch {
