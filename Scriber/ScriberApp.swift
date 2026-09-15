@@ -690,6 +690,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var accessoryDemotionTask: Task<Void, Never>?
     private var onboardingWindowTask: Task<Void, Never>?
     private var settingsWindowTask: Task<Void, Never>?
+    private var mainWindowTask: Task<Void, Never>?
     private var showAppInDock = false
     /// Set the moment the user closes a managed window, so the startup show
     /// sequence stops trying to put that window back on screen.
@@ -905,8 +906,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    /// Creates the scene before ordering it, and polls, for the reason Settings
+    /// does — with one route of its own that makes it worse.
+    ///
+    /// `defaultLaunchBehavior` suppresses the main window for any launch that
+    /// begins in setup, so its scene is never built in that session. Finishing
+    /// setup then asked for a window AppKit had never made, and `showWindow`
+    /// answers that by returning false and logging nothing: setup closed onto an
+    /// empty screen and the app dropped to accessory. Reached on a true first run
+    /// as much as on a relaunch into an unfinished setup, and by both ways out —
+    /// Done and Set Up Later share `close` (`OnboardingView.swift`).
     private func showMainWindow() {
-        showWindow(titled: AppWindowIdentity.mainTitle)
+        SceneOpeners.shared.openMainWindow?()
+        mainWindowTask?.cancel()
+        mainWindowTask = Task { @MainActor [weak self] in
+            for _ in 0..<40 {
+                guard let self, !Task.isCancelled else { return }
+                if self.showWindow(titled: AppWindowIdentity.mainTitle) { return }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            Self.windowLog.notice("showMainWindow: never appeared")
+        }
     }
 
     /// Polls like onboarding does: the caller's `openWindow(id:)` may have just
