@@ -665,6 +665,10 @@ private struct MainWindowCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
+            // Platform: this item belongs to the main window's menu, so a condition
+            // on it only re-evaluates while that window is around. Four attempts at
+            // greying it during setup were all stale for that reason, whatever
+            // supplied the value — opening the main window is what un-greyed it.
             Button("Settings…") { openSettings() }
                 .keyboardShortcut(",", modifiers: .command)
         }
