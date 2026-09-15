@@ -291,10 +291,6 @@ final class AppCoordinator: ObservableObject {
             .sink { [weak self] chord in self?.shortcuts.update(dictation: chord) }
             .store(in: &cancellables)
 
-        // Clears the shortcut suspension on the way out. The setup view cannot:
-        // `onDisappear` and its own `onReceive` are both gone by the time the
-        // window closes, measured on the Done route and on Command-W alike. This
-        // object outlives every window, so its subscription is still there.
         NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)
             .compactMap { $0.object as? NSWindow }
             .filter { $0.title == AppWindowIdentity.onboardingTitle }
@@ -792,6 +788,11 @@ final class AppCoordinator: ObservableObject {
         preferences.onboardingComplete = false
         // A redo is a fresh run, not a resumption of the one that finished.
         preferences.onboardingStep = 0
+        // And the flow has to be rebuilt to honor that. The window is re-ordered
+        // rather than remade — `showWindow` reports `wasVisible=true` — so without
+        // this the restart lands on the step the last run ended on, holding its
+        // typed key and its answers.
+        setupRunToken += 1
         // `openWindow(id:)` creates the scene but does not reliably bring it in
         // front of the window the action came from, which leaves onboarding behind
         // Settings. Route through `AppDelegate.showWindow(titled:)`, which already
@@ -1098,19 +1099,14 @@ final class AppCoordinator: ObservableObject {
         shortcuts.setMatchingSuspended(active, for: .setupBeforeDictationStep)
     }
 
-    /// Whether setup is on screen. Read by the Settings command, which is closed
-    /// for as long as it is: Settings edits the key, the shortcut and the grants
-    /// the step in front of the user is asking about, and its own Redo Setup would
-    /// restart the flow underneath the window already showing it.
+    /// Counts the runs of setup, so the flow can be rebuilt rather than resumed.
+    /// SwiftUI keeps a `Window` scene's state alive after its window closes and
+    /// fires no `onAppear` when it is shown again, so a restart lands on the step
+    /// the last run ended on, holding the last run's answers.
     ///
-    /// Do not: cache this in a flag the setup view sets and clears. A flag left
-    /// standing is Settings disabled with no setup window on screen and nothing
-    /// able to re-enable it, and the view cannot clear it reliably — `onDisappear`
-    /// and its own `onReceive` are both gone by the time the window closes. Asked
-    /// of AppKit there is nothing to leave standing.
-    static var isSetupWindowShowing: Bool {
-        NSApp.windows.contains { $0.title == AppWindowIdentity.onboardingTitle && $0.isVisible }
-    }
+    /// Bumped by a restart and not by a resume: the two are different asks, and
+    /// only the first is meant to forget where setup had got to.
+    @Published private(set) var setupRunToken = 0
 
     func startHandsFreeFromMenu() {
         guard preferences.onboardingComplete else { return }

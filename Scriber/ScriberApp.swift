@@ -156,6 +156,17 @@ enum AppLaunchConfiguration {
     @MainActor
     static var presentsMainWindowAtLaunch: Bool { !startsInBackground && !launchesIntoOnboarding }
 
+    /// Whether this launch puts any window on screen — setup's or the main one.
+    ///
+    /// Read before AppKit activates the app, because that is the only moment the
+    /// activation policy can be settled without cost. An app that finishes
+    /// launching as an accessory and is promoted to regular afterwards is handed a
+    /// menu bar macOS draws but does not track until the app is deactivated and
+    /// activated again, and it never registers its help book — `⌘⇧/` answers "Help
+    /// isn't available" for the rest of the process.
+    @MainActor
+    static var presentsAnyWindowAtLaunch: Bool { !startsInBackground }
+
     static var permissionReadinessOverride: PermissionReadiness? {
         simulatesMissingPermissions
             ? PermissionReadiness(missingPermissions: [.microphone, .accessibility])
@@ -519,6 +530,13 @@ struct ScriberApp: App {
 
         Window("Set Up Scriber", id: AppWindowIdentity.onboardingSceneID) {
             OnboardingView()
+                // A restart is a new run of the flow, and this is what makes it
+                // one. The window is re-ordered rather than remade, so the view
+                // keeps its state and gets no `onAppear`; a new identity is a new
+                // view, which starts at the welcome step with nothing carried over.
+                // Settings rebuilds its tab picker the same way, for the same
+                // reason. A resume deliberately does not bump this.
+                .id(runtime.coordinator.setupRunToken)
                 .environmentObject(runtime)
                 .modelContainer(runtime.container)
                 .task { await promoteApplicationForVisibleWindow() }
@@ -644,34 +662,12 @@ private struct MainWindowCommands: Commands {
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") { openSettings() }
                 .keyboardShortcut(",", modifiers: .command)
-                .disabled(isSettingsClosedToUser)
         }
         CommandGroup(after: .textEditing) {
             Button("Search Dictations") { searchDictationHistory?() }
                 .keyboardShortcut("f", modifiers: .command)
                 .disabled(searchDictationHistory == nil)
         }
-    }
-
-    /// Whether Settings is out of reach, which it is while setup is on screen and
-    /// until a first run has finished.
-    ///
-    /// Setup asks for the key, the shortcut and the grants Settings also edits, so
-    /// the two open together are two windows asking one question — and Settings'
-    /// own Redo Setup would restart the flow underneath the window already showing
-    /// it, writing a step the open window does not move to. A redo is covered by
-    /// the same rule as a first run: pressing Redo Setup is leaving Settings, not
-    /// somewhere to return to mid-flow.
-    ///
-    /// Nobody is stranded: setup reopens from the main window for as long as
-    /// `onboardingComplete` is clear, and Set Up Later sets it.
-    ///
-    /// `isRedoingSetup` publishes nothing of its own and does not need to —
-    /// `restartOnboarding` sets it before clearing `onboardingComplete`, whose
-    /// publish is what rebuilds these commands, with it already true.
-    private var isSettingsClosedToUser: Bool {
-        if AppCoordinator.isSetupWindowShowing { return true }
-        return !(runtime.coordinator.isRedoingSetup || runtime.preferences.onboardingComplete)
     }
 
     /// Settings is its own window. Select the destination first so a window that
@@ -748,6 +744,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if AppLaunchConfiguration.simulatesLoginLaunch { LoginItemLaunch.simulateLoginLaunch() }
 #endif
         LoginItemLaunch.capture(phase: "willFinishLaunching")
+        // Before AppKit activates the app, and only here. Promoting later is what
+        // `presentsAnyWindowAtLaunch` describes: a drawn but dead menu bar and no
+        // help book. The steady state is the same either way — `wantsRegular`
+        // holds regular for as long as a managed window is visible — so this only
+        // moves the decision earlier, it does not change what the app settles on.
+        if AppLaunchConfiguration.presentsAnyWindowAtLaunch {
+            NSApp.setActivationPolicy(.regular)
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -756,7 +760,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         showAppInDock = AppLaunchConfiguration.isUITesting
             ? false
             : UserDefaults.standard.bool(forKey: "showAppInDock")
-        NSApp.setActivationPolicy(AppLaunchConfiguration.keepsRegularActivationPolicy ? .regular : .accessory)
+        // Settled in `willFinishLaunching` for a launch that shows a window.
+        // Demoting here and promoting again a moment later is the transition that
+        // costs the menu bar.
+        if !AppLaunchConfiguration.presentsAnyWindowAtLaunch {
+            NSApp.setActivationPolicy(AppLaunchConfiguration.keepsRegularActivationPolicy ? .regular : .accessory)
+        }
         installSettingsEscapeMonitor()
         installOnboardingCenterMonitor()
         let center = NotificationCenter.default
