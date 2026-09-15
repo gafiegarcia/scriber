@@ -161,7 +161,7 @@ Add `--ui-testing --ui-testing-onboarding --ui-testing-onboarding-unlocked` to a
 
 ### Its shape and lifecycle
 
-- On a first run, look for a main window behind setup or showing past its edges, and watch what finishing opens. Redo Setup is the opposite case and correct — the main window is already open there, and setup sits in front of it. Spec: Permissions and app lifecycle — "Setup is the only window on a first run"
+- On a first run, look for a main window behind setup or showing past its edges, and watch what finishing opens — by **Done** and by **Set Up Later**, since they are separate buttons onto one route out. Redo Setup is the opposite case and correct — the main window is already open there, and setup sits in front of it, which is why it stayed green while a first run did not. Spec: Permissions and app lifecycle — "Setup is the only window on a first run"; Permissions and app lifecycle — "Leaving setup opens the main window"
 - Close setup part-way with ⌘W, before its dictation step, then use the menu bar's **Finish Setup…**, then quit and reopen. That menu item is the only route back when there is no main window to hold a warning. Spec: Permissions and app lifecycle — "Every launch presents onboarding until setup is complete"
 - Press **Allow** for Microphone and again for Accessibility, watching where System Settings lands each time. Spec: Permissions and app lifecycle — "one click raises one thing"
 - Redo Setup with everything already granted and a shortcut you recorded yourself, then finish it. Spec: Permissions and app lifecycle — "a Redo Setup shows what is already granted as done"
