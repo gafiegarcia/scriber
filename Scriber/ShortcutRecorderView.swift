@@ -265,13 +265,13 @@ struct ShortcutKeyCapTester: View {
 
     private func start() {
         guard monitor == nil, !isPaused else { return }
-        // Every event is returned rather than swallowed. A recorder capturing a
-        // new binding consumes keys on purpose; a page that merely watches must
-        // not, or Tab and Return stop reaching the buttons beside it.
+        // Every event is returned except the chord's own key-down. A recorder
+        // capturing a new binding consumes keys on purpose; a page that merely
+        // watches must not, or Tab and Return stop reaching the buttons beside it.
         // Built once rather than per event: it depends only on `target`, and a
         // change to that restarts the monitor.
         let matcher = ShortcutMatcher(dictation: target)
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { event in
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown, .keyUp]) { event in
             let modifiers = KeyModifiers(event.modifierFlags)
             if event.type == .flagsChanged {
                 heldKeys.observe(keyCode: event.keyCode, modifiers: modifiers)
@@ -283,13 +283,29 @@ struct ShortcutKeyCapTester: View {
                     && matcher.matches(modifiers: modifiers, keyCode: event.keyCode)
             // Only on a change. A held key auto-repeats, and both of these are
             // bindings into the flow's own state.
-            let nowHeld = matched
-                ? true
-                : (event.type == .flagsChanged
-                    ? matcher.stillHeld(modifiers: modifiers, heldKeys: heldKeys.keys)
-                    : isHeld)
+            let nowHeld: Bool
+            if matched {
+                nowHeld = true
+            } else if event.type == .keyUp, event.keyCode == target.keyCode {
+                nowHeld = false
+            } else if event.type == .flagsChanged {
+                // Do not: light the cap from `stillHeld` alone. It answers on the
+                // chord's modifiers and never on its key, so `⌃⌥` held on the way
+                // to `⌃⌥D` satisfied it and lit the cap for a chord nobody had
+                // finished pressing. Gated on `isHeld` it can only keep the cap
+                // lit, never light it.
+                nowHeld = isHeld && matcher.stillHeld(modifiers: modifiers, heldKeys: heldKeys.keys)
+            } else {
+                nowHeld = isHeld
+            }
             if nowHeld != isHeld { isHeld = nowHeld }
             if matched, !isConfirmed { isConfirmed = true }
+            // Platform: an unhandled key-down makes macOS play the user's alert
+            // sound, and nothing downstream answers this one — global matching is
+            // suspended for the whole of this step. A modifier-only chord never
+            // reaches this: it matches on `flagsChanged`, and swallowing one of
+            // those leaves the focused app holding a modifier that is not down.
+            if matched, event.type == .keyDown { return nil }
             return event
         }
     }
