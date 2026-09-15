@@ -1359,8 +1359,11 @@ final class AppCoordinator: ObservableObject {
     /// Only a SwiftUI scene can create the Settings window, so the main window
     /// hands its `openWindow` action over once it exists.
     ///
-    /// Prototype limitation: with every window closed and the app launched
-    /// straight to the menu bar, nothing has registered an opener yet.
+    /// Legacy: this used to be the only opener, which meant a session that never
+    /// showed the main window — a launch straight into setup, or into the menu bar
+    /// — had none, and every route into Settings did nothing and said nothing. The
+    /// menu bar extra registers one in `SceneOpeners` that does not wait for a
+    /// window, so that state is no longer reachable while the extra is shown.
     func registerSettingsWindowOpener(_ opener: @escaping @MainActor () -> Void) {
         settingsWindowOpener = opener
     }
@@ -1371,7 +1374,11 @@ final class AppCoordinator: ObservableObject {
         // The opener creates the scene if it does not exist yet; the
         // notification is what orders an existing window front and carries the
         // activation retries every other managed window already relies on.
+        // Either opener will do; the second is there for the sessions the first
+        // never reaches. Both create the same scene, and creating one that exists
+        // is a no-op.
         settingsWindowOpener?()
+        SceneOpeners.shared.openSettingsWindow?()
         NotificationCenter.default.post(name: .openScriberSettingsWindow, object: nil)
     }
 

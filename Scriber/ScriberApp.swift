@@ -185,6 +185,11 @@ final class SceneOpeners {
     var openMainWindow: (() -> Void)?
     /// How the launch poller reaches setup, which no main window is around to open.
     var openOnboardingWindow: (() -> Void)?
+    /// The same for Settings. The main window hands over an opener of its own, but
+    /// only once it has appeared — so a session that never showed it, such as a
+    /// launch straight into setup, had no way to create the Settings scene and
+    /// every route into it did nothing at all.
+    var openSettingsWindow: (() -> Void)?
 }
 
 /// Carries `openWindow` out of SwiftUI, beside drawing the icon. A plain `Image`
@@ -201,6 +206,7 @@ private struct MenuBarLabel: View {
             .task {
                 SceneOpeners.shared.openMainWindow = { openWindow(id: "main") }
                 SceneOpeners.shared.openOnboardingWindow = { openWindow(id: "onboarding") }
+                SceneOpeners.shared.openSettingsWindow = { openWindow(id: "settings") }
             }
     }
 }
