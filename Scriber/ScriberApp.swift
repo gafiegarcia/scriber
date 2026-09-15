@@ -644,12 +644,29 @@ private struct MainWindowCommands: Commands {
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") { openSettings() }
                 .keyboardShortcut(",", modifiers: .command)
+                .disabled(!hasBeenThroughSetup)
         }
         CommandGroup(after: .textEditing) {
             Button("Search Dictations") { searchDictationHistory?() }
                 .keyboardShortcut("f", modifiers: .command)
                 .disabled(searchDictationHistory == nil)
         }
+    }
+
+    /// Whether the user has been through setup before, which is what decides
+    /// whether Settings is theirs to open.
+    ///
+    /// A first run holds the same API key field, shortcut recorder and permission
+    /// rows setup is in the middle of asking for, plus a Redo Setup button for a
+    /// setup never finished once. A redo keeps Settings, since that is the window
+    /// the redo was started from. Nobody is stranded by this: setup reopens from
+    /// the main window for as long as the flag is clear, and Set Up Later sets it.
+    ///
+    /// `isRedoingSetup` publishes nothing of its own and does not need to —
+    /// `restartOnboarding` sets it before clearing `onboardingComplete`, whose
+    /// publish is what rebuilds these commands, with it already true.
+    private var hasBeenThroughSetup: Bool {
+        runtime.coordinator.isRedoingSetup || runtime.preferences.onboardingComplete
     }
 
     /// Settings is its own window. Select the destination first so a window that
