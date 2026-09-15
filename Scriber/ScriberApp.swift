@@ -644,7 +644,7 @@ private struct MainWindowCommands: Commands {
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") { openSettings() }
                 .keyboardShortcut(",", modifiers: .command)
-                .disabled(!hasBeenThroughSetup)
+                .disabled(isSettingsClosedToUser)
         }
         CommandGroup(after: .textEditing) {
             Button("Search Dictations") { searchDictationHistory?() }
@@ -653,20 +653,25 @@ private struct MainWindowCommands: Commands {
         }
     }
 
-    /// Whether the user has been through setup before, which is what decides
-    /// whether Settings is theirs to open.
+    /// Whether Settings is out of reach, which it is while setup is on screen and
+    /// until a first run has finished.
     ///
-    /// A first run holds the same API key field, shortcut recorder and permission
-    /// rows setup is in the middle of asking for, plus a Redo Setup button for a
-    /// setup never finished once. A redo keeps Settings, since that is the window
-    /// the redo was started from. Nobody is stranded by this: setup reopens from
-    /// the main window for as long as the flag is clear, and Set Up Later sets it.
+    /// Setup asks for the key, the shortcut and the grants Settings also edits, so
+    /// the two open together are two windows asking one question — and Settings'
+    /// own Redo Setup would restart the flow underneath the window already showing
+    /// it, writing a step the open window does not move to. A redo is covered by
+    /// the same rule as a first run: pressing Redo Setup is leaving Settings, not
+    /// somewhere to return to mid-flow.
+    ///
+    /// Nobody is stranded: setup reopens from the main window for as long as
+    /// `onboardingComplete` is clear, and Set Up Later sets it.
     ///
     /// `isRedoingSetup` publishes nothing of its own and does not need to —
     /// `restartOnboarding` sets it before clearing `onboardingComplete`, whose
     /// publish is what rebuilds these commands, with it already true.
-    private var hasBeenThroughSetup: Bool {
-        runtime.coordinator.isRedoingSetup || runtime.preferences.onboardingComplete
+    private var isSettingsClosedToUser: Bool {
+        if AppCoordinator.isSetupWindowShowing { return true }
+        return !(runtime.coordinator.isRedoingSetup || runtime.preferences.onboardingComplete)
     }
 
     /// Settings is its own window. Select the destination first so a window that

@@ -291,6 +291,16 @@ final class AppCoordinator: ObservableObject {
             .sink { [weak self] chord in self?.shortcuts.update(dictation: chord) }
             .store(in: &cancellables)
 
+        // Clears the shortcut suspension on the way out. The setup view cannot:
+        // `onDisappear` and its own `onReceive` are both gone by the time the
+        // window closes, measured on the Done route and on Command-W alike. This
+        // object outlives every window, so its subscription is still there.
+        NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)
+            .compactMap { $0.object as? NSWindow }
+            .filter { $0.title == AppWindowIdentity.onboardingTitle }
+            .sink { [weak self] _ in self?.setSetupBeforeDictationStep(false) }
+            .store(in: &cancellables)
+
         preferences.$muteOtherAudioWhileDictating
             .dropFirst()
             .sink { [weak self] enabled in
@@ -1086,6 +1096,20 @@ final class AppCoordinator: ObservableObject {
     /// Settings window.
     func setSetupBeforeDictationStep(_ active: Bool) {
         shortcuts.setMatchingSuspended(active, for: .setupBeforeDictationStep)
+    }
+
+    /// Whether setup is on screen. Read by the Settings command, which is closed
+    /// for as long as it is: Settings edits the key, the shortcut and the grants
+    /// the step in front of the user is asking about, and its own Redo Setup would
+    /// restart the flow underneath the window already showing it.
+    ///
+    /// Do not: cache this in a flag the setup view sets and clears. A flag left
+    /// standing is Settings disabled with no setup window on screen and nothing
+    /// able to re-enable it, and the view cannot clear it reliably — `onDisappear`
+    /// and its own `onReceive` are both gone by the time the window closes. Asked
+    /// of AppKit there is nothing to leave standing.
+    static var isSetupWindowShowing: Bool {
+        NSApp.windows.contains { $0.title == AppWindowIdentity.onboardingTitle && $0.isVisible }
     }
 
     func startHandsFreeFromMenu() {
