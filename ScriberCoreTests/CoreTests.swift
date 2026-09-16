@@ -664,7 +664,38 @@ struct ScribeValidationTests {
 
         let unavailable = ScribeClient.apiKeyValidationError(statusCode: 503, data: Data())
         #expect(unavailable?.retryable == true)
+
+        let exhausted = ScribeClient.apiKeyValidationError(statusCode: 401, data: Self.quotaExceededBody)
+        #expect(exhausted == nil)
     }
+
+    @Test("Reads an exhausted quota out of a 401 body")
+    func quotaExhaustionIsNotAnAuthenticationFailure() {
+        #expect(ScribeClient.exhaustsCredits(statusCode: 401, data: Self.quotaExceededBody))
+        #expect(ScribeClient.errorMarker(data: Self.quotaExceededBody) == "quota_exceeded")
+
+        // The code moved from `detail.status` to `detail.code`; both are answered.
+        let currentField = Data(#"{"detail":{"code":"quota_exceeded","message":"You have 0 credits remaining."}}"#.utf8)
+        #expect(ScribeClient.exhaustsCredits(statusCode: 401, data: currentField))
+
+        // No code at all, only the sentence ElevenLabs writes.
+        let prose = Data(#"{"detail":{"message":"This request exceeds your quota of 10000."}}"#.utf8)
+        #expect(ScribeClient.exhaustsCredits(statusCode: 401, data: prose))
+
+        // A genuinely rejected key stays a rejected key.
+        let rejected = Data(#"{"detail":{"status":"invalid_api_key","message":"Invalid API key."}}"#.utf8)
+        #expect(!ScribeClient.exhaustsCredits(statusCode: 401, data: rejected))
+        #expect(!ScribeClient.exhaustsCredits(statusCode: 401, data: Data()))
+        #expect(ScribeClient.apiKeyValidationError(statusCode: 401, data: rejected)?.invalidatesAPIKey == true)
+
+        // A status that never means quota is not reinterpreted by its body.
+        #expect(!ScribeClient.exhaustsCredits(statusCode: 429, data: Self.quotaExceededBody))
+        #expect(ScribeClient.exhaustsCredits(statusCode: 402, data: Data()))
+    }
+
+    private static let quotaExceededBody = Data(#"""
+    {"detail":{"status":"quota_exceeded","message":"This request exceeds your quota of 10000. You have 0 credits remaining, while 91 credits are required for this request."}}
+    """#.utf8)
 
     @Test("Decodes subscription credit usage and extension policy")
     func subscriptionUsage() throws {

@@ -1805,9 +1805,13 @@ final class AppCoordinator: ObservableObject {
             record.errorMessage = error.localizedDescription
             try? modelContext.save()
             if let scribeError = error as? ScribeError, scribeError.invalidatesAPIKey {
-                preferences.apiKeyValidity = .invalid
-                lastObservedCredentialReadiness = credentialReadiness
-                setPhase(.credentialsUnusable(credentialReadiness))
+                // One refused request is not a dead key, and marking it invalid
+                // here blocks every later dictation before it can find out
+                // otherwise. `validateStoredAPIKey` costs no credit and is the
+                // only thing that writes `.invalid`; its own refresh raises the
+                // credentials pill if the key really is gone.
+                setPhase(.transcriptionFailed(error.localizedDescription))
+                validateStoredAPIKey()
             } else if case ScribeError.insufficientCredits = error {
                 preferences.apiCreditsExhausted = true
                 lastObservedCredentialReadiness = credentialReadiness

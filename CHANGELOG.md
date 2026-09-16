@@ -4,6 +4,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Fixed
+
+- **Running out of ElevenLabs credits no longer reports your API key as invalid.** ElevenLabs answers a request it has no credit for with the same status code it uses for a rejected key, and says which it is only in the reply's text — so the first dictation after the credits ran out failed with "ElevenLabs rejected this API key", Settings showed the key as **Invalid** in red, and every later dictation was refused for a key that was working perfectly. Scriber now reads the reply, shows **ElevenLabs credits exhausted** with **View Credits**, and leaves the key alone. Two things back this up: a refused dictation no longer marks a key invalid by itself — Scriber re-checks the key against ElevenLabs first, which costs no credit — and the ElevenLabs tab in Settings re-checks whenever you open it, so a verdict left over from earlier corrects itself instead of waiting for you to retype a key that was never the problem.
+
 ## 0.9.5 (build 352) — 2026-09-17
 
 A setup and notices release. Setup no longer counts itself finished two steps early, no longer opens behind the window you cannot use, and no longer starts a dictation while you are testing the shortcut. The pills were measured against what they actually hold rather than cut off mid-sentence, and deleting a dictation is one click with `⌘Z` behind it instead of four clicks and a dialog.

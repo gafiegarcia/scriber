@@ -280,6 +280,11 @@ public struct ScribeClient: Sendable {
         // The sentinel transcript must not exist. These responses mean the request
         // passed authentication and Speech-to-Text authorization before lookup.
         guard !(200..<300).contains(statusCode), ![400, 404, 422].contains(statusCode) else { return nil }
+        // A key refused over quota is a key that authenticated, so it passes here
+        // too. Whether there is credit to dictate with is the subscription
+        // reading's to answer, and calling this one invalid is what latched
+        // `.invalid` on a credential with nothing wrong with it.
+        if Self.exhaustsCredits(statusCode: statusCode, data: data) { return nil }
         switch statusCode {
         case 401:
             return .authentication
@@ -424,6 +429,12 @@ public struct ScribeClient: Sendable {
         guard let http = response as? HTTPURLResponse else { throw ScribeError.serviceUnavailable }
         guard (200..<300).contains(http.statusCode) else {
             let message = Self.errorMessage(data: data) ?? "Transcription failed (\(http.statusCode))."
+            Self.log.notice(
+                "transcribe refused status=\(http.statusCode, privacy: .public) marker=\(Self.errorMarker(data: data) ?? "none", privacy: .public)"
+            )
+            if Self.exhaustsCredits(statusCode: http.statusCode, data: data) {
+                throw ScribeError.insufficientCredits
+            }
             switch http.statusCode {
             case 401, 403: throw ScribeError.authentication
             case 402: throw ScribeError.insufficientCredits
@@ -467,7 +478,28 @@ public struct ScribeClient: Sendable {
         return [.timedOut, .networkConnectionLost, .notConnectedToInternet, .cannotConnectToHost, .dnsLookupFailed].contains(error.code)
     }
 
-    private static func errorMessage(data: Data) -> String? {
+    /// The machine-readable code in an error body, which ElevenLabs carries as
+    /// `detail.code` and, on older responses, `detail.status`. A short code word,
+    /// never the server's prose, so it is safe to log.
+    static func errorMarker(data: Data) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let detail = object["detail"] as? [String: Any] else { return nil }
+        return detail["code"] as? String ?? detail["status"] as? String
+    }
+
+    /// Platform: an exhausted quota comes back as 401, not the 402 ElevenLabs'
+    /// error reference documents, and says which it is only in the body. Read from
+    /// the status code alone it is indistinguishable from a revoked key — which is
+    /// what once marked a working key invalid the moment the credits ran out.
+    static func exhaustsCredits(statusCode: Int, data: Data) -> Bool {
+        if statusCode == 402 { return true }
+        guard statusCode == 401 || statusCode == 403 else { return false }
+        if let marker = errorMarker(data: data)?.lowercased(), marker.contains("quota") { return true }
+        guard let message = errorMessage(data: data)?.lowercased() else { return false }
+        return message.contains("quota") || message.contains("credits remaining")
+    }
+
+    static func errorMessage(data: Data) -> String? {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         if let detail = object["detail"] as? String { return detail }
         if let detail = object["detail"] as? [String: Any], let message = detail["message"] as? String { return message }

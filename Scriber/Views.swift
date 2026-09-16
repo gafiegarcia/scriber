@@ -1107,6 +1107,11 @@ private struct ElevenLabsSettingsPane: View {
             apiKeyFieldFocused = true
             pendingKeyFieldFocus = false
         }
+        // The validity shown here is a stored preference, so without this the tab
+        // can report a verdict nothing has re-checked since the launch that wrote
+        // it — leaving a key that works reading Invalid until the app restarts or
+        // the user retypes it. Costs no transcription credit.
+        .onAppear { runtime.coordinator.validateStoredAPIKey() }
     }
 
     /// The tab's own controls, not the credits card's — they answer to the whole
