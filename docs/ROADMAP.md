@@ -43,7 +43,7 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Let someone turn off saving dictation history.** ([Notion task](https://app.notion.com/p/3be71937040280979aefe6d76c42c9ae))
 - [ ] **Delete dictation entries once they reach a chosen age.** ([Notion task](https://app.notion.com/p/3cf71937040280b3b7edd3fb8c566ab0))
 - [ ] **Say so when a stored setting is dropped on load.** ([Notion task](https://app.notion.com/p/3d27193704028114869acb94f0990204))
-- [ ] **Offer a choice of dictation start sound.** ([Notion task](https://app.notion.com/p/3c271937040280d5a8ecd37e328ce12d))
+- [ ] **Give Scriber its own start and cancel sounds, and a choice between them.** ([Notion task](https://app.notion.com/p/3c271937040280d5a8ecd37e328ce12d))
 
 ## Long-term
 
