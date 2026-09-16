@@ -1946,7 +1946,7 @@ final class AppCoordinator: ObservableObject {
             }
             paste.clearTarget()
             shortcuts.setMode(.idle)
-            playFeedback(.dictationDidNotLand)
+            playFeedback(.dictationCanceled)
             showMessage("Canceled")
             return
         }
@@ -1998,10 +1998,10 @@ final class AppCoordinator: ObservableObject {
         // it is this cue reaching an audio route that is collapsing — which is
         // every disconnect, because the output goes with the input on one headset.
         //
-        // One cue now covers every ending, so this is no longer the only way to
-        // see it: canceling a dictation while a headset is disconnecting reaches
-        // the same alert. Accepted deliberately — playing a sound the user chose
-        // away from is the worse of the two.
+        // Every ending but a cancellation reaches the same alert, so this is not
+        // the only way to see it: no words or no signal on a headset that is
+        // disconnecting gets there too. Accepted deliberately — playing a sound
+        // the user chose away from is the worse of the two.
         playFeedback(.dictationDidNotLand)
         Self.dictationLog.notice(
             "dictation ended by device kept=\(completed != nil, privacy: .public)"
@@ -2047,7 +2047,7 @@ final class AppCoordinator: ObservableObject {
             AudioRecorder.delete(relativePath: completed.relativePath)
             paste.clearTarget()
             shortcuts.setMode(.idle)
-            playFeedback(.dictationDidNotLand)
+            playFeedback(.dictationCanceled)
             showMessage("Canceled")
             return
         }
@@ -2064,7 +2064,7 @@ final class AppCoordinator: ObservableObject {
             currentRecord = record
             currentRecording = completed
             shortcuts.setMode(.idle)
-            playFeedback(.dictationDidNotLand)
+            playFeedback(.dictationCanceled)
             setPhase(.canceledTranscript)
         } catch {
             shortcuts.setMode(.idle)
@@ -2114,7 +2114,7 @@ final class AppCoordinator: ObservableObject {
         paste.clearTarget()
         pill.setPreferredScreen(nil)
         if gate.isIdle { shortcuts.setMode(.idle) }
-        playFeedback(.dictationDidNotLand)
+        playFeedback(.dictationCanceled)
         setPhase(.canceledTranscript)
     }
 
