@@ -1100,6 +1100,13 @@ private struct ElevenLabsSettingsPane: View {
         .onChange(of: apiKey) { _, newValue in
             if !newValue.isEmpty { keyFeedback = nil }
         }
+        // The save receipt is drawn instead of the validity badge, not beside it,
+        // so a key that stopped verifying after it was saved went on reading
+        // "verified and saved" until the window was closed and reopened. A failed
+        // save is left alone: it changes nothing stored, so it cannot land here.
+        .onChange(of: runtime.preferences.apiKeyValidity) { _, validity in
+            if validity != .valid { keyFeedback = nil }
+        }
         // `initial: true` covers the ordinary case, where the flag was already
         // set by the route that selected this tab before the pane existed.
         .onChange(of: pendingKeyFieldFocus, initial: true) { _, pending in
