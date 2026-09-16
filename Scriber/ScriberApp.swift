@@ -163,6 +163,17 @@ enum AppLaunchConfiguration {
     /// launching as an accessory and is promoted to regular afterwards is handed a
     /// menu bar macOS draws but does not track until the app is deactivated and
     /// activated again.
+    // Measured: this asks about a window and nothing else, so it does not ask about
+    // "Show in Dock" — the other reason to be a regular app, and the one
+    // `wantsRegularActivationPolicy` (`AppDelegate`) adds. A login launch with that
+    // and "Start in the background" both on therefore finishes launching as an
+    // accessory and is promoted moments later. On build 349 that flip cost nothing:
+    // the menu bar was live on the first activation both by Dock icon and by ⌘-Tab,
+    // the latter with no window on screen at all. The promotion lands before the app
+    // has ever activated, and the failure this property guards needs it to land
+    // after.
+    // Do not: read that asymmetry as a bug from source alone. It was filed as one
+    // that way, against code these readings then found correct.
     @MainActor
     static var presentsAnyWindowAtLaunch: Bool { !startsInBackground }
 
