@@ -24,7 +24,7 @@ final class DictationFeedbackSoundPlayer: DictationFeedbackSoundPlaying {
     private let volume: Float
     private var fade: Task<Void, Never>?
 
-    init(volume: Float = 0.55) {
+    init(volume: Float = 0.75) {
         self.volume = volume
         startSound = NSSound(named: NSSound.Name("Frog"))
         cancelSound = NSSound(named: NSSound.Name("Tink"))
