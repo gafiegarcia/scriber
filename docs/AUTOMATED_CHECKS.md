@@ -90,6 +90,8 @@ The subsystem holds four categories: `window-lifecycle`, `paste-target`, `permis
 
 The flag skips the preferences the real path consults, so it holds whatever Start in the background is set to at the time. It is Debug-only and independent of `--ui-testing`, so the app can otherwise behave normally under it.
 
+What `--login` cannot reach is that launch with **Show in Dock** on, because `smoke.sh` always passes `--ui-testing` and `applicationDidFinishLaunching` (`AppDelegate`) forces `showAppInDock` to false under it. The script therefore only ever exercises the Dock setting off. To reach the other combination, launch the Debug build with `--simulate-login-launch` and **without** `--ui-testing`, so it reads the real preferences, with `showAppInDock` set to true — and restore that preference afterwards, reading it back rather than assuming. Expect `reconcile: policy=regular hasVisibleManaged=false applied=true` at launch: `applyActivationPolicy` logs only when the policy changes, so that line is the app saying it came up as an accessory and was promoted. Judging whether the promotion cost anything needs the app fronted, which no `--ui-testing-no-activate` launch can be.
+
 Every launch also writes `launchEvent:` twice and one `launchContext:` line, recording what macOS said about who started the app. That is what tells a launch marker arriving late from one that never arrives, and it is the only evidence available after a real login, where nothing can be attached to watch.
 
 ## Driving the app without computer-use
