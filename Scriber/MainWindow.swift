@@ -43,7 +43,8 @@ struct MainWindowView: View {
             onboardingDismissed: runtime.preferences.onboardingDismissed,
             servicesEnabled: runtime.preferences.servicesEnabled,
             permission: runtime.coordinator.permissionReadiness,
-            credential: runtime.coordinator.credentialReadiness
+            credential: runtime.coordinator.credentialReadiness,
+            creditsResetAt: runtime.coordinator.creditsResetAt
         )
     }
 
@@ -359,6 +360,15 @@ struct MenuBarContent: View {
                             openMain(destination: credentials.resolvesInUsageSettings ? .usage : .apiKey)
                         } label: {
                             Label("\(credentials.title)…", systemImage: "exclamationmark.triangle.fill")
+                        }
+                        // Under the warning it qualifies, in the shortcut hints'
+                        // disabled style: it answers "when can I dictate again"
+                        // rather than offering anything to press. Absent when
+                        // ElevenLabs gave no reset date, which is every key
+                        // without User → Read.
+                        if credentials == .creditsExhausted,
+                           let resets = CreditsReset.phrase(runtime.coordinator.creditsResetAt) {
+                            shortcutHint("Resets \(resets)")
                         }
                     }
                 }

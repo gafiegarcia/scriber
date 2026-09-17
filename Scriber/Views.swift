@@ -1331,7 +1331,10 @@ private struct ElevenLabsSettingsPane: View {
                             Text("Checking…")
                         }
                     } else {
-                        Text("Retry Credit Usage")
+                        // The same word the cached-usage button uses. The two
+                        // never appear together and do the same thing, so two
+                        // names for it was the inconsistency.
+                        Text("Refresh")
                     }
                 }
                 .disabled(runtime.coordinator.isRefreshingSubscriptionUsage)

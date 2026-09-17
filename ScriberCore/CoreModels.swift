@@ -383,6 +383,41 @@ public struct PermissionReadiness: Equatable, Sendable {
     }
 }
 
+/// What a stored "out of credits" still means, and how to say when it ends.
+///
+/// Scriber never refuses a dictation for credits — the same rule it already
+/// follows offline, where a recording is taken and kept for a transcription that
+/// happens later. So exhaustion is something the user is told, never something
+/// they are held to, and an answer nobody is held to may safely go quiet on its
+/// own once it stops describing now.
+public enum CreditsReset {
+    /// Whether a stored exhaustion still describes the present. Past a known
+    /// reset it describes a window that has closed.
+    ///
+    /// Read, never scheduled: the answer changes the moment the clock passes the
+    /// date, with nothing to fire and nothing to invalidate. A surface already on
+    /// screen repaints when something else changes it, which for the menu bar
+    /// mark is the next dictation — and after a reset that one succeeds, which
+    /// clears the stored flag outright.
+    public static func warns(exhausted: Bool, resetAt: Date?, now: Date = .now) -> Bool {
+        guard exhausted else { return false }
+        // No reset date is no reason to stop warning: a key without User → Read
+        // reads no usage at all, and a refused dictation is the only thing that
+        // can ever set this.
+        guard let resetAt else { return true }
+        return now < resetAt
+    }
+
+    /// "in 3 hours", or nil when there is no reset ahead to name. Relative
+    /// because the question being asked is when dictation works again, and that
+    /// is an interval rather than a date. The credits card in Settings keeps the
+    /// absolute date: it is a record rather than an answer.
+    public static func phrase(_ resetAt: Date?, now: Date = .now) -> String? {
+        guard let resetAt, resetAt > now else { return nil }
+        return resetAt.formatted(.relative(presentation: .named))
+    }
+}
+
 /// Why Scriber cannot currently reach ElevenLabs, if it cannot. Onboarding can
 /// complete and then stop being sufficient: a revoked key, a key replaced at
 /// ElevenLabs, an account out of credits.
@@ -417,12 +452,21 @@ public enum CredentialReadiness: Equatable, Sendable {
         }
     }
 
-    public var recoveryMessage: String {
+    public var recoveryMessage: String { recoveryMessage(creditsResetAt: nil) }
+
+    /// - Parameter creditsResetAt: when ElevenLabs next resets this account's
+    ///   credits, if that is known. Named only while it is still ahead.
+    public func recoveryMessage(creditsResetAt: Date?, now: Date = .now) -> String {
         switch self {
         case .ready: "Scriber is ready to dictate."
         case .missingAPIKey: "Add your key in Settings to start dictating."
         case .invalidAPIKey: "Add or update the key in Settings."
-        case .creditsExhausted: "Add credits or wait for your quota to reset."
+        case .creditsExhausted:
+            if let phrase = CreditsReset.phrase(creditsResetAt, now: now) {
+                "Add credits, or wait for your credits to reset \(phrase)."
+            } else {
+                "Add credits, or wait for your credits to reset."
+            }
         }
     }
 
@@ -462,7 +506,15 @@ public enum CredentialRecoveryPolicy {
         onboardingDismissed: Bool,
         force: Bool
     ) -> Bool {
-        onboardingDismissed && !current.isReady && (force || current != previous)
+        // Exhausted credits never present themselves. They stop nothing — the
+        // dictation is taken and kept either way — so a pill arriving uninvited
+        // at launch would interrupt the user about a condition they can do
+        // nothing about and do not need to act on. The menu bar mark and the
+        // window banner carry it, and a dictation that is actually refused
+        // raises the pill itself. A missing or invalid key still announces
+        // itself: those do stop everything.
+        guard current != .creditsExhausted else { return false }
+        return onboardingDismissed && !current.isReady && (force || current != previous)
     }
 }
 
@@ -912,6 +964,11 @@ public extension AppPhase {
         if case .noInternetConnection = self { return .roundedRectangle }
         if case .inputDisconnected = self { return .roundedRectangle }
         if case .dictationFailed = self { return .roundedRectangle }
+        // Only the credits one. It is the single credential notice that is not
+        // an instruction to go and fix something before dictating — it reports a
+        // dictation that has already been taken and kept — so it carries a body
+        // saying so, and a body needs the taller shape.
+        if case .credentialsUnusable(.creditsExhausted) = self { return .roundedRectangle }
         return .capsule
     }
 

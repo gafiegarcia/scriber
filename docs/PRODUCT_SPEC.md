@@ -89,7 +89,8 @@ A press that lands while the previous dictation is still finishing is answered b
 - Failure to create the other-audio mute tap must never prevent dictation. Keep recording unmuted and expose the unavailable state on the Sound tab in Settings.
 - Use ElevenLabs Scribe v2 batch transcription with no secondary rewrite model. “Remove filler words and false starts” controls `no_verbatim`, defaults on, and remains user-configurable.
 - Include personal keyterms after validating them against Scribe limits. Return adds the keyterm in the field.
-- A key with Speech-to-Text access remains verified and usable when its account-usage scope is unavailable. Keep any cached credit usage as visibly subdued last-known information with its update time, expose one retry action, and never let cached exhaustion block a verified key whose current usage cannot be read.
+- A key with Speech-to-Text access remains verified and usable when its account-usage scope is unavailable. Keep any cached credit usage as visibly subdued last-known information with its update time, and expose one retry action.
+- Exhausted credits never refuse a dictation, on the same rule as being offline: record, attempt, and keep the recording in history to be retried later. Exhaustion is reported — in the menu bar, in the window's chrome, and in a pill when a dictation is actually refused — and a report of it names when the credits reset if that is known, stops claiming anything once that reset has passed, and never presents itself uninvited.
 - Retry transient failures up to three total attempts, waiting 3 seconds and then 5 seconds.
 - Delete audio only after a successful transcript has been saved.
 - Retain failed or interrupted audio so the job can be retried.
@@ -183,7 +184,7 @@ The current delivery transaction and its regression baseline are defined in [`PA
 - A relaunch part-way through setup returns to the step that is unmet, never past it. Granting a permission macOS then wants the app relaunched for is the ordinary way to reach this, and setup resuming at the welcome page would ask again for everything already given.
 - A Redo Setup opens on the welcome step, not on the step the last run ended at, and finishing it clears **Setup is not finished** from the main window's chrome. A redo that cannot be finished leaves the app claiming setup is still owed.
 - Every launch presents onboarding until setup is complete, then presents the main Dictation window, except for a login launch that starts in the background. Closing the final normal window still leaves menu-bar and dictation services running.
-- Onboarding must be complete and the credential definitively usable before recording or Dictation retry can begin.
+- Onboarding must be complete, and the credential present and not known to be rejected, before recording or Dictation retry can begin. A key that is merely out of credits is usable for this purpose.
 - App Sandbox remains disabled while global event interception and cross-app Accessibility insertion are core behavior.
 
 ## Platform and release boundary

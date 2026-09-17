@@ -65,6 +65,9 @@ final class PillModel: ObservableObject {
     var onRecover: (() -> Void)?
     /// Drives the offline pill's Retry, which cannot work without a route.
     @Published var hasNetworkRoute = true
+    /// Lets the credits pill name when dictation works again. Carried here rather
+    /// than in the phase because it is the account's state, not the notice's.
+    @Published var creditsResetAt: Date?
     var onCancelRecording: (() -> Void)?
     var onConfirmRecording: (() -> Void)?
     var onDismiss: (() -> Void)?
@@ -418,6 +421,18 @@ final class PillController {
             dictationFailureSize(for: message)
         case .canceledTranscript, .noInternetConnection:
             NSSize(width: 430, height: 104)
+        // Measured: every wording this body takes — with a reset named, without
+        // one, and at the longest phrase the formatter produces — wraps to
+        // exactly two lines against the 394 points the panel leaves, at 26
+        // points where a one-line body is 13. So it takes the same 120 that
+        // `.inputDisconnected`'s two-line body was fitted for, rather than the
+        // 104 the one-line offers use. A third line would need a body past 788
+        // points; the longest of these is 545.
+        //
+        // Only the credits readiness renders this way. The other credential
+        // states stay one-liners, below.
+        case .credentialsUnusable(.creditsExhausted):
+            NSSize(width: 430, height: 120)
         // Measured: its body is 486 points against the 394 the panel leaves, so
         // it is the one recovery offer whose caption wraps. 16 points taller than
         // the others, for the second line.
@@ -787,6 +802,8 @@ private struct PillView: View {
             noInternetRecovery
         case .inputDisconnected:
             inputDisconnectionRecovery
+        case .credentialsUnusable(.creditsExhausted):
+            creditsRecovery
         case .dictationFailed(let message):
             dictationFailure(message: message)
         default:
@@ -949,6 +966,33 @@ private struct PillView: View {
     /// The same offer the canceled dictation makes, for a recording that never
     /// went out. Retry is dead until this Mac has a route again: pressing a
     /// button that cannot possibly work is a worse answer than one that says so.
+    /// The one credential notice that is not an instruction. Nothing was refused
+    /// before it happened and nothing was lost when it did, so it leads with where
+    /// the dictation went and offers the way to it — View Credits is the fix, but
+    /// See History is the reassurance, and the reassurance is what is wanted in
+    /// the second after a long thought failed to transcribe.
+    ///
+    /// Tinted amber like every warning, and shaped like the other recovery offers
+    /// rather than like the credential one-liners it no longer behaves as.
+    private var creditsRecovery: some View {
+        recoveryOffer(
+            title: CredentialReadiness.creditsExhausted.title,
+            body: creditsRecoveryBody,
+            actionTitle: "View Credits",
+            isActionEnabled: true,
+            symbol: "exclamationmark.triangle.fill",
+            action: { model.onOpenUsageSettings?() }
+        )
+    }
+
+    private var creditsRecoveryBody: String {
+        let saved = "Your dictation is saved in History, ready to retry."
+        guard let resets = CreditsReset.phrase(model.creditsResetAt) else {
+            return "\(saved) Add credits or wait for your credits to reset."
+        }
+        return "\(saved) Add credits, or wait for your credits to reset \(resets)."
+    }
+
     private var noInternetRecovery: some View {
         recoveryOffer(
             title: "No internet connection",

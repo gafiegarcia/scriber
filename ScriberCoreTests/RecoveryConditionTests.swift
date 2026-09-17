@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import ScriberCore
 
@@ -109,6 +110,28 @@ struct RecoveryConditionTests {
         )
         #expect(conditions.map(\.kind) == [.usage])
         #expect(conditions[0].actionTitle == "View Credits")
+    }
+
+    @Test("The banner names the reset when one is known, and not otherwise")
+    func namesTheCreditsReset() {
+        func message(resetAt: Date?) -> String {
+            RecoveryConditions.current(
+                onboardingDismissed: true,
+                servicesEnabled: true,
+                permission: PermissionReadiness(missingPermissions: []),
+                credential: .creditsExhausted,
+                creditsResetAt: resetAt
+            )[0].message
+        }
+
+        #expect(message(resetAt: nil) == "Add credits, or wait for your credits to reset.")
+        #expect(message(resetAt: .now.addingTimeInterval(3 * 3600)).hasPrefix(
+            "Add credits, or wait for your credits to reset in "
+        ))
+        // A reset already past names nothing: it would be telling the user to
+        // wait for something that has happened.
+        #expect(message(resetAt: .now.addingTimeInterval(-3600))
+            == "Add credits, or wait for your credits to reset.")
     }
 
     @Test("Condition copy comes from readiness, not from a second copy of it")

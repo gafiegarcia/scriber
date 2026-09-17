@@ -4,6 +4,12 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Changed
+
+- **Running out of ElevenLabs credits no longer stops you dictating.** Scriber used to refuse the dictation before the microphone opened, which meant that once your credits ran out you were locked out until something happened to make Scriber re-check your account — and nothing does that on a clock, so the morning your credits reset, Scriber could still be telling you they hadn't. It now behaves the way it already does when you are offline: it records, it tries, and if ElevenLabs refuses, the dictation is saved in **Dictation history** with its recording, ready to **Retry** once you have credits again. Being out of credits is now something Scriber tells you rather than something it holds you to — the menu bar shows it, the main window shows it, and a notice appears when a dictation is actually refused. Where ElevenLabs tells Scriber when your credits reset, all three now say so: "Resets in 3 hours" under the menu bar warning, and the same in the notice and the window. Once that reset time has passed, the warning stops claiming anything on its own.
+- **The notice you get when credits run out is a taller one that tells you where your words went.** It reads "No ElevenLabs credits left", says your dictation is saved in History and ready to retry, and offers **See History** beside **View Credits** — the first because knowing a long thought was not lost is the urgent part, the second because that is where credits are bought. A dictation refused for credits is the only thing that raises it; Scriber no longer greets you with it at launch, since it does not stop you doing anything.
+- **The credits card's two buttons are both called Refresh.** One of them said "Retry Credit Usage" for the same action.
+
 ### Fixed
 
 - **The ElevenLabs tab no longer keeps saying a key is verified after it has stopped verifying.** The green "API key verified with ElevenLabs and saved in your Mac login Keychain." is drawn in place of the key's status, not beside it, so if the key's standing changed while the window was open — a dictation refused, a re-check — the tab went on showing the confirmation from when you saved it, and only told you the truth once you closed Settings and opened it again. The confirmation now steps aside as soon as the key stops verifying.

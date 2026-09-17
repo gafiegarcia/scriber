@@ -147,7 +147,10 @@ public enum ScribeError: LocalizedError, Sendable {
         case .invalidKeyterm(let term): "Invalid keyterm: \(term)"
         case .authentication: "ElevenLabs rejected this API key. Check that it is correct and enabled."
         case .authorization(let message): message
-        case .insufficientCredits: "You have no ElevenLabs credits left. Add credits or wait for your quota to reset."
+        // A history row says why the dictation failed and stops there. What to do
+        // about it is the pill's and the window banner's job, and neither of them
+        // is read from a row weeks later.
+        case .insufficientCredits: "No ElevenLabs credits left"
         case .invalidRequest(let message): message
         case .rateLimited: "ElevenLabs rate limit exceeded"
         case .serviceUnavailable: "ElevenLabs is unavailable"

@@ -468,9 +468,22 @@ final class AppCoordinator: ObservableObject {
         CredentialReadiness(
             apiKeyConfigured: preferences.apiKeyConfigured,
             apiKeyValidity: preferences.apiKeyValidity,
-            apiCreditsExhausted: preferences.apiCreditsExhausted
+            apiCreditsExhausted: creditsWarningApplies
         )
     }
+
+    /// The stored exhaustion, less any reset that has already happened. Every
+    /// reader of the credential state goes through this rather than the raw
+    /// preference, so a warning cannot outlive the window it describes.
+    private var creditsWarningApplies: Bool {
+        CreditsReset.warns(
+            exhausted: preferences.apiCreditsExhausted,
+            resetAt: preferences.subscriptionUsage?.resetAt
+        )
+    }
+
+    /// When the account's credits next reset, for the surfaces that say so.
+    var creditsResetAt: Date? { preferences.subscriptionUsage?.resetAt }
 
     func startServices() {
         // Every route here has left the steps a redo would present differently
@@ -989,7 +1002,7 @@ final class AppCoordinator: ObservableObject {
         let resolvedPhase = phase.resolvingCredentialBlock(
             apiKeyConfigured: preferences.apiKeyConfigured,
             apiKeyValidity: preferences.apiKeyValidity,
-            apiCreditsExhausted: preferences.apiCreditsExhausted
+            apiCreditsExhausted: creditsWarningApplies
         )
         if resolvedPhase != phase {
             if resolvedPhase == .idle { returnToIdle() } else { setPhase(resolvedPhase) }
@@ -2222,7 +2235,13 @@ final class AppCoordinator: ObservableObject {
             return false
         }
         let readiness = credentialReadiness
-        guard readiness.isReady else {
+        // Exhausted credits do not refuse a dictation, for the same reason being
+        // offline does not: the recording is worth taking whether or not it can
+        // be transcribed now, and it is kept in History to be retried when it
+        // can. Refusing here also meant a cached reading could lock the user out
+        // of an account whose credits had already reset, since nothing recomputes
+        // it on a clock.
+        guard readiness.isReady || readiness == .creditsExhausted else {
             // An attempted dictation always reports its own blocker, even while a
             // permission problem is outranking the credential pill elsewhere.
             credentialRecoveryPresentationPending = false
@@ -2451,6 +2470,11 @@ final class AppCoordinator: ObservableObject {
         // recording, and the pill draws them from its own model instead. Anything
         // needing either live takes it as a parameter — do not read them here.
         if !Self.differsOnlyByMeter(phase, self.phase) { self.phase = phase }
+        // Before the phase, so the credits pill has its reset date by the time it
+        // draws rather than a frame later.
+        if case .credentialsUnusable(.creditsExhausted) = phase {
+            pill.model.creditsResetAt = creditsResetAt
+        }
         pill.update(phase)
     }
 

@@ -849,6 +849,38 @@ struct CredentialReadinessTests {
         ) == .ready)
     }
 
+    @Test("A stored exhaustion stops warning once its reset has passed")
+    func creditsWarningExpiresAtReset() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(CreditsReset.warns(exhausted: true, resetAt: now.addingTimeInterval(3600), now: now))
+        #expect(!CreditsReset.warns(exhausted: true, resetAt: now.addingTimeInterval(-1), now: now))
+        // No reading of the account at all — a key without User → Read. The
+        // refused dictation that set this is the only evidence there is, so it
+        // stands until something answers.
+        #expect(CreditsReset.warns(exhausted: true, resetAt: nil, now: now))
+        #expect(!CreditsReset.warns(exhausted: false, resetAt: nil, now: now))
+
+        #expect(CreditsReset.phrase(now.addingTimeInterval(-1), now: now) == nil)
+        #expect(CreditsReset.phrase(nil, now: now) == nil)
+        #expect(CreditsReset.phrase(now.addingTimeInterval(3 * 3600), now: now) != nil)
+    }
+
+    /// Nothing is blocked by exhausted credits, so nothing about them is worth
+    /// interrupting the user to say. A dictation that is actually refused raises
+    /// its own pill; this governs only the uninvited ones.
+    @Test("Exhausted credits never present a pill on their own")
+    func exhaustedCreditsDoNotPresentThemselves() {
+        #expect(!CredentialRecoveryPolicy.shouldPresent(
+            previous: .ready, current: .creditsExhausted, onboardingDismissed: true, force: true
+        ))
+        #expect(CredentialRecoveryPolicy.shouldPresent(
+            previous: .ready, current: .invalidAPIKey, onboardingDismissed: true, force: true
+        ))
+        #expect(CredentialRecoveryPolicy.shouldPresent(
+            previous: .creditsExhausted, current: .missingAPIKey, onboardingDismissed: true, force: false
+        ))
+    }
+
     @Test("An unreachable check is not a credential problem")
     func uncheckedKeyStaysReady() {
         // Validation could not reach ElevenLabs. Blocking here would strand the

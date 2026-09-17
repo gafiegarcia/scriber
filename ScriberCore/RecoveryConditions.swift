@@ -67,7 +67,8 @@ public enum RecoveryConditions {
         onboardingDismissed: Bool,
         servicesEnabled: Bool,
         permission: PermissionReadiness,
-        credential: CredentialReadiness
+        credential: CredentialReadiness,
+        creditsResetAt: Date? = nil
     ) -> [RecoveryCondition] {
         guard onboardingDismissed else {
             return [
@@ -101,7 +102,7 @@ public enum RecoveryConditions {
                 RecoveryCondition(
                     kind: credential.resolvesInUsageSettings ? .usage : .apiKey,
                     title: credential.title,
-                    message: credential.recoveryMessage,
+                    message: credential.recoveryMessage(creditsResetAt: creditsResetAt),
                     actionTitle: credential.resolvesInUsageSettings ? "View Credits" : "Update Key",
                     accessibilityIdentifier: "credential-recovery-banner"
                 )
