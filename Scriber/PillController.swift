@@ -428,10 +428,15 @@ final class PillController {
         // the pill having moved rather than as a different notice, which is the
         // reasoning the copied-result box and the failure box already share.
         //
-        // Measured: the widest of the four rows is "ElevenLabs credits exhausted"
-        // beside View Credits at 421x44, and the narrowest is "Permissions
-        // required" beside Review at 338. 430 clears the widest with a real gap
-        // rather than pinning the spacer at its floor. Their captions never fitted
+        // Measured: 430 was fitted when the widest of the four rows was a
+        // 188-point title beside View Credits at 421x44, and the narrowest was
+        // "Permissions required" beside Review at 338. The four titles measure
+        // 134 to 188 at 13pt semibold, and the widest of them is now "ElevenLabs
+        // API key is missing" — still 188, but beside Update Key, which is
+        // narrower than View Credits. So 421 remains the ceiling and 430 clears
+        // it with a real gap rather than pinning the spacer at its floor.
+        // Re-measure the row itself, not the title, before any title grows past
+        // 188. Their captions never fitted
         // any of it — "Enable Accessibility so Scriber can detect global shortcuts
         // and insert text." wanted 390 points against the 245 left beside Review,
         // and lost 144 of them to the ellipsis.

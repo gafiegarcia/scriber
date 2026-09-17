@@ -413,7 +413,7 @@ public enum CredentialReadiness: Equatable, Sendable {
         case .ready: "Ready"
         case .missingAPIKey: "ElevenLabs API key is missing"
         case .invalidAPIKey: "ElevenLabs API key is invalid"
-        case .creditsExhausted: "ElevenLabs credits exhausted"
+        case .creditsExhausted: "No ElevenLabs credits left"
         }
     }
 
