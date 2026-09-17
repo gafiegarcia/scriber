@@ -1570,16 +1570,39 @@ final class AppCoordinator: ObservableObject {
 
     private func startMeter() {
         meterTask?.cancel()
-        let startedAt = Date.now
+        let openedAt = ContinuousClock().now
         meterTask = Task { [weak self] in
+            var reportedFirstAudio = false
             while !Task.isCancelled {
                 guard let self else { return }
-                let elapsed = Date.now.timeIntervalSince(startedAt)
+                let now = ContinuousClock().now
+                // Counted from the first sample buffer, not from the capture
+                // session reporting itself running. Measured: those can be 1.9 s
+                // apart while coreaudiod rebuilds its component registry behind a
+                // process tap being created, and the microphone's output is
+                // dropped for the whole gap — so counting from the open would
+                // show seconds of recording that are not in the file.
+                let firstAudioAt = recorder.firstAudioArrival()
+                let elapsed = firstAudioAt.map { $0.duration(to: now).timeInterval } ?? 0
+                // The gap the user feels as a dead pill, said once per dictation.
+                // Normally 10-60 ms; the pathology it names is a whole second.
+                if let firstAudioAt, !reportedFirstAudio {
+                    reportedFirstAudio = true
+                    Self.dictationLog.notice(
+                        "dictation capture firstAudioAfterOpenMs=\(openedAt.duration(to: firstAudioAt).pillMilliseconds, privacy: .public)"
+                    )
+                }
                 let level = recorder.updateMeter()
                 let currentMode: RecordingMode
                 if case .recording(let value, _, _) = phase { currentMode = value } else { return }
                 setPhase(.recording(mode: currentMode, elapsed: elapsed, level: level))
-                if elapsed >= 600 { apply(gate.apply(.stopRequested)); return }
+                // On the meter's own clock rather than on the audio's, so a
+                // recording whose microphone never delivers anything still ages
+                // out instead of sitting open forever at 0:00.
+                if openedAt.duration(to: now) >= .seconds(600) {
+                    apply(gate.apply(.stopRequested))
+                    return
+                }
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
@@ -2484,5 +2507,9 @@ final class AppCoordinator: ObservableObject {
 private extension Duration {
     var pillMilliseconds: Int {
         Int(components.seconds * 1_000 + components.attoseconds / 1_000_000_000_000_000)
+    }
+
+    var timeInterval: TimeInterval {
+        Double(components.seconds) + Double(components.attoseconds) / 1e18
     }
 }

@@ -115,6 +115,13 @@ final class AudioRecorder {
         backend.latestLevel()
     }
 
+    /// When audio first reached the current recording, or `nil` while none has.
+    /// The timer counts from here rather than from the capture session reporting
+    /// itself running, which can lead it by seconds.
+    func firstAudioArrival() -> ContinuousClock.Instant? {
+        backend.firstBufferInstant()
+    }
+
     func stop() async throws -> CompletedRecording {
         try await backend.stopRecording()
     }
@@ -264,6 +271,15 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     /// a second, and a `queue.sync` for it would queue behind a session opening.
     /// `maximumPeakLevel` stays queue-owned because nothing outside reads it.
     private let currentLevel = OSAllocatedUnfairLock(initialState: Float(-160))
+    /// When this recording's first sample buffer arrived — the moment the
+    /// microphone genuinely began feeding the file. Locked rather than
+    /// queue-owned for the reason `currentLevel` is: the meter reads it.
+    ///
+    /// Measured: a capture session can report itself running 1.9 s before its
+    /// first buffer lands, while coreaudiod rebuilds its component registry
+    /// behind a process tap being created. Nothing spoken in that window reaches
+    /// the file, so nothing may count it as recorded.
+    private let firstBufferAt = OSAllocatedUnfairLock<ContinuousClock.Instant?>(initialState: nil)
     private var maximumPeakLevel: Float = -160
     /// When the microphone last sent anything at all, so a stream that goes silent
     /// mid-recording can be told from a recording that simply ends quietly.
@@ -295,6 +311,7 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
 
                     self.recordingURL = url
                     self.currentLevel.withLock { $0 = -160 }
+                    self.firstBufferAt.withLock { $0 = nil }
                     self.maximumPeakLevel = -160
                     self.session = capture.session
                     self.dataOutput = capture.dataOutput
@@ -370,6 +387,10 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
 
     func latestLevel() -> Float {
         currentLevel.withLock { $0 }
+    }
+
+    func firstBufferInstant() -> ContinuousClock.Instant? {
+        firstBufferAt.withLock { $0 }
     }
 
     func stopRecording() async throws -> CompletedRecording {
@@ -572,6 +593,7 @@ extension CaptureBackend: AVCaptureAudioDataOutputSampleBufferDelegate {
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
+        firstBufferAt.withLock { if $0 == nil { $0 = ContinuousClock().now } }
         let channels = connection.audioChannels
         guard !channels.isEmpty else { return }
         currentLevel.withLock { $0 = channels.map(\.averagePowerLevel).max() ?? -160 }
