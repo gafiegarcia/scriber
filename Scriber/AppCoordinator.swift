@@ -2356,6 +2356,15 @@ final class AppCoordinator: ObservableObject {
         // Behind the recording rather than in front of it: building the tap is a
         // chain of blocking Core Audio calls, and a mute that is slow or fails
         // has no claim on how soon the pill appears.
+        //
+        // Known and unfixed: behind the recording is not clear of it. Building
+        // the tap takes 40-180 ms with coreaudiod warm and about 1.9 s when its
+        // component registry has gone cold, and for most of that longer window
+        // the capture session drops the microphone's output — the file comes
+        // back short by the same amount, so the user loses whatever they said.
+        // Measured twice in three days of logs. `firstAudioAfterOpenMs` in the
+        // dictation log is what names the next occurrence; nothing is known yet
+        // about how to make the cold build cheap.
         Task { [weak self] in
             guard let self else { return }
             let outcome = await otherAudioMuting.beginMuting()
