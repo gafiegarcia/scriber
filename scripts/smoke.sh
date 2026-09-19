@@ -28,10 +28,22 @@ if [ "${1:-}" = "--login" ]; then
 fi
 
 echo "==> Building Debug"
-xcodebuild -project "$REPO_ROOT/Scriber.xcodeproj" \
+# Do not: discard the build's stdout. xcodebuild names the failing file on
+# stderr but writes the compiler's own "error:" lines to stdout, so a run that
+# throws stdout away reports which file broke and never why.
+BUILD_LOG="$REPO_ROOT/.build/xcode-debug/last-build.log"
+mkdir -p "$(dirname "$BUILD_LOG")"
+if ! xcodebuild -project "$REPO_ROOT/Scriber.xcodeproj" \
   -scheme Scriber -configuration Debug \
   -derivedDataPath "$REPO_ROOT/.build/xcode-debug" build \
-  >/dev/null
+  >"$BUILD_LOG" 2>&1; then
+  echo "REFUSING: the Debug build failed" >&2
+  # The indented lines are the source excerpt and caret that Swift prints under
+  # each diagnostic; dropping them leaves one file:line:column line per error.
+  grep -E "error:" "$BUILD_LOG" | grep -vE "^[[:space:]]" | sort -u | head -20 >&2
+  echo "Full log: $BUILD_LOG" >&2
+  exit 1
+fi
 
 if [ ! -d "$APP_PATH" ]; then
   echo "REFUSING: the Debug build produced no app at $APP_PATH" >&2
