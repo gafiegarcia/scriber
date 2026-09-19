@@ -64,6 +64,8 @@ The app itself needs no separate proof here. The cask fetches the same release a
 
 `./scripts/smoke.sh` — builds Debug, launches it, prints its CPU, and kills it. The `before_pid` guard and the absolute path are inside the script, which is what keeps its `kill` off the installed Scriber when a launch fails.
 
+When the build fails the script prints one `file:line:column` line per compiler error and the path to the full build log, kept at `.build/xcode-debug/last-build.log`. Read those before rerunning: a failure here is a compile error with a location, not a launch problem.
+
 This launch suppresses activation, Dock presence, and the menu-bar item, but still creates and renders the window. A process that stays at high CPU or never idles is an app failure worth sampling before blaming the harness.
 
 It creates and renders a window once. It cannot put a closed one back on screen: after a window closes under this flag, `openWindow(id:)` and the front-ordering path both leave `isVisible == false`, and the `window-lifecycle` log still reports `showWindow: ordering front`, so the log agrees with a reopening that did not happen. Nothing that depends on a window being presented a second time can be measured here — `onAppear`, `didBecomeKey`, and any routing that selects a Settings tab on the way in all go quiet, and read as broken. Take reopening behavior to an activating launch or to the user, never to this flag.
