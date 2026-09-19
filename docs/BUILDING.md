@@ -5,7 +5,7 @@ Prerequisites, signing, building, installing, and first launch. The [README](../
 ## Prerequisites
 
 - macOS 26 or later to run the app; macOS 27 to build it, since the toolchain below requires it
-- Xcode 27 beta with Swift 6.4; Command Line Tools alone do not contain the SwiftUI and SwiftData macro plugins
+- Xcode 27 with Swift 6.4; Command Line Tools alone do not contain the SwiftUI and SwiftData macro plugins. The build commands below use whichever Xcode `xcode-select -p` names, so point it at this one with `sudo xcode-select -s /Applications/Xcode.app` if it names another
 - An ElevenLabs API key with Speech to Text access
 
 ## Signing setup
@@ -46,8 +46,7 @@ Two files inside `Scriber/` are deliberately not members: `Info.plist` and `Scri
 Run from the repository root. This builds Release, so it completes only with the local identity described above; build `-configuration Debug` with your own team instead if that identity is not yours.
 
 ```bash
-DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
-  xcodebuild \
+xcodebuild \
   -project Scriber.xcodeproj \
   -scheme Scriber \
   -configuration Release \

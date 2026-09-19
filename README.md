@@ -174,7 +174,7 @@ The Xcode project is the source of truth for the bundle build number. See the [c
 
 ## Build it yourself
 
-You need Xcode 27 beta and a **free** Apple ID; a paid developer account is not required to build. Create `Signing.local.xcconfig` in root with your own team identifier, then build the **Debug** configuration:
+You need Xcode 27 and a **free** Apple ID; a paid developer account is not required to build. Create `Signing.local.xcconfig` in root with your own team identifier, then build the **Debug** configuration:
 
 ```text
 DEVELOPMENT_TEAM = ABCDE12345

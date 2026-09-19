@@ -27,8 +27,7 @@ Increment `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in **both** configur
 ## 2. Build and verify the signature
 
 ```bash
-DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
-  xcodebuild -project Scriber.xcodeproj -scheme Scriber -configuration Release \
+xcodebuild -project Scriber.xcodeproj -scheme Scriber -configuration Release \
   -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode-release \
   clean build
 ```
