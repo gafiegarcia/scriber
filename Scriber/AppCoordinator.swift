@@ -1676,6 +1676,12 @@ final class AppCoordinator: ObservableObject {
     /// recording too short to have captured anything already gets.
     private func abandonOpenedSession() {
         recorder.cancel()
+        // Do not: return to idle over a notice that is already up. A dictation
+        // refused for a zero input volume is cancelled while its session is still
+        // opening, so this runs tens of milliseconds later, when that session
+        // finally opens — and it was wiping the pill the refusal had just put up,
+        // leaving a flash the user caught about one time in fifteen.
+        if case .inputVolumeZero = phase { return }
         feedbackSounds.fadeOut()
         returnToIdle()
     }
