@@ -474,13 +474,19 @@ final class PillController {
         // writes itself — "ElevenLabs rate limit exceeded" wants 448.
         case .transcriptionFailed:
             NSSize(width: 460, height: 60)
-        case .noSpeechDetected, .noAudioSignal:
+        case .noAudioSignal:
             NSSize(width: 460, height: 60)
         // Measured: "No words detected" is 120 points, and this is the only
         // one-liner carrying both a countdown and a dismiss control — 148 points
         // of chrome against the 110 the message pills need.
         case .retryFoundNoWords:
             NSSize(width: 270, height: 52)
+        // Measured: the same title and trailing controls as `.retryFoundNoWords`
+        // above, plus Check Input at 84 points and one 10-point row gap — so 270
+        // rather than a width fitted from scratch, since the two differ by that
+        // button alone.
+        case .noSpeechDetected:
+            NSSize(width: 364, height: 52)
         case .message(let text):
             NSSize(width: messageWidth(for: text), height: 52)
         default:
@@ -1159,23 +1165,22 @@ private struct PillView: View {
         }
     }
 
-    /// Neither the permission nor the credential pill carries one. Their captions
+    /// The permission, credential and no-words pills carry none. Their captions
     /// said what their titles and buttons already do — Review opens Settings on
-    /// the tab naming the missing permission, and "ElevenLabs API key is missing"
-    /// leaves nothing for a second line to add — and both were too long to fit
-    /// beside that button anyway. The window's own banner still carries the full
+    /// the tab naming the missing permission, "ElevenLabs API key is missing"
+    /// leaves nothing for a second line to add, and "No words detected" above
+    /// Check Input said it twice — and the first two were too long to fit beside
+    /// that button anyway. The window's own banner still carries the full
     /// message, which is where it is read.
     private var subtitle: String? {
         switch model.phase {
         case .canceledTranscript: "Recover pastes it wherever your cursor is now"
         case .dictationCopied(_, let message), .dictationBlockedBySecureField(_, let message),
              .transcriptionFailed(let message): message
-        // Keep these short: the compact pill gives its subtitle one line and
-        // truncates, and these phases also carry a countdown, an action, and a
+        // Keep this short: the compact pill gives its subtitle one line and
+        // truncates, and this phase also carries a countdown, an action, and a
         // dismiss control on the same row. The cause goes here; the fix is the
-        // button. Keep the two distinct — sound arriving with no words in it is a
-        // different problem from no sound arriving.
-        case .noSpeechDetected: "No recognizable words in the recording"
+        // button.
         case .noAudioSignal: "Check the selected input and its volume"
         default: nil
         }

@@ -15,7 +15,6 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Move logic out of the checks that need a human to run them.** ([Notion task](https://app.notion.com/p/3ba7193704028047a22cd8cd95f310fc))
 - [ ] **Reconsider where the in-app warning lives.** ([Notion task](https://app.notion.com/p/3c47193704028188b789e58121a66b19))
 - [ ] **Give the main window the background Settings has.** ([Notion task](https://app.notion.com/p/3bf71937040280399503cf4b4be38c7e))
-- [ ] **Cut the repetition from the "No words detected" pill.** ([Notion task](https://app.notion.com/p/3bf719370402800e8629dae0b42ed2ce))
 - [ ] **Find out why muting still works after its permission is revoked.** ([Notion task](https://app.notion.com/p/3be71937040280c28694ec54cecca047))
 - [ ] **Prune the captions in Settings.** ([Notion task](https://app.notion.com/p/3bb71937040280d2a3dadde66cf37727))
 - [ ] **Transition toasts in place rather than from the right.** ([Notion task](https://app.notion.com/p/3be719370402802ca972e95ea7e40139))
