@@ -7,9 +7,19 @@ import SwiftUI
 @MainActor
 final class AudioLevelSource: ObservableObject {
     @Published private(set) var level: Float = -160
+    /// Advances on every reading, including one identical to the last, so the
+    /// meter drawing it can tell a repeated level from no new level at all.
+    @Published private(set) var tick: Double = 0
 
-    func update(_ level: Float) { self.level = level }
-    func reset() { level = -160 }
+    func update(_ level: Float) {
+        self.level = level
+        tick += 1
+    }
+
+    func reset() {
+        level = -160
+        tick += 1
+    }
 }
 
 /// A meter driven by an `AudioLevelSource`. Observing happens here, in a leaf,
@@ -19,7 +29,7 @@ struct AudioLevelMeter: View {
     let presentation: AudioLevelWaveform.Presentation
 
     var body: some View {
-        AudioLevelWaveform(level: source.level, presentation: presentation)
+        AudioLevelWaveform(level: source.level, tick: source.tick, presentation: presentation)
     }
 }
 
@@ -95,6 +105,9 @@ struct AudioLevelWaveform: View {
     private static let barColor = Color.red
 
     let level: Float
+    /// Whatever advances once per reading at the call site — the source's own
+    /// counter, or the dictation's elapsed time. Only that it changes matters.
+    let tick: Double
     let presentation: Presentation
     @State private var samples: [Double]
 
@@ -109,8 +122,9 @@ struct AudioLevelWaveform: View {
         return max(8, min(available, fitting))
     }
 
-    init(level: Float, presentation: Presentation) {
+    init(level: Float, tick: Double, presentation: Presentation) {
         self.level = level
+        self.tick = tick
         self.presentation = presentation
         _samples = State(initialValue: Array(repeating: 0, count: presentation.sampleCount))
     }
@@ -162,7 +176,14 @@ struct AudioLevelWaveform: View {
         )
         .modifier(PlateBackground(plate: presentation.plate))
         .onAppear { append(level) }
-        .onChange(of: level) { _, newLevel in append(newLevel) }
+        // Do not: append on a change of `level`. A steady level — a muted input,
+        // or an input volume at zero — hands the same number in every tick,
+        // `onChange` skips it, and the meter stops scrolling while the audio it
+        // reports carries on. It froze in the microphone test and in setup, where
+        // the bars still held real audio; the pill had it too and showed nothing,
+        // because once every bar is flat a frozen meter and a running one look
+        // exactly alike.
+        .onChange(of: tick) { _, _ in append(level) }
         // No implicit animation over `samples`. Interpolating every bar between
         // ticks costs more than everything else this view does — about twelve
         // points of CPU on an M4 — to glide a meter that already refreshes ten

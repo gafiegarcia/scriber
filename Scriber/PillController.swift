@@ -1109,8 +1109,8 @@ private struct PillView: View {
 
     @ViewBuilder private var symbol: some View {
         switch model.phase {
-        case .recording(_, _, let level):
-            AudioLevelWaveform(level: level, presentation: .pill)
+        case .recording(_, let elapsed, let level):
+            AudioLevelWaveform(level: level, tick: elapsed, presentation: .pill)
         case .transcribing:
             ProgressView().controlSize(.small)
         case .dictationCopied, .transcriptCopied:
