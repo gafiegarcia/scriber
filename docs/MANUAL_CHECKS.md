@@ -34,6 +34,15 @@ Reach for these when the diff touches `AppCoordinator.swift`, `PillController.sw
 - Cancel mid-transcription, let the pill time out without pressing anything, then open the main window. Spec: Shortcuts and job lifecycle — "History always holds the canceled dictation the pill offered"
 - Retry a canceled row from History and press Escape while it runs. Spec: Shortcuts and job lifecycle — "Canceling a History retry stops in silence"
 
+### With the input volume dragged to zero
+
+Only System Settings can reach this state, and macOS behaves differently depending on what woke the built-in audio unit — so the order matters and a Bluetooth speaker connected anywhere in the room changes the answer. Restore the slider afterwards. None of these spends credit; the dictation never reaches ElevenLabs.
+
+- Drag System Settings' **Input volume** to the far left, disconnect any Bluetooth output, then hold the shortcut and speak for several seconds. Spec: Recording and transcription — "An input volume of exactly zero refuses the dictation"
+- With the volume still at zero, open Settings → Sound and press **Check Input Level**, then drag the slider off zero while watching it. Spec: Recording and transcription — "Nothing may hold the microphone open while the input volume is zero"
+- With the volume still at zero, redo setup and reach the microphone step. Press Return hard enough to make macOS play its alert sound, and watch whether the step claims to hear you. Spec: Recording and transcription — "cannot be completed by a system alert sound arriving through the built-in speaker"
+- Set the volume to one notch above zero and dictate a sentence. It must go through: only an exact zero is refused. **Spends API credit; ask first.** Spec: Recording and transcription — "a volume of one percent carries speech that transcribes"
+
 ### With Wi-Fi off and no Ethernet
 
 These four states are only reachable offline and went years unlooked-at, so look properly. None spends credit — nothing is sent.

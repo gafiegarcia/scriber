@@ -923,9 +923,16 @@ private struct SoundSettingsPane: View {
                         // Tied to the meter rather than to how the user arrived. The
                         // meter running is the only moment this advice is useful, and
                         // it means there is no separate state deciding when to drop it.
-                        Text("Speak and watch the level. If it stays flat, check your input volume.")
-                            .font(SettingsPaneLayout.cardCaption)
-                            .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Speak and watch the level. If it stays flat, check your input volume.")
+                            // The same sentence setup gives, so one fact has one
+                            // wording. It cannot double up with the badge below:
+                            // the badge is drawn only at zero, and at zero this
+                            // meter does not run.
+                            Text(InputVolumeCopy.recommendation)
+                        }
+                        .font(SettingsPaneLayout.cardCaption)
+                        .foregroundStyle(.secondary)
                     }
 
                     // Both controls at once, in one place, so starting the test
