@@ -1237,7 +1237,9 @@ private struct ElevenLabsSettingsPane: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(usage.tier.capitalized + " plan")
+                        if let planName = usage.planName {
+                            Text(planName + " plan")
+                        }
                         if let resetAt = usage.resetAt {
                             Text("Resets \(resetAt.formatted(date: .abbreviated, time: .shortened))")
                                 .font(SettingsPaneLayout.cardCaption)

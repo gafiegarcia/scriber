@@ -760,6 +760,36 @@ struct ScribeValidationTests {
         #expect(usage(used: 0, total: 0).remainingPercentage == nil)
     }
 
+    @Test("Names every documented ElevenLabs tier without its underscores or date")
+    func planName() {
+        func usage(tier: String) -> ElevenLabsSubscriptionUsage {
+            ElevenLabsSubscriptionUsage(
+                tier: tier,
+                usedCredits: 0,
+                totalCredits: 10_000,
+                canExtendCredits: false,
+                resetAt: nil
+            )
+        }
+
+        #expect(usage(tier: "free").planName == "Free")
+        #expect(usage(tier: "starter").planName == "Starter")
+        #expect(usage(tier: "go").planName == "Go")
+        #expect(usage(tier: "creator").planName == "Creator")
+        #expect(usage(tier: "pro").planName == "Pro")
+        #expect(usage(tier: "growing_business").planName == "Growing Business")
+        #expect(usage(tier: "scale_2024_08_10").planName == "Scale")
+        #expect(usage(tier: "grant_tier_1_2025_07_23").planName == "Grant Tier 1")
+        #expect(usage(tier: "grant_tier_2_2025_07_23").planName == "Grant Tier 2")
+        #expect(usage(tier: "grant").planName == "Grant")
+        #expect(usage(tier: "trial").planName == "Trial")
+        #expect(usage(tier: "enterprise").planName == "Enterprise")
+
+        // A tier whose trailing numbers are not a date keeps them.
+        #expect(usage(tier: "scale_2_4_8").planName == "Scale 2 4 8")
+        #expect(usage(tier: "").planName == nil)
+    }
+
     @Test("Unavailable usage presents cached credits as stale with one retry")
     func unavailableUsagePresentation() {
         let presentation = SubscriptionUsagePresentation(

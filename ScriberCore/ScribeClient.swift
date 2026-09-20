@@ -56,6 +56,23 @@ public struct ElevenLabsSubscriptionUsage: Codable, Equatable, Sendable {
         return min(99, max(1, rounded))
     }
 
+    /// The tier written as the plan's name, or nil when ElevenLabs sent no tier
+    /// to name. ElevenLabs sends a snake_case identifier rather than a label —
+    /// `growing_business` — and several of its tiers carry the date they were
+    /// introduced, as in `scale_2024_08_10` and `grant_tier_1_2025_07_23`. That
+    /// date names the plan's vintage rather than the plan, so a trailing
+    /// year-month-day is dropped.
+    public var planName: String? {
+        var words = tier.split(separator: "_").map(String.init)
+        if words.count > 3 {
+            let stamp = words.suffix(3)
+            let isDate = stamp.allSatisfy { $0.allSatisfy(\.isNumber) } && stamp.first?.count == 4
+            if isDate { words.removeLast(3) }
+        }
+        guard !words.isEmpty else { return nil }
+        return words.map(\.capitalized).joined(separator: " ")
+    }
+
     public init(
         tier: String,
         usedCredits: Int,
