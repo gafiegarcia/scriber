@@ -3,14 +3,8 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 70;
 	objects = {
-
-/* Begin PBXBuildFile section */
-/* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		B10000000000000000000011 /* Scriber.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scriber.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -18,30 +12,18 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		D10000000000000000000005 /* Exceptions for "Scriber" folder in "Scriber" target */ = {
+		D10000000000000000000005 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Scriber.entitlements,
 			);
 			target = E10000000000000000000001 /* Scriber */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		D10000000000000000000002 /* Scriber */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				D10000000000000000000005 /* Exceptions for "Scriber" folder in "Scriber" target */,
-			);
-			path = Scriber;
-			sourceTree = "<group>";
-		};
-		D10000000000000000000004 /* ScriberCore */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = ScriberCore;
-			sourceTree = "<group>";
-		};
+		D10000000000000000000002 /* Scriber */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (D10000000000000000000005 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Scriber; sourceTree = "<group>"; };
+		D10000000000000000000004 /* ScriberCore */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ScriberCore; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -154,9 +136,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		F10000000000000000000010 /* Debug */ = {
