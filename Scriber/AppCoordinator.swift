@@ -729,8 +729,14 @@ final class AppCoordinator: ObservableObject {
     /// test without the user having spoken.
     func startMicrophoneTest() {
         guard microphoneGranted, !phase.isBusy else { return }
-        microphoneTestRequested = true
+        // Do not: set `microphoneTestRequested` before this. `start` reads the
+        // volume and calls back synchronously, so with the flag already up
+        // `inputVolumeChanged` opened the meter itself — and the open below then
+        // tore that session down and built a second one, paying Core Audio's
+        // 40-1900 ms open twice and blinking the microphone indicator. The read
+        // still lands in `inputVolumeReading`, which is what the guard needs.
         beginWatchingInputVolume()
+        microphoneTestRequested = true
         guard inputVolumeReading != .zero else {
             closeMicrophoneTest()
             return
@@ -1976,8 +1982,15 @@ final class AppCoordinator: ObservableObject {
                 validateStoredAPIKey()
             } else if case ScribeError.insufficientCredits = error {
                 preferences.apiCreditsExhausted = true
-                lastObservedCredentialReadiness = credentialReadiness
-                setPhase(.credentialsUnusable(credentialReadiness))
+                // Do not: read this back out of `credentialReadiness`. That goes
+                // through `creditsWarningApplies`, which drops the exhaustion once
+                // the cached `resetAt` is behind now — so the readiness set on the
+                // line above came back `.ready`, and the pill answered a failed
+                // dictation with "Ready" and "Scriber is ready to dictate." The
+                // request that just came back refused is the evidence here, not
+                // a date fetched at some earlier point.
+                lastObservedCredentialReadiness = .creditsExhausted
+                setPhase(.credentialsUnusable(.creditsExhausted))
             } else {
                 setPhase(.transcriptionFailed(error.localizedDescription))
             }

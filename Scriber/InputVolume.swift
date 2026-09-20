@@ -160,6 +160,29 @@ final class InputVolumeMonitor: ObservableObject {
     }
 
     private func observe(selection: AudioInputSelection) {
+        // With `.automatic` the hardware behind the selection can change without
+        // any preference changing, so the device itself has to be watched as well
+        // as its volume.
+        //
+        // Do not: put this after the device lookup. With no input device present
+        // that lookup finds nothing and returns, and this is the one listener
+        // that would have noticed a microphone arriving — so the reading stayed
+        // `.unknown` for as long as the view was open. Only the volume listeners
+        // below need a device.
+        if case .automatic = selection {
+            var address = Self.defaultDeviceAddress
+            let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+                Task { @MainActor in
+                    guard let self, let selection = self.selection else { return }
+                    self.start(selection: selection)
+                }
+            }
+            if AudioObjectAddPropertyListenerBlock(
+                AudioObjectID(kAudioObjectSystemObject), &address, nil, block
+            ) == noErr {
+                defaultDeviceListener = block
+            }
+        }
         guard let device = InputVolume.deviceID(for: selection) else { return }
         for element in Self.volumeElements {
             var address = AudioObjectPropertyAddress(
@@ -174,22 +197,6 @@ final class InputVolumeMonitor: ObservableObject {
             if AudioObjectAddPropertyListenerBlock(device, &address, nil, block) == noErr {
                 observed.append((device, address, block))
             }
-        }
-        // With `.automatic` the hardware behind the selection can change without
-        // any preference changing, so the device itself has to be watched as well
-        // as its volume.
-        guard case .automatic = selection else { return }
-        var address = Self.defaultDeviceAddress
-        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-            Task { @MainActor in
-                guard let self, let selection = self.selection else { return }
-                self.start(selection: selection)
-            }
-        }
-        if AudioObjectAddPropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject), &address, nil, block
-        ) == noErr {
-            defaultDeviceListener = block
         }
     }
 

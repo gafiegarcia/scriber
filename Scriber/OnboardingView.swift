@@ -113,6 +113,11 @@ struct OnboardingView: View {
         .onAppear(perform: prepare)
         .onDisappear {
             runtime.coordinator.stopMicrophoneTest()
+            // Do not: leave this to `stopMicrophoneTest`. It shuts the meter and
+            // nothing else, so closing setup from the permissions step left Core
+            // Audio listeners registered for the rest of the process with no
+            // view reading them.
+            runtime.coordinator.endWatchingInputVolume()
             // Before anything that can fail: a window that goes away leaving this
             // set has left the shortcut deaf in every app, with no surface still
             // on screen to clear it.
@@ -518,6 +523,7 @@ struct OnboardingView: View {
         // come through here: that one is meant to be resumable.
         runtime.preferences.onboardingStep = 0
         runtime.coordinator.stopMicrophoneTest()
+        runtime.coordinator.endWatchingInputVolume()
         dismissWindow(id: "onboarding")
         Task { @MainActor in
             // Let the setup window finish closing before restoring the
