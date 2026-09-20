@@ -925,19 +925,20 @@ private struct SoundSettingsPane: View {
                         // it means there is no separate state deciding when to drop it.
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Speak and watch the level. If it stays flat, check your input volume.")
-                            // The same sentence setup gives, so one fact has one
-                            // wording. It cannot double up with the badge below:
-                            // the badge is drawn only at zero, and at zero this
-                            // meter does not run.
+                            // Do not: reword this here. Setup shows the same
+                            // sentence, and one fact gets one wording. It cannot
+                            // double up with the badge below: that draws only at
+                            // zero, where this meter does not run.
                             Text(InputVolumeCopy.recommendation)
                         }
                         .font(SettingsPaneLayout.cardCaption)
                         .foregroundStyle(.secondary)
                     }
 
-                    // Both controls at once, in one place, so starting the test
-                    // moves nothing: the first button changes its word and the
-                    // second stays where it was.
+                    // Do not: move Open Sound Settings inside the running branch.
+                    // It then appears only once a test has started, hiding the one
+                    // route to where input volume actually lives. Both controls
+                    // stay put and the first changes its word.
                     HStack {
                         if runtime.coordinator.isMicrophoneTestRunning {
                             Button("Stop") { runtime.coordinator.stopMicrophoneTest() }
@@ -951,9 +952,9 @@ private struct SoundSettingsPane: View {
                     }
                     .font(SettingsPaneLayout.cardCaption)
 
-                    // One warning at a time. An input Scriber cannot open has no
-                    // volume worth reporting, and two orange triangles read as two
-                    // faults when there is one.
+                    // Do not: draw both. An input Scriber cannot open has no volume
+                    // worth reporting, and two orange triangles read as two faults
+                    // when there is one.
                     if let microphoneTestError = runtime.coordinator.microphoneTestError {
                         Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
                             .font(SettingsPaneLayout.cardCaption)
@@ -969,9 +970,10 @@ private struct SoundSettingsPane: View {
                         .font(SettingsPaneLayout.cardCaption)
                     }
                 }
-                // Watched only while this row is on screen, and read live rather
-                // than remembered: a badge that outlives what it was read from
-                // ends up asserting something nobody has checked.
+                // Do not: remember a reading past the view that took it. A badge
+                // outliving what it was read from asserts something nobody has
+                // checked — the mistake the ElevenLabs tab's sticky "Verified"
+                // made.
                 .onAppear { runtime.coordinator.beginWatchingInputVolume() }
                 .onDisappear { runtime.coordinator.endWatchingInputVolume() }
                 .onChange(of: runtime.preferences.audioInputSelection) { _, _ in

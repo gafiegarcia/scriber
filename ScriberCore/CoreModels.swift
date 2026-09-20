@@ -633,7 +633,9 @@ public enum AppPhase: Equatable, Sendable {
     /// before it cost any API credit.
     ///
     /// Distinct from `.noSpeechDetected` on purpose: this one means the microphone
-    /// produced no usable sound at all — muted, wrong device, input volume at zero.
+    /// produced no usable sound at all — muted, the wrong device, or at a volume
+    /// Scriber could not read. A zero volume it *can* read never reaches here:
+    /// `.inputVolumeZero` refuses that dictation before it records.
     case noAudioSignal
     /// A transcript reached the clipboard instead of the cursor, from a History
     /// retry rather than from a failed paste. Its own phase rather than a
@@ -840,7 +842,8 @@ public enum RecordingCancellationPolicy {
 
     /// Whether a recording that carried no signal is worth saying so about.
     /// **“No sound from the microphone”** is for a dictation someone really gave —
-    /// a muted input, a zero volume, the wrong device. Held for less than a moment
+    /// a muted input, the wrong device, or a volume Scriber could not read, since
+    /// one it could read is refused before recording. Held for less than a moment
     /// it reports silence to someone who never spoke, so those close silently.
     public static func reportsMissingAudio(elapsed: TimeInterval, detectedSignal: Bool) -> Bool {
         !detectedSignal && elapsed >= recoveryThreshold

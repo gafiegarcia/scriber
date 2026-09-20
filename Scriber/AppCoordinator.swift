@@ -1612,8 +1612,6 @@ final class AppCoordinator: ObservableObject {
         if preferences.muteOtherAudioWhileDictating { beginOtherAudioMuting() }
         shortcuts.setMode(mode == .held ? .held : .locked)
         setPhase(.recording(mode: mode, elapsed: 0, level: -80))
-        // A verdict that arrived while the session was still opening. There is a
-        // recording to refuse now, so it is spent here rather than lost.
         if let pending = pendingInputVolumeReading {
             pendingInputVolumeReading = nil
             if InputVolumePolicy.refusesDictation(pending) {
@@ -2099,9 +2097,9 @@ final class AppCoordinator: ObservableObject {
 
     private func cancelRecording() {
         guard case .recording = phase else { return }
-        // Refused rather than canceled, and reported for what it is. Nothing is
-        // kept: a recording from an input whose volume is zero has nothing in it
-        // worth retrying, whatever the first seconds happened to capture.
+        // Do not: keep this recording. An input whose volume is zero has nothing
+        // in it worth retrying, whatever its first seconds happened to capture
+        // while the audio unit was still awake.
         if refusesForZeroInputVolume {
             refusesForZeroInputVolume = false
             meterTask?.cancel()

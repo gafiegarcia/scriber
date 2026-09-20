@@ -623,10 +623,10 @@ struct PermissionsStep: View {
                     presentation: .onboarding
                 )
                 .accessibilityIdentifier("onboarding-level-meter")
-                // Hidden while the volume is zero. "Speak to test your microphone"
-                // is advice that cannot work there — speaking does nothing — and
-                // the help block below already names the problem, so showing both
-                // reads as two faults.
+                // Do not: show this at a zero volume. "Speak to test your
+                // microphone" is advice that cannot work there, and the help block
+                // below already names the problem — both at once reads as two
+                // faults.
                 if runtime.coordinator.inputVolumeReading != .zero {
                     Label(
                         signalObserved ? "Scriber can hear you" : "Speak to test your microphone",
@@ -656,10 +656,9 @@ struct PermissionsStep: View {
     /// Anyone whose microphone works speaks, sees green, and never reads this.
     private var help: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // The heading names what the user can see rather than what they can
-            // hear. On a dictation step "Not hearing anything?" read as a question
-            // about the speakers, and it was posed to everyone, including people
-            // with nothing wrong.
+            // Do not: word this as a question about hearing. On a dictation step
+            // it reads as asking about the speakers, and it is shown to everyone,
+            // including people with nothing wrong. Name what is on screen.
             Text(zeroInputVolume ? InputVolumeCopy.zeroTitle : "Bar staying flat?")
                 .font(OnboardingType.body.weight(.medium))
                 .foregroundStyle(zeroInputVolume ? Color.orange : Color.primary)

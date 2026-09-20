@@ -177,7 +177,8 @@ struct AudioLevelWaveform: View {
         .modifier(PlateBackground(plate: presentation.plate))
         .onAppear { append(level) }
         // Do not: append on a change of `level`. A steady level — a muted input,
-        // or an input volume at zero — hands the same number in every tick,
+        // or one whose volume Scriber cannot read — hands the same number in
+        // every tick,
         // `onChange` skips it, and the meter stops scrolling while the audio it
         // reports carries on. It froze in the microphone test and in setup, where
         // the bars still held real audio; the pill had it too and showed nothing,
