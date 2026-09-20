@@ -619,10 +619,13 @@ struct PermissionsStep: View {
                 .foregroundStyle(signalObserved ? Color.green : Color.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            // Orange, as the Sound tab draws this same error: an input Scriber
+            // cannot open is a condition to act on rather than a failure, and the
+            // two places were disagreeing about which it was.
             if let microphoneTestError = runtime.coordinator.microphoneTestError {
                 Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
                     .font(OnboardingType.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.orange)
             }
             Divider()
             help
