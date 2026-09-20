@@ -396,6 +396,12 @@ final class PillController {
             5
         case .credentialsUnusable, .transcriptionFailed, .noAudioSignal:
             6
+        // As long as the disconnection panel, and for the same reason: this
+        // arrives at the start rather than the end, so the shortcut is still held
+        // and the user is still speaking. `.noAudioSignal` gets six because it
+        // appears once they have finished and are already looking.
+        case .inputVolumeZero:
+            8
         // Longer than the recovery panel it shares a shape with, because of when
         // it arrives: the device dies mid-sentence, so this appears while the
         // shortcut is still held and the user is still talking. Five seconds is
