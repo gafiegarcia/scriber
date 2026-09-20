@@ -1143,6 +1143,10 @@ private struct PillView: View {
 
     private var title: String {
         switch model.phase {
+        // Do not: read this as a pill Scriber presents. `update` hides the panel
+        // on `.idle` and returns without ever showing one, so this string has no
+        // route to the screen. It exists because the switch is exhaustive, which
+        // is what keeps a phase added later from slipping past without a title.
         case .idle: "Ready"
         // The timer alone. A red level meter running beside a stopwatch inside
         // the dictation app's own pill does not need to be told it is recording,
