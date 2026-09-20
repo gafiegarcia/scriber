@@ -13,7 +13,6 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Follow macOS on what the Accessibility permission is called.** ([Notion task](https://app.notion.com/p/3d271937040281d99c54cfd0b67d8b3c))
 - [ ] **A zero input volume keeps sending signal for five to seven seconds.** ([Notion task](https://app.notion.com/p/3bc719370402805bb391e2b11463adb9))
 - [ ] **Move logic out of the checks that need a human to run them.** ([Notion task](https://app.notion.com/p/3ba7193704028047a22cd8cd95f310fc))
-- [ ] **Find out how ElevenLabs reports a credit top-up.** ([Notion task](https://app.notion.com/p/3b871937040281b5b2cfec28749f8c10))
 - [ ] **Reconsider where the in-app warning lives.** ([Notion task](https://app.notion.com/p/3c47193704028188b789e58121a66b19))
 - [ ] **Give the main window the background Settings has.** ([Notion task](https://app.notion.com/p/3bf71937040280399503cf4b4be38c7e))
 - [ ] **Cut the repetition from the "No words detected" pill.** ([Notion task](https://app.notion.com/p/3bf719370402800e8629dae0b42ed2ce))

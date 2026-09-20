@@ -39,6 +39,12 @@ public struct ElevenLabsSubscriptionUsage: Codable, Equatable, Sendable {
     public let resetAt: Date?
     public let fetchedAt: Date
 
+    // Known and unfixed: on an account that has topped up, this clamp may read an
+    // overage as nothing left — an empty bar and 0% sitting above a caption that
+    // says extended usage is available. Whether ElevenLabs reports a top-up by
+    // raising `character_limit` or by letting `character_count` climb past it is
+    // undocumented, and nobody has seen the response from such an account. A free
+    // account cannot produce one, so this stays until someone can look.
     public var remainingCredits: Int { max(0, totalCredits - usedCredits) }
     public var shouldBlockDictation: Bool {
         remainingCredits == 0 && !canExtendCredits
