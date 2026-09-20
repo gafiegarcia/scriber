@@ -1653,6 +1653,22 @@ final class AppCoordinator: ObservableObject {
         guard case .recording = phase else { return }
         refusesForZeroInputVolume = true
         apply(gate.apply(.cancelRequested))
+        // Do not: leave the report to whichever branch the gate took. A refusal
+        // this early usually lands while the capture session is still opening,
+        // which the gate answers by abandoning it — a path that returns to idle
+        // in silence and never reaches `cancelRecording`. The pill flashed and
+        // vanished with nothing said.
+        guard refusesForZeroInputVolume else { return }
+        refusesForZeroInputVolume = false
+        presentZeroInputVolume()
+    }
+
+    private func presentZeroInputVolume() {
+        paste.clearTarget()
+        pill.setPreferredScreen(nil)
+        shortcuts.setMode(.idle)
+        playFeedback(.dictationDidNotLand)
+        setPhase(.inputVolumeZero)
     }
 
     /// The gesture ending this dictation arrived before the microphone opened, so
@@ -2086,11 +2102,7 @@ final class AppCoordinator: ObservableObject {
             meterTask = nil
             endOtherAudioMuting()
             recorder.cancel()
-            paste.clearTarget()
-            pill.setPreferredScreen(nil)
-            shortcuts.setMode(.idle)
-            playFeedback(.dictationDidNotLand)
-            setPhase(.inputVolumeZero)
+            presentZeroInputVolume()
             return
         }
         let elapsed = elapsedSincePress
