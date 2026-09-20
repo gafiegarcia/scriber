@@ -40,7 +40,11 @@ if ! xcodebuild -project "$REPO_ROOT/Scriber.xcodeproj" \
   echo "REFUSING: the Debug build failed" >&2
   # The indented lines are the source excerpt and caret that Swift prints under
   # each diagnostic; dropping them leaves one file:line:column line per error.
-  grep -E "error:" "$BUILD_LOG" | grep -vE "^[[:space:]]" | sort -u | head -20 >&2
+  #
+  # `|| true` because of `pipefail`: a build that fails with no "error:" line at
+  # all — a script phase, a signing abort, a cancel — makes grep exit 1, which
+  # under `set -e` ended the script here and swallowed the path printed below.
+  { grep -E "error:" "$BUILD_LOG" | grep -vE "^[[:space:]]" | sort -u | head -20 >&2; } || true
   echo "Full log: $BUILD_LOG" >&2
   exit 1
 fi
