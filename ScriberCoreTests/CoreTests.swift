@@ -760,6 +760,25 @@ struct ScribeValidationTests {
         #expect(usage(used: 0, total: 0).remainingPercentage == nil)
     }
 
+    @Test("Only a definite zero input volume refuses a dictation")
+    func inputVolumePolicy() {
+        #expect(InputVolumePolicy.reading(scalar: 0) == .zero)
+        #expect(InputVolumePolicy.reading(scalar: 0.01) == .audible)
+        #expect(InputVolumePolicy.reading(scalar: 1) == .audible)
+        // No volume control published for this device, or the read failed.
+        #expect(InputVolumePolicy.reading(scalar: nil) == .unknown)
+        #expect(InputVolumePolicy.reading(scalar: .nan) == .unknown)
+        #expect(InputVolumePolicy.reading(scalar: .infinity) == .unknown)
+
+        #expect(InputVolumePolicy.refusesDictation(.zero))
+        // Unknown is not zero. A microphone whose gain macOS does not publish —
+        // a USB interface with a knob — must never be refused for it.
+        #expect(!InputVolumePolicy.refusesDictation(.unknown))
+        // Measured: 1% clears the -60 dBFS floor and transcribes, so the guard is
+        // for zero alone and never for "too quiet".
+        #expect(!InputVolumePolicy.refusesDictation(.audible))
+    }
+
     @Test("Names every documented ElevenLabs tier without its underscores or date")
     func planName() {
         func usage(tier: String) -> ElevenLabsSubscriptionUsage {

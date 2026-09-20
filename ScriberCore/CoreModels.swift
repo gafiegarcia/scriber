@@ -321,6 +321,36 @@ public enum AudioSignal {
     }
 }
 
+/// What Scriber knows about the input volume macOS holds for a device — the
+/// slider in System Settings, not the audio arriving from it.
+///
+/// `unknown` is not `zero`. A device that exposes no volume control to Core
+/// Audio, or a read that failed, lands here, and nothing may treat that as a
+/// muted input.
+public enum InputVolumeReading: Equatable, Sendable {
+    case zero
+    case audible
+    case unknown
+}
+
+public enum InputVolumePolicy {
+    /// Reads a Core Audio volume scalar, where nil means the property was absent
+    /// or the read failed.
+    public static func reading(scalar: Float?) -> InputVolumeReading {
+        guard let scalar, scalar.isFinite else { return .unknown }
+        return scalar <= 0 ? .zero : .audible
+    }
+
+    /// Only a definite zero stops a dictation. Anything Scriber could not read
+    /// is let through: refusing a working microphone because macOS publishes no
+    /// volume for it is a worse failure than missing the warning. A slider at 1%
+    /// is `audible` and stays that way — measured, it clears the −60 dBFS floor
+    /// and ElevenLabs transcribes it.
+    public static func refusesDictation(_ reading: InputVolumeReading) -> Bool {
+        reading == .zero
+    }
+}
+
 public enum APIKeyValidity: String, Codable, Sendable {
     case unchecked
     case valid
@@ -593,6 +623,12 @@ public enum AppPhase: Equatable, Sendable {
     /// only what happened: the recovery the live pill offers is aimed at an input
     /// that is wrong *now*, and this recording was made at some point in the past.
     case retryFoundNoWords
+    /// The input volume macOS holds for this device is zero, read at the moment
+    /// the dictation started. Its own phase rather than a `.noAudioSignal` with
+    /// different words: that one is a verdict on a finished recording and cannot
+    /// name a cause, while this one knows the cause before a sample arrives, and
+    /// stops the dictation instead of reporting on it afterwards.
+    case inputVolumeZero
     /// Nothing ever crossed the signal threshold, so the recording was discarded
     /// before it cost any API credit.
     ///
@@ -953,6 +989,7 @@ public extension AppPhase {
         case .noSpeechDetected: "noWords"
         case .retryFoundNoWords: "retryNoWords"
         case .noAudioSignal: "noSignal"
+        case .inputVolumeZero: "inputVolumeZero"
         case .message: "message"
         }
     }
@@ -991,7 +1028,8 @@ public extension AppPhase {
         case .transcribing: .cancelTranscription
         case .canceledTranscript, .noInternetConnection, .inputDisconnected, .dictationCopied, .permissionsRequired,
              .credentialsUnusable, .transcriptionFailed, .dictationFailed, .noSpeechDetected, .retryFoundNoWords,
-             .noAudioSignal, .transcriptCopied, .dictationBlockedBySecureField, .message: .dismiss
+             .noAudioSignal, .inputVolumeZero, .transcriptCopied, .dictationBlockedBySecureField,
+             .message: .dismiss
         }
     }
 
@@ -1012,7 +1050,7 @@ public extension AppPhase {
         case .transcriptCopied: .success
         case .permissionsRequired, .credentialsUnusable,
              .transcriptionFailed, .dictationFailed, .noSpeechDetected, .retryFoundNoWords, .noAudioSignal,
-             .inputDisconnected, .dictationBlockedBySecureField: .warning
+             .inputVolumeZero, .inputDisconnected, .dictationBlockedBySecureField: .warning
         case .idle, .recording, .transcribing, .canceledTranscript, .noInternetConnection, .message: .neutral
         }
     }

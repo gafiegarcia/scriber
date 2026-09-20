@@ -422,6 +422,10 @@ struct OnboardingView: View {
             runtime.coordinator.startMicrophoneTest()
         } else {
             runtime.coordinator.stopMicrophoneTest()
+            // The volume watch belongs to the step that shows it, as the meter
+            // does; left running it holds Core Audio listeners for the rest of
+            // setup for nothing to read.
+            runtime.coordinator.endWatchingInputVolume()
         }
     }
 

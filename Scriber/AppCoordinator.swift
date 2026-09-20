@@ -138,6 +138,14 @@ final class AppCoordinator: ObservableObject {
     private let historyMaintenance: DictationHistoryMaintenance
     private var meterTask: Task<Void, Never>?
     private var microphoneTestTask: Task<Void, Never>?
+    /// A zero volume read before the microphone finished opening, held until
+    /// there is a recording to refuse. The read runs beside the session opening,
+    /// so it can answer first.
+    private var pendingInputVolumeReading: InputVolumeReading?
+    /// Set only between asking the gate to cancel and `cancelRecording` running,
+    /// so that one cancellation reports the volume rather than reading as the
+    /// user's own.
+    private var refusesForZeroInputVolume = false
     private var currentRecord: DictationRecord?
     private var currentRecording: CompletedRecording?
 
@@ -453,6 +461,7 @@ final class AppCoordinator: ObservableObject {
         case .dictationFailed: "Dictation failed"
         case .noSpeechDetected, .retryFoundNoWords: "No words detected"
         case .noAudioSignal: "No microphone signal"
+        case .inputVolumeZero: InputVolumeCopy.zeroTitle
         case .message(let value): value
         }
     }
@@ -680,9 +689,58 @@ final class AppCoordinator: ObservableObject {
         Self.openInSystemSettings(url)
     }
 
+    /// The input volume of the selected device, live, while a view that shows it
+    /// is on screen. `.unknown` at every other time, which is honest: nothing is
+    /// watching, so nothing is known.
+    @Published private(set) var inputVolumeReading: InputVolumeReading = .unknown
+    private let inputVolumeMonitor = InputVolumeMonitor()
+    /// Whether a view wants the meter running. Separate from whether it *is*
+    /// running, because a zero input volume holds it shut — and the moment the
+    /// volume leaves zero, this is what says to open it without being asked again.
+    private var microphoneTestRequested = false
+
+    func beginWatchingInputVolume() {
+        inputVolumeMonitor.onChange = { [weak self] reading in
+            self?.inputVolumeChanged(reading)
+        }
+        inputVolumeMonitor.start(selection: preferences.audioInputSelection)
+    }
+
+    func endWatchingInputVolume() {
+        inputVolumeMonitor.onChange = nil
+        inputVolumeMonitor.stop()
+        inputVolumeReading = .unknown
+    }
+
+    private func inputVolumeChanged(_ reading: InputVolumeReading) {
+        inputVolumeReading = reading
+        guard microphoneTestRequested else { return }
+        if reading == .zero {
+            closeMicrophoneTest()
+        } else if !isMicrophoneTestRunning {
+            openMicrophoneTest()
+        }
+    }
+
+    /// Asks for the meter. Whether it actually opens is the volume's to decide:
+    /// at zero the device would hand back real audio for as long as the built-in
+    /// unit stays awake after any system sound, which is enough to draw tall bars
+    /// under a message saying the volume is zero — and, in setup, to pass the
+    /// test without the user having spoken.
     func startMicrophoneTest() {
         guard microphoneGranted, !phase.isBusy else { return }
-        stopMicrophoneTest()
+        microphoneTestRequested = true
+        beginWatchingInputVolume()
+        guard inputVolumeReading != .zero else {
+            closeMicrophoneTest()
+            return
+        }
+        openMicrophoneTest()
+    }
+
+    private func openMicrophoneTest() {
+        guard microphoneGranted, !phase.isBusy else { return }
+        closeMicrophoneTest()
         microphoneTestError = nil
         microphoneLevel.reset()
         microphoneSignalDetected = false
@@ -709,6 +767,13 @@ final class AppCoordinator: ObservableObject {
     }
 
     func stopMicrophoneTest() {
+        microphoneTestRequested = false
+        closeMicrophoneTest()
+    }
+
+    /// Shuts the meter without withdrawing the request for it, so a volume
+    /// leaving zero can reopen it.
+    private func closeMicrophoneTest() {
         microphoneTestTask?.cancel()
         microphoneTestTask = nil
         recorder.stopMonitoring()
@@ -1515,6 +1580,7 @@ final class AppCoordinator: ObservableObject {
         // this cancel exists for.
         shortcuts.setMode(mode == .held ? .held : .locked)
         handedOff = true
+        startInputVolumeCheck()
         // Never canceled, and never more than one: the gate only begins a start
         // from idle, and it leaves idle here until this task answers. Canceling
         // would not interrupt the session opening anyway — it would only risk
@@ -1546,7 +1612,47 @@ final class AppCoordinator: ObservableObject {
         if preferences.muteOtherAudioWhileDictating { beginOtherAudioMuting() }
         shortcuts.setMode(mode == .held ? .held : .locked)
         setPhase(.recording(mode: mode, elapsed: 0, level: -80))
+        // A verdict that arrived while the session was still opening. There is a
+        // recording to refuse now, so it is spent here rather than lost.
+        if let pending = pendingInputVolumeReading {
+            pendingInputVolumeReading = nil
+            if InputVolumePolicy.refusesDictation(pending) {
+                refuseForZeroInputVolume()
+                return
+            }
+        }
         startMeter()
+    }
+
+    /// Reads the input volume beside the dictation rather than in front of it.
+    ///
+    /// No deadline. The read is 0.006 ms plus a property read in the ordinary
+    /// case, but `coreaudiod` can take seconds when its registry has gone cold,
+    /// and a refusal even that late still beats the failure this exists to
+    /// prevent: a long dictation spoken into an input that records nothing. What
+    /// it must never do is act on a dictation that has already ended, which is
+    /// what `refuseForZeroInputVolume` checks.
+    private func startInputVolumeCheck() {
+        pendingInputVolumeReading = nil
+        let selection = preferences.audioInputSelection
+        Task { [weak self] in
+            let reading = await Task.detached { InputVolume.reading(for: selection) }.value
+            guard let self else { return }
+            guard InputVolumePolicy.refusesDictation(reading) else { return }
+            guard case .recording = phase else {
+                pendingInputVolumeReading = reading
+                return
+            }
+            refuseForZeroInputVolume()
+        }
+    }
+
+    /// Cancels through the gate rather than around it, so the start machinery is
+    /// left in the state every other cancellation leaves it in.
+    private func refuseForZeroInputVolume() {
+        guard case .recording = phase else { return }
+        refusesForZeroInputVolume = true
+        apply(gate.apply(.cancelRequested))
     }
 
     /// The gesture ending this dictation arrived before the microphone opened, so
@@ -1971,6 +2077,22 @@ final class AppCoordinator: ObservableObject {
 
     private func cancelRecording() {
         guard case .recording = phase else { return }
+        // Refused rather than canceled, and reported for what it is. Nothing is
+        // kept: a recording from an input whose volume is zero has nothing in it
+        // worth retrying, whatever the first seconds happened to capture.
+        if refusesForZeroInputVolume {
+            refusesForZeroInputVolume = false
+            meterTask?.cancel()
+            meterTask = nil
+            endOtherAudioMuting()
+            recorder.cancel()
+            paste.clearTarget()
+            pill.setPreferredScreen(nil)
+            shortcuts.setMode(.idle)
+            playFeedback(.dictationDidNotLand)
+            setPhase(.inputVolumeZero)
+            return
+        }
         let elapsed = elapsedSincePress
         meterTask?.cancel()
         meterTask = nil

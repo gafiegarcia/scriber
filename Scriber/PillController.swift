@@ -487,6 +487,11 @@ final class PillController {
         // button alone.
         case .noSpeechDetected:
             NSSize(width: 364, height: 52)
+        // Measured: "Input volume is zero" is 127 points against the 120 of
+        // `.noSpeechDetected` above, which this matches in every other part — one
+        // line, Check Input, a countdown and a dismiss.
+        case .inputVolumeZero:
+            NSSize(width: 371, height: 52)
         case .message(let text):
             NSSize(width: messageWidth(for: text), height: 52)
         default:
@@ -1117,7 +1122,7 @@ private struct PillView: View {
             Image(systemName: "checkmark.circle.fill").foregroundStyle(toneAccent)
         case .dictationBlockedBySecureField:
             Image(systemName: "lock.fill").foregroundStyle(toneAccent)
-        case .noSpeechDetected, .retryFoundNoWords, .noAudioSignal:
+        case .noSpeechDetected, .retryFoundNoWords, .noAudioSignal, .inputVolumeZero:
             Image(systemName: "mic.slash.fill").foregroundStyle(toneAccent)
         case .permissionsRequired, .credentialsUnusable, .transcriptionFailed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(toneAccent)
@@ -1161,6 +1166,7 @@ private struct PillView: View {
         case .dictationFailed: "Dictation failed"
         case .noSpeechDetected, .retryFoundNoWords: "No words detected"
         case .noAudioSignal: "No sound from the microphone"
+        case .inputVolumeZero: InputVolumeCopy.zeroTitle
         case .message(let value): value
         }
     }
@@ -1219,7 +1225,7 @@ private struct PillView: View {
         // wrong — but still a way out that is not a keystroke.
         case .retryFoundNoWords:
             dismissControls
-        case .noSpeechDetected, .noAudioSignal:
+        case .noSpeechDetected, .noAudioSignal, .inputVolumeZero:
             Button("Check Input") { model.onOpenInputSettings?() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)

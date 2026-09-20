@@ -591,9 +591,21 @@ struct PermissionsStep: View {
         }
         // The coordinator decides this from the samples themselves and flips it
         // once, so the step never watches a value that changes ten times a second.
+        //
+        // Do not: let this latch while the input volume is zero. A system alert
+        // sound through the built-in speaker wakes the audio unit, macOS stops
+        // applying the zero volume for as long as it stays awake, and the
+        // microphone hears the beep — which passed this test, showed "Scriber can
+        // hear you" and enabled Continue for someone who had not spoken. The
+        // coordinator holds the meter shut at zero, so no sample arrives to latch
+        // it; this guard is the second lock on the same door.
         .onChange(of: runtime.coordinator.microphoneSignalDetected) { _, detected in
-            if detected { signalObserved = true }
+            if detected, !zeroInputVolume { signalObserved = true }
         }
+    }
+
+    private var zeroInputVolume: Bool {
+        runtime.coordinator.inputVolumeReading == .zero
     }
 
     private var granted: some View {
@@ -611,12 +623,18 @@ struct PermissionsStep: View {
                     presentation: .onboarding
                 )
                 .accessibilityIdentifier("onboarding-level-meter")
-                Label(
-                    signalObserved ? "Scriber can hear you" : "Speak to test your microphone",
-                    systemImage: signalObserved ? "checkmark.circle.fill" : "waveform"
-                )
-                .font(OnboardingType.body)
-                .foregroundStyle(signalObserved ? Color.green : Color.secondary)
+                // Hidden while the volume is zero. "Speak to test your microphone"
+                // is advice that cannot work there — speaking does nothing — and
+                // the help block below already names the problem, so showing both
+                // reads as two faults.
+                if runtime.coordinator.inputVolumeReading != .zero {
+                    Label(
+                        signalObserved ? "Scriber can hear you" : "Speak to test your microphone",
+                        systemImage: signalObserved ? "checkmark.circle.fill" : "waveform"
+                    )
+                    .font(OnboardingType.body)
+                    .foregroundStyle(signalObserved ? Color.green : Color.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             // Orange, as the Sound tab draws this same error: an input Scriber
@@ -638,9 +656,14 @@ struct PermissionsStep: View {
     /// Anyone whose microphone works speaks, sees green, and never reads this.
     private var help: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Not hearing anything?")
+            // The heading names what the user can see rather than what they can
+            // hear. On a dictation step "Not hearing anything?" read as a question
+            // about the speakers, and it was posed to everyone, including people
+            // with nothing wrong.
+            Text(zeroInputVolume ? InputVolumeCopy.zeroTitle : "Bar staying flat?")
                 .font(OnboardingType.body.weight(.medium))
-            Text("Input volume is a macOS setting — around halfway works for most microphones.")
+                .foregroundStyle(zeroInputVolume ? Color.orange : Color.primary)
+            Text(InputVolumeCopy.recommendation)
                 .font(OnboardingType.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

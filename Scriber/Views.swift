@@ -923,27 +923,52 @@ private struct SoundSettingsPane: View {
                         // Tied to the meter rather than to how the user arrived. The
                         // meter running is the only moment this advice is useful, and
                         // it means there is no separate state deciding when to drop it.
-                        Text("Speak and watch the level. If it stays flat, check your input volume in macOS Sound Settings.")
+                        Text("Speak and watch the level. If it stays flat, check your input volume.")
                             .font(SettingsPaneLayout.cardCaption)
                             .foregroundStyle(.secondary)
-
-                        HStack {
-                            Button("Stop") { runtime.coordinator.stopMicrophoneTest() }
-                            Button("Open Sound Settings") { runtime.coordinator.openSystemSoundSettings() }
-                        }
-                        .font(SettingsPaneLayout.cardCaption)
-                    } else {
-                        Button("Check Input Level") { runtime.coordinator.startMicrophoneTest() }
-                            .accessibilityIdentifier("microphone-level-test-button")
-                            .disabled(!runtime.coordinator.microphoneGranted
-                                || runtime.coordinator.phase.isBusy)
                     }
 
+                    // Both controls at once, in one place, so starting the test
+                    // moves nothing: the first button changes its word and the
+                    // second stays where it was.
+                    HStack {
+                        if runtime.coordinator.isMicrophoneTestRunning {
+                            Button("Stop") { runtime.coordinator.stopMicrophoneTest() }
+                        } else {
+                            Button("Check Input Level") { runtime.coordinator.startMicrophoneTest() }
+                                .accessibilityIdentifier("microphone-level-test-button")
+                                .disabled(!runtime.coordinator.microphoneGranted
+                                    || runtime.coordinator.phase.isBusy)
+                        }
+                        Button("Open Sound Settings") { runtime.coordinator.openSystemSoundSettings() }
+                    }
+                    .font(SettingsPaneLayout.cardCaption)
+
+                    // One warning at a time. An input Scriber cannot open has no
+                    // volume worth reporting, and two orange triangles read as two
+                    // faults when there is one.
                     if let microphoneTestError = runtime.coordinator.microphoneTestError {
                         Label(microphoneTestError, systemImage: "exclamationmark.triangle.fill")
                             .font(SettingsPaneLayout.cardCaption)
                             .foregroundStyle(.orange)
+                    } else if runtime.coordinator.inputVolumeReading == .zero {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label(InputVolumeCopy.zeroTitle, systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                                .accessibilityIdentifier("input-volume-zero-badge")
+                            Text(InputVolumeCopy.recommendation)
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(SettingsPaneLayout.cardCaption)
                     }
+                }
+                // Watched only while this row is on screen, and read live rather
+                // than remembered: a badge that outlives what it was read from
+                // ends up asserting something nobody has checked.
+                .onAppear { runtime.coordinator.beginWatchingInputVolume() }
+                .onDisappear { runtime.coordinator.endWatchingInputVolume() }
+                .onChange(of: runtime.preferences.audioInputSelection) { _, _ in
+                    runtime.coordinator.beginWatchingInputVolume()
                 }
             }
             Section {
