@@ -160,8 +160,10 @@ final class PillController {
     /// animated and has nothing to gain from a shared panel.
     private static let capsulePanelSize = NSSize(width: 476, height: 76)
 
-    /// Every one-liner is this wide, whatever it says and whichever controls it
-    /// carries. Nothing in the family resizes, so nothing inside one is ever
+    /// The width a one-liner takes whatever it says and whichever controls it
+    /// carries, unless its own content will not fit — see `.retryFoundNoWords`
+    /// and `.noSpeechDetected` in `pillSize(for:)`, which take fixed wider sizes.
+    /// No one-liner resizes while it is on screen, so nothing inside one is ever
     /// moved by the capsule and by SwiftUI at once: the status text moves inward
     /// to make room for Cancel and Confirm while the meter gives up the width
     /// they take, and that is the only movement there is.
@@ -1211,9 +1213,9 @@ private struct PillView: View {
     /// the notice offers, then the countdown, then the dismiss control. The
     /// countdown and the dismiss are one view rather than two so that a phase
     /// added later cannot put a button between them — see the pill rules in
-    /// `PRODUCT_SPEC.md`. Where a phase offers nothing, `dismissControls` is the
-    /// whole of it; where it also has no way out but the keyboard, the countdown
-    /// stands alone.
+    /// `PRODUCT_SPEC.md`. A phase offering no recovery carries the countdown
+    /// alone and leaves `Escape` as the way out: the dismiss control is what a
+    /// recovery is declined with, so there is nothing for it to sit beside.
     @ViewBuilder private var actions: some View {
         switch model.phase {
         case .permissionsRequired:
