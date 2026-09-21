@@ -315,7 +315,10 @@ final class PillController {
         hide(clearPhaseWhenFinished: false)
     }
 
-    /// The only animation the pill's content has. `nil` under Reduce Motion,
+    /// Confirm arriving as a held recording locks, which is a change of phase and
+    /// so cannot come from the pointer-keyed animation in `compactStatus`. A lock
+    /// happens once and is not flipped back and forth, so an explicit transaction
+    /// is safe here in a way it was not for hover. `nil` under Reduce Motion,
     /// which `withAnimation` takes to mean no animation at all.
     private var controlArrivalAnimation: Animation? {
         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -342,10 +345,14 @@ final class PillController {
         // Only the model changes. Hovering no longer touches the pill's geometry
         // at all: Cancel arrives inside a capsule that holds its width, which is
         // what stopped the region under the pointer moving because of the pointer.
-        // The one place hover is allowed to animate anything: Cancel arriving on
-        // a held recording. Nothing else in the row changes with the pointer, so
-        // this cannot reach a title or a symbol.
-        withAnimation(controlArrivalAnimation) { model.isHovering = hovering }
+        // Do not: wrap this in `withAnimation`. Hover flips faster than the
+        // animation runs, and an explicit transaction per flip starts a new
+        // animation from the old one's start value instead of retargeting from
+        // where it had got to — the timer jumped rather than sliding, measured by
+        // hovering in and out of a held recording repeatedly. The value-driven
+        // `.animation(_:value:)` in `compactStatus` owns this instead, which
+        // retargets.
+        model.isHovering = hovering
         guard dismissalCountdown != nil else { return }
         hovering ? pauseAutoDismissal() : resumeAutoDismissal()
     }
@@ -765,6 +772,7 @@ final class PillController {
 
 private struct PillView: View {
     @ObservedObject var model: PillModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
 
     /// `NSGlassEffectView.tintColor` never composited anything visible against
@@ -935,6 +943,21 @@ private struct PillView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 11)
+        // Keyed on the pointer alone, never on the phase. Hovering changes one
+        // thing in this row — whether Cancel is in it — so animating every change
+        // that lands with it animates only that control arriving and the text and
+        // meter making room. A phase change leaves `isHovering` alone, so it
+        // reaches nothing here: that is what keeps the row's words and symbol from
+        // crossfading, which drew the new pill's body carrying the old pill's
+        // words.
+        //
+        // Do not: key this on `showsCancelControl` again. It differs between
+        // phases as well as with the pointer, so every phase change flipped it and
+        // animated the whole row.
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: pillResizeDuration),
+            value: model.isHovering
+        )
     }
 
     /// The outward pull is deliberate. The capsule's rounded end is a circle of
