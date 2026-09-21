@@ -284,7 +284,18 @@ final class PillController {
         // from the recovery panel to `.transcribing` asked for a 296x68 panel and
         // settled at 296x80, a capsule's radius on a box twelve points too tall.
         // Recording never showed it because its own content is the short one.
-        model.phase = phase
+        // Animated only between two recordings, which is where Confirm arrives as
+        // a held recording locks and Cancel stops depending on the pointer. Every
+        // other change of phase replaces the row's words and symbol, and those are
+        // set rather than faded: a cross-fade there draws the new pill's body
+        // carrying the old pill's words, and the outgoing words are drawn at the
+        // outgoing phase's layout — which is how a dismissed notice flashed
+        // "Ready" below the capsule on the dictation after it.
+        if Self.isRecordingToRecording(from: model.phase, to: phase) {
+            withAnimation(controlArrivalAnimation) { model.phase = phase }
+        } else {
+            model.phase = phase
+        }
         applyLayout(for: phase)
         show()
         if autoDismiss,
@@ -304,6 +315,21 @@ final class PillController {
         hide(clearPhaseWhenFinished: false)
     }
 
+    /// The only animation the pill's content has. `nil` under Reduce Motion,
+    /// which `withAnimation` takes to mean no animation at all.
+    private var controlArrivalAnimation: Animation? {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            ? nil
+            : .easeInOut(duration: pillResizeDuration)
+    }
+
+    /// Whether a change of phase leaves the row's words and symbol alone, so that
+    /// only Cancel and Confirm move. True between two recordings and nowhere else.
+    private static func isRecordingToRecording(from: AppPhase, to: AppPhase) -> Bool {
+        if case .recording = from, case .recording = to { return true }
+        return false
+    }
+
     private func setHovering(_ hovering: Bool) {
         guard hovering != model.isHovering else { return }
         // Every transition, with where the pointer was and what the capsule held
@@ -316,7 +342,10 @@ final class PillController {
         // Only the model changes. Hovering no longer touches the pill's geometry
         // at all: Cancel arrives inside a capsule that holds its width, which is
         // what stopped the region under the pointer moving because of the pointer.
-        model.isHovering = hovering
+        // The one place hover is allowed to animate anything: Cancel arriving on
+        // a held recording. Nothing else in the row changes with the pointer, so
+        // this cannot reach a title or a symbol.
+        withAnimation(controlArrivalAnimation) { model.isHovering = hovering }
         guard dismissalCountdown != nil else { return }
         hovering ? pauseAutoDismissal() : resumeAutoDismissal()
     }
@@ -736,7 +765,6 @@ final class PillController {
 
 private struct PillView: View {
     @ObservedObject var model: PillModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
 
     /// `NSGlassEffectView.tintColor` never composited anything visible against
@@ -907,14 +935,6 @@ private struct PillView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 11)
-        .animation(
-            reduceMotion ? nil : .easeInOut(duration: pillResizeDuration),
-            value: model.phase.showsCancelControl(isHovering: model.isHovering)
-        )
-        .animation(
-            reduceMotion ? nil : .easeInOut(duration: pillResizeDuration),
-            value: model.phase.showsConfirmRecordingControl
-        )
     }
 
     /// The outward pull is deliberate. The capsule's rounded end is a circle of
