@@ -122,6 +122,18 @@ osascript -e "tell application \"System Events\" to tell (first process whose un
 
 Swap `"Window"` for any other menu title; separators report `missing value`. A named process that is not running reports `-1728`.
 
+### Reading a pill
+
+The pill is its own panel, so it is `window 1` rather than the window named Scriber, and its row is one group. This returns the capsule's size and what the row actually carries, which settles a width and a missing or surviving control in one read:
+
+```bash
+osascript -e "tell application \"System Events\" to tell (first process whose unix id is $pid) to tell window 1 to return {(size of group 1), (role of UI elements of group 1)}"
+```
+
+The countdown ring is `accessibilityHidden`, so it never appears here. It is also not drawn at all under `--ui-testing-persistent-pill`: that flag stops auto-dismissal, and the ring draws only while a countdown is running. Hold a pill for a screenshot with that flag and the row is missing its ring and the gap where it sat reads as slack in the layout. Give the model a long-running countdown instead of suppressing dismissal when the screenshot has to show the real row.
+
+Most phases need a temporary Debug-only launch flag to reach at all, since raising one for real means producing the failure it reports. Write the flag, read what you need, and delete it in the same session — none of them are worth keeping.
+
 ### Front the process before reading its windows
 
 A freshly launched build can report `windows=0` and answer `-1719 Invalid index` for `window 1` while its own log already says the window was ordered front. Reading is not blocked by permission there — the tree is simply empty until the process is fronted. Do this once after launching, before anything else:
