@@ -4,6 +4,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+## 0.9.6 (build 369) — 2026-09-21
+
+An input and credits release. A microphone whose input volume sits at zero used to hand Scriber a few seconds of perfectly good audio and then silently lose the rest of a long dictation; Scriber now reads the volume macOS actually holds and answers with **Input volume is zero** at the moment you press the shortcut, and setup can no longer be finished with a dead microphone. Running out of ElevenLabs credits no longer locks you out of dictating or reports your API key as invalid — the recording is made, saved to **Dictation history**, and waiting there to retry. The pill also stops crossfading its words, which was flashing a dismissed notice's text underneath it.
+
 ### Added
 
 - **Scriber now stops a dictation when your input volume is zero, and tells you at the moment you press the shortcut.** With that slider at the far left, macOS hands Scriber several seconds of perfectly good audio before the input goes dead — because it does not apply a zero input volume while your Mac's built-in audio is awake, and Scriber's own start cue wakes it. So a long dictation would begin normally, transcribe its first few seconds, and silently lose everything after that: the level meter looked healthy, nothing warned you, and the words were gone. Scriber now reads the volume macOS actually holds for your microphone, which tells the truth from the first instant, and answers with **Input volume is zero** and **Check Input** instead of recording into nothing. The reading happens beside the dictation and never delays the pill, and it never interrupts a dictation you have already finished — if one did capture something usable, you keep it. Only an exact zero stops anything: a very quiet setting still works, and a microphone whose volume macOS does not publish at all is left alone rather than refused.
