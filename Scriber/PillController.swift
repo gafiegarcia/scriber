@@ -996,6 +996,14 @@ private struct PillView: View {
                     .lineLimit(1)
             }
         }
+        // The words are replaced, never animated between. Without this, a timer
+        // that ticks in the same transaction as the pointer arriving is treated
+        // as a different view and crossfaded: the recording pill drew "0:02" and
+        // "0:03" at once, the outgoing one sliding off the capsule's left edge
+        // while Cancel came in. It reproduced on roughly one hover in three,
+        // being the odds of a flip landing on a second boundary — the pill
+        // republishes ten times a second.
+        .contentTransition(.identity)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityTitle)
         .accessibilityValue(accessibilityDetail ?? "")
