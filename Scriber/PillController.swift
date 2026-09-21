@@ -482,15 +482,20 @@ final class PillController {
             NSSize(width: 460, height: 60)
         case .noAudioSignal:
             NSSize(width: 460, height: 60)
-        // Measured: "No words detected" is 120 points, and this is the only
-        // one-liner carrying both a countdown and a dismiss control — 148 points
-        // of chrome against the 110 the message pills need.
+        // Measured: "No words detected" is 120 points against the 110 of chrome a
+        // countdown-only row needs. Read off the running app at four candidate
+        // widths: 204 and 210 both truncate the title, 230 does not.
+        //
+        // Do not: pull this down to `oneLinerWidth` to spare the transition into
+        // it the 26-point step. That was tried at 204 and at 210 and truncated at
+        // both; closing the step costs either this pill's leading glyph or the
+        // whole family's floor.
         case .retryFoundNoWords:
-            NSSize(width: 270, height: 52)
-        // Measured: the same title and trailing controls as `.retryFoundNoWords`
-        // above, plus Check Input at 84 points and one 10-point row gap — so 270
-        // rather than a width fitted from scratch, since the two differ by that
-        // button alone.
+            NSSize(width: 230, height: 52)
+        // Measured at 364 on its own row, not derived from `.retryFoundNoWords`
+        // above. It shares that pill's title and leading glyph and carries two
+        // things it does not — Check Input and a dismiss control — so the two
+        // widths no longer move together.
         case .noSpeechDetected:
             NSSize(width: 364, height: 52)
         // Measured: "Input volume is zero" is 127 points against the 120 of
@@ -1232,9 +1237,15 @@ private struct PillView: View {
             Button("See History") { model.onOpen?() }.controlSize(.small)
             dismissControls
         // No recovery to offer — the input it would send you to is not what was
-        // wrong — but still a way out that is not a keystroke.
+        // wrong — and no dismiss control either, which is what lets this pill sit
+        // at 230 rather than 270 and so arrive from `.transcribing` with 26 points
+        // to cross instead of 66. `Escape` and the countdown are the ways out.
+        //
+        // Do not: read this as the rule for every brief notice. A notice offering
+        // a recovery keeps its dismiss control, because a way to decline has to
+        // sit beside the way to accept.
         case .retryFoundNoWords:
-            dismissControls
+            countdown
         case .noSpeechDetected, .noAudioSignal, .inputVolumeZero:
             Button("Check Input") { model.onOpenInputSettings?() }
                 .buttonStyle(.borderedProminent)
