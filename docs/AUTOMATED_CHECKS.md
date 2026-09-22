@@ -193,6 +193,22 @@ Three things make the answer readable. Untouched windows carry AppKit's defaults
 
 Pair it with `--ui-testing-no-activate`, where the window never becomes key. Anything hanging off `didBecomeKey` cannot have run, so whatever holds in that launch holds without it.
 
+### Reading a screen recording
+
+Extract every frame the recording holds, without duplicating or dropping any:
+
+```bash
+ffmpeg -i clip.mov -fps_mode passthrough f%03d.png
+```
+
+Lay the frames out as one contact sheet with a `crop`, `scale` and `tile` filter so they can be compared side by side, and read each frame's timing with:
+
+```bash
+ffprobe -show_entries frame=pts_time clip.mov
+```
+
+A screen recording captures a frame only when the screen changes, so a gap in those timestamps is itself a reading: nothing was drawn during it. A state that appears in one frame was drawn, however briefly.
+
 ## Inspecting a running Debug build
 
 ### Visual and interaction inspection
