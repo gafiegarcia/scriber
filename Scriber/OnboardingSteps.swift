@@ -209,7 +209,7 @@ struct APIKeyStep: View {
                                     // button that renames itself mid-check
                                     // resizes, and the field beside it takes
                                     // the change.
-                                    if isChecking { ProgressView().controlSize(.small) }
+                                    if isChecking { ActivitySpinner() }
                                     Text("Save API Key")
                                 }
                             }
@@ -239,7 +239,7 @@ struct APIKeyStep: View {
             Label {
                 Text("Checking your saved key…")
             } icon: {
-                ProgressView().controlSize(.small)
+                ActivitySpinner()
             }
             .font(OnboardingType.caption)
             .foregroundStyle(.secondary)

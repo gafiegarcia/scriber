@@ -406,8 +406,7 @@ private struct DictationHistoryRow: View {
             // trailing a variable-width button shifts both on the rows with one.
             HStack(spacing: 8) {
                 if isRetrying {
-                    ProgressView()
-                        .controlSize(.small)
+                    ActivitySpinner()
                         .frame(minWidth: 48)
                 } else if record.isRetryable, record.pendingAudioRelativePath != nil {
                     // Regular size: at `.small` the button looked undersized once

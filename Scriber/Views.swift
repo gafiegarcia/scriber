@@ -514,7 +514,7 @@ private struct GeneralSettingsPane: View {
                                 // grows the button leftwards into the spacer while
                                 // the title, being last, does not move at all.
                                 if runtime.coordinator.isCheckingForUpdates {
-                                    ProgressView().controlSize(.small)
+                                    ActivitySpinner()
                                 }
                                 Text("Check for Updates")
                             }
@@ -1067,7 +1067,7 @@ private struct ElevenLabsSettingsPane: View {
                                 // Beside the title, not instead of it. Replacing
                                 // it resizes the button, and the field beside it
                                 // takes the change.
-                                if isCheckingAPIKey { ProgressView().controlSize(.small) }
+                                if isCheckingAPIKey { ActivitySpinner() }
                                 Text("Save API Key")
                             }
                         }
@@ -1330,7 +1330,7 @@ private struct ElevenLabsSettingsPane: View {
                                 // The spinner takes the icon's place rather than
                                 // the whole label's, so the button holds its width.
                                 if runtime.coordinator.isRefreshingSubscriptionUsage {
-                                    ProgressView().controlSize(.small)
+                                    ActivitySpinner()
                                 } else {
                                     Image(systemName: "arrow.clockwise")
                                         .imageScale(.small)
@@ -1363,7 +1363,7 @@ private struct ElevenLabsSettingsPane: View {
                 } label: {
                     if runtime.coordinator.isRefreshingSubscriptionUsage {
                         HStack(spacing: 6) {
-                            ProgressView().controlSize(.small)
+                            ActivitySpinner()
                             Text("Checking…")
                         }
                     } else {
