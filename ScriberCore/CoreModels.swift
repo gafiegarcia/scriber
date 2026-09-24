@@ -588,7 +588,9 @@ struct CredentialRevision: Equatable, Sendable {
 
 public enum AppPhase: Equatable, Sendable {
     case idle
-    case recording(mode: RecordingMode, elapsed: TimeInterval, level: Float)
+    /// `elapsed` counts from the first audio; `untilLimit` is what remains
+    /// before the recording limit stops it, on the clock that stop runs on.
+    case recording(mode: RecordingMode, elapsed: TimeInterval, untilLimit: TimeInterval, level: Float)
     case transcribing(attempt: Int, retryDelay: TimeInterval?)
     case canceledTranscript
     /// Stopped before anything was sent, because this Mac has no route to a
@@ -682,8 +684,8 @@ public enum AppPhase: Equatable, Sendable {
     /// phases lay out from the same leading element for that reason.
     func showsCancelControl(isHovering: Bool) -> Bool {
         switch self {
-        case .recording(.locked, _, _), .transcribing: true
-        case .recording(.held, _, _): isHovering
+        case .recording(.locked, _, _, _), .transcribing: true
+        case .recording(.held, _, _, _): isHovering
         default: false
         }
     }
@@ -691,7 +693,7 @@ public enum AppPhase: Equatable, Sendable {
     /// Confirm only makes sense while locked; a held recording stops on key
     /// release. Unlike Cancel, its display never depends on hover.
     var showsConfirmRecordingControl: Bool {
-        guard case .recording(let mode, _, _) = self else { return false }
+        guard case .recording(let mode, _, _, _) = self else { return false }
         return mode == .locked
     }
 
@@ -825,6 +827,31 @@ public enum RecordingLimit {
     /// behalf. It guards against a toggle dictation left running and spending
     /// credit, not against long dictation, so it sits well past any deliberate one.
     public static let maximumDuration: TimeInterval = 20 * 60
+
+    /// How close to the limit the recording pill stops counting up and counts
+    /// down to it instead.
+    public static let countdownDuration: TimeInterval = 60
+
+    /// What the recording pill's timer reads: whole seconds elapsed, or whole
+    /// seconds left once the limit is under `countdownDuration` away. Both
+    /// round down, so the countdown reads 0:59 on arrival and 0:00 in the
+    /// second before the stop.
+    public static func timer(elapsed: TimeInterval, untilLimit: TimeInterval) -> RecordingTimer {
+        guard untilLimit < countdownDuration else {
+            return RecordingTimer(seconds: Int(max(elapsed, 0)), isCountdown: false)
+        }
+        return RecordingTimer(seconds: Int(max(untilLimit, 0)), isCountdown: true)
+    }
+}
+
+public struct RecordingTimer: Equatable, Sendable {
+    public let seconds: Int
+    public let isCountdown: Bool
+
+    public init(seconds: Int, isCountdown: Bool) {
+        self.seconds = seconds
+        self.isCountdown = isCountdown
+    }
 }
 
 public enum RecordingCancellationPolicy {

@@ -1069,7 +1069,9 @@ private struct PillView: View {
 
     private var statusText: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.system(size: 13, weight: .semibold))
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(titleStyle)
             if let subtitle {
                 Text(subtitle)
                     .font(.system(size: 11))
@@ -1105,8 +1107,20 @@ private struct PillView: View {
     /// Read when the element is focused rather than announced as it changes, so
     /// a timer that ticks every second never talks over anything.
     private var accessibilityDetail: String? {
-        guard case .recording(_, let elapsed, _) = model.phase else { return subtitle }
-        return elapsed.formattedTimer
+        guard let timer = recordingTimer else { return subtitle }
+        return timer.isCountdown ? "\(timer.formatted) left" : timer.formatted
+    }
+
+    private var recordingTimer: RecordingTimer? {
+        guard case .recording(_, let elapsed, let untilLimit, _) = model.phase else { return nil }
+        return RecordingLimit.timer(elapsed: elapsed, untilLimit: untilLimit)
+    }
+
+    /// Amber for the last minute before the limit, the one colour the recording
+    /// pill does not already use. Visual only: the microphone is open, so a
+    /// sound would be recorded into the dictation.
+    private var titleStyle: AnyShapeStyle {
+        recordingTimer?.isCountdown == true ? AnyShapeStyle(Color.orange) : AnyShapeStyle(.primary)
     }
 
     private var cancellationRecovery: some View {
@@ -1262,7 +1276,7 @@ private struct PillView: View {
 
     @ViewBuilder private var symbol: some View {
         switch model.phase {
-        case .recording(_, let elapsed, let level):
+        case .recording(_, let elapsed, _, let level):
             AudioLevelWaveform(level: level, tick: elapsed, presentation: .pill)
         case .transcribing:
             ActivitySpinner().font(.system(size: 15))
@@ -1307,7 +1321,8 @@ private struct PillView: View {
         // the dictation app's own pill does not need to be told it is recording,
         // and the word cost 73 points of a pill that floats over the user's work.
         // `PillView`'s accessibility label carries it for VoiceOver.
-        case .recording(_, let elapsed, _): elapsed.formattedTimer
+        case .recording(_, let elapsed, let untilLimit, _):
+            RecordingLimit.timer(elapsed: elapsed, untilLimit: untilLimit).formatted
         case .transcribing(let attempt, let delay):
             if attempt == 1, delay == nil { "Transcribing…" }
             else { "Retrying \(min(attempt + (delay == nil ? 0 : 1), 3))/3…" }
@@ -1457,12 +1472,11 @@ private struct DismissalCountdownView: View {
     }
 }
 
-private extension TimeInterval {
+private extension RecordingTimer {
     // Known and unfixed: an hour reads "60:00" rather than "1:00:00". Nothing can
     // reach it while `startMeter` (`AppCoordinator`) stops a recording at
     // `RecordingLimit.maximumDuration`.
-    var formattedTimer: String {
-        let seconds = Int(self)
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    var formatted: String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }

@@ -54,12 +54,17 @@ enum PillFitAudit {
         ("no-sound", .noAudioSignal),
     ]
 
+    /// The last time the recording pill counts up to before it counts down.
+    private static let countUpEnd = RecordingLimit.maximumDuration - RecordingLimit.countdownDuration
+
     /// Every phase that raises a pill. A phase added to `AppPhase` stops
     /// `requireSample(for:)` compiling until it is placed there, which is the
     /// reminder to add it here as well.
     static let samples: [AppPhase] = [
-        .recording(mode: .locked, elapsed: RecordingLimit.maximumDuration - 1, level: 0.5),
-        .recording(mode: .held, elapsed: RecordingLimit.maximumDuration - 1, level: 0.5),
+        .recording(mode: .locked, elapsed: countUpEnd, untilLimit: RecordingLimit.countdownDuration, level: 0.5),
+        .recording(mode: .held, elapsed: countUpEnd, untilLimit: RecordingLimit.countdownDuration, level: 0.5),
+        .recording(mode: .locked, elapsed: countUpEnd, untilLimit: RecordingLimit.countdownDuration - 1, level: 0.5),
+        .recording(mode: .held, elapsed: countUpEnd, untilLimit: RecordingLimit.countdownDuration - 1, level: 0.5),
         .transcribing(attempt: 1, retryDelay: nil),
         .transcribing(attempt: 2, retryDelay: 3),
         .canceledTranscript,

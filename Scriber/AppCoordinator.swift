@@ -1181,8 +1181,8 @@ final class AppCoordinator: ObservableObject {
         // fresh one would throw away whatever was said during the tap itself.
         case .promote(let mode):
             shortcuts.setMode(.locked)
-            if case .recording(_, let elapsed, let level) = phase {
-                setPhase(.recording(mode: mode, elapsed: elapsed, level: level))
+            if case .recording(_, let elapsed, let untilLimit, let level) = phase {
+                setPhase(.recording(mode: mode, elapsed: elapsed, untilLimit: untilLimit, level: level))
             }
         case .stop:
             stopAndTranscribe()
@@ -1598,7 +1598,7 @@ final class AppCoordinator: ObservableObject {
         // than claiming a level it cannot have yet.
         recordingStartedAt = Date.now
         stoppedAtLimit = nil
-        setPhase(.recording(mode: mode, elapsed: 0, level: -160))
+        setPhase(.recording(mode: mode, elapsed: 0, untilLimit: Self.recordingLimit, level: -160))
         let afterPill = ContinuousClock().now
         // After the pill, not before it. `NSSound.play` blocks for 8 ms with the
         // speaker awake and 45-49 ms with it asleep — the amplifier powering up,
@@ -1661,7 +1661,7 @@ final class AppCoordinator: ObservableObject {
     private func beginMetering(mode: RecordingMode) {
         if preferences.muteOtherAudioWhileDictating { beginOtherAudioMuting() }
         shortcuts.setMode(mode == .held ? .held : .locked)
-        setPhase(.recording(mode: mode, elapsed: 0, level: -80))
+        setPhase(.recording(mode: mode, elapsed: 0, untilLimit: Self.recordingLimit, level: -80))
         if let pending = pendingInputVolumeReading {
             pendingInputVolumeReading = nil
             if InputVolumePolicy.refusesDictation(pending) {
@@ -1738,8 +1738,8 @@ final class AppCoordinator: ObservableObject {
     /// the meter refreshes. Anything else — starting, locking, stopping — is a
     /// change this object's observers can see, and publishes.
     private static func differsOnlyByMeter(_ lhs: AppPhase, _ rhs: AppPhase) -> Bool {
-        guard case .recording(let lhsMode, _, _) = lhs,
-              case .recording(let rhsMode, _, _) = rhs
+        guard case .recording(let lhsMode, _, _, _) = lhs,
+              case .recording(let rhsMode, _, _, _) = rhs
         else { return false }
         return lhsMode == rhsMode
     }
@@ -1768,14 +1768,16 @@ final class AppCoordinator: ObservableObject {
                         "dictation capture firstAudioAfterOpenMs=\(openedAt.duration(to: firstAudioAt).pillMilliseconds, privacy: .public)"
                     )
                 }
+                // Do not: move the limit onto the audio's clock. A recording whose
+                // microphone never delivers anything would sit open forever at
+                // 0:00. The pill counts down on this clock too, so its 0:00 is
+                // the stop rather than up to a couple of seconds after it.
+                let untilLimit = Self.recordingLimit - openedAt.duration(to: now).timeInterval
                 let level = recorder.updateMeter()
                 let currentMode: RecordingMode
-                if case .recording(let value, _, _) = phase { currentMode = value } else { return }
-                setPhase(.recording(mode: currentMode, elapsed: elapsed, level: level))
-                // On the meter's own clock rather than on the audio's, so a
-                // recording whose microphone never delivers anything still ages
-                // out instead of sitting open forever at 0:00.
-                if openedAt.duration(to: now) >= .seconds(Self.recordingLimit) {
+                if case .recording(let value, _, _, _) = phase { currentMode = value } else { return }
+                setPhase(.recording(mode: currentMode, elapsed: elapsed, untilLimit: untilLimit, level: level))
+                if untilLimit <= 0 {
                     stoppedAtLimit = Self.recordingLimit
                     apply(gate.apply(.stopRequested))
                     return

@@ -25,8 +25,8 @@ struct ShortcutMatcherTests {
 
     @Test("Canceling is permitted in every recording mode; confirming only while locked")
     func handsFreePillActionPermissions() {
-        let held = AppPhase.recording(mode: .held, elapsed: 1, level: -20)
-        let locked = AppPhase.recording(mode: .locked, elapsed: 1, level: -20)
+        let held = AppPhase.recording(mode: .held, elapsed: 1, untilLimit: RecordingLimit.maximumDuration, level: -20)
+        let locked = AppPhase.recording(mode: .locked, elapsed: 1, untilLimit: RecordingLimit.maximumDuration, level: -20)
 
         #expect(held.permitsCancelRecording)
         #expect(!held.showsConfirmRecordingControl)
@@ -48,8 +48,8 @@ struct ShortcutMatcherTests {
 
     @Test("Held recording draws Cancel only while hovering; hands-free draws it either way")
     func cancelControlVisibility() {
-        let held = AppPhase.recording(mode: .held, elapsed: 1, level: -20)
-        let locked = AppPhase.recording(mode: .locked, elapsed: 1, level: -20)
+        let held = AppPhase.recording(mode: .held, elapsed: 1, untilLimit: RecordingLimit.maximumDuration, level: -20)
+        let locked = AppPhase.recording(mode: .locked, elapsed: 1, untilLimit: RecordingLimit.maximumDuration, level: -20)
 
         #expect(!held.showsCancelControl(isHovering: false))
         #expect(held.showsCancelControl(isHovering: true))
@@ -68,7 +68,7 @@ struct ShortcutMatcherTests {
 
     @Test("Busy state is limited to recording and transcription")
     func busyState() {
-        #expect(AppPhase.recording(mode: .held, elapsed: 0, level: -80).isBusy)
+        #expect(AppPhase.recording(mode: .held, elapsed: 0, untilLimit: RecordingLimit.maximumDuration, level: -80).isBusy)
         #expect(AppPhase.transcribing(attempt: 1, retryDelay: nil).isBusy)
         #expect(!AppPhase.message("Already transcribing").isBusy)
         #expect(!AppPhase.dictationCopied(text: "hi", message: "No target").isBusy)
@@ -92,7 +92,7 @@ struct ShortcutMatcherTests {
         #expect(AppPhase.credentialsUnusable(.missingAPIKey).acceptsRecordingStart)
         #expect(AppPhase.transcriptCopied.acceptsRecordingStart)
         #expect(AppPhase.transcriptionFailed("Timed out").acceptsRecordingStart)
-        #expect(!AppPhase.recording(mode: .held, elapsed: 0, level: -80).acceptsRecordingStart)
+        #expect(!AppPhase.recording(mode: .held, elapsed: 0, untilLimit: RecordingLimit.maximumDuration, level: -80).acceptsRecordingStart)
         #expect(!AppPhase.transcribing(attempt: 1, retryDelay: nil).acceptsRecordingStart)
     }
 
@@ -266,14 +266,14 @@ struct LaunchAtLoginStateTests {
 struct PillDismissalTests {
     @Test("Escape passes through when no pill is presented")
     func hiddenPill() {
-        #expect(AppPhase.recording(mode: .held, elapsed: 0, level: -80)
+        #expect(AppPhase.recording(mode: .held, elapsed: 0, untilLimit: RecordingLimit.maximumDuration, level: -80)
             .pillDismissalAction(isPresented: false) == .passThrough)
         #expect(AppPhase.idle.pillDismissalAction(isPresented: false) == .passThrough)
     }
 
     @Test("A visible recording is canceled")
     func recording() {
-        #expect(AppPhase.recording(mode: .locked, elapsed: 2, level: -20)
+        #expect(AppPhase.recording(mode: .locked, elapsed: 2, untilLimit: RecordingLimit.maximumDuration, level: -20)
             .pillDismissalAction(isPresented: true) == .cancelRecording)
     }
 
@@ -433,7 +433,7 @@ struct PillShapeTests {
     @Test("Phases after a copied result restore their capsule radius")
     func restoresCapsuleAfterCopiedResult() {
         let destinations: [(AppPhase, Double)] = [
-            (.recording(mode: .held, elapsed: 1, level: -20), 62),
+            (.recording(mode: .held, elapsed: 1, untilLimit: RecordingLimit.maximumDuration, level: -20), 62),
             (.transcribing(attempt: 1, retryDelay: nil), 62),
             (.message("Copied"), 62),
             (.permissionsRequired([.microphone, .accessibility]), 76),
@@ -453,7 +453,7 @@ struct PillShapeTests {
 /// or an inert click — but only while every case is also asserted here.
 private let everyPhase: [AppPhase] = [
     .idle,
-    .recording(mode: .held, elapsed: 1, level: -20),
+    .recording(mode: .held, elapsed: 1, untilLimit: RecordingLimit.maximumDuration, level: -20),
     .transcribing(attempt: 1, retryDelay: nil),
     .canceledTranscript,
     .noInternetConnection,
@@ -508,7 +508,7 @@ struct PillToneTests {
     func neutral() {
         let neutral: [AppPhase] = [
             .idle,
-            .recording(mode: .locked, elapsed: 3, level: -20),
+            .recording(mode: .locked, elapsed: 3, untilLimit: RecordingLimit.maximumDuration, level: -20),
             .transcribing(attempt: 2, retryDelay: 3),
             .canceledTranscript,
             .message("Copied")
@@ -2069,6 +2069,22 @@ struct TranscriptionBudgetTests {
         let limit = RecordingLimit.maximumDuration
         #expect(ScribeClient.transcriptionBudget(forAudioDuration: limit) == 90 * limit / 600)
         #expect(ScribeClient.transcriptionIdleTimeout(forAudioDuration: limit) == 30 * limit / 600)
+    }
+}
+
+@Suite("Recording timer")
+struct RecordingTimerTests {
+    @Test("The timer counts up until the limit is a minute away")
+    func countsUp() {
+        let timer = RecordingLimit.timer(elapsed: 1_139.9, untilLimit: 60)
+        #expect(timer == RecordingTimer(seconds: 1_139, isCountdown: false))
+    }
+
+    @Test("The last minute counts down from 0:59 to 0:00")
+    func countsDownTheLastMinute() {
+        #expect(RecordingLimit.timer(elapsed: 1_140, untilLimit: 59.9) == RecordingTimer(seconds: 59, isCountdown: true))
+        #expect(RecordingLimit.timer(elapsed: 1_199, untilLimit: 0.5) == RecordingTimer(seconds: 0, isCountdown: true))
+        #expect(RecordingLimit.timer(elapsed: 1_200, untilLimit: -0.1) == RecordingTimer(seconds: 0, isCountdown: true))
     }
 }
 
