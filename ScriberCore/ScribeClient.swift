@@ -214,10 +214,11 @@ public struct ScribeClient: Sendable {
     /// every backoff between them. A dictation that has not come back inside this
     /// has failed, and its row is retryable.
     ///
-    /// 90 seconds for every ten minutes of audio, and never less than 90. The
-    /// rate is carried forward from when ten minutes was the longest recording,
-    /// not measured past it: tighten it once a long dictation's
-    /// `transcribe returned` time is in the log.
+    /// 90 seconds for every ten minutes of audio, and never less than 90.
+    /// Processing is not what this pays for: Scribe v2 has answered 20 minutes of
+    /// the recorder's 64 kbps audio in 18 seconds end to end, and 1 minute in 3.
+    /// The headroom is for a slow uplink and the retries, which resend the whole
+    /// file each time.
     public static func transcriptionBudget(forAudioDuration duration: TimeInterval) -> TimeInterval {
         max(90, 90 * duration / 600)
     }
@@ -225,7 +226,8 @@ public struct ScribeClient: Sendable {
     /// How long a transcription request may go without receiving a byte. Scribe
     /// sends nothing while it processes the upload, so this has to outlast the
     /// processing, which grows with the audio: 30 seconds for every ten minutes,
-    /// and never less than 30.
+    /// and never less than 30. The longest silence seen was 15 seconds, for 20
+    /// minutes of audio.
     static func transcriptionIdleTimeout(forAudioDuration duration: TimeInterval) -> TimeInterval {
         max(30, 30 * duration / 600)
     }
