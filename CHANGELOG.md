@@ -6,7 +6,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Added
 
-- **The last minute of a dictation counts down in amber.** When a recording is a minute from the 20-minute limit, the pill's timer switches to the time left — 0:59 down to 0:00 — and turns amber, so a long dictation is not cut off without warning. It makes no sound, because the microphone is still listening.
+- **The last minute of a dictation counts down in amber.** When a recording is a minute from the 20-minute limit, the pill's timer switches to the time left — 0:59 down to 0:00 — on an amber badge, so a long dictation is not cut off without warning. The badge stays readable whatever app is behind the pill, in light and dark mode alike. It makes no sound, because the microphone is still listening.
 
 ### Changed
 

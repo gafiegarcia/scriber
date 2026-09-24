@@ -1071,7 +1071,21 @@ private struct PillView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(titleStyle)
+                .foregroundStyle(isCountingDown ? AnyShapeStyle(Color.black) : AnyShapeStyle(.primary))
+                .background {
+                    // Platform: `NSGlassEffectView` recolours its content by the
+                    // backdrop's luminance — the same orange rendered #FEFCA2 in
+                    // dark mode over a bright app and #CF5D00 in light mode over a
+                    // dark one. Measured: amber text read 1.0:1 to 2.0:1 wherever
+                    // the app behind was the opposite brightness of the appearance;
+                    // black on this fill reads 4.3:1 at worst, with the Liquid Glass
+                    // slider at its clearest. Drawn outside the text's frame so the
+                    // digits do not move: 5 points of the 10 beside Cancel, and of
+                    // the 10 the timer's slot spares.
+                    if isCountingDown {
+                        Capsule().fill(Color.orange).padding(.horizontal, -5).padding(.vertical, -2)
+                    }
+                }
             if let subtitle {
                 Text(subtitle)
                     .font(.system(size: 11))
@@ -1116,11 +1130,11 @@ private struct PillView: View {
         return RecordingLimit.timer(elapsed: elapsed, untilLimit: untilLimit)
     }
 
-    /// Amber for the last minute before the limit, the one colour the recording
-    /// pill does not already use. Visual only: the microphone is open, so a
-    /// sound would be recorded into the dictation.
-    private var titleStyle: AnyShapeStyle {
-        recordingTimer?.isCountdown == true ? AnyShapeStyle(Color.orange) : AnyShapeStyle(.primary)
+    /// The last minute before the limit is drawn on amber, the one colour the
+    /// recording pill does not already use. Visual only: the microphone is open,
+    /// so a sound would be recorded into the dictation.
+    private var isCountingDown: Bool {
+        recordingTimer?.isCountdown == true
     }
 
     private var cancellationRecovery: some View {
