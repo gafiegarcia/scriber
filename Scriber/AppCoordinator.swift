@@ -660,12 +660,14 @@ final class AppCoordinator: ObservableObject {
         refreshAudioInputDevices()
     }
 
-    /// Backs the Accessibility row's single Allow button. Only the System Settings
-    /// toggle can grant this, so the pane is the whole action — the system prompt
-    /// cannot grant it and macOS shows it once per app. What lists Scriber in that
-    /// pane is the trust check made at launch; a running process cannot re-register.
+    /// Backs the Accessibility row's single Allow button. Raises the system prompt
+    /// alone, which lists Scriber in the Accessibility pane even from a running
+    /// process and offers its own way into System Settings.
     func allowAccessibility() {
-        openAccessibilitySettings()
+        // Do not: spell the key as `kAXTrustedCheckOptionPrompt`. Swift 6 rejects
+        // that global as not concurrency-safe; this is its value.
+        let trusted = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
+        Self.dictationLog.notice("accessibility prompt requested trusted=\(trusted, privacy: .public)")
     }
 
     /// Opens System Settings and brings it to the front. `NSWorkspace.open(_:)`
