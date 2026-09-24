@@ -7,6 +7,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 ### Changed
 
 - **A dictation can now run for 20 minutes instead of 10.** The limit is only there to stop a hands-free dictation you forgot about from spending your credits, and at ten minutes it was cutting off people who were simply talking. Longer recordings also get proportionally longer to transcribe, so a long dictation is not set up to fail at the last step.
+- **A dictation stopped by the 20-minute limit is no longer pasted.** If it ran that long you may well have walked away, and pasting 20 minutes of words into whatever happens to have the cursor could land them anywhere. Scriber now transcribes it, saves it to **Dictation history**, and copies it to the clipboard instead, sounding your alert once when it stops. The notice reads **Stopped at 20 minutes**, stays on screen until you dismiss it, and offers **See History**. If the transcription fails, you're offline, or your credits have run out, you get the usual notice and its usual button, with the same heading.
 
 ### Fixed
 

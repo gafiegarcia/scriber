@@ -23,11 +23,36 @@ enum PillFitAudit {
         for phase in samples {
             let fit = pill.measureFit(of: phase)
             if fit.overflows { overflowing += 1 }
-            log.notice("pill fit \(fit.overflows ? "overflows" : "fits", privacy: .public) phase=\(phase.logLabel, privacy: .public) glass=\(Int(fit.glass.width), privacy: .public)x\(Int(fit.glass.height), privacy: .public) content=\(fit.content.width, format: .fixed(precision: 1), privacy: .public)x\(fit.content.height, format: .fixed(precision: 1), privacy: .public) sample=\(String(describing: phase), privacy: .public)")
+            report(fit, phase: phase, limit: nil)
+        }
+        for sample in limitSamples {
+            let fit = pill.measureFit(of: sample.phase, stoppedAtLimit: RecordingLimit.maximumDuration)
+            if fit.overflows { overflowing += 1 }
+            report(fit, phase: sample.phase, limit: sample.name)
         }
         pill.dismiss()
-        log.notice("pill fit done checked=\(samples.count, privacy: .public) overflowing=\(overflowing, privacy: .public)")
+        log.notice("pill fit done checked=\(samples.count + limitSamples.count, privacy: .public) overflowing=\(overflowing, privacy: .public)")
     }
+
+    private static func report(_ fit: PillFit, phase: AppPhase, limit: String?) {
+        log.notice("pill fit \(fit.overflows ? "overflows" : "fits", privacy: .public) phase=\(phase.logLabel, privacy: .public) limit=\(limit ?? "none", privacy: .public) glass=\(Int(fit.glass.width), privacy: .public)x\(Int(fit.glass.height), privacy: .public) content=\(fit.content.width, format: .fixed(precision: 1), privacy: .public)x\(fit.content.height, format: .fixed(precision: 1), privacy: .public) sample=\(String(describing: phase), privacy: .public)")
+    }
+
+    /// Every ending a dictation stopped by the recording limit can reach, drawn
+    /// as `PillModel.limitStop` draws it. The names are what
+    /// `--ui-testing-limit-pill` takes to raise one for inspection.
+    static let limitSamples: [(name: String, phase: AppPhase)] = [
+        ("copied", .dictationCopied(
+            text: String(repeating: "A transcript long enough to reach the four-line cap. ", count: 8),
+            message: AppCoordinator.copiedInsteadOfPastingMessage
+        )),
+        ("failed", .transcriptionFailed("Connection timed out")),
+        ("offline", .noInternetConnection),
+        ("credits", .credentialsUnusable(.creditsExhausted)),
+        ("key", .credentialsUnusable(.missingAPIKey)),
+        ("no-words", .noSpeechDetected),
+        ("no-sound", .noAudioSignal),
+    ]
 
     /// Every phase that raises a pill. A phase added to `AppPhase` stops
     /// `requireSample(for:)` compiling until it is placed there, which is the

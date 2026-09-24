@@ -13,7 +13,6 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Follow macOS on what the Accessibility permission is called.** ([Notion task](https://app.notion.com/p/3d271937040281d99c54cfd0b67d8b3c))
 - [ ] **Move logic out of the checks that need a human to run them.** ([Notion task](https://app.notion.com/p/3ba7193704028047a22cd8cd95f310fc))
 - [ ] **Count down the last minute of a recording in amber.** ([Notion task](https://app.notion.com/p/3e571937040281baab82d3a6770107af))
-- [ ] **End a dictation stopped by the limit on a pill that stays, without pasting.** ([Notion task](https://app.notion.com/p/3ce71937040280649782ebc08e83b71a))
 - [ ] **Fix the pill's prominent buttons rendering as plain ones.** ([Notion task](https://app.notion.com/p/3de71937040281999e9ad67f9acbad57))
 - [ ] **Find out whether macOS now draws the pill's specular rim itself.** ([Notion task](https://app.notion.com/p/3ce71937040280c090f0db66c9cb80d4))
 - [ ] **Reconsider where the in-app warning lives.** ([Notion task](https://app.notion.com/p/3c47193704028188b789e58121a66b19))

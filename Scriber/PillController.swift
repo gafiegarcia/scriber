@@ -68,9 +68,37 @@ final class PillModel: ObservableObject {
     /// Lets the credits pill name when dictation works again. Carried here rather
     /// than in the phase because it is the account's state, not the notice's.
     @Published var creditsResetAt: Date?
+    /// The limit a dictation ran into, when `startMeter` (`AppCoordinator`)
+    /// stopped it rather than the user. Carried beside the phase rather than in
+    /// it, so the ending keeps its own buttons, body and tint and only gains the
+    /// title, the See History and the pill that stays. Read through
+    /// `PillModel.limitStop`, which drops it on the phases that do not draw it.
+    @Published var stoppedAtLimit: TimeInterval?
     var onCancelRecording: (() -> Void)?
     var onConfirmRecording: (() -> Void)?
     var onDismiss: (() -> Void)?
+
+    /// `stoppedAtLimit` where the phase draws it: the four layouts an ending
+    /// reached from a limit-stopped dictation can take. Every other phase shows
+    /// as it always does, flag or not.
+    var limitStop: TimeInterval? {
+        guard let stoppedAtLimit else { return nil }
+        switch phase {
+        case .dictationCopied, .transcriptionFailed, .noInternetConnection, .credentialsUnusable,
+             .noSpeechDetected, .noAudioSignal:
+            return stoppedAtLimit
+        default:
+            return nil
+        }
+    }
+}
+
+/// "Stopped at 20 minutes", or in seconds for a limit shortened for testing.
+private func limitStopTitle(_ limit: TimeInterval) -> String {
+    let seconds = Int(limit.rounded())
+    guard seconds % 60 == 0 else { return "Stopped at \(seconds) seconds" }
+    let minutes = seconds / 60
+    return "Stopped at \(minutes) \(minutes == 1 ? "minute" : "minutes")"
 }
 
 /// The pointer region that decides hover, and the one thing in the pill whose
@@ -252,8 +280,14 @@ final class PillController {
     /// `autoDismiss` is disabled when the caller owns the pill's lifetime, so a
     /// controller countdown and a caller countdown of the same length cannot race
     /// and produce a hide immediately followed by a show.
-    func update(_ phase: AppPhase, autoDismiss: Bool = true) {
+    ///
+    /// `stoppedAtLimit` is the limit a dictation ran into, for its ending only;
+    /// see `PillModel.stoppedAtLimit`. A pill carrying it never dismisses itself,
+    /// because a dictation left running for that long is one the user walked
+    /// away from.
+    func update(_ phase: AppPhase, autoDismiss: Bool = true, stoppedAtLimit: TimeInterval? = nil) {
         clearAutoDismissal()
+        model.stoppedAtLimit = stoppedAtLimit
         guard phase != .idle else {
             // Do not: dismiss twice for one dictation. A dictation reaches idle
             // once when the transcript arrives and again when delivery confirms,
@@ -289,6 +323,7 @@ final class PillController {
         applyLayout(for: phase)
         show()
         if autoDismiss,
+           model.limitStop == nil,
            !autoDismissalDisabledForUITesting,
            let delay = dismissalDelay(for: phase) {
             startAutoDismissal(after: delay)
@@ -448,7 +483,8 @@ final class PillController {
     }
 
     private func pillSize(for phase: AppPhase) -> NSSize {
-        switch phase {
+        if model.limitStop != nil, let size = limitStopSize(for: phase) { return size }
+        return switch phase {
         case .dictationCopied(let text, _), .dictationBlockedBySecureField(let text, _):
             copiedResultSize(for: text)
         case .dictationFailed(let message):
@@ -535,6 +571,26 @@ final class PillController {
             NSSize(width: messageWidth(for: text), height: 52)
         default:
             NSSize(width: Self.oneLinerWidth, height: 52)
+        }
+    }
+
+    /// The sizes a limit-stopped ending takes where its longer title, its
+    /// subtitle or its See History does not fit the phase's own. `nil` keeps the
+    /// phase's size. `PillFitAudit.limitSamples` measures every one of these.
+    private func limitStopSize(for phase: AppPhase) -> NSSize? {
+        switch phase {
+        // Measured: the offline body, opened by its own title, wraps to a
+        // second line, so it takes the two-line offers' height.
+        case .noInternetConnection:
+            NSSize(width: 430, height: 120)
+        // Measured: 449 points with See History beside Update Key.
+        case .credentialsUnusable(let readiness) where readiness != .creditsExhausted:
+            NSSize(width: 460, height: 60)
+        // Measured: 345 points, so it keeps its width and gains the subtitle's height.
+        case .noSpeechDetected:
+            NSSize(width: 364, height: 60)
+        default:
+            nil
         }
     }
 
@@ -782,8 +838,8 @@ extension PillController {
     /// Do not: measure a row rebuilt for the purpose. A copy of `compactStatus`
     /// or `recoveryOffer` drifts from the real one and passes while the real
     /// pill truncates.
-    func measureFit(of phase: AppPhase) -> PillFit {
-        update(phase)
+    func measureFit(of phase: AppPhase, stoppedAtLimit: TimeInterval? = nil) -> PillFit {
+        update(phase, stoppedAtLimit: stoppedAtLimit)
         model.isHovering = true
         let glass = glassView.frame.size
         let isCapsule = phase.pillShapeStyle == .capsule
@@ -1128,19 +1184,22 @@ private struct PillView: View {
         symbol: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
+        // A limit-stopped dictation leads with the limit, and the offer's own
+        // title opens its body instead.
+        let limitTitle = model.limitStop.map(limitStopTitle)
+        return VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 9) {
                 if let symbol {
                     Image(systemName: symbol)
                         .foregroundStyle(toneAccent)
                 }
-                Text(title)
+                Text(limitTitle ?? title)
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 8)
                 dismissControls
             }
 
-            Text(body)
+            Text(limitTitle == nil ? body : "\(title). \(body)")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
@@ -1163,7 +1222,7 @@ private struct PillView: View {
             HStack(spacing: 10) {
                 Image(systemName: symbol)
                     .foregroundStyle(toneAccent)
-                Text("Copied to clipboard")
+                Text(model.limitStop.map(limitStopTitle) ?? "Copied to clipboard")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 6)
                 dismissControls
@@ -1224,7 +1283,20 @@ private struct PillView: View {
     /// outcome, so a glyph and the glass behind it can never disagree.
     private var toneAccent: Color { model.phase.pillTone.accent ?? .primary }
 
-    private var title: String {
+    /// A limit-stopped ending leads with the limit and moves the phase's own
+    /// title down a line. A failed transcription keeps its reason there instead,
+    /// since that line is the only place the one-liner has for it.
+    private var title: String { model.limitStop.map(limitStopTitle) ?? phaseTitle }
+
+    private var subtitle: String? {
+        guard model.limitStop != nil else { return phaseSubtitle }
+        // Measured: "Transcription failed: Connection timed out" wants 480
+        // points of a pill that cannot pass 460, beside Retry and See History.
+        if case .transcriptionFailed(let message) = model.phase { return "Failed: \(message)" }
+        return phaseTitle
+    }
+
+    private var phaseTitle: String {
         switch model.phase {
         // Do not: read this as a pill Scriber presents. `update` hides the panel
         // on `.idle` and returns without showing one, so no pill is ever raised
@@ -1271,7 +1343,7 @@ private struct PillView: View {
     /// Check Input said it twice — and the first two were too long to fit beside
     /// that button anyway. The window's own banner still carries the full
     /// message, which is where it is read.
-    private var subtitle: String? {
+    private var phaseSubtitle: String? {
         switch model.phase {
         case .canceledTranscript: "Recover pastes it wherever your cursor is now"
         case .dictationCopied(_, let message), .dictationBlockedBySecureField(_, let message),
@@ -1308,6 +1380,11 @@ private struct PillView: View {
                 Button("Update Key") { model.onOpenAPIKeySettings?() }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+            }
+            // Every other ending a limit-stopped dictation can reach either
+            // offers See History already or has no row for it to open.
+            if model.limitStop != nil {
+                Button("See History") { model.onOpen?() }.controlSize(.small)
             }
             dismissControls
         case .transcriptionFailed:

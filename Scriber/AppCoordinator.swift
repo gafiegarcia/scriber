@@ -146,6 +146,30 @@ final class AppCoordinator: ObservableObject {
     /// so that one cancellation reports the volume rather than reading as the
     /// user's own.
     private var refusesForZeroInputVolume = false
+    /// The limit the current dictation ran into, from the moment `startMeter`
+    /// stops it until its ending reaches the pill. Its transcript is copied
+    /// rather than pasted, and its ending sounds no cue of its own — the stop
+    /// already did. Cleared by a cancellation, which ends it as any other.
+    private var stoppedAtLimit: TimeInterval?
+
+    /// The caption a limit-stopped dictation's transcript arrives with.
+    static let copiedInsteadOfPastingMessage = "Copied to clipboard instead of pasting"
+
+    /// Where `startMeter` stops a recording. A Debug build takes
+    /// `--debug-recording-limit <seconds>` so a limit stop can be reached by hand;
+    /// a `--ui-testing` launch cannot dictate, so this is its own flag.
+    private static let recordingLimit: TimeInterval = {
+#if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "--debug-recording-limit"),
+           index + 1 < arguments.endIndex,
+           let seconds = TimeInterval(arguments[index + 1]), seconds > 0 {
+            return seconds
+        }
+#endif
+        return RecordingLimit.maximumDuration
+    }()
+
     private var currentRecord: DictationRecord?
     private var currentRecording: CompletedRecording?
 
@@ -1522,6 +1546,18 @@ final class AppCoordinator: ObservableObject {
         guard !servicesAllowed else { return }
         PillFitAudit.run(on: pill)
     }
+
+    /// Raises one limit-stopped ending, named as in `PillFitAudit.limitSamples`,
+    /// since reaching one by dictating takes the whole limit.
+    func presentLimitStoppedPillForUITesting(_ name: String) {
+        guard !servicesAllowed else { return }
+        guard let sample = PillFitAudit.limitSamples.first(where: { $0.name == name }) else {
+            Self.dictationLog.error("ui-testing limit pill unknown=\(name, privacy: .public)")
+            return
+        }
+        stoppedAtLimit = RecordingLimit.maximumDuration
+        setPhase(sample.phase)
+    }
 #endif
 
     func presentPermissionRecoveryPillForUITesting() {
@@ -1561,6 +1597,7 @@ final class AppCoordinator: ObservableObject {
         // waveform draws flat until there is really something to draw, rather
         // than claiming a level it cannot have yet.
         recordingStartedAt = Date.now
+        stoppedAtLimit = nil
         setPhase(.recording(mode: mode, elapsed: 0, level: -160))
         let afterPill = ContinuousClock().now
         // After the pill, not before it. `NSSound.play` blocks for 8 ms with the
@@ -1738,7 +1775,8 @@ final class AppCoordinator: ObservableObject {
                 // On the meter's own clock rather than on the audio's, so a
                 // recording whose microphone never delivers anything still ages
                 // out instead of sitting open forever at 0:00.
-                if openedAt.duration(to: now) >= .seconds(RecordingLimit.maximumDuration) {
+                if openedAt.duration(to: now) >= .seconds(Self.recordingLimit) {
+                    stoppedAtLimit = Self.recordingLimit
                     apply(gate.apply(.stopRequested))
                     return
                 }
@@ -1757,8 +1795,10 @@ final class AppCoordinator: ObservableObject {
             guard let self else { return }
             do {
                 let completed = try await recorder.stop()
+                playLimitStopCue()
                 finishRecording(completed)
             } catch {
+                playLimitStopCue()
                 shortcuts.setMode(.idle)
                 // A recording too short to have captured anything can fail inside
                 // AVFoundation rather than coming back empty, and it reaches here.
@@ -1771,6 +1811,14 @@ final class AppCoordinator: ObservableObject {
                 showFailure(failureText(for: error))
             }
         }
+    }
+
+    /// A limit stop sounds at the stop rather than at the ending, since the user
+    /// may be anywhere by then, and after the microphone has closed so the cue
+    /// cannot land in the recording.
+    private func playLimitStopCue() {
+        guard stoppedAtLimit != nil, preferences.playDictationFeedbackSounds else { return }
+        feedbackSounds.play(.dictationDidNotLand)
     }
 
     private func finishRecording(_ completed: CompletedRecording) {
@@ -1933,7 +1981,10 @@ final class AppCoordinator: ObservableObject {
             // intermediate frames. Nothing here has to reach disk before the pill
             // leaves; the record is held in memory either way.
             let transcriptReady = ContinuousClock().now
-            if delivery == .automaticPaste { setPhase(.idle) }
+            // A limit-stopped dictation is never pasted: it is the one ending
+            // where the user may not be at the cursor, or at the Mac at all.
+            let pastes = delivery == .automaticPaste && stoppedAtLimit == nil
+            if pastes { setPhase(.idle) }
             Self.dictationLog.notice(
                 "dictation pill released run=\(run, privacy: .public) transcriptToPillMs=\(transcriptReady.elapsedMilliseconds, privacy: .public)"
             )
@@ -1955,8 +2006,12 @@ final class AppCoordinator: ObservableObject {
                 "dictation persisted run=\(run, privacy: .public) saveMs=\(saveMs, privacy: .public)"
             )
 
-            if delivery == .automaticPaste {
+            if pastes {
                 await deliverTranscript(transcript, record: record)
+            } else if delivery == .automaticPaste {
+                copy(record)
+                paste.clearTarget()
+                setPhase(.dictationCopied(text: transcript, message: Self.copiedInsteadOfPastingMessage))
             } else {
                 copy(record)
                 try modelContext.save()
@@ -2285,6 +2340,7 @@ final class AppCoordinator: ObservableObject {
         }
         let interrupted = phase
         silence(run: run)
+        stoppedAtLimit = nil
         Self.dictationLog.notice(
             "dictation canceled run=\(run, privacy: .public) delivery=\(self.liveTranscriptionDelivery == .copy ? "copy" : "paste", privacy: .public)"
         )
@@ -2491,6 +2547,8 @@ final class AppCoordinator: ObservableObject {
 
     private func playFeedback(_ cue: DictationFeedbackCue) {
         guard preferences.playDictationFeedbackSounds else { return }
+        // A limit-stopped dictation already sounded this at the stop.
+        guard !(cue == .dictationDidNotLand && stoppedAtLimit != nil) else { return }
         feedbackSounds.play(cue)
     }
 
@@ -2590,11 +2648,12 @@ final class AppCoordinator: ObservableObject {
 
     private func showTransientMessage(_ message: String) {
         let retainedPhase = phase
+        let retainedLimit = pill.model.stoppedAtLimit
         pill.update(.message(message), autoDismiss: false)
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.5))
             guard let self, self.phase == retainedPhase else { return }
-            self.pill.update(retainedPhase)
+            self.pill.update(retainedPhase, stoppedAtLimit: retainedLimit)
         }
     }
 
@@ -2638,6 +2697,7 @@ final class AppCoordinator: ObservableObject {
 
     private func returnToIdle() {
         recordingStartedAt = nil
+        stoppedAtLimit = nil
         endOtherAudioMuting()
         // The parked outcome belongs to the pill that offered Recover. Once that
         // pill is gone the row in history is the only route back, which is the
@@ -2666,7 +2726,16 @@ final class AppCoordinator: ObservableObject {
         if case .credentialsUnusable(.creditsExhausted) = phase {
             pill.model.creditsResetAt = creditsResetAt
         }
-        pill.update(phase)
+        // A limit stop belongs to the ending it produced and to nothing after,
+        // so the first phase past transcription takes it.
+        var limit: TimeInterval?
+        switch phase {
+        case .idle, .recording, .transcribing: break
+        default:
+            limit = stoppedAtLimit
+            stoppedAtLimit = nil
+        }
+        pill.update(phase, stoppedAtLimit: limit)
     }
 
 }

@@ -29,6 +29,12 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-pill-fit")
     }
 
+    /// Raises one limit-stopped ending and leaves it up, named as in
+    /// `PillFitAudit.limitSamples`: `--ui-testing-limit-pill credits`.
+    static var limitStoppedPill: String? {
+        value(after: "--ui-testing-limit-pill")
+    }
+
     static var simulatesMissingPermissions: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-missing-permissions")
     }
@@ -183,10 +189,14 @@ enum AppLaunchConfiguration {
     @MainActor
     static var presentsAnyWindowAtLaunch: Bool { !startsInBackground }
 
+    /// `--ui-testing-limit-pill` reads as fully permitted, because a Debug build
+    /// holds no grants of its own and its launch permission pill would replace
+    /// the one being inspected.
     static var permissionReadinessOverride: PermissionReadiness? {
-        simulatesMissingPermissions
-            ? PermissionReadiness(missingPermissions: [.microphone, .accessibility])
-            : nil
+        if simulatesMissingPermissions {
+            return PermissionReadiness(missingPermissions: [.microphone, .accessibility])
+        }
+        return limitStoppedPill == nil ? nil : PermissionReadiness(missingPermissions: [])
     }
 }
 
@@ -405,6 +415,12 @@ final class AppRuntime: ObservableObject {
                 Task { @MainActor [coordinator] in
                     try? await Task.sleep(for: .milliseconds(100))
                     coordinator.auditPillFitForUITesting()
+                }
+            }
+            if let name = AppLaunchConfiguration.limitStoppedPill {
+                Task { @MainActor [coordinator] in
+                    try? await Task.sleep(for: .milliseconds(100))
+                    coordinator.presentLimitStoppedPillForUITesting(name)
                 }
             }
 #endif
