@@ -213,6 +213,8 @@ ffprobe -show_entries frame=pts_time clip.mov
 
 A screen recording captures a frame only when the screen changes, so a gap in those timestamps is itself a reading: nothing was drawn during it. A state that appears in one frame was drawn, however briefly.
 
+A pill can be recorded without the user, once whatever runs the shell has Screen Recording permission: `screencapture -v -V <seconds> -x -R <x,y,w,h> clip.mov`, with the rectangle drawn around the bottom-centre of the screen where the pill sits — never the full screen. Launch the Debug build with `open -g -n` for it, not the `-j` `smoke.sh` uses: `-j` starts the app hidden, which hides the pill's panel as well, and the recording shows nothing. Measure a state rather than eyeballing it: `signalstats` over a `crop` of the element gives each frame's `YMIN` and `YMAX`, and a brief wrong drawing shows as a run of frames outside the range the rest sit in.
+
 ## Inspecting a running Debug build
 
 ### Visual and interaction inspection
