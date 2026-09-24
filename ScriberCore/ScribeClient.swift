@@ -168,8 +168,8 @@ public enum ScribeError: LocalizedError, Sendable {
     /// past that loses the rest to an ellipsis. "ElevenLabs is temporarily
     /// unavailable." wanted 485; the longest that fits is "ElevenLabs rate limit
     /// exceeded" at 448. Length in characters does not predict this — measure a
-    /// new caption by building the row in an `NSHostingView` and reading
-    /// `fittingSize`, the way `oneLinerWidth` (`PillController.swift`) describes.
+    /// new caption by adding it to `PillFitAudit`'s samples for a run of
+    /// `./scripts/smoke.sh`, which reports the width its row needs.
     ///
     /// Only Scriber's own fixed text needs measuring. Anything carrying
     /// ElevenLabs' words truncates by design, and the three cases the credentials

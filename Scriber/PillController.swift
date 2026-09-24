@@ -171,30 +171,20 @@ final class PillController {
     /// A floor rather than a fixed size: a one-liner is never narrower than this
     /// and grows only if its text needs more. Recording, transcribing, "Copied"
     /// and "Canceled" all sit exactly on it, which is what keeps the recording
-    /// pill from changing width when its controls arrive — without them it wants
-    /// 146, and 146 is under the floor.
+    /// pill from changing width when its controls arrive.
     ///
-    /// Measured on a SwiftUI harness — an `NSHostingView` of each row, read for
-    /// its `fittingSize` — because every attempt to add this row up by hand has
-    /// come out wrong. Two rows set the floor:
+    /// Two rows set the floor, as `PillFitAudit` measures them:
     ///
-    /// - `.recording` locked with the pointer on it, so both controls show,
-    ///   fits in **160 points plus whatever the meter takes**. The meter is the
-    ///   row's flexible child, so this width decides its size: 204 leaves it the
-    ///   44 that `AudioLevelWaveform`'s pill minimum is set to.
+    /// - `.recording` locked, so both controls show, takes **150 points plus
+    ///   the meter**. The meter is the row's flexible child, so this width
+    ///   decides its size: 204 leaves it the 54 that `AudioLevelWaveform`'s pill
+    ///   minimum is set to.
     /// - `.transcribing`, which shows Cancel unconditionally, fits at **201**
     ///   with "Transcribing…" in it. Every "Retrying n/3…" is a point narrower.
     ///
-    /// Do not: derive either number by adding up insets, gaps and control sizes.
-    /// That arithmetic has been done three times and given 150, then 138, then
-    /// 150 again for a row the harness measures at 160 — the negative padding
-    /// that pulls the controls onto the capsule's curve does not come off the
-    /// row's width the way it reads as though it should. Measure the row.
-    ///
-    /// Do not: trust a remembered figure for the meter's width with both
-    /// controls showing. It has been recorded here as 82 and as 72, and at the
-    /// 222 this used to be it was 62. The 136 recorded for the no-controls case
-    /// is right, and is the one number here that has always reproduced.
+    /// Change this only with `./scripts/smoke.sh` run afterwards, which fails
+    /// on either row outgrowing it. Hand arithmetic and a row rebuilt in a
+    /// harness have both been wrong about these numbers.
     private static let oneLinerWidth: CGFloat = 204
 
     /// A message pill's width less its text: insets, the leading glyph, the

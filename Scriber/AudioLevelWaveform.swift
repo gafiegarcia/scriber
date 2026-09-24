@@ -154,22 +154,23 @@ struct AudioLevelWaveform: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(
-            // Measured on a SwiftUI harness: the pill's row costs 160 points
-            // before the meter, so `PillController.oneLinerWidth` at 204 leaves
-            // exactly 44 in the tightest state — locked hands-free, where both
-            // Cancel and Confirm show whether or not the pointer is on the pill.
+            // Measured: `PillFitAudit` puts the pill's row at 150 points before
+            // the meter in the tightest state — locked hands-free, where both
+            // Cancel and Confirm show whether or not the pointer is on the pill
+            // — so `PillController.oneLinerWidth` at 204 leaves exactly 54.
             //
             // Keep this equal to that leftover. It is a tripwire rather than a
             // taste: the meter is the row's flexible child, so a smaller minimum
             // lets a squeezed row quietly draw a stub meter, while one set at the
-            // true worst case makes the row overflow the glass instead. Bars need
-            // only ~25 points to draw — 8 of them at a 3.33-point pitch — so
-            // nothing here is protecting the drawing.
+            // true worst case makes the row overflow the glass instead, which
+            // `./scripts/smoke.sh` fails on. Bars need only ~25 points to draw —
+            // 8 of them at a 3.33-point pitch — so nothing here is protecting
+            // the drawing.
             //
-            // Do not: lower `oneLinerWidth` without lowering this to match. At
-            // 200 against this same 50 the recording row overflowed its glass by
-            // 10 points, hidden inside the 8-point margin around the capsule.
-            minWidth: presentation.fillsAvailableWidth ? 44 : presentation.size.width,
+            // Do not: take this from a row rebuilt outside the pill. A harness
+            // copy measured the row at 160, and the 44 set from it let the
+            // recording pill lose 10 points with nothing overflowing.
+            minWidth: presentation.fillsAvailableWidth ? 54 : presentation.size.width,
             maxWidth: presentation.fillsAvailableWidth ? .infinity : presentation.size.width,
             minHeight: presentation.size.height,
             maxHeight: presentation.size.height
