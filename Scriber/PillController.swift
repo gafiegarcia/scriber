@@ -1357,7 +1357,8 @@ private struct DismissalCountdownView: View {
 
 private extension TimeInterval {
     // Known and unfixed: an hour reads "60:00" rather than "1:00:00". Nothing can
-    // reach it while `startMeter` (`AppCoordinator`) stops a recording at 600 seconds.
+    // reach it while `startMeter` (`AppCoordinator`) stops a recording at
+    // `RecordingLimit.maximumDuration`.
     var formattedTimer: String {
         let seconds = Int(self)
         return String(format: "%d:%02d", seconds / 60, seconds % 60)

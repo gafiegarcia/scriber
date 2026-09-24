@@ -820,6 +820,13 @@ public extension CanceledTranscriptionOutcome {
     }
 }
 
+public enum RecordingLimit {
+    /// How long a recording may run before Scriber stops it on the user's
+    /// behalf. It guards against a toggle dictation left running and spending
+    /// credit, not against long dictation, so it sits well past any deliberate one.
+    public static let maximumDuration: TimeInterval = 20 * 60
+}
+
 public enum RecordingCancellationPolicy {
     public static let recoveryThreshold: TimeInterval = 1
 

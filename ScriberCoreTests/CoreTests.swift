@@ -2054,3 +2054,20 @@ struct ReservedShortcutsTests {
         #expect(ShortcutPreferences.resolve(dictation: stored) == .defaultDictation)
     }
 }
+
+@Suite("Transcription budget")
+struct TranscriptionBudgetTests {
+    @Test("A short dictation keeps the 90-second budget and 30-second idle timeout")
+    func shortDictation() {
+        #expect(ScribeClient.transcriptionBudget(forAudioDuration: 5) == 90)
+        #expect(ScribeClient.transcriptionBudget(forAudioDuration: 600) == 90)
+        #expect(ScribeClient.transcriptionIdleTimeout(forAudioDuration: 5) == 30)
+    }
+
+    @Test("A recording at the limit gets time in proportion to its length")
+    func recordingAtTheLimit() {
+        let limit = RecordingLimit.maximumDuration
+        #expect(ScribeClient.transcriptionBudget(forAudioDuration: limit) == 90 * limit / 600)
+        #expect(ScribeClient.transcriptionIdleTimeout(forAudioDuration: limit) == 30 * limit / 600)
+    }
+}

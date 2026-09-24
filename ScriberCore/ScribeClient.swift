@@ -21,13 +21,23 @@ public struct ScribeRequest: Sendable {
     public let languageCode: String
     public let noVerbatim: Bool
     public let keyterms: [String]
+    /// The recording's length in seconds, which sets how long transcribing it may take.
+    public let audioDuration: TimeInterval
 
-    public init(audioURL: URL, apiKey: String, languageCode: String, noVerbatim: Bool, keyterms: [String]) {
+    public init(
+        audioURL: URL,
+        apiKey: String,
+        languageCode: String,
+        noVerbatim: Bool,
+        keyterms: [String],
+        audioDuration: TimeInterval
+    ) {
         self.audioURL = audioURL
         self.apiKey = apiKey
         self.languageCode = languageCode
         self.noVerbatim = noVerbatim
         self.keyterms = keyterms
+        self.audioDuration = audioDuration
     }
 }
 
@@ -203,7 +213,22 @@ public struct ScribeClient: Sendable {
     /// How long one transcription may take in total, across every attempt and
     /// every backoff between them. A dictation that has not come back inside this
     /// has failed, and its row is retryable.
-    public static let transcriptionBudget: TimeInterval = 90
+    ///
+    /// 90 seconds for every ten minutes of audio, and never less than 90. The
+    /// rate is carried forward from when ten minutes was the longest recording,
+    /// not measured past it: tighten it once a long dictation's
+    /// `transcribe returned` time is in the log.
+    public static func transcriptionBudget(forAudioDuration duration: TimeInterval) -> TimeInterval {
+        max(90, 90 * duration / 600)
+    }
+
+    /// How long a transcription request may go without receiving a byte. Scribe
+    /// sends nothing while it processes the upload, so this has to outlast the
+    /// processing, which grows with the audio: 30 seconds for every ten minutes,
+    /// and never less than 30.
+    static func transcriptionIdleTimeout(forAudioDuration duration: TimeInterval) -> TimeInterval {
+        max(30, 30 * duration / 600)
+    }
 
     /// Bounded deliberately. `URLSession.shared` carries a resource timeout of
     /// seven days, so a Wi-Fi that accepts the connection and never answers — a
@@ -212,10 +237,21 @@ public struct ScribeClient: Sendable {
     private static let session: URLSession = {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
-        configuration.timeoutIntervalForResource = transcriptionBudget
+        configuration.timeoutIntervalForResource = 90
         configuration.waitsForConnectivity = false
         return URLSession(configuration: configuration)
     }()
+
+    /// `session`'s bounds, sized to one recording. A resource timeout belongs to
+    /// a session rather than a request, so a transcription whose budget depends
+    /// on its audio gets a session of its own.
+    private static func transcriptionSession(forAudioDuration duration: TimeInterval) -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = transcriptionIdleTimeout(forAudioDuration: duration)
+        configuration.timeoutIntervalForResource = transcriptionBudget(forAudioDuration: duration)
+        configuration.waitsForConnectivity = false
+        return URLSession(configuration: configuration)
+    }
 
     static let log = Logger(subsystem: "com.gafiegarcia.scriber", category: "dictation")
 
@@ -342,7 +378,9 @@ public struct ScribeClient: Sendable {
         let delays: [TimeInterval] = [3, 5]
         var lastError: Error?
         let started = ContinuousClock().now
-        let deadline = Date.now.addingTimeInterval(Self.transcriptionBudget)
+        let deadline = Date.now.addingTimeInterval(Self.transcriptionBudget(forAudioDuration: input.audioDuration))
+        let session = Self.transcriptionSession(forAudioDuration: input.audioDuration)
+        defer { session.finishTasksAndInvalidate() }
 
         for attempt in 1...3 {
             // Asked again on the way out of the wait, not only on the way in. A
@@ -356,7 +394,7 @@ public struct ScribeClient: Sendable {
             await onAttempt(attempt, nil)
             Self.log.notice("transcribe attempt run=\(run, privacy: .public) n=\(attempt, privacy: .public)")
             do {
-                let result = try await perform(input, keyterms: keyterms)
+                let result = try await perform(input, keyterms: keyterms, session: session)
                 Self.log.notice(
                     "transcribe returned run=\(run, privacy: .public) n=\(attempt, privacy: .public) elapsedMs=\(started.elapsedMilliseconds, privacy: .public) empty=\(result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, privacy: .public)"
                 )
@@ -415,7 +453,7 @@ public struct ScribeClient: Sendable {
         return true
     }
 
-    private func perform(_ input: ScribeRequest, keyterms: [String]) async throws -> ScribeResult {
+    private func perform(_ input: ScribeRequest, keyterms: [String], session: URLSession) async throws -> ScribeResult {
         let audio: Data
         do { audio = try Data(contentsOf: input.audioURL) }
         catch { throw ScribeError.invalidRequest("The recording could not be read.") }
@@ -450,7 +488,7 @@ public struct ScribeClient: Sendable {
 
         let data: Data
         let response: URLResponse
-        do { (data, response) = try await Self.session.data(for: request) }
+        do { (data, response) = try await session.data(for: request) }
         catch { throw Self.networkError(error) }
         guard let http = response as? HTTPURLResponse else { throw ScribeError.serviceUnavailable }
         guard (200..<300).contains(http.statusCode) else {

@@ -1731,7 +1731,7 @@ final class AppCoordinator: ObservableObject {
                 // On the meter's own clock rather than on the audio's, so a
                 // recording whose microphone never delivers anything still ages
                 // out instead of sitting open forever at 0:00.
-                if openedAt.duration(to: now) >= .seconds(600) {
+                if openedAt.duration(to: now) >= .seconds(RecordingLimit.maximumDuration) {
                     apply(gate.apply(.stopRequested))
                     return
                 }
@@ -1870,7 +1870,8 @@ final class AppCoordinator: ObservableObject {
                 apiKey: apiKey,
                 languageCode: preferences.languageCode,
                 noVerbatim: preferences.noVerbatim,
-                keyterms: preferences.keyterms
+                keyterms: preferences.keyterms,
+                audioDuration: recording.duration
             )
             let result = try await scribe.transcribe(request, run: run) { [weak self] attempt, delay in
                 await MainActor.run {
