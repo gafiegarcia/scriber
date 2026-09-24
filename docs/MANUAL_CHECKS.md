@@ -45,12 +45,17 @@ Only System Settings can reach this state, and macOS behaves differently dependi
 
 ### With Wi-Fi off and no Ethernet
 
-These four states are only reachable offline and went years unlooked-at, so look properly. None spends credit — nothing is sent.
+With no network at all, Scriber sends nothing: the pill says **No internet connection** at once, with no attempt and no **Retrying…**. Spends no credit.
 
 - Dictate and stop. Then turn Wi-Fi back on with the pill still up. Spec: Shortcuts and job lifecycle — "its Retry stays disabled until this Mac has a route again"
-- Dictate and stop, then leave it alone. Spec: Shortcuts and job lifecycle — "A transcription has 90 seconds in total"; Shortcuts and job lifecycle — "never appends the system's sentence to one that already says the same thing"
-- Dictate, stop, and press Escape while it is retrying — then dismiss the offer with Escape, once by taking **See History**, and once by letting it time out. Spec: Shortcuts and job lifecycle — "no further attempt is made and no pill is drawn"
-- Cancel during the countdown and immediately start another dictation, three or four times over. Then cancel one and press **Recover** instead. Spec: Shortcuts and job lifecycle — "An abandoned transcription touches nothing but its own history row"
+
+### On a Wi-Fi network with no internet behind it
+
+The only way to see **Retrying…** without spending credit. Join your phone's hotspot with the phone's mobile data turned off, or your own Wi-Fi with the router's internet cable unplugged, and unplug any Ethernet. Before dictating, confirm Safari cannot load a page: if it can, the network has internet and these checks prove nothing. Wi-Fi turned off does not reach this state — Scriber sees there is no network and never tries. Spends no credit: nothing reaches ElevenLabs.
+
+- Dictate and stop, then leave it alone. The pill reads **Retrying 2/3…**, then **3/3…**, and gives up on its own within about 90 seconds, with a failure message in Scriber's own words. Spec: Shortcuts and job lifecycle — "A transcription has 90 seconds in total"; Shortcuts and job lifecycle — "never appends the system's sentence to one that already says the same thing"
+- Dictate, stop, and press Escape while the pill reads **Retrying…** — then dismiss the offer with Escape, once by taking **See History**, and once by letting it time out. Spec: Shortcuts and job lifecycle — "no further attempt is made and no pill is drawn"
+- Press Escape while the pill reads **Retrying…** and immediately start another dictation, three or four times over. Then cancel one and press **Recover** instead. Spec: Shortcuts and job lifecycle — "An abandoned transcription touches nothing but its own history row"
 
 ## When the hold and tap split, or hands-free, changes
 
