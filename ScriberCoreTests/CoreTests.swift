@@ -2071,3 +2071,28 @@ struct TranscriptionBudgetTests {
         #expect(ScribeClient.transcriptionIdleTimeout(forAudioDuration: limit) == 30 * limit / 600)
     }
 }
+
+@Suite("Transcription deadline")
+struct TranscriptionDeadlineTests {
+    @Test("An attempt still running at its deadline is cut off there")
+    func cutsOffAtDeadline() async {
+        let started = Date()
+        var timedOut = false
+        do {
+            _ = try await ScribeClient.withDeadline(Date().addingTimeInterval(0.2)) {
+                try await Task.sleep(for: .seconds(10))
+                return 0
+            }
+        } catch ScribeError.timedOut {
+            timedOut = true
+        } catch {}
+        #expect(timedOut)
+        #expect(Date().timeIntervalSince(started) < 2)
+    }
+
+    @Test("An attempt that finishes in time returns its result")
+    func returnsInTime() async throws {
+        let value = try await ScribeClient.withDeadline(Date().addingTimeInterval(5)) { 42 }
+        #expect(value == 42)
+    }
+}

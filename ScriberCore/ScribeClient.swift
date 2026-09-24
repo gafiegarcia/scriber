@@ -236,23 +236,39 @@ public struct ScribeClient: Sendable {
     /// seven days, so a Wi-Fi that accepts the connection and never answers — a
     /// captive portal, a hotel, a router with no route beyond it — left a
     /// dictation transcribing with no end in sight and its request alive behind.
+    ///
+    /// One session for every request, so a dictation can reuse the connection
+    /// the last one opened. Its resource timeout is only a backstop sized to the
+    /// longest recording: a transcription's own budget is enforced by
+    /// `withDeadline`, and each request carries its own idle timeout, which
+    /// overrides the session's in either direction.
     private static let session: URLSession = {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
-        configuration.timeoutIntervalForResource = 90
+        configuration.timeoutIntervalForResource = transcriptionBudget(
+            forAudioDuration: RecordingLimit.maximumDuration
+        )
         configuration.waitsForConnectivity = false
         return URLSession(configuration: configuration)
     }()
 
-    /// `session`'s bounds, sized to one recording. A resource timeout belongs to
-    /// a session rather than a request, so a transcription whose budget depends
-    /// on its audio gets a session of its own.
-    private static func transcriptionSession(forAudioDuration duration: TimeInterval) -> URLSession {
-        let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = transcriptionIdleTimeout(forAudioDuration: duration)
-        configuration.timeoutIntervalForResource = transcriptionBudget(forAudioDuration: duration)
-        configuration.waitsForConnectivity = false
-        return URLSession(configuration: configuration)
+    /// Runs `operation`, and cancels it with `ScribeError.timedOut` if it is still
+    /// running at `deadline`. A canceled dictation's request is left to finish,
+    /// so this is also what bounds how long one can outlive its pill.
+    static func withDeadline<T: Sendable>(
+        _ deadline: Date,
+        _ operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow)))
+                throw ScribeError.timedOut
+            }
+            defer { group.cancelAll() }
+            guard let first = try await group.next() else { throw ScribeError.timedOut }
+            return first
+        }
     }
 
     static let log = Logger(subsystem: "com.gafiegarcia.scriber", category: "dictation")
@@ -381,8 +397,6 @@ public struct ScribeClient: Sendable {
         var lastError: Error?
         let started = ContinuousClock().now
         let deadline = Date.now.addingTimeInterval(Self.transcriptionBudget(forAudioDuration: input.audioDuration))
-        let session = Self.transcriptionSession(forAudioDuration: input.audioDuration)
-        defer { session.finishTasksAndInvalidate() }
 
         for attempt in 1...3 {
             // Asked again on the way out of the wait, not only on the way in. A
@@ -396,7 +410,9 @@ public struct ScribeClient: Sendable {
             await onAttempt(attempt, nil)
             Self.log.notice("transcribe attempt run=\(run, privacy: .public) n=\(attempt, privacy: .public)")
             do {
-                let result = try await perform(input, keyterms: keyterms, session: session)
+                let result = try await Self.withDeadline(deadline) {
+                    try await perform(input, keyterms: keyterms)
+                }
                 Self.log.notice(
                     "transcribe returned run=\(run, privacy: .public) n=\(attempt, privacy: .public) elapsedMs=\(started.elapsedMilliseconds, privacy: .public) empty=\(result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, privacy: .public)"
                 )
@@ -455,7 +471,7 @@ public struct ScribeClient: Sendable {
         return true
     }
 
-    private func perform(_ input: ScribeRequest, keyterms: [String], session: URLSession) async throws -> ScribeResult {
+    private func perform(_ input: ScribeRequest, keyterms: [String]) async throws -> ScribeResult {
         let audio: Data
         do { audio = try Data(contentsOf: input.audioURL) }
         catch { throw ScribeError.invalidRequest("The recording could not be read.") }
@@ -482,7 +498,10 @@ public struct ScribeClient: Sendable {
         body.append(audio)
         append("\r\n--\(boundary)--\r\n")
 
-        var request = URLRequest(url: endpoint)
+        var request = URLRequest(
+            url: endpoint,
+            timeoutInterval: Self.transcriptionIdleTimeout(forAudioDuration: input.audioDuration)
+        )
         request.httpMethod = "POST"
         request.setValue(input.apiKey, forHTTPHeaderField: "xi-api-key")
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -490,7 +509,7 @@ public struct ScribeClient: Sendable {
 
         let data: Data
         let response: URLResponse
-        do { (data, response) = try await session.data(for: request) }
+        do { (data, response) = try await Self.session.data(for: request) }
         catch { throw Self.networkError(error) }
         guard let http = response as? HTTPURLResponse else { throw ScribeError.serviceUnavailable }
         guard (200..<300).contains(http.statusCode) else {
