@@ -17,6 +17,10 @@
 # launch as one macOS made at login. Run both: the app must come up with no
 # window and `loginItem=true` with the flag, and must show the window without
 # it. Either passing alone proves nothing.
+#
+# Every launch also passes --ui-testing-pill-fit, which raises each pill in turn
+# and logs whether its content fits its glass (PillFitAudit). Any pill that does
+# not fit fails the run, and so does a walk that never reported finishing.
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -61,6 +65,7 @@ open -g -j -n -a "$APP_PATH" --args \
   --ui-testing \
   --ui-testing-no-activate \
   --ui-testing-missing-permissions \
+  --ui-testing-pill-fit \
   "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
 sleep 6
 pid="$(pgrep -n -x Scriber || true)"
@@ -74,6 +79,21 @@ fi
 # sampling before blaming the harness.
 ps -p "$pid" -o pid,%cpu,command
 kill "$pid"
+
+echo
+echo "==> Pill fit"
+fit="$(/usr/bin/log show --last 5m --style compact --predicate \
+  "subsystem == \"com.gafiegarcia.scriber\" AND processIdentifier == $pid AND eventMessage BEGINSWITH \"pill fit\"")"
+if ! grep -q "pill fit done" <<<"$fit"; then
+  echo "FAILED: the pill walk never reported finishing" >&2
+  exit 1
+fi
+grep -o "pill fit done.*" <<<"$fit"
+if grep -q "pill fit overflows" <<<"$fit"; then
+  echo "FAILED: these pills are too small for what they hold" >&2
+  grep -o "pill fit overflows.*" <<<"$fit" >&2
+  exit 1
+fi
 
 echo
 echo "Launched, rendered and exited. Read the log with:"

@@ -23,6 +23,12 @@ enum AppLaunchConfiguration {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-invalid-key-pill")
     }
 
+    /// Walks every pill after launch and logs whether each one's content fits
+    /// its glass. See `PillFitAudit`.
+    static var auditsPillFit: Bool {
+        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-pill-fit")
+    }
+
     static var simulatesMissingPermissions: Bool {
         isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-missing-permissions")
     }
@@ -394,6 +400,14 @@ final class AppRuntime: ObservableObject {
                     coordinator.presentPermissionRecoveryPillForUITesting()
                 }
             }
+#if DEBUG
+            if AppLaunchConfiguration.auditsPillFit {
+                Task { @MainActor [coordinator] in
+                    try? await Task.sleep(for: .milliseconds(100))
+                    coordinator.auditPillFitForUITesting()
+                }
+            }
+#endif
         }
         // Nested `ObservableObject`s do not propagate, so views reading
         // `runtime.coordinator.x` need this fan-out to update at all.

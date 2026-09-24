@@ -770,6 +770,41 @@ final class PillController {
     }
 }
 
+#if DEBUG
+/// A phase's content measured against the glass `pillSize(for:)` gave it.
+struct PillFit {
+    let glass: NSSize
+    let content: NSSize
+
+    var overflows: Bool { content.width > glass.width || content.height > glass.height }
+}
+
+extension PillController {
+    /// Raises `phase` through `update`, as a dictation would, so every dwelling
+    /// phase draws its countdown ring; puts the pointer on the pill so every
+    /// hover-only control is in the row; then measures the same `PillView` on the
+    /// same model with nothing to cap its size.
+    ///
+    /// A capsule is one line and is measured at its ideal size — the width it
+    /// takes with nothing truncated. A box wraps its body on purpose, so only its
+    /// height is left free: what it needs at the glass's own width.
+    ///
+    /// Do not: measure a row rebuilt for the purpose. A copy of `compactStatus`
+    /// or `recoveryOffer` drifts from the real one and passes while the real
+    /// pill truncates.
+    func measureFit(of phase: AppPhase) -> PillFit {
+        update(phase)
+        model.isHovering = true
+        let glass = glassView.frame.size
+        let isCapsule = phase.pillShapeStyle == .capsule
+        let twin = NSHostingController(
+            rootView: PillView(model: model).fixedSize(horizontal: isCapsule, vertical: true)
+        )
+        return PillFit(glass: glass, content: twin.sizeThatFits(in: glass))
+    }
+}
+#endif
+
 private struct PillView: View {
     @ObservedObject var model: PillModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

@@ -1517,6 +1517,13 @@ final class AppCoordinator: ObservableObject {
         setPhase(.credentialsUnusable(.invalidAPIKey))
     }
 
+#if DEBUG
+    func auditPillFitForUITesting() {
+        guard !servicesAllowed else { return }
+        PillFitAudit.run(on: pill)
+    }
+#endif
+
     func presentPermissionRecoveryPillForUITesting() {
         guard !servicesAllowed else { return }
         permissionRecoveryPresentationPending = true
