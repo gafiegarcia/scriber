@@ -1206,7 +1206,13 @@ private struct PillView: View {
         case .recording(_, let elapsed, let level):
             AudioLevelWaveform(level: level, tick: elapsed, presentation: .pill)
         case .transcribing:
-            ProgressView().controlSize(.small)
+            // Do not: use `ProgressView` here. It is an `NSProgressIndicator`,
+            // which redraws with dark spokes for about 70 ms whenever the panel
+            // is ordered in or takes a click, while the SwiftUI row around it
+            // holds still. A symbol is drawn by SwiftUI like the rest of the row.
+            Image(systemName: "progress.indicator")
+                .symbolEffect(.variableColor.iterative.dimInactiveLayers.nonReversing, options: .repeat(.continuous))
+                .foregroundStyle(.secondary)
         case .dictationCopied, .transcriptCopied:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(toneAccent)
         case .dictationBlockedBySecureField:

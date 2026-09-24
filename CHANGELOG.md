@@ -8,6 +8,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 - **A dictation can now run for 20 minutes instead of 10.** The limit is only there to stop a hands-free dictation you forgot about from spending your credits, and at ten minutes it was cutting off people who were simply talking. Longer recordings also get proportionally longer to transcribe, so a long dictation is not set up to fail at the last step.
 
+### Fixed
+
+- **The Transcribing pill's spinner no longer flashes black.** When the pill came back after being dismissed — retrying a dictation from History, or recovering a canceled one — its spinner drew with black spokes for a few frames before turning grey. It is now a slightly smaller spinner that stays grey from the moment it appears.
+
 ## 0.9.6 (build 369) — 2026-09-21
 
 An input and credits release. A microphone whose input volume sits at zero used to hand Scriber a few seconds of perfectly good audio and then silently lose the rest of a long dictation; Scriber now reads the volume macOS actually holds and answers with **Input volume is zero** at the moment you press the shortcut, and setup can no longer be finished with a dead microphone. Running out of ElevenLabs credits no longer locks you out of dictating or reports your API key as invalid — the recording is made, saved to **Dictation history**, and waiting there to retry. The pill also stops crossfading its words, which was flashing a dismissed notice's text underneath it.
