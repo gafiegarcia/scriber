@@ -10,7 +10,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Fixed
 
-- **The Transcribing pill's spinner no longer flashes black.** When the pill came back after being dismissed — retrying a dictation from History, or recovering a canceled one — its spinner drew with black spokes for a few frames before turning grey. It is now a slightly smaller spinner that stays grey from the moment it appears.
+- **The Transcribing pill's spinner no longer flashes black.** When the pill came back after being dismissed — retrying a dictation from History, or recovering a canceled one — its spinner drew with black spokes for a few frames before turning grey. It is now a new spinner that stays grey from the moment it appears.
 
 ## 0.9.6 (build 369) — 2026-09-21
 

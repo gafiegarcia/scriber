@@ -1211,6 +1211,7 @@ private struct PillView: View {
             // is ordered in or takes a click, while the SwiftUI row around it
             // holds still. A symbol is drawn by SwiftUI like the rest of the row.
             Image(systemName: "progress.indicator")
+                .font(.system(size: 15))
                 .symbolEffect(.variableColor.iterative.dimInactiveLayers.nonReversing, options: .repeat(.continuous))
                 .foregroundStyle(.secondary)
         case .dictationCopied, .transcriptCopied:
