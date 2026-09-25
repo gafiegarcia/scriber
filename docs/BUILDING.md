@@ -24,6 +24,15 @@ Release builds sign with a **Developer ID Application** certificate for team `24
 
 The identity is what keeps the app's designated requirement stable across rebuilds, so Accessibility, Microphone, Launch at Login, and Keychain grants survive a reinstall. An automatic `Apple Development` signature changes identity every build and loses them.
 
+On the machine that holds the Developer ID certificate, sign Debug with it too, so a Debug build and the installed app are the same app to macOS and share every grant and the stored key. Otherwise each switch between them, and each Debug rebuild, lands on a permission row granted to the other: toggling it does nothing, and only removing the row and pressing Allow again recovers. Add to `Signing.local.xcconfig`:
+
+```text
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Developer ID Application
+```
+
+`codesign -d -r- <app>` must then print the same designated requirement for the Debug build as for `/Applications/Scriber.app`. A Debug build signed this way can do anything the installed app has been granted.
+
 The hardened runtime withholds the microphone from a process without `com.apple.security.device.audio-input`, which covers both `AVCaptureDevice` capture and the Core Audio process tap that mutes other apps. Nothing in the app uses Apple Events, so it carries no automation entitlement.
 
 Before producing a distinct installable candidate, increment `CURRENT_PROJECT_VERSION` in both configurations of the Scriber target. Do not override it on one `xcodebuild` invocation: that would make the installed binary and checked-in project disagree.

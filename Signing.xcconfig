@@ -15,7 +15,12 @@
 //
 // Without that file the team stays unset and Xcode reports that signing
 // requires a development team. Release builds are unaffected.
+//
+// The same file may override the identity below. `docs/BUILDING.md` says when
+// and why a Debug build would sign with the Developer ID that Release uses.
 
 DEVELOPMENT_TEAM =
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = Apple Development
 
 #include? "Signing.local.xcconfig"
