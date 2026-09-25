@@ -2,12 +2,15 @@
 @preconcurrency import ApplicationServices
 import CoreGraphics
 import Foundation
+import os
 #if SWIFT_PACKAGE
 import ScriberCore
 #endif
 
 @MainActor
 final class GlobalShortcutService {
+    private static let log = Logger(subsystem: "com.gafiegarcia.scriber", category: "permissions")
+
     var onAction: ((ShortcutAction) -> Void)?
     /// Whether a visible pill wants Escape. Cheap and synchronous on purpose:
     /// the tap's return value gates the event, so this decision cannot be
@@ -68,7 +71,7 @@ final class GlobalShortcutService {
             guard let userInfo else { return Unmanaged.passUnretained(event) }
             let service = Unmanaged<GlobalShortcutService>.fromOpaque(userInfo).takeUnretainedValue()
             if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                MainActor.assumeIsolated { service.reenableTap() }
+                MainActor.assumeIsolated { service.reenableTap(timedOut: type == .tapDisabledByTimeout) }
                 return Unmanaged.passUnretained(event)
             }
             guard let kind = ShortcutTapInput.Kind(type) else {
@@ -132,13 +135,24 @@ final class GlobalShortcutService {
         pendingEffects.removeAll()
     }
 
-    private func reenableTap() {
+    private func reenableTap(timedOut: Bool) {
         guard let eventTap else { return }
+        Self.log.notice(
+            "shortcutTap: disabled reason=\(timedOut ? "timeout" : "userInput", privacy: .public) trusted=\(AXIsProcessTrusted(), privacy: .public)"
+        )
         // A revoked tap must be torn down, never re-armed. This tap is head-inserted at
         // the HID level, so the system advances the whole event stream only once the
         // callback replies — a tap the process is no longer trusted to own gets disabled
         // again immediately, and re-arming it in a loop stalls every click and keypress
         // on the machine while starving the main-loop poll that would call `stop()`.
+        //
+        // Known and unfixed: deleting Scriber's entry from the Accessibility list
+        // (rather than unticking it) while Scriber runs freezes every keypress and
+        // click on the machine for seconds to about a minute, until macOS times the
+        // tap out or Scriber quits. Nothing in the process changes to warn of it —
+        // measured on macOS 27.2: `AXIsProcessTrusted`, both `CGPreflight…Access`
+        // calls, `CGEvent.tapIsEnabled`, a live AX query and a fresh tap all kept
+        // answering as before — so no guard here can see it coming.
         guard AXIsProcessTrusted() else {
             CGEvent.tapEnable(tap: eventTap, enable: false)
             onAvailabilityChanged?(false)
