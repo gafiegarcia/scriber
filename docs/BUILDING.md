@@ -95,7 +95,7 @@ Open it by path, never `open -a Scriber`. That resolves by name through Launch S
 
 The stable path matters because Accessibility, Microphone, Launch at Login, and Keychain authorization are associated with the installed application. Never rename the `.app` bundle; doing so invalidates its signature.
 
-A Developer ID signature does not change between builds, so the login-Keychain authorization for the stored ElevenLabs key is granted once and then holds. Debug builds still prompt on each freshly built binary, because `Apple Development` re-identifies the app every time.
+A Developer ID signature does not change between builds, so the login-Keychain authorization for the stored ElevenLabs key is granted once and then holds. Debug builds still prompt on each freshly built binary, because `Apple Development` re-identifies the app every time — unless they take the Developer ID override under [Developer ID (maintainer only)](#developer-id-maintainer-only).
 
 ## When Accessibility looks enabled but is not
 
