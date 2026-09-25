@@ -146,13 +146,14 @@ final class GlobalShortcutService {
         // again immediately, and re-arming it in a loop stalls every click and keypress
         // on the machine while starving the main-loop poll that would call `stop()`.
         //
-        // Known and unfixed: deleting Scriber's entry from the Accessibility list
-        // (rather than unticking it) while Scriber runs freezes every keypress and
-        // click on the machine for seconds to about a minute, until macOS times the
-        // tap out or Scriber quits. Nothing in the process changes to warn of it —
-        // measured on macOS 27.2: `AXIsProcessTrusted`, both `CGPreflight…Access`
+        // Platform: deleting Scriber's entry from the Accessibility list (rather
+        // than unticking it) while Scriber runs freezes every keypress and click on
+        // the machine for seconds to about a minute, until macOS times the tap out
+        // or Scriber quits. Nothing in the process changes to warn of it — measured
+        // on macOS 27.2 beta 2: `AXIsProcessTrusted`, both `CGPreflight…Access`
         // calls, `CGEvent.tapIsEnabled`, a live AX query and a fresh tap all kept
-        // answering as before — so no guard here can see it coming.
+        // answering as before — so no guard here can see it coming. The deletion
+        // check in `MANUAL_CHECKS.md` re-measures it after each macOS update.
         guard AXIsProcessTrusted() else {
             CGEvent.tapEnable(tap: eventTap, enable: false)
             onAvailabilityChanged?(false)
