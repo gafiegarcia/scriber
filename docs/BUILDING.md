@@ -20,11 +20,15 @@ The local file is ignored by Git. Without it, the project leaves the team empty 
 
 A free Apple ID works here. The seven-day expiry people associate with free accounts is an iOS provisioning-profile rule; this app ships no entitlements and no embedded profile, so nothing expires out from under a macOS build.
 
+That is all a build of your own needs. The rest of this section is for the maintainer's machine, which holds the Developer ID certificate the published app is signed with; skip it otherwise.
+
+### Developer ID (maintainer only)
+
 Release builds sign with a **Developer ID Application** certificate for team `24U8BM54A3` under the hardened runtime, using `Scriber/Scriber.entitlements`. That certificate exists only on the user's machine; if that machine is not yours, build Debug with your own team and ignore this configuration. Keep the password-protected `.p12` backup private and outside the repository — Apple caps how many Developer ID certificates an account may hold, so losing it is expensive.
 
 The identity is what keeps the app's designated requirement stable across rebuilds, so Accessibility, Microphone, Launch at Login, and Keychain grants survive a reinstall. An automatic `Apple Development` signature changes identity every build and loses them.
 
-On the machine that holds the Developer ID certificate, sign Debug with it too, so a Debug build and the installed app are the same app to macOS and share every grant and the stored key. Otherwise each switch between them, and each Debug rebuild, lands on a permission row granted to the other: toggling it does nothing, and only removing the row and pressing Allow again recovers. Add to `Signing.local.xcconfig`:
+Sign Debug with the Developer ID too, so a Debug build and the installed app are the same app to macOS and share every grant and the stored key, rather than each switch between them landing on the permission row the other was granted (see [When Accessibility looks enabled but is not](#when-accessibility-looks-enabled-but-is-not)). Add to `Signing.local.xcconfig`:
 
 ```text
 CODE_SIGN_STYLE = Manual
@@ -95,11 +99,9 @@ A Developer ID signature does not change between builds, so the login-Keychain a
 
 ## When Accessibility looks enabled but is not
 
-macOS records the signing identity of the app it granted Accessibility to, and revalidates it on every launch. Sign with an identity that changes between builds and the entry stops matching: Scriber reports Accessibility as missing and global shortcuts stay dead while System Settings still shows the checkbox ticked.
+macOS records the signing identity of the app it granted Accessibility to, and revalidates it on every launch. Two Scribers signed differently are two apps to macOS sharing one row in the list — your own build beside the downloaded Scriber, a Debug build beside a Release one, or any build after ad-hoc signing (`CODE_SIGN_IDENTITY="-"`), which identifies the app by a hash of the binary. The row belongs to whichever was granted first: Scriber reports Accessibility as missing and its shortcut stays dead while System Settings shows the switch on.
 
-Unchecking and rechecking does not fix it. Remove Scriber from **Privacy & Security → Accessibility** entirely, then add it back by dragging `Scriber.app` from `/Applications` into the list.
-
-Both configurations above sign with a stable identity, so this only arises after overriding one with ad-hoc signing (`CODE_SIGN_IDENTITY="-"`), which has no certificate to anchor to and identifies the app by a hash of the binary itself.
+Toggling the switch does not fix it. Quit every Scriber, remove the row with **–** in **Privacy & Security → Device Control and Data Access** (**Accessibility** before macOS 27), then open the Scriber you mean to use, press **Allow**, choose **Open System Settings**, and switch it on. Quit first: removing the row while a Scriber holding the grant is running freezes the Mac's input for up to a minute.
 
 ## Build directory housekeeping
 
