@@ -152,8 +152,9 @@ final class GlobalShortcutService {
         // or Scriber quits. Nothing in the process changes to warn of it — measured
         // on macOS 27.2 beta 2: `AXIsProcessTrusted`, both `CGPreflight…Access`
         // calls, `CGEvent.tapIsEnabled`, a live AX query and a fresh tap all kept
-        // answering as before — so no guard here can see it coming. The deletion
-        // check in `MANUAL_CHECKS.md` re-measures it after each macOS update.
+        // answering as before — so no guard here can see it coming. Reported to
+        // Apple as FB24936656. The deletion check in `MANUAL_CHECKS.md`
+        // re-measures it after each macOS update.
         guard AXIsProcessTrusted() else {
             CGEvent.tapEnable(tap: eventTap, enable: false)
             onAvailabilityChanged?(false)
