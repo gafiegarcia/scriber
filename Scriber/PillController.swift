@@ -1233,9 +1233,12 @@ private struct PillView: View {
 
             HStack(spacing: 8) {
                 Spacer()
+                // Do not: mark this `.borderedProminent`. The pill is never the
+                // key window, and macOS draws a prominent button in a window that
+                // is not key exactly like a plain one. The offer leads the row
+                // instead.
                 Button(actionTitle, action: action)
                     .disabled(!isActionEnabled)
-                    .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                 Button("See History") { model.onOpen?() }
                     .controlSize(.small)
@@ -1393,21 +1396,21 @@ private struct PillView: View {
     /// `PRODUCT_SPEC.md`. A phase offering no recovery carries the countdown
     /// alone and leaves `Escape` as the way out: the dismiss control is what a
     /// recovery is declined with, so there is nothing for it to sit beside.
+    ///
+    /// No button here is `.borderedProminent`, for the reason `recoveryOffer`
+    /// gives; the offer is told apart by leading the row.
     @ViewBuilder private var actions: some View {
         switch model.phase {
         case .permissionsRequired:
             Button("Review") { model.onOpenPermissionSettings?() }
-                .buttonStyle(.borderedProminent)
                 .controlSize(.small)
             dismissControls
         case .credentialsUnusable(let readiness):
             if readiness.resolvesInUsageSettings {
                 Button("View Credits") { model.onOpenUsageSettings?() }
-                    .buttonStyle(.borderedProminent)
                     .controlSize(.small)
             } else {
                 Button("Update Key") { model.onOpenAPIKeySettings?() }
-                    .buttonStyle(.borderedProminent)
                     .controlSize(.small)
             }
             // Every other ending a limit-stopped dictation can reach either
@@ -1417,7 +1420,7 @@ private struct PillView: View {
             }
             dismissControls
         case .transcriptionFailed:
-            Button("Retry") { model.onRetry?() }.buttonStyle(.borderedProminent).controlSize(.small)
+            Button("Retry") { model.onRetry?() }.controlSize(.small)
             Button("See History") { model.onOpen?() }.controlSize(.small)
             dismissControls
         // No recovery to offer — the input it would send you to is not what was
@@ -1432,7 +1435,6 @@ private struct PillView: View {
             countdown
         case .noSpeechDetected, .noAudioSignal, .inputVolumeZero:
             Button("Check Input") { model.onOpenInputSettings?() }
-                .buttonStyle(.borderedProminent)
                 .controlSize(.small)
             dismissControls
         default:
