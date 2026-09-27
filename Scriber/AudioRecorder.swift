@@ -59,7 +59,9 @@ final class AudioRecorder {
     // the user picks Later on macOS's Quit & Reopen prompt — still reads as
     // authorized until relaunch, while every capture opened afterwards delivers
     // exact digital silence. `AVAudioApplication` reads the change within one
-    // permission poll.
+    // permission poll. The request goes through it too: after a reset to
+    // undetermined, `AVCaptureDevice.requestAccess` answered true from the same
+    // cache without raising the prompt.
     static var microphoneAuthorized: Bool {
         AVAudioApplication.shared.recordPermission == .granted
     }
@@ -76,7 +78,7 @@ final class AudioRecorder {
     }
 
     static func requestMicrophoneAccess() async -> Bool {
-        await AVCaptureDevice.requestAccess(for: .audio)
+        await AVAudioApplication.requestRecordPermission()
     }
 
     static func availableInputDevices() -> [AudioInputDeviceDescriptor] {
