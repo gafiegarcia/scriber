@@ -54,19 +54,21 @@ struct CompletedRecording: Sendable {
 final class AudioRecorder {
     private let backend = CaptureBackend()
 
-    static var microphoneAuthorizationStatus: AVAuthorizationStatus {
-        AVCaptureDevice.authorizationStatus(for: .audio)
-    }
-
+    // Platform: `AVCaptureDevice.authorizationStatus` answers from a per-process
+    // cache, so a grant switched off in System Settings while Scriber runs — and
+    // the user picks Later on macOS's Quit & Reopen prompt — still reads as
+    // authorized until relaunch, while every capture opened afterwards delivers
+    // exact digital silence. `AVAudioApplication` reads the change within one
+    // permission poll.
     static var microphoneAuthorized: Bool {
-        microphoneAuthorizationStatus == .authorized
+        AVAudioApplication.shared.recordPermission == .granted
     }
 
     static var microphonePermissionState: MicrophonePermissionState {
-        switch microphoneAuthorizationStatus {
-        case .authorized:
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted:
             .allowed
-        case .notDetermined:
+        case .undetermined:
             .notDetermined
         default:
             .denied
