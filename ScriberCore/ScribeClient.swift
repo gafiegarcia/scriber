@@ -411,7 +411,7 @@ public struct ScribeClient: Sendable {
             Self.log.notice("transcribe attempt run=\(run, privacy: .public) n=\(attempt, privacy: .public)")
             do {
                 let result = try await Self.withDeadline(deadline) {
-                    try await perform(input, keyterms: keyterms)
+                    try await perform(input, keyterms: keyterms, run: run, attempt: attempt)
                 }
                 Self.log.notice(
                     "transcribe returned run=\(run, privacy: .public) n=\(attempt, privacy: .public) elapsedMs=\(started.elapsedMilliseconds, privacy: .public) empty=\(result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, privacy: .public)"
@@ -471,7 +471,12 @@ public struct ScribeClient: Sendable {
         return true
     }
 
-    private func perform(_ input: ScribeRequest, keyterms: [String]) async throws -> ScribeResult {
+    private func perform(
+        _ input: ScribeRequest,
+        keyterms: [String],
+        run: Int,
+        attempt: Int
+    ) async throws -> ScribeResult {
         let audio: Data
         do { audio = try Data(contentsOf: input.audioURL) }
         catch { throw ScribeError.invalidRequest("The recording could not be read.") }
@@ -509,7 +514,8 @@ public struct ScribeClient: Sendable {
 
         let data: Data
         let response: URLResponse
-        do { (data, response) = try await Self.session.data(for: request) }
+        let timing = TranscriptionTimingLog(run: run, attempt: attempt, audioDuration: input.audioDuration)
+        do { (data, response) = try await Self.session.data(for: request, delegate: timing) }
         catch { throw Self.networkError(error) }
         guard let http = response as? HTTPURLResponse else { throw ScribeError.serviceUnavailable }
         guard (200..<300).contains(http.statusCode) else {
@@ -602,5 +608,31 @@ public struct ScribeClient: Sendable {
         case 500...599: .serviceUnavailable
         default: .http(statusCode, Self.errorMessage(data: data) ?? "\(fallback) (\(statusCode)).")
         }
+    }
+}
+
+/// Logs where one transcription request spent its time — connecting, uploading
+/// the recording, and waiting for ElevenLabs to answer — so a slow dictation
+/// says whether the network or the service was slow.
+private final class TranscriptionTimingLog: NSObject, URLSessionTaskDelegate, Sendable {
+    let run: Int
+    let attempt: Int
+    let audioDuration: TimeInterval
+
+    init(run: Int, attempt: Int, audioDuration: TimeInterval) {
+        self.run = run
+        self.attempt = attempt
+        self.audioDuration = audioDuration
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+        guard let transaction = metrics.transactionMetrics.last else { return }
+        func ms(_ start: Date?, _ end: Date?) -> Int {
+            guard let start, let end else { return -1 }
+            return Int(end.timeIntervalSince(start) * 1000)
+        }
+        ScribeClient.log.notice(
+            "transcribe timing run=\(self.run, privacy: .public) n=\(self.attempt, privacy: .public) audioMs=\(Int(self.audioDuration * 1000), privacy: .public) bytes=\(transaction.countOfRequestBodyBytesSent, privacy: .public) reused=\(transaction.isReusedConnection, privacy: .public) connectMs=\(ms(transaction.connectStartDate, transaction.connectEndDate), privacy: .public) uploadMs=\(ms(transaction.requestStartDate, transaction.requestEndDate), privacy: .public) waitMs=\(ms(transaction.requestEndDate, transaction.responseStartDate), privacy: .public) protocol=\(transaction.networkProtocolName ?? "none", privacy: .public)"
+        )
     }
 }
