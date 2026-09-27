@@ -18,7 +18,6 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Find out why muting still works after its permission is revoked.** ([Notion task](https://app.notion.com/p/3be71937040280c28694ec54cecca047))
 - [ ] **Prune the captions in Settings.** ([Notion task](https://app.notion.com/p/3bb71937040280d2a3dadde66cf37727))
 - [ ] **Transition toasts in place rather than from the right.** ([Notion task](https://app.notion.com/p/3be719370402802ca972e95ea7e40139))
-- [ ] **Stop the workspace group sliding toward the traffic lights on reopen.** ([Notion task](https://app.notion.com/p/3d3719370402817eb0cefba6e7d07a2f))
 - [ ] **Decide whether the history's scrollbar has to tell the truth.** ([Notion task](https://app.notion.com/p/3d2719370402818eaea1e0194be139a8))
 - [ ] **Hold the mute longer when the input is Bluetooth.** ([Notion task](https://app.notion.com/p/3c271937040280cb9f01c2aa59e9f87a))
 - [ ] **Give the Settings window a title.** ([Notion task](https://app.notion.com/p/3c5719370402800b8517f4dac5bb2d4e))
