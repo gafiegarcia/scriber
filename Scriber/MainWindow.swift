@@ -126,7 +126,13 @@ struct MainWindowView: View {
                         Text(workspace.title)
                             .font(.headline)
 
-                        Text(Self.dictationCountLabel(visible))
+                        // Do not: count `visible` alone. It is empty while the
+                        // window is closed, and the toolbar sizes this group from
+                        // that "0 dictations" on reopen, then centers the real
+                        // count in the narrower slot — 12pt into the traffic
+                        // lights. `records.count` costs nothing; filtering is
+                        // what the guard spares.
+                        Text(Self.dictationCountLabel(mainWindowIsOnScreen ? visible.count : records.count))
                             .foregroundStyle(.secondary)
                             .accessibilityIdentifier("dictation-count")
                     }
@@ -226,8 +232,7 @@ struct MainWindowView: View {
 
     /// Counts what the workspace holds, not what the current search matches: the
     /// number is a property of the history, not of the query.
-    private static func dictationCountLabel(_ visible: [DictationRecord]) -> String {
-        let count = visible.count
+    private static func dictationCountLabel(_ count: Int) -> String {
         return "\(count) \(count == 1 ? "dictation" : "dictations")"
     }
 

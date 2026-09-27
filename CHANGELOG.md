@@ -17,6 +17,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 - **Allow for Accessibility now brings Scriber back into the list.** If you had removed Scriber from **Privacy & Security → Device Control and Data Access** (called **Accessibility** before macOS 27), Allow opened that page with Scriber missing from it until you quit and reopened the app. Allow now shows macOS's own prompt, which puts Scriber back in the list, and its **Open System Settings** button takes you straight there.
 - **The Transcribing pill's spinner no longer flashes black.** When the pill came back after being dismissed — retrying a dictation from History, or recovering a canceled one — its spinner drew with black spokes for a few frames before turning grey. It is now a new spinner that stays grey from the moment it appears, and every other spinner in Scriber — in Settings, in setup, and on a History row being retried — is the same one.
+- **Reopening the main window no longer pushes Dictation against the window buttons.** After you closed and reopened the window, **Dictation** and its count sat too far left, touching the close, minimize, and zoom buttons until you typed, resized, or switched apps. They now open where they belong.
 
 ## 0.9.6 (build 369) — 2026-09-21
 
