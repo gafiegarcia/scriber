@@ -1292,6 +1292,12 @@ struct AudioInputPolicyTests {
         #expect(AudioSignal.normalized(decibels: -30) < AudioSignal.normalized(decibels: -10))
         #expect(AudioSignal.normalized(decibels: 0) == 1)
     }
+
+    @Test("Other audio stays muted through a Bluetooth headset leaving call mode")
+    func bluetoothInputHoldsTheMuteLonger() {
+        #expect(OtherAudioMutePolicy.restoreDelay(afterBluetoothInput: false) == 0.2)
+        #expect(OtherAudioMutePolicy.restoreDelay(afterBluetoothInput: true) == 2)
+    }
 }
 
 @Suite("Text input target policy")

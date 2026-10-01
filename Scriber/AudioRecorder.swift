@@ -126,6 +126,12 @@ final class AudioRecorder {
         backend.firstBufferInstant()
     }
 
+    /// Whether the most recent recording was captured from a Bluetooth
+    /// microphone, which the other-audio mute has to outlast.
+    var lastRecordingInputWasBluetooth: Bool {
+        backend.lastRecordingInputWasBluetooth.withLock { $0 }
+    }
+
     func stop() async throws -> CompletedRecording {
         try await backend.stopRecording()
     }
@@ -268,6 +274,10 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
     /// What the open actually got, so a recording that ends when the device goes
     /// can name it. `.automatic` does not know it any other way.
     private var openedDeviceName: String?
+    /// Whether the last recording's microphone was Bluetooth. Locked rather than
+    /// queue-owned: the other-audio mute reads it from the main thread after
+    /// the recording has ended, and `.automatic` resolves the device only here.
+    let lastRecordingInputWasBluetooth = OSAllocatedUnfairLock(initialState: false)
     /// A recording the capture stack ended on its own, with whatever it managed
     /// to keep — `nil` when nothing usable survived. Called on `queue`.
     var onEndedByDevice: ((CompletedRecording?, String) -> Void)?
@@ -496,6 +506,13 @@ private final class CaptureBackend: NSObject, @unchecked Sendable {
             throw AudioRecorderError.inputUnavailable(device.localizedName)
         }
         openedDeviceName = device.localizedName
+        if fileOutput != nil {
+            let transport = UInt32(bitPattern: device.transportType)
+            lastRecordingInputWasBluetooth.withLock {
+                $0 = transport == kAudioDeviceTransportTypeBluetooth
+                    || transport == kAudioDeviceTransportTypeBluetoothLE
+            }
+        }
         let dataOutput = AVCaptureAudioDataOutput()
         dataOutput.setSampleBufferDelegate(self, queue: queue)
         let session = AVCaptureSession()

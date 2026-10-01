@@ -301,9 +301,15 @@ public enum OtherAudioMutePolicy {
     /// instant the input stream closes is heard as a glitch, because a device
     /// changing mode right then has not settled.
     ///
-    /// It covers the transition, not a Bluetooth headset's whole trip out of
-    /// call mode, which runs about a second and stays audible.
-    public static let restoreDelay: TimeInterval = 0.2
+    /// A Bluetooth microphone holds it for the headset's whole trip out of call
+    /// mode, which runs about a second of garbled audio at a volume nothing can
+    /// change.
+    ///
+    /// - Parameter afterBluetoothInput: Whether the recording that just ended
+    ///   was captured from a Bluetooth microphone.
+    public static func restoreDelay(afterBluetoothInput: Bool) -> TimeInterval {
+        afterBluetoothInput ? 2 : 0.2
+    }
 }
 
 public enum AudioSignal {

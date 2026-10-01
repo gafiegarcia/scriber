@@ -110,6 +110,9 @@ final class AppCoordinator: ObservableObject {
     private var settingsWindowOpener: (@MainActor () -> Void)?
     @Published private(set) var otherAudioMuteStatus: OtherAudioMuteStatus?
     private var pendingUnmute: Task<Void, Never>?
+    /// A did-not-land cue that arrived while other audio was still muted, owed
+    /// once the mute lifts.
+    private var alertAwaitingUnmute = false
 
     let preferences: Preferences
     let modelContext: ModelContext
@@ -2553,6 +2556,15 @@ final class AppCoordinator: ObservableObject {
         guard preferences.playDictationFeedbackSounds else { return }
         // A limit-stopped dictation already sounded this at the stop.
         guard !(cue == .dictationDidNotLand && stoppedAtLimit != nil) else { return }
+        // Do not: play the system alert while the mute is still up. macOS renders
+        // it in another process, so the tap silences it — and after a Bluetooth
+        // dictation the mute holds two seconds, long enough for an offline or
+        // no-words failure to land inside it. Played early, it would come out
+        // through the headset's trip out of call mode anyway.
+        if cue == .dictationDidNotLand, pendingUnmute != nil {
+            alertAwaitingUnmute = true
+            return
+        }
         feedbackSounds.play(cue)
     }
 
@@ -2574,6 +2586,7 @@ final class AppCoordinator: ObservableObject {
         // has, rather than tearing one down and building another.
         pendingUnmute?.cancel()
         pendingUnmute = nil
+        alertAwaitingUnmute = false
         // Behind the recording rather than in front of it: building the tap is a
         // chain of blocking Core Audio calls, and a mute that is slow or fails
         // has no claim on how soon the pill appears.
@@ -2609,8 +2622,19 @@ final class AppCoordinator: ObservableObject {
     /// back in the same instant the input stream closes.
     private func endOtherAudioMuting() {
         pendingUnmute?.cancel()
+        // Do not: hold a pending unmute with the setting off. There is no tap to
+        // outlast, and it would hold back the did-not-land cue for nothing.
+        guard preferences.muteOtherAudioWhileDictating else {
+            restoreOtherAudio()
+            return
+        }
+        let bluetooth = recorder.lastRecordingInputWasBluetooth
+        let delay = OtherAudioMutePolicy.restoreDelay(afterBluetoothInput: bluetooth)
+        Self.permissionLog.notice(
+            "mute: restoring in \(delay, privacy: .public)s bluetoothInput=\(bluetooth, privacy: .public)"
+        )
         pendingUnmute = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(OtherAudioMutePolicy.restoreDelay))
+            try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled else { return }
             self?.restoreOtherAudio()
         }
@@ -2622,6 +2646,10 @@ final class AppCoordinator: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             report(unmuting: await otherAudioMuting.endMuting())
+            if alertAwaitingUnmute {
+                alertAwaitingUnmute = false
+                feedbackSounds.play(.dictationDidNotLand)
+            }
         }
     }
 
