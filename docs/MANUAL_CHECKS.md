@@ -137,6 +137,7 @@ Judged by eye. Switch appearance only — a Scriber window cannot see the deskto
 - Turn **Mute other audio while dictating** on, watching whether the explanation appears before the toggle moves, that canceling leaves it off, and where the caption's link lands. Then dictate with music playing. **Spends API credit; ask first.** Spec: Permissions and app lifecycle — "turning it on asks macOS for the grant immediately"
 - With the release published, open Settings → General → Updates and choose **Check for Updates**. Reaches GitHub, spends no API credit. Spec: Platform and release boundary — "Check at most once a day, on launch and on demand"
 - Take the update itself, then reopen Settings and look at the menu bar too. This is the only place the whole path — check, offer, install, relaunch — runs end to end; the mechanism alone is checked before shipping with `--ui-testing-seed-update-offer`. A version that goes on offering itself is what a regression looks like, because nothing clears a stored offer except a check that comes back empty and the next one is not due for a day. Spec: Platform and release boundary — "Discard a stored offer that no longer names something newer"
+- After the first launch of a build signed with a **new certificate**, restart and check Microphone and Accessibility again on the Mac that already runs Scriber. A same-team certificate satisfies the requirement the grants were recorded against, so they should carry over; one that did not is a stale entry, which has to be removed and re-added rather than toggled. Spec: Persistence and security — "survive a macOS restart, without a further login-Keychain prompt"
 
 ### On a Mac or an account that has never run Scriber
 
@@ -144,7 +145,6 @@ Gatekeeper is exercised by the quarantine flag and the notarization ticket, neve
 
 - Install the candidate disk image from `.build/` in an account that has never run Scriber, and walk setup from scratch. **Saving a key and dictating spends API credit; ask first.** Spec: Permissions and app lifecycle — "Every launch presents onboarding until setup is complete"
 - Open that same image on a Mac running the oldest supported macOS, which has never had Xcode installed. The only check that exercises the deployment floor. Spec: Platform and release boundary — "Supported target: Apple silicon and macOS 26 or later"
-- After the first launch of a build signed with a **new certificate**, restart and check Microphone and Accessibility again. A changed signing identity is a different app to macOS, and a stale entry has to be removed and re-added rather than toggled. Spec: Persistence and security — "survive a macOS restart, without a further login-Keychain prompt"
 
 ## When setup changes
 
