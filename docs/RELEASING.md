@@ -8,7 +8,7 @@ Every tag on `main` ships a build, so do not tag until you intend to finish this
 
 - The **Developer ID Application** certificate for team `24U8BM54A3` in the login Keychain, with its private key. Nothing here works without it, and Apple cannot reissue the key.
 
-  It expires **1 Feb 2027**, capped by the legacy Apple intermediate that issued it; a certificate created through the developer portal on the G2 Sub-CA instead runs to 2031. Deliberately not taken: the user wants the renewal as a live exercise. Releases already notarized keep validating after expiry because they are timestamped, so what expiry actually stops is signing anything new. When it lapses, create a replacement, then pin `CODE_SIGN_IDENTITY` to its SHA-1 fingerprint in `Signing.xcconfig` — two certificates sharing one common name make selection by name ambiguous. Users keep their permissions across the change: the designated requirement matches on the team identifier, which does not change.
+  It was issued by the G2 Sub-CA (`Developer ID Certification Authority`, `OU=G2`) and expires **17 Sep 2031**. Releases already notarized keep validating after expiry because they are timestamped, so what expiry actually stops is signing anything new. The Release configuration pins `CODE_SIGN_IDENTITY` to the certificate's SHA-1 fingerprint rather than its name: every Developer ID certificate the account holds carries the same common name, so selection by name turns ambiguous the moment a second one exists. To replace it, create the new certificate on the G2 Sub-CA through the developer portal, back up its `.p12`, and change the fingerprint in the Release configuration and in `Signing.local.xcconfig`; `security find-identity -v -p codesigning` lists the fingerprints. Never revoke the outgoing certificate — revocation can stop already-shipped releases from launching; let it expire. Users keep their permissions across the change: the designated requirement matches on the team identifier and Apple's Developer ID markers, which a G2 certificate carries too.
 
 - `create-dmg`, which arranges the disk image window. `brew install create-dmg`. Build-time only — nothing from it ships inside the app.
 
@@ -71,7 +71,9 @@ create-dmg \
   --no-internet-enable \
   ".build/Scriber-$VERSION.dmg" "$STAGE"
 
-codesign --sign "Developer ID Application" --timestamp ".build/Scriber-$VERSION.dmg"
+IDENTITY=$(xcodebuild -project Scriber.xcodeproj -scheme Scriber -configuration Release -showBuildSettings 2>/dev/null \
+  | awk '$1 == "CODE_SIGN_IDENTITY" {print $3; exit}')
+codesign --sign "$IDENTITY" --timestamp ".build/Scriber-$VERSION.dmg"
 xcrun notarytool submit ".build/Scriber-$VERSION.dmg" --keychain-profile "scriber-notary" --wait
 xcrun stapler staple ".build/Scriber-$VERSION.dmg"
 ```
@@ -84,7 +86,7 @@ The window is light in both appearances, deliberately and unavoidably: Finder dr
 
 `hdiutil` still works but is deprecated across the board on macOS 27 in favor of `diskutil image`. Nothing here calls it directly any more; `create-dmg` does, and its warnings are expected.
 
-The disk image is notarized separately from the app inside it, and both need it. Sign the image before submitting: an unsigned one still passes the checks below, but reports `no usable signature` to any tool that assesses it as an installer.
+The image is signed with the identity Release pins, read from the project so that a certificate renewal changes one place. The disk image is notarized separately from the app inside it, and both need it. Sign the image before submitting: an unsigned one still passes the checks below, but reports `no usable signature` to any tool that assesses it as an installer.
 
 ## 5. Verify what a stranger receives
 

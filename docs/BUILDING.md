@@ -32,7 +32,7 @@ Sign Debug with the Developer ID too, so a Debug build and the installed app are
 
 ```text
 CODE_SIGN_STYLE = Manual
-CODE_SIGN_IDENTITY = Developer ID Application
+CODE_SIGN_IDENTITY = <the SHA-1 fingerprint the Release configuration pins>
 ```
 
 `codesign -d -r- <app>` must then print the same designated requirement for the Debug build as for `/Applications/Scriber.app`. A Debug build signed this way can do anything the installed app has been granted.
