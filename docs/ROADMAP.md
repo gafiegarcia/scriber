@@ -28,7 +28,6 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Integrate the pill into the MacBook notch.** ([Notion task](https://app.notion.com/p/3d2719370402819b9589ccb4dbfe73f7))
 - [ ] **Accept non-key dictation triggers.** ([Notion task](https://app.notion.com/p/3b3719370402804d88cfe80d730c6943))
 - [ ] **Add the spaces the text around the cursor needs.** ([Notion task](https://app.notion.com/p/3b771937040280e69390c2ba149af794))
-- [ ] **Let a truncated dictation entry expand in place.** ([Notion task](https://app.notion.com/p/3ba719370402803a8978eb4d1c39da5c))
 - [ ] **Let keyterm prompting be switched off without deleting the terms.** ([Notion task](https://app.notion.com/p/3be71937040280b19edac6e9b0476d8e))
 - [ ] **Let someone turn off saving dictation history.** ([Notion task](https://app.notion.com/p/3be71937040280979aefe6d76c42c9ae))
 - [ ] **Delete dictation entries once they reach a chosen age.** ([Notion task](https://app.notion.com/p/3cf71937040280b3b7edd3fb8c566ab0))

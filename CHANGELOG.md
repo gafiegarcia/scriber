@@ -6,6 +6,7 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ### Added
 
+- **Read a long dictation in full without copying it.** Dictation history shows up to four lines of each transcript, and the only way to read the rest of a longer one was to copy it out. An entry that is cut off now offers **See more** beneath its text, which opens the whole transcript where it is, and **See less** to fold it back. It appears only on entries that are actually cut off at the window's current width, so narrowing the window can add it to a few more. Entries you open stay open until you close the window.
 - **The last minute of a dictation counts down in amber.** When a recording is a minute from the 20-minute limit, the pill's timer switches to the time left — 0:59 down to 0:00 — on an amber badge, so a long dictation is not cut off without warning. The badge stays readable whatever app is behind the pill, in light and dark mode alike. It makes no sound, because the microphone is still listening.
 
 ### Changed

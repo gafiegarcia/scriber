@@ -28,6 +28,21 @@ struct DictationHistoryView: View {
     /// why ⌘Delete and the last character were always the worst.
     @State private var activeQuery = ""
 
+    /// Entries opened past four lines with **See more**. Held here rather than in
+    /// each row, because `List` discards a row's own state when it scrolls out of
+    /// view and an entry would fold itself back on the way past. Not stored: this
+    /// view goes with the window, so closing it folds every entry again.
+    @State private var expandedIDs: Set<UUID> = []
+
+    private func expansion(of id: UUID) -> Binding<Bool> {
+        Binding(
+            get: { expandedIDs.contains(id) },
+            set: { isExpanded in
+                if isExpanded { expandedIDs.insert(id) } else { expandedIDs.remove(id) }
+            }
+        )
+    }
+
     private var filtered: [DictationRecord] {
         guard !activeQuery.isEmpty else { return records }
         return records.filter { ($0.text ?? "").localizedCaseInsensitiveContains(activeQuery) }
@@ -109,7 +124,7 @@ struct DictationHistoryView: View {
             ForEach(groups) { section in
                 Section {
                     ForEach(section.records) { record in
-                        DictationHistoryRow(record: record)
+                        DictationHistoryRow(record: record, isExpanded: expansion(of: record.id))
                             // Hidden at both edges of a group: the top one landed a
                             // point from the banner's own rule under a stuck day
                             // label and read as one thick rule, and a rule after a
@@ -310,7 +325,22 @@ private struct DictationHistorySection: Identifiable {
 private struct DictationHistoryRow: View {
     @EnvironmentObject private var runtime: AppRuntime
     @Bindable var record: DictationRecord
+    @Binding var isExpanded: Bool
     @EnvironmentObject private var toasts: ToastPresenter
+
+    /// How many lines a transcript shows until **See more** opens it.
+    private static let collapsedLineLimit = 4
+
+    /// The transcript's height at `collapsedLineLimit` and in full, measured on
+    /// hidden copies so the answer is the same whether the entry is open or not.
+    @State private var collapsedHeight: CGFloat = 0
+    @State private var fullHeight: CGFloat = 0
+
+    /// Whether the transcript runs past `collapsedLineLimit` at the row's current
+    /// width, which moves as the window is resized.
+    private var exceedsCollapsedLimit: Bool {
+        fullHeight > collapsedHeight + 0.5
+    }
 
     /// The window's, supplied by SwiftUI. Deleting registers its own undo here, so
     /// Edit ▸ Undo and ⌘Z put a row back — which is the only safety net a delete
@@ -372,9 +402,18 @@ private struct DictationHistoryRow: View {
                 .frame(width: timeColumnWidth, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(rowText)
-                    .lineLimit(4)
-                    .textSelection(.enabled)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(rowText)
+                        .lineLimit(isExpanded ? nil : Self.collapsedLineLimit)
+                        .textSelection(.enabled)
+                        .background(alignment: .topLeading) { transcriptMeasurements }
+                    if exceedsCollapsedLimit {
+                        Button(isExpanded ? "See less" : "See more") { isExpanded.toggle() }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.tint)
+                            .accessibilityIdentifier("history-row-expand")
+                    }
+                }
                 // Duration is gone. A dictation's length is not something the user
                 // came here for — the transcript is — and it cost every row a
                 // second line even when there was nothing else to report.
@@ -515,6 +554,22 @@ private struct DictationHistoryRow: View {
     private var rowText: String {
         if let text = record.text, !text.isEmpty { return text }
         return record.errorMessage ?? "Transcription failed."
+    }
+
+    /// Two invisible copies of the transcript at the visible one's width: one cut
+    /// at `collapsedLineLimit`, one at its natural height. Comparing them is what
+    /// says the transcript is cut off, which no `Text` reports about itself.
+    private var transcriptMeasurements: some View {
+        ZStack(alignment: .topLeading) {
+            Text(rowText)
+                .lineLimit(Self.collapsedLineLimit)
+                .onGeometryChange(for: CGFloat.self, of: \.size.height) { collapsedHeight = $0 }
+            Text(rowText)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self, of: \.size.height) { fullHeight = $0 }
+        }
+        .hidden()
+        .accessibilityHidden(true)
     }
 }
 
