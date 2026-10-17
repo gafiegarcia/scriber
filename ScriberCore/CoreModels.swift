@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 // Shared, UI-independent behavior used by the app and its credit-free tests.
@@ -1004,6 +1005,23 @@ public enum OrphanedAudioImportPolicy {
         referencedAudioPaths: Set<String>
     ) -> Bool {
         !referencedAudioPaths.contains(relativePath) && !knownRecordIDs.contains(recordingID)
+    }
+}
+
+/// Which display a pill goes on: the one the pointer is on.
+public enum PillScreen {
+    /// The index of the display frame holding `pointer`, or nil when it is on
+    /// none. Both are in AppKit's global coordinates, which count upwards from
+    /// the bottom of the primary display.
+    public static func index(holding pointer: CGPoint, in frames: [CGRect]) -> Int? {
+        // Measured: `NSMouseInRect` on an unflipped rect, read on macOS 27, owns
+        // the top and left edges and neither of the others. This is its rule, which
+        // the pill's placement used before this replaced it; `CGRect.contains`
+        // owns the bottom edge instead, so the two disagree where displays meet.
+        frames.firstIndex { frame in
+            pointer.x >= frame.minX && pointer.x < frame.maxX
+                && pointer.y > frame.minY && pointer.y <= frame.maxY
+        }
     }
 }
 

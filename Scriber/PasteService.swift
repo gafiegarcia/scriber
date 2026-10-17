@@ -64,23 +64,6 @@ final class PasteService {
         NSPasteboard.PasteboardType("de.petermaurer.TransientPasteboardType")
     ]
 
-    private(set) var targetScreen: NSScreen?
-
-    /// Records only where the floating pill should appear. The frontmost window
-    /// rectangle comes from the window server, so this performs no Accessibility
-    /// traversal and adds no measurable latency to starting a recording.
-    @discardableResult
-    func captureTarget() -> NSScreen? {
-        targetScreen = nil
-        guard let runningApplication = NSWorkspace.shared.frontmostApplication else { return nil }
-        targetScreen = Self.screenContainingFrontmostWindow(ownedBy: runningApplication.processIdentifier)
-        return targetScreen
-    }
-
-    func clearTarget() {
-        targetScreen = nil
-    }
-
     /// A dictation that lands leaves the clipboard exactly as it found it. The
     /// transcript travels as a concealed, promised item, so clipboard managers
     /// cannot take a copy of dictation in flight nor fake the request that
@@ -478,38 +461,6 @@ final class PasteService {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
         return value as? Bool
-    }
-
-    // MARK: - Screen placement
-
-    /// Resolves the pill's screen from the window server rather than from
-    /// Accessibility. `CGWindowListCopyWindowInfo` returns windows front to back
-    /// and exposes bounds without Screen Recording access.
-    private static func screenContainingFrontmostWindow(ownedBy pid: pid_t) -> NSScreen? {
-        guard let windows = CGWindowListCopyWindowInfo(
-            [.optionOnScreenOnly, .excludeDesktopElements],
-            kCGNullWindowID
-        ) as? [[String: Any]] else { return nil }
-
-        for window in windows {
-            guard window[kCGWindowOwnerPID as String] as? pid_t == pid,
-                  window[kCGWindowLayer as String] as? Int == 0,
-                  let bounds = window[kCGWindowBounds as String] as? NSDictionary,
-                  let frame = CGRect(dictionaryRepresentation: bounds) else { continue }
-            return screen(containingQuartzRect: frame)
-        }
-        return nil
-    }
-
-    private static func screen(containingQuartzRect rect: CGRect) -> NSScreen? {
-        // Quartz measures from the top of the primary display downwards, while
-        // AppKit measures from its bottom upwards.
-        let primaryTop = NSScreen.screens.first?.frame.maxY ?? 0
-        let center = CGPoint(
-            x: rect.midX,
-            y: primaryTop - rect.midY
-        )
-        return NSScreen.screens.first { $0.frame.contains(center) }
     }
 }
 

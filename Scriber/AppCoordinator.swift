@@ -1595,8 +1595,8 @@ final class AppCoordinator: ObservableObject {
         let afterPermissions = ContinuousClock().now
         stopMicrophoneTest()
         let afterMicrophoneTest = ContinuousClock().now
-        pill.setPreferredScreen(paste.captureTarget())
-        let afterCaptureTarget = ContinuousClock().now
+        pill.setPreferredScreen(PillController.screenHoldingPointer())
+        let afterPillScreen = ContinuousClock().now
         // Acknowledged on the press, never on the microphone, so the answer does
         // not depend on what is plugged in. `-160` is the no-signal floor: the
         // waveform draws flat until there is really something to draw, rather
@@ -1625,7 +1625,7 @@ final class AppCoordinator: ObservableObject {
         // can put back without noticing — this is what says so.
         if let pressedAt = lastShortcutPressAt {
             Self.dictationLog.notice(
-                "dictation start pressToPillMs=\(pressedAt.duration(to: afterPill).pillMilliseconds, privacy: .public) permissionsMs=\(pressedAt.duration(to: afterPermissions).pillMilliseconds, privacy: .public) micTestMs=\(afterPermissions.duration(to: afterMicrophoneTest).pillMilliseconds, privacy: .public) captureTargetMs=\(afterMicrophoneTest.duration(to: afterCaptureTarget).pillMilliseconds, privacy: .public) soundAfterPillMs=\(afterPill.duration(to: afterFeedback).pillMilliseconds, privacy: .public)"
+                "dictation start pressToPillMs=\(pressedAt.duration(to: afterPill).pillMilliseconds, privacy: .public) permissionsMs=\(pressedAt.duration(to: afterPermissions).pillMilliseconds, privacy: .public) micTestMs=\(afterPermissions.duration(to: afterMicrophoneTest).pillMilliseconds, privacy: .public) pillScreenMs=\(afterMicrophoneTest.duration(to: afterPillScreen).pillMilliseconds, privacy: .public) soundAfterPillMs=\(afterPill.duration(to: afterFeedback).pillMilliseconds, privacy: .public)"
             )
             lastShortcutPressAt = nil
         }
@@ -1717,7 +1717,6 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func presentZeroInputVolume() {
-        paste.clearTarget()
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)
         playFeedback(.dictationDidNotLand)
@@ -1853,7 +1852,6 @@ final class AppCoordinator: ObservableObject {
                     returnToIdle()
                     return
                 }
-                paste.clearTarget()
                 pill.setPreferredScreen(nil)
                 shortcuts.setMode(.idle)
                 playFeedback(.dictationDidNotLand)
@@ -1918,7 +1916,6 @@ final class AppCoordinator: ObservableObject {
             record.transcriptionState = .failed
             record.errorMessage = "No internet connection"
             try? modelContext.save()
-            paste.clearTarget()
             pill.setPreferredScreen(nil)
             if gate.isIdle { shortcuts.setMode(.idle) }
             playFeedback(.dictationDidNotLand)
@@ -2017,7 +2014,6 @@ final class AppCoordinator: ObservableObject {
                 await deliverTranscript(transcript, record: record)
             } else if delivery == .automaticPaste {
                 copy(record)
-                paste.clearTarget()
                 setPhase(.dictationCopied(text: transcript, message: Self.copiedInsteadOfPastingMessage))
             } else {
                 copy(record)
@@ -2149,7 +2145,6 @@ final class AppCoordinator: ObservableObject {
         currentRecord = nil
         currentRecording = nil
         endOtherAudioMuting()
-        paste.clearTarget()
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)
         // A deliberate retry is always answered. Its duration says nothing about
@@ -2205,7 +2200,6 @@ final class AppCoordinator: ObservableObject {
                 returnToIdle()
                 return
             }
-            paste.clearTarget()
             shortcuts.setMode(.idle)
             playFeedback(.dictationCanceled)
             showMessage("Canceled")
@@ -2246,7 +2240,6 @@ final class AppCoordinator: ObservableObject {
         meterTask = nil
         endOtherAudioMuting()
         shortcuts.setMode(.idle)
-        paste.clearTarget()
         pill.setPreferredScreen(nil)
         // Known and unfixed: this cue makes macOS wash the whole screen white for
         // about a second — a 32% white layer over everything, menu bar included,
@@ -2306,7 +2299,6 @@ final class AppCoordinator: ObservableObject {
             detectedSignal: completed.detectedSignal
         ) else {
             AudioRecorder.delete(relativePath: completed.relativePath)
-            paste.clearTarget()
             shortcuts.setMode(.idle)
             playFeedback(.dictationCanceled)
             showMessage("Canceled")
@@ -2373,7 +2365,6 @@ final class AppCoordinator: ObservableObject {
         canceledTranscription = CanceledTranscription(
             run: run, recordID: record.id, interruptedPhase: interrupted
         )
-        paste.clearTarget()
         pill.setPreferredScreen(nil)
         if gate.isIdle { shortcuts.setMode(.idle) }
         playFeedback(.dictationCanceled)
@@ -2735,7 +2726,6 @@ final class AppCoordinator: ObservableObject {
         // pill is gone the row in history is the only route back, which is the
         // point: nothing about a cancellation is remembered beyond the offer.
         canceledTranscription = nil
-        paste.clearTarget()
         pill.setPreferredScreen(nil)
         shortcuts.setMode(.idle)
         setPhase(.idle)

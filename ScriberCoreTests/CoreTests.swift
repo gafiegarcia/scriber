@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import Testing
 @testable import ScriberCore
@@ -259,6 +260,45 @@ struct LaunchAtLoginStateTests {
         #expect(LaunchAtLoginState.enabled.recoveryAdvice == nil)
         #expect(LaunchAtLoginState.disabled.recoveryAdvice == nil)
         #expect(LaunchAtLoginState.requiresApproval.recoveryAdvice?.contains("Background App Activity") == true)
+    }
+}
+
+@Suite("Pill screen")
+struct PillScreenTests {
+    /// A laptop display with an external one to its right, and a third stacked
+    /// above the laptop — the arrangements whose shared edges a pointer can sit on.
+    let laptop = CGRect(x: 0, y: 0, width: 1470, height: 956)
+    let right = CGRect(x: 1470, y: -200, width: 2560, height: 1440)
+    let above = CGRect(x: 0, y: 956, width: 1920, height: 1080)
+
+    @Test("The pill goes on the display the pointer is on")
+    func pointerInside() {
+        #expect(PillScreen.index(holding: CGPoint(x: 700, y: 400), in: [laptop, right]) == 0)
+        #expect(PillScreen.index(holding: CGPoint(x: 2000, y: 400), in: [laptop, right]) == 1)
+    }
+
+    @Test("A shared vertical edge belongs to the display on its right")
+    func sideBySideEdge() {
+        #expect(PillScreen.index(holding: CGPoint(x: 1470, y: 400), in: [laptop, right]) == 1)
+        #expect(PillScreen.index(holding: CGPoint(x: 1469.5, y: 400), in: [laptop, right]) == 0)
+    }
+
+    @Test("A shared horizontal edge belongs to the display below it")
+    func stackedEdge() {
+        #expect(PillScreen.index(holding: CGPoint(x: 700, y: 956), in: [laptop, above]) == 0)
+        #expect(PillScreen.index(holding: CGPoint(x: 700, y: 956.5), in: [laptop, above]) == 1)
+    }
+
+    @Test("A display's own top row is on it, and its bottom row is not")
+    func singleDisplayEdges() {
+        #expect(PillScreen.index(holding: CGPoint(x: 700, y: 956), in: [laptop]) == 0)
+        #expect(PillScreen.index(holding: CGPoint(x: 700, y: 0), in: [laptop]) == nil)
+    }
+
+    @Test("A pointer on no display leaves the choice to the caller")
+    func pointerOutside() {
+        #expect(PillScreen.index(holding: CGPoint(x: -10, y: 400), in: [laptop, right]) == nil)
+        #expect(PillScreen.index(holding: CGPoint(x: 700, y: 400), in: []) == nil)
     }
 }
 

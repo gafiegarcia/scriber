@@ -4,7 +4,7 @@ This is the current decision record for delivering a finished dictation into ano
 
 ## Target rule
 
-Delivery follows the text cursor that has keyboard focus when transcription finishes. It does not retain the app, element, or selection that was focused when recording began. Record start therefore performs no Accessibility lookup; it may query the window server only to decide which screen should hold the pill.
+Delivery follows the text cursor that has keyboard focus when transcription finishes. It does not retain the app, element, or selection that was focused when recording began. Record start therefore performs no Accessibility lookup, and asks no other app anything: the pill's screen is the one the pointer is on.
 
 At delivery time, the frontmost process is the normal paste target. Keyboard focus may instead belong to a different process presenting a nonactivating panel, as Raycast does. Redirect to that process only when its focused Accessibility ancestry genuinely exposes text input. Never redirect delivery into Scriber itself.
 

@@ -19,7 +19,7 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Decide whether the history's scrollbar has to tell the truth.** ([Notion task](https://app.notion.com/p/3d2719370402818eaea1e0194be139a8))
 - [ ] **Give the Settings window a title.** ([Notion task](https://app.notion.com/p/3c5719370402800b8517f4dac5bb2d4e))
 - [ ] **Offer a setting to keep every dictation on the clipboard.** ([Notion task](https://app.notion.com/p/3cd719370402811bba3bc8186d380866))
-- [ ] **Put the pill on the screen the pointer is on, and move it when the pointer moves.** ([Notion task](https://app.notion.com/p/3d271937040281668a7ed824244f4afc))
+- [ ] **Move the pill to whichever screen the pointer moves to while it is up.** ([Notion task](https://app.notion.com/p/3d271937040281668a7ed824244f4afc))
 - [ ] **Let someone turn off diagnostic logging.** ([Notion task](https://app.notion.com/p/3d271937040281af9bc2f6922ba0a860))
 - [ ] **Add Sparkle.** ([Notion task](https://app.notion.com/p/3c77193704028162b235e06b9c0cf1a3))
 - [ ] **Walk every window with VoiceOver.** ([Notion task](https://app.notion.com/p/3d2719370402819989a1c90e3491965a))

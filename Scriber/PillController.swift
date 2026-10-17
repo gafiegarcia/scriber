@@ -806,9 +806,15 @@ final class PillController {
 #endif
     }
 
+    /// The display the pointer is on, which is where a pill goes — not the one
+    /// holding the focused window, which delivery follows instead.
+    static func screenHoldingPointer() -> NSScreen? {
+        let screens = NSScreen.screens
+        return PillScreen.index(holding: NSEvent.mouseLocation, in: screens.map(\.frame)).map { screens[$0] }
+    }
+
     private func positionPanel() {
-        let mouse = NSEvent.mouseLocation
-        let screen = preferredScreen ?? NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) ?? NSScreen.main
+        let screen = preferredScreen ?? Self.screenHoldingPointer() ?? NSScreen.main
         guard let frame = screen?.visibleFrame else { return }
         let x = frame.midX - panel.frame.width / 2
         let y = frame.minY + 18 - glassMargin
