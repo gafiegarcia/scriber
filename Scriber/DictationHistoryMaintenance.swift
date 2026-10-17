@@ -11,8 +11,20 @@ final class DictationHistoryMaintenance {
         self.servicesAllowed = servicesAllowed
     }
 
+    /// The dictations either pass can act on: any that has not succeeded, and any
+    /// still holding a recording. Everything else is a succeeded dictation with
+    /// nothing on disk, which is almost the whole of a long history and which
+    /// neither pass touches — loading it only makes launch slower as the history
+    /// grows.
+    private static var maintainable: FetchDescriptor<DictationRecord> {
+        let succeeded = TranscriptionState.succeeded.rawValue
+        return FetchDescriptor(predicate: #Predicate {
+            $0.transcriptionStateRaw != succeeded || $0.pendingAudioRelativePath != nil
+        })
+    }
+
     func recoverPersistedAndOrphanedRecords() {
-        guard let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return }
+        guard let records = try? modelContext.fetch(Self.maintainable) else { return }
         // Legacy: rows from before this state was spelled the American way. Nothing
         // writes "cancelled" any more, so only a build older than the rename can have
         // left one; without this the getter's `?? .failed` relabels every one of them
@@ -47,8 +59,8 @@ final class DictationHistoryMaintenance {
         // record reference was cleared. Such a file must not be reimported: it would
         // upsert over a succeeded dictation and destroy the saved transcript.
         let referencedAudio = Set(records.compactMap(\.pendingAudioRelativePath))
-        let knownRecordIDs = Set(records.map(\.id))
-        if let files = try? AudioRecorder.recoverableAudioFiles() {
+        if let files = try? AudioRecorder.recoverableAudioFiles(),
+           let knownRecordIDs = knownRecordIDs(namedBy: files) {
             for file in files {
                 let values = try? file.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
                 let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent) ?? UUID()
@@ -71,6 +83,19 @@ final class DictationHistoryMaintenance {
         try? modelContext.save()
     }
 
+    /// The dictations that exist under the IDs these recordings are named for, or
+    /// nil when the store could not say — which must skip the import rather than
+    /// read as no dictation existing.
+    ///
+    /// Asked of the whole store, not of `maintainable`: a succeeded dictation whose
+    /// recording failed to delete holds no path, so `maintainable` leaves it out,
+    /// and it is exactly the dictation this lookup protects.
+    private func knownRecordIDs(namedBy files: [URL]) -> Set<UUID>? {
+        let fileIDs = files.compactMap { UUID(uuidString: $0.deletingPathExtension().lastPathComponent) }
+        let named = FetchDescriptor<DictationRecord>(predicate: #Predicate { fileIDs.contains($0.id) })
+        return (try? modelContext.fetch(named)).map { Set($0.map(\.id)) }
+    }
+
     /// Removes failed and canceled dictations that have nothing left to offer,
     /// along with any retained audio still behind them. Such a dictation earns its
     /// row by being retryable; once the recording has expired or gone missing and
@@ -85,7 +110,7 @@ final class DictationHistoryMaintenance {
         // recordings as referenced by nothing and deletes the expired ones. This
         // guard has to cover every entry point, not just the launch call site.
         guard servicesAllowed, retention != .never,
-              let records = try? modelContext.fetch(FetchDescriptor<DictationRecord>()) else { return [] }
+              let records = try? modelContext.fetch(Self.maintainable) else { return [] }
 
         // `nil` when the directory could not be read, which the policy needs to
         // tell apart from a directory that is genuinely empty. One listing serves
