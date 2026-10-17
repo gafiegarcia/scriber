@@ -402,17 +402,15 @@ private struct DictationHistoryRow: View {
                 .frame(width: timeColumnWidth, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 6) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(rowText)
-                        .lineLimit(isExpanded ? nil : Self.collapsedLineLimit)
-                        .textSelection(.enabled)
-                        .background(alignment: .topLeading) { transcriptMeasurements }
-                    if exceedsCollapsedLimit {
-                        Button(isExpanded ? "See less" : "See more") { isExpanded.toggle() }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.tint)
-                            .accessibilityIdentifier("history-row-expand")
-                    }
+                Text(rowText)
+                    .lineLimit(isExpanded ? nil : Self.collapsedLineLimit)
+                    .textSelection(.enabled)
+                    .background(alignment: .topLeading) { transcriptMeasurements }
+                if exceedsCollapsedLimit {
+                    Button(isExpanded ? "See less" : "See more") { isExpanded.toggle() }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.tint)
+                        .accessibilityIdentifier("history-row-expand")
                 }
                 // Duration is gone. A dictation's length is not something the user
                 // came here for — the transcript is — and it cost every row a
