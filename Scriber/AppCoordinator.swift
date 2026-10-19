@@ -1323,12 +1323,20 @@ final class AppCoordinator: ObservableObject {
         Task { await transcribeCurrentRecord(delivery: .copy) }
     }
 
+    /// Delivers a dictation by clipboard, and records that it was delivered so.
     func copy(_ record: DictationRecord) {
+        copyToClipboard(record)
+        record.deliveryState = .copied
+        try? modelContext.save()
+    }
+
+    /// Puts a transcript on the clipboard and writes nothing to the store. Copying
+    /// from history is not a delivery, so it leaves the record of how the
+    /// dictation was delivered alone.
+    func copyToClipboard(_ record: DictationRecord) {
         guard let text = record.text else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-        record.deliveryState = .copied
-        try? modelContext.save()
     }
 
     /// Deletes a dictation now, and teaches `undoManager` how to put it back.

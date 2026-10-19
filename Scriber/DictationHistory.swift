@@ -528,7 +528,7 @@ private struct DictationHistoryRow: View {
     /// toast, so acknowledgement does not change this row's layout.
     private func copy() {
         guard canCopy else { return }
-        runtime.coordinator.copy(record)
+        runtime.coordinator.copyToClipboard(record)
         toasts.post(.transcriptCopied())
     }
 
