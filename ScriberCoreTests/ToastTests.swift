@@ -15,6 +15,38 @@ struct ToastTests {
         #expect(toast.accessibilityIdentifier == "dictation-copy-toast")
     }
 
+    @Test("A deleted dictation says how to bring it back")
+    func deletedDictation() {
+        let toast = Toast.dictationDeleted()
+        #expect(toast.title == "Dictation deleted")
+        #expect(toast.hint == "⌘Z to undo")
+        #expect(toast.tone == .neutral)
+        #expect(toast.accessibilityIdentifier == "dictation-delete-toast")
+        #expect(toast.undoActionName == UndoActionName.deleteDictation)
+    }
+
+    @Test("A second deletion replaces the first deletion's toast")
+    func deletionsReplaceEachOther() {
+        let first = Toast.dictationDeleted()
+        let second = Toast.dictationDeleted()
+        let stack = ToastStack.posting(second, onto: ToastStack.posting(first, onto: []))
+        #expect(stack.map(\.id) == [second.id])
+    }
+
+    @Test("A deletion leaves other toasts standing")
+    func deletionKeepsOtherToasts() {
+        let copied = Toast.transcriptCopied()
+        let deleted = Toast.dictationDeleted()
+        #expect(ToastStack.posting(deleted, onto: [copied]).map(\.id) == [copied.id, deleted.id])
+    }
+
+    @Test("Toasts without an undo stack up")
+    func copiesStack() {
+        let first = Toast.transcriptCopied()
+        let second = Toast.transcriptCopied()
+        #expect(ToastStack.posting(second, onto: [first]).map(\.id) == [first.id, second.id])
+    }
+
     @Test("An empty stack shows nothing")
     func emptyStack() {
         #expect(ToastStack.visible([]).isEmpty)
@@ -49,5 +81,6 @@ struct ToastTests {
     @Test("Toasts are transient by construction")
     func toastsAreTransient() {
         #expect(Toast.transcriptCopied().duration > 0)
+        #expect(Toast.dictationDeleted().duration > 0)
     }
 }

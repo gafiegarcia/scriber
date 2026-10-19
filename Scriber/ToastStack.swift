@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 #if SWIFT_PACKAGE
 import ScriberCore
@@ -10,9 +11,27 @@ final class ToastPresenter: ObservableObject {
     @Published private(set) var toasts: [Toast] = []
 
     private var expiries: [UUID: Task<Void, Never>] = [:]
+    private var undoObserver: AnyCancellable?
+
+    init() {
+        undoObserver = NotificationCenter.default
+            .publisher(for: .NSUndoManagerDidUndoChange)
+            .sink { [weak self] notification in
+                MainActor.assumeIsolated {
+                    guard let self,
+                          let undone = (notification.object as? UndoManager)?.redoActionName
+                    else { return }
+                    self.toasts
+                        .filter { $0.undoActionName == undone }
+                        .forEach { self.dismiss($0.id) }
+                }
+            }
+    }
 
     func post(_ toast: Toast) {
-        toasts.append(toast)
+        let replaced = Set(toasts.map(\.id))
+        toasts = ToastStack.posting(toast, onto: toasts)
+        replaced.subtracting(toasts.map(\.id)).forEach { expiries.removeValue(forKey: $0)?.cancel() }
         expiries[toast.id] = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(toast.duration))
             guard !Task.isCancelled else { return }
@@ -34,7 +53,8 @@ final class ToastPresenter: ObservableObject {
     }
 }
 
-/// Bottom-trailing inside the window, growing upward.
+/// Bottom-trailing inside the window, growing upward. A toast materializes and
+/// dematerializes where it sits; the rest of the stack moves to make room.
 ///
 /// Attached to the window shell rather than to the Dictation page, so a second
 /// workspace inherits it without moving.
@@ -43,14 +63,13 @@ struct ToastStackView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 8) {
-            ForEach(ToastStack.visible(presenter.toasts)) { toast in
-                ToastView(toast: toast)
-                    .transition(
-                        reduceMotion
-                            ? .opacity
-                            : .move(edge: .trailing).combined(with: .opacity)
-                    )
+        GlassEffectContainer(spacing: 0) {
+            VStack(alignment: .trailing, spacing: 8) {
+                ForEach(ToastStack.visible(presenter.toasts)) { toast in
+                    ToastView(toast: toast)
+                        .glassEffectTransition(reduceMotion ? .identity : .materialize)
+                        .transition(.opacity)
+                }
             }
         }
         .padding(16)
@@ -63,11 +82,21 @@ private struct ToastView: View {
     let toast: Toast
 
     var body: some View {
-        Label(toast.title, systemImage: toast.systemImage)
+        Label {
+            HStack(spacing: 6) {
+                Text(toast.title)
+                if let hint = toast.hint {
+                    Text(hint).foregroundStyle(.secondary)
+                }
+            }
+        } icon: {
+            Image(systemName: toast.systemImage)
+        }
             .font(.callout.weight(.medium))
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .glassEffect(.regular.tint(toast.tone.glassTint), in: .capsule)
+            .accessibilityElement(children: .combine)
             .accessibilityIdentifier(toast.accessibilityIdentifier)
     }
 }

@@ -1340,8 +1340,10 @@ final class AppCoordinator: ObservableObject {
     /// removed, so undo restores the row and its Retry both.
     ///
     /// Pass the window's undo manager to make the deletion undoable; a `nil` one
-    /// deletes just as thoroughly, minus the way back.
-    func delete(_ record: DictationRecord, undoManager: UndoManager? = nil) {
+    /// deletes just as thoroughly, minus the way back. Returns whether the
+    /// dictation was deleted — one still being transcribed is not.
+    @discardableResult
+    func delete(_ record: DictationRecord, undoManager: UndoManager? = nil) -> Bool {
         // Do not: rely on the row's disabled Delete alone to keep a dictation
         // being transcribed out of here. `retry` sets `retryingRecordID`
         // synchronously, but SwiftUI redraws the row that reads it on a later
@@ -1366,7 +1368,7 @@ final class AppCoordinator: ObservableObject {
         //
         // `clearDictationHistory` cannot trip it: its fetch predicate already
         // excludes transcribing records.
-        guard record.transcriptionState != .transcribing else { return }
+        guard record.transcriptionState != .transcribing else { return false }
         let snapshot = DeletedDictation(record: record)
         // Held only when something can reach it again. Without an undo manager
         // there is no way back, so holding the recording would fill the hold with
@@ -1383,12 +1385,13 @@ final class AppCoordinator: ObservableObject {
         modelContext.delete(record)
         try? modelContext.save()
 
-        undoManager?.setActionName("Delete Dictation")
+        undoManager?.setActionName(UndoActionName.deleteDictation)
         undoManager?.registerUndo(withTarget: self) { coordinator in
             MainActor.assumeIsolated {
                 coordinator.restore(snapshot, audioHeld: audioHeld, undoManager: undoManager)
             }
         }
+        return true
     }
 
     /// Reinserts a deleted dictation. Registering the delete again from in here is
@@ -1405,7 +1408,7 @@ final class AppCoordinator: ObservableObject {
         modelContext.insert(record)
         try? modelContext.save()
 
-        undoManager?.setActionName("Delete Dictation")
+        undoManager?.setActionName(UndoActionName.deleteDictation)
         undoManager?.registerUndo(withTarget: self) { coordinator in
             MainActor.assumeIsolated {
                 coordinator.deleteRestoredDictation(id: snapshot.id, undoManager: undoManager)

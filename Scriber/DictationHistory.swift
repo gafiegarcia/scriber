@@ -532,8 +532,8 @@ private struct DictationHistoryRow: View {
         toasts.post(.transcriptCopied())
     }
 
-    /// Nothing announces the deletion: the row leaving is the acknowledgement, and
-    /// a toast on every delete is noise while a history is being cleared out.
+    /// The toast is there to teach ⌘Z, so it appears only when the deletion
+    /// registered an undo.
     private func delete() {
         // Platform: clicking a button never takes focus from a text field on
         // macOS, and the window opens with search focused — so without this the
@@ -546,7 +546,9 @@ private struct DictationHistoryRow: View {
         // that asks nothing first, which is why it is worth surrendering the
         // caret for.
         NSApp.keyWindow?.makeFirstResponder(nil)
-        runtime.coordinator.delete(record, undoManager: undoManager)
+        let deleted = runtime.coordinator.delete(record, undoManager: undoManager)
+        guard deleted, undoManager != nil else { return }
+        toasts.post(.dictationDeleted())
     }
 
     private var rowText: String {
