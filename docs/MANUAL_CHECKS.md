@@ -108,7 +108,7 @@ Judged by eye, so these are the user's alone — the accessibility tree cannot a
 Judged by eye. Switch appearance only — a Scriber window cannot see the desktop, so changing wallpaper proves nothing about any of these except the pill.
 
 - On a window whose size is fixed, check **Window ▸ Center** is enabled rather than grayed, then press ⌃🌐C with a confirmation on screen, where the default button is the one that confirms. Spec: Identity and workspace boundary — "a disabled menu item does not consume its key"
-- The toolbar, the sticky day headers, the warning control, the list's row separators, and the copy toast, in both appearances. Spec: Identity and workspace boundary — "Every surface reads comfortably in both light and dark appearance"
+- The toolbar, the sticky day headers, the warning control, the list's row separators, and the copy and deletion toasts, in both appearances. Spec: Identity and workspace boundary — "Every surface reads comfortably in both light and dark appearance"
 - The pill over both a light and a dark desktop. Wallpaper is a real variable here and nowhere else. Spec: Identity and workspace boundary — "the one place the wallpaper behind it is a real variable"
 - Scroll a Settings tab taller than the window — General is one — in both appearances, watching the scroll indicator and the cards' margins. Spec: Identity and workspace boundary — "A Settings tab scrolls under its toolbar"
 - The end-of-tab buttons on General and ElevenLabs, side by side, and against System Settings where the same shape appears at the bottom of a pane. Reading each tab on its own hides this: the gap only looks wrong beside a correct one. Spec: Product goal — "The gap above such an action is what says it is the tab's"
