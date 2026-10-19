@@ -20,7 +20,7 @@ public enum ToastTone: Hashable, Sendable {
 public struct Toast: Identifiable, Equatable, Sendable {
     public let id: UUID
     public let title: String
-    /// Set quieter beside the title: how to act on what the title reports.
+    /// Set beside the title: how to act on what the title reports.
     public let hint: String?
     public let systemImage: String
     public let tone: ToastTone
