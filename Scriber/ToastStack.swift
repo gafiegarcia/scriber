@@ -102,8 +102,8 @@ private struct ToastView: View {
 }
 
 /// Lives here rather than beside the tone itself because `ScriberCore` is
-/// deliberately free of SwiftUI. The floating pill reads the same two properties,
-/// which is what stops it and the toast stack from coloring one outcome twice.
+/// deliberately free of SwiftUI. The floating pill reads the same `accent`, which
+/// is what stops it and the toast stack from coloring one outcome twice.
 extension ToastTone {
     /// Symbols carry this at full strength.
     var accent: Color? {
@@ -116,6 +116,14 @@ extension ToastTone {
     }
 
     /// Tint, not fill: the glass still has to read as glass over whatever is
-    /// behind it.
-    var glassTint: Color { accent?.opacity(0.18) ?? .clear }
+    /// behind it. A neutral toast takes the window's own background, which quiets
+    /// the colored row controls under it without adding a hue of its own.
+    var glassTint: Color {
+        if let accent { return accent.opacity(0.18) }
+        // Measured: in dark mode, the color showing through behind the hint fell
+        // 17% at 0.18, 42% at 0.4 and 59% at 0.6 — the window's color sits close
+        // to the glass's own, so it takes more of it to register. 0.4 was chosen
+        // by eye as the most that still reads as glass.
+        return Color(nsColor: .windowBackgroundColor).opacity(0.4)
+    }
 }
