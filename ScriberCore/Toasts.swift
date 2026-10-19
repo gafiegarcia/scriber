@@ -65,7 +65,7 @@ public struct Toast: Identifiable, Equatable, Sendable {
         Toast(
             id: id,
             title: "Dictation deleted",
-            hint: "⌘Z to undo",
+            hint: "(⌘Z to undo)",
             systemImage: "trash",
             tone: .neutral,
             duration: 5,

@@ -19,7 +19,7 @@ struct ToastTests {
     func deletedDictation() {
         let toast = Toast.dictationDeleted()
         #expect(toast.title == "Dictation deleted")
-        #expect(toast.hint == "⌘Z to undo")
+        #expect(toast.hint == "(⌘Z to undo)")
         #expect(toast.tone == .neutral)
         #expect(toast.duration == 5)
         #expect(toast.accessibilityIdentifier == "dictation-delete-toast")
