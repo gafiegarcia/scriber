@@ -1290,6 +1290,10 @@ public enum ShortcutMatchingSuspension: Hashable, Sendable {
     /// Setup is on a step ahead of its dictation step, where the chord belongs to
     /// setup's own test of it rather than to a dictation.
     case setupBeforeDictationStep
+    /// The Mac is locked. The lock screen's secure input hides every key but the
+    /// modifiers from the tap, so a modifier-only chord could start a dictation
+    /// that Escape can never reach.
+    case screenLocked
 }
 
 /// Kept apart from the tap because that tap is head-inserted at the HID level:

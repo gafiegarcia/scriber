@@ -414,6 +414,22 @@ final class AppCoordinator: ObservableObject {
                 }
                 .store(in: &cancellables)
 
+            // Platform: `com.apple.screenIsLocked` and `com.apple.screenIsUnlocked`
+            // are undocumented, and are the only signal that the lock screen is up;
+            // `NSWorkspace`'s session notifications cover fast user switching only.
+            DistributedNotificationCenter.default()
+                .publisher(for: Notification.Name("com.apple.screenIsLocked"))
+                .sink { [weak self] _ in
+                    Task { @MainActor in self?.setScreenLocked(true) }
+                }
+                .store(in: &cancellables)
+            DistributedNotificationCenter.default()
+                .publisher(for: Notification.Name("com.apple.screenIsUnlocked"))
+                .sink { [weak self] _ in
+                    Task { @MainActor in self?.setScreenLocked(false) }
+                }
+                .store(in: &cancellables)
+
             Timer.publish(every: Self.permissionPollInterval, on: .main, in: .common)
                 .autoconnect()
                 .sink { [weak self] _ in
@@ -1244,6 +1260,17 @@ final class AppCoordinator: ObservableObject {
     /// Settings window.
     func setSetupBeforeDictationStep(_ active: Bool) {
         shortcuts.setMatchingSuspended(active, for: .setupBeforeDictationStep)
+    }
+
+    /// Holds the shortcut off while the Mac is locked, and ends whatever a
+    /// dictation was doing as Escape would, since Escape cannot reach Scriber
+    /// past the lock screen.
+    private func setScreenLocked(_ locked: Bool) {
+        shortcuts.setMatchingSuspended(locked, for: .screenLocked)
+        let dismissed = locked && dismissVisiblePill()
+        Self.permissionLog.notice(
+            "shortcutMonitor: screenLocked=\(locked, privacy: .public) dismissedPill=\(dismissed, privacy: .public)"
+        )
     }
 
     /// Counts the runs of setup, so the flow can be rebuilt rather than resumed.
