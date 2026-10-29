@@ -118,7 +118,7 @@ Only the three things step 7 produces can still be wrong after tagging, and none
 
 Merge to `main` fast-forward only and tag there, never on the branch. Then:
 
-Release notes are their own document, not the changelog pasted in. Take the version's Added/Fixed lists from the [changelog](../CHANGELOG.md) and nothing else from it — the build number and signing state belong in the changelog and the tag message, where someone is looking for them, and read as ceremony on a page whose job is to get an app onto a Mac.
+Release notes are their own document, not the changelog pasted in. Take the version's Added, Changed, Fixed and Removed lists from the [changelog](../CHANGELOG.md) and nothing else from it — the build number and signing state belong in the changelog and the tag message, where someone is looking for them, and read as ceremony on a page whose job is to get an app onto a Mac.
 
 **Two readers arrive here and the notes serve both.** The in-app offer sends someone who already has Scriber, cold, having read nothing else. The README's download link points at `/releases/latest`, which resolves to whatever the newest release is — so the newest notes are also the install page for every newcomer who does not use Homebrew, permanently and without being written for it. Written for the upgrader alone, the newest release tells a first-time reader to quit an app they do not have and to answer a Replace prompt they will never see.
 
@@ -142,6 +142,7 @@ This shape serves both by letting each skip what is not theirs, in one pass down
 …two or three sentences naming the worst thing fixed…
 
 ### Added
+### Changed
 ### Fixed
 ```
 
