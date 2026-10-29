@@ -4,6 +4,8 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+## 0.9.7 (build 400) — 2026-10-29
+
 ### Added
 
 - **Read a long dictation in full without copying it.** Dictation history shows up to four lines of each transcript, and the only way to read the rest of a longer one was to copy it out. An entry that is cut off now offers **See more** beneath its text, which opens the whole transcript where it is, and **See less** to fold it back. It appears only on entries that are actually cut off at the window's current width, so narrowing the window can add it to a few more. Entries you open stay open until you close the window.
