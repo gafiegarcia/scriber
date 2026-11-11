@@ -157,6 +157,9 @@ enum AppLaunchConfiguration {
         // Ahead of the preference reads, so the check does not depend on how the
         // user has these set at the time.
         if simulatesLoginLaunch { return true }
+        // An update installs itself unasked, so it comes back unannounced,
+        // whatever "Start in the background" says about login launches.
+        if relaunchesIntoStagedUpdate && !launchesIntoOnboarding { return true }
         // Nothing here asks whether the login item is registered: macOS starting
         // Scriber at login is the proof, and `isLoginItemLaunch` is how that
         // arrives.
@@ -164,6 +167,38 @@ enum AppLaunchConfiguration {
         return Preferences.optInFlag("startInBackground")
             && UserDefaults.standard.bool(forKey: "onboardingComplete")
     }
+
+    /// Whether Sparkle is relaunching Scriber into the update an earlier launch
+    /// staged — at a screen lock, or at the launch after a crash or force quit.
+    /// Sparkle relaunches as an ordinary open, which presents the main window;
+    /// this is how such a launch knows to come back as quietly as a login launch.
+    ///
+    /// Recognized by the new build alone, from the staged record the old build
+    /// left, so it holds on an update from a build that knew nothing of it. A
+    /// version installed by hand was never staged, and opens its window as any
+    /// launch the user makes does.
+    ///
+    /// Read once and kept: `noteLaunch` (`SoftwareUpdater.swift`) clears the
+    /// staged record early in this launch, after which a fresh read says no.
+    @MainActor
+    static let relaunchesIntoStagedUpdate: Bool = {
+        let defaults: UserDefaults?
+        if isUITesting {
+            // Only an update test keeps its preferences between launches, so
+            // only it can have staged anything.
+            defaults = debugAppcastURL == nil ? nil : UserDefaults(suiteName: updateTestSuiteName)
+        } else {
+            defaults = .standard
+        }
+        guard let defaults,
+              let staged = Preferences.storedStagedUpdate(in: defaults),
+              let running = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        else { return false }
+        return staged.build == running
+    }()
+
+    /// The preferences suite an update test keeps between its launches.
+    static let updateTestSuiteName = "com.gafiegarcia.scriber.update-test"
 
     /// Whether this launch begins in setup.
     ///
@@ -383,7 +418,9 @@ final class AppRuntime: ObservableObject {
             // reads what the old one left — that an update was staged, which build
             // ran last — so its suite is kept, and kept apart from the ordinary one.
             let keepsDefaults = AppLaunchConfiguration.debugAppcastURL != nil
-            let suiteName = keepsDefaults ? "com.gafiegarcia.scriber.update-test" : "com.gafiegarcia.scriber.ui-testing"
+            let suiteName = keepsDefaults
+                ? AppLaunchConfiguration.updateTestSuiteName
+                : "com.gafiegarcia.scriber.ui-testing"
             let defaults = UserDefaults(suiteName: suiteName)!
             if !keepsDefaults { defaults.removePersistentDomain(forName: suiteName) }
             preferences = Preferences(defaults: defaults, defaultAudioInputSelection: .automatic)
@@ -900,6 +937,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Self.windowLog.notice(
             """
             launch: loginItem=\(LoginItemLaunch.isLoginItemLaunch, privacy: .public) \
+            afterUpdate=\(AppLaunchConfiguration.relaunchesIntoStagedUpdate, privacy: .public) \
             startsInBackground=\(startsInBackground, privacy: .public)
             """
         )

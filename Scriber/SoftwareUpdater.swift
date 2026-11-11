@@ -118,6 +118,9 @@ final class SoftwareUpdater: NSObject, ObservableObject {
     }
 
     private func noteLaunch() {
+        // Do not: move this below the clearing of `stagedUpdate`. The launch
+        // decides whether to show a window from that record, and reads it once.
+        _ = AppLaunchConfiguration.relaunchesIntoStagedUpdate
         let running = AppCoordinator.runningBuild
         if let previous = preferences.lastLaunchedBuild, BuildNumber.isNewer(running, than: previous) {
             preferences.recentUpdate = RecentUpdate(version: AppCoordinator.runningVersion, date: Date())

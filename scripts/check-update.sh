@@ -206,9 +206,19 @@ defaults read "$SUITE" recentUpdate >/dev/null 2>&1 || fail "the new build did n
 defaults read "$SUITE" stagedUpdate >/dev/null 2>&1 && fail "the new build still has the update recorded as staged"
 [ "$(defaults read "$SUITE" lastLaunchedBuild 2>/dev/null || true)" = "$NEW_BUILD" ] \
   || fail "the running build did not record itself as $NEW_BUILD"
+# An update arrives unannounced: the relaunch comes up as a login launch would,
+# with no window. Read from the build's own launch log, which states the
+# decision, and from what it actually ordered on screen.
+launch_log="$(/usr/bin/log show --last 5m --style compact --predicate \
+  "subsystem == \"com.gafiegarcia.scriber\" AND processIdentifier == $new_pid AND category == \"window-lifecycle\"")"
+grep -q "afterUpdate=true startsInBackground=true" <<<"$launch_log" \
+  || fail "the relaunched build did not recognise it was installed by an update, so it may show a window"
+grep -q "showWindow: ordering front" <<<"$launch_log" \
+  && fail "the relaunched build put a window on screen"
+echo "    came back with no window"
 
 echo
-echo "Staged, killed, installed at the next launch, relaunched by Sparkle as $NEW_VERSION ($NEW_BUILD)."
+echo "Staged, killed, installed at the next launch, relaunched by Sparkle as $NEW_VERSION ($NEW_BUILD) with no window."
 if [ "${KEEP_RUNNING:-}" = "1" ]; then
   # Left up for its Settings to be read through the accessibility tree.
   trap - EXIT

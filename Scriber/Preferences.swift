@@ -207,6 +207,12 @@ final class Preferences: ObservableObject {
         defaults.object(forKey: key) == nil ? true : defaults.bool(forKey: key)
     }
 
+    /// The staged update as stored, for `AppLaunchConfiguration`, which decides
+    /// how a launch presents itself before `Preferences` exists.
+    static func storedStagedUpdate(in defaults: UserDefaults) -> StagedUpdate? {
+        decode(StagedUpdate.self, key: Keys.stagedUpdate, defaults: defaults)
+    }
+
     /// Takes an optional because several of these are one: `JSONEncoder` refuses
     /// a top-level `nil`, so encoding it would leave the previous value in
     /// `UserDefaults` and a cleared preference would come back on relaunch.

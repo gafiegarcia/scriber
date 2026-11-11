@@ -4,6 +4,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Fixed
+
+- **Updating no longer opens Scriber's window.** When Scriber installed an update at the lock screen and restarted itself, it came back with its main window open, waiting for you when you unlocked. It now comes back quietly, the way it does when your Mac starts up: menu bar and shortcut only. Settings → General still says **Updated to vX today** if you want to know.
+
 ## 0.10.0 (build 402) — 2026-11-11
 
 The last update you install by hand. From here on Scriber updates itself: it fetches each new version quietly and installs it the next time your Mac locks or you quit Scriber, with nothing to download, drag or confirm. If you would rather be asked first, switch **Automatically update** off in Settings → General.
