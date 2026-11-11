@@ -19,7 +19,6 @@ Work Scriber has committed to. Each item is a title and a link; the detail — t
 - [ ] **Offer a setting to keep every dictation on the clipboard.** ([Notion task](https://app.notion.com/p/3cd719370402811bba3bc8186d380866))
 - [ ] **Move the pill to whichever screen the pointer moves to while it is up.** ([Notion task](https://app.notion.com/p/3d271937040281668a7ed824244f4afc))
 - [ ] **Let someone turn off diagnostic logging.** ([Notion task](https://app.notion.com/p/3d271937040281af9bc2f6922ba0a860))
-- [ ] **Add Sparkle.** ([Notion task](https://app.notion.com/p/3c77193704028162b235e06b9c0cf1a3))
 - [ ] **Walk every window with VoiceOver.** ([Notion task](https://app.notion.com/p/3d2719370402819989a1c90e3491965a))
 - [ ] **Redesign the menu bar menu.** ([Notion task](https://app.notion.com/p/3ab71937040280298fa7eb2c10a3ff43))
 - [ ] **Overhaul Settings layout.** ([Notion task](https://app.notion.com/p/3d271937040281f69524d890e7a76a29))
