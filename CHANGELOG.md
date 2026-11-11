@@ -4,6 +4,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+## 0.10.0 (build 402) — 2026-11-11
+
+The last update you install by hand. From here on Scriber updates itself: it fetches each new version quietly and installs it the next time your Mac locks or you quit Scriber, with nothing to download, drag or confirm. If you would rather be asked first, switch **Automatically update** off in Settings → General.
+
 ### Added
 
 - **Scriber now installs its own updates.** It still checks GitHub once a day, but instead of pointing you at a download page it fetches the new version quietly and installs it the next time your Mac locks or you quit Scriber. Your Mac being locked is when you cannot dictate anyway, so the few seconds it takes to restart go unnoticed. If Scriber was force-quit or crashed with an update waiting, the update installs the next time Scriber opens. Nothing pops up afterwards; Settings → General says **Updated to vX today**, with **What's New** linking to the release notes. Every update is checked against Scriber's own signature before it installs.
