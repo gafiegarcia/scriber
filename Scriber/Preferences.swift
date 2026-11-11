@@ -35,9 +35,16 @@ final class Preferences: ObservableObject {
         /// The boolean this replaced. Read once, to carry over an answer already
         /// given; never written again.
         static let legacyDeletesExpiredRetainedAudio = "deletesExpiredRetainedAudio"
-        static let automaticUpdateChecks = "automaticUpdateChecks"
+        static let automaticallyUpdate = "automaticallyUpdate"
+        /// The switch this replaced, which governed checking alone. Read once, to
+        /// carry an answer already given onto `automaticallyUpdate`; never written.
+        static let legacyAutomaticUpdateChecks = "automaticUpdateChecks"
         static let lastUpdateCheck = "lastUpdateCheck"
-        static let availableUpdate = "availableUpdate"
+        static let stagedUpdate = "stagedUpdate"
+        static let recentUpdate = "recentUpdate"
+        static let lastLaunchedBuild = "lastLaunchedBuild"
+        /// The offer the GitHub check stored. Removed at launch; never read.
+        static let legacyAvailableUpdate = "availableUpdate"
     }
 
     private let defaults: UserDefaults
@@ -98,11 +105,22 @@ final class Preferences: ObservableObject {
     @Published var retainedAudioRetention: RetainedAudioRetention {
         didSet { defaults.set(retainedAudioRetention.rawValue, forKey: Keys.retainedAudioRetention) }
     }
-    @Published var automaticUpdateChecks: Bool {
-        didSet { defaults.set(automaticUpdateChecks, forKey: Keys.automaticUpdateChecks) }
+    /// On, an update downloads by itself and installs at the next screen lock or
+    /// quit. Off, Scriber still checks daily and offers what it finds.
+    @Published var automaticallyUpdate: Bool {
+        didSet { defaults.set(automaticallyUpdate, forKey: Keys.automaticallyUpdate) }
     }
+    /// The last check that got an answer, so an install that has never reached
+    /// the appcast says so rather than claiming to be current.
     @Published var lastUpdateCheck: Date? { didSet { defaults.set(lastUpdateCheck, forKey: Keys.lastUpdateCheck) } }
-    @Published var availableUpdate: AvailableUpdate? { didSet { save(availableUpdate, key: Keys.availableUpdate) } }
+    @Published var stagedUpdate: StagedUpdate? { didSet { save(stagedUpdate, key: Keys.stagedUpdate) } }
+    @Published var recentUpdate: RecentUpdate? { didSet { save(recentUpdate, key: Keys.recentUpdate) } }
+    /// `CFBundleVersion` of the previous launch, which is how a launch knows it
+    /// follows an update.
+    var lastLaunchedBuild: String? {
+        get { defaults.string(forKey: Keys.lastLaunchedBuild) }
+        set { defaults.set(newValue, forKey: Keys.lastLaunchedBuild) }
+    }
 
     init(
         defaults: UserDefaults = .standard,
@@ -147,9 +165,17 @@ final class Preferences: ObservableObject {
                     ? true
                     : defaults.bool(forKey: Keys.legacyDeletesExpiredRetainedAudio)
             )
-        automaticUpdateChecks = Self.optInFlag(Keys.automaticUpdateChecks, in: defaults)
+        automaticallyUpdate = AutomaticUpdatePreference.resolve(
+            stored: defaults.object(forKey: Keys.automaticallyUpdate) as? Bool,
+            legacyAutomaticChecks: defaults.object(forKey: Keys.legacyAutomaticUpdateChecks) as? Bool
+        )
         lastUpdateCheck = defaults.object(forKey: Keys.lastUpdateCheck) as? Date
-        availableUpdate = Self.decode(AvailableUpdate.self, key: Keys.availableUpdate, defaults: defaults)
+        stagedUpdate = Self.decode(StagedUpdate.self, key: Keys.stagedUpdate, defaults: defaults)
+        recentUpdate = Self.decode(RecentUpdate.self, key: Keys.recentUpdate, defaults: defaults)
+        // Legacy: an offer stored by the GitHub check that Sparkle replaced. Only
+        // a build from before Sparkle can still write one, so this goes once
+        // every install has launched a Sparkle build.
+        defaults.removeObject(forKey: Keys.legacyAvailableUpdate)
 
         // Materialize opt-in defaults so upgrades and subsequent launches share one explicit value.
         if defaults.object(forKey: Keys.playDictationFeedbackSounds) == nil {
@@ -161,8 +187,8 @@ final class Preferences: ObservableObject {
         if defaults.object(forKey: Keys.startInBackground) == nil {
             defaults.set(true, forKey: Keys.startInBackground)
         }
-        if defaults.object(forKey: Keys.automaticUpdateChecks) == nil {
-            defaults.set(true, forKey: Keys.automaticUpdateChecks)
+        if defaults.object(forKey: Keys.automaticallyUpdate) == nil {
+            defaults.set(automaticallyUpdate, forKey: Keys.automaticallyUpdate)
         }
         // The chord above was read before `didSet` was live, so it has to be
         // written back here — otherwise a replaced one is replaced again on every

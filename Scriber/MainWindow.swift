@@ -379,29 +379,23 @@ struct MenuBarContent: View {
                 }
                 // Its own group: an offer is not a warning. Nothing is wrong
                 // with an install that has an update waiting.
-                if let update = runtime.preferences.availableUpdate {
+                // Only what waits on the user: an update downloaded by itself,
+                // with Automatically update on, says so in Settings alone.
+                switch runtime.softwareUpdater.offer {
+                case .available(let version):
                     Divider()
-                    Button {
-                        // A Homebrew install goes to Settings, which is where the
-                        // `brew upgrade` command lives; a download dragged over
-                        // such an install leaves Homebrew describing an app it no
-                        // longer put there.
-                        if AppCoordinator.isHomebrewManaged {
-                            openMain(destination: .updates)
-                        } else {
-                            NSWorkspace.shared.open(update.url)
-                        }
-                    } label: {
-                        // The ellipsis follows the route, as it does in Settings:
-                        // the release page finishes the action, while Settings is
-                        // where the command still has to be copied from.
-                        Label(
-                            AppCoordinator.isHomebrewManaged
-                                ? "Update to \(AppCoordinator.displayVersion(update.version))…"
-                                : "Update to \(AppCoordinator.displayVersion(update.version))",
-                            systemImage: "arrow.down.circle"
-                        )
+                    // No ellipsis: it downloads, installs and relaunches with
+                    // nothing further to answer.
+                    Button { runtime.softwareUpdater.install() } label: {
+                        Label("Update to \(AppCoordinator.displayVersion(version))", systemImage: "arrow.down.circle")
                     }
+                    .disabled(runtime.coordinator.hasDictationWorkInFlight)
+                case .downloading(let version) where !runtime.preferences.automaticallyUpdate:
+                    Divider()
+                    Label("Downloading \(AppCoordinator.displayVersion(version))…", systemImage: "arrow.down.circle")
+                        .foregroundStyle(.secondary)
+                default:
+                    EmptyView()
                 }
             }
             Divider()
@@ -435,7 +429,7 @@ struct MenuBarContent: View {
         switch destination {
         case .dictation:
             openWindow(id: "main")
-        case .settings, .apiKey, .usage, .microphone, .permissions, .updates:
+        case .settings, .apiKey, .usage, .microphone, .permissions:
             openWindow(id: "settings")
         }
         NSApp.activate(ignoringOtherApps: true)

@@ -156,7 +156,7 @@ Scriber is signed and notarized. Once opened, follow the setup.
 
 Setup will ask for your ElevenLabs key, Microphone access, and Accessibility access. Scriber needs Accessibility because its whole job is typing into whatever app you are already in.
 
-Scriber checks GitHub once a day for a newer version and tells you in the menu bar. It never installs anything on its own, and you can switch the check off in Settings → General. If you installed with Homebrew, it points you at `brew upgrade` rather than at a download.
+Scriber keeps itself up to date: it checks GitHub once a day, downloads a new version quietly, and installs it the next time your Mac locks or you quit Scriber. Switch **Automatically update** off in Settings → General and it asks you first instead. Homebrew installs update the same way.
 
 ## Repository
 

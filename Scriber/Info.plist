@@ -34,5 +34,22 @@
     <string>Scriber silences other apps while you dictate, so they don't bleed into your microphone. It never reads or saves what they play.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <!-- Sparkle. The appcast is a release asset, so `latest` always serves the
+         newest release's copy. The public key pairs with the private key held in
+         the login Keychain under the account `scriber`; an update not signed with
+         that private key is refused, wherever it was fetched from. Checks are
+         switched on here rather than asked about: Sparkle's permission prompt is a
+         window, and Scriber's own Settings switch decides only whether an update
+         installs itself. -->
+    <key>SUFeedURL</key>
+    <string>https://github.com/gafiegarcia/scriber/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>qtc3YwvRV9VeGSjKronQmpKQAvRuSgYYCO1avljjlyc=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUScheduledCheckInterval</key>
+    <integer>86400</integer>
+    <key>SUVerifyUpdateBeforeExtraction</key>
+    <true/>
 </dict>
 </plist>

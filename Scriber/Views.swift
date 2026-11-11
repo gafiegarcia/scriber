@@ -105,7 +105,6 @@ extension MainWindowDestination {
         case .apiKey, .usage: .elevenLabs
         case .microphone: .sound
         case .permissions: .permissions
-        case .updates: .general
         }
     }
 }
@@ -399,7 +398,6 @@ private struct GeneralSettingsPane: View {
     @Binding var activeShortcutRecorderID: String?
     let refusalResetToken: Int
     @State private var confirmRestartSetup = false
-    @State private var showingHomebrewUpdate = false
     @State private var launchAtLoginError: String?
     /// Set only by a request that macOS refused. Switching Scriber off under
     /// Background App Activity is a decision the user is allowed to make, so
@@ -507,19 +505,19 @@ private struct GeneralSettingsPane: View {
                                 "Scriber version \(AppCoordinator.runningVersion), build \(AppCoordinator.runningBuild)"
                             )
                         Spacer(minLength: 0)
-                        Button(action: { runtime.coordinator.checkForUpdates(force: true) }) {
+                        Button(action: { runtime.softwareUpdater.checkNow() }) {
                             HStack(spacing: 6) {
                                 // Before the title, not replacing it, and the
                                 // button is against the trailing edge: the spinner
                                 // grows the button leftwards into the spacer while
                                 // the title, being last, does not move at all.
-                                if runtime.coordinator.isCheckingForUpdates {
+                                if runtime.softwareUpdater.isChecking {
                                     ActivitySpinner()
                                 }
                                 Text("Check for Updates")
                             }
                         }
-                        .disabled(runtime.coordinator.isCheckingForUpdates)
+                        .disabled(runtime.softwareUpdater.isChecking || isDownloadingUpdate)
                         .accessibilityIdentifier("check-for-updates")
                     }
                     HStack(spacing: 10) {
@@ -527,34 +525,34 @@ private struct GeneralSettingsPane: View {
                         Spacer(minLength: 0)
                         // On the line that announces the offer rather than in the
                         // row above, which carried two buttons of different weight
-                        // side by side. No ellipsis: it opens the release page,
-                        // which is the action finishing, not asking for anything.
-                        if let update = runtime.preferences.availableUpdate {
-                            // A Homebrew install takes its update from Homebrew,
-                            // so the button opens the command rather than the
-                            // release page — and earns its ellipsis by doing it,
-                            // where "Get" only ever opened a page.
-                            if AppCoordinator.isHomebrewManaged {
-                                Button("Update…") { showingHomebrewUpdate = true }
-                                    .buttonStyle(.borderedProminent)
-                                    .accessibilityIdentifier("download-update")
-                            } else {
-                                Link(
-                                    "Get \(AppCoordinator.displayVersion(update.version))",
-                                    destination: update.url
-                                )
+                        // side by side.
+                        if let version = updateStatusLine.whatsNewVersion {
+                            Link("What's New", destination: UpdateLinks.releasePage(version: version))
+                                .buttonStyle(.bordered)
+                                .accessibilityIdentifier("update-whats-new")
+                        }
+                        switch updateStatusLine {
+                        case .available:
+                            Button("Install") { runtime.softwareUpdater.install() }
                                 .buttonStyle(.borderedProminent)
-                                .accessibilityIdentifier("download-update")
-                            }
+                                .disabled(runtime.coordinator.hasDictationWorkInFlight)
+                                .accessibilityIdentifier("install-update")
+                        case .ready:
+                            Button("Install Now") { runtime.softwareUpdater.install() }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(runtime.coordinator.hasDictationWorkInFlight)
+                                .accessibilityIdentifier("install-update")
+                        default:
+                            EmptyView()
                         }
                     }
                 }
                 SettingsToggle(
-                    "Check for updates automatically",
-                    caption: "Asks GitHub once a day whether a newer version has been released. Scriber never installs anything on its own.",
-                    isOn: $runtime.preferences.automaticUpdateChecks
+                    "Automatically update",
+                    caption: "Scriber asks GitHub once a day for a newer version. When this is on, it downloads the update and installs it the next time your Mac locks or Scriber quits. When it is off, Scriber asks first.",
+                    isOn: $runtime.preferences.automaticallyUpdate
                 )
-                .accessibilityIdentifier("automatic-update-checks-toggle")
+                .accessibilityIdentifier("automatically-update-toggle")
             } header: {
                 Text("Updates")
             }
@@ -579,19 +577,6 @@ private struct GeneralSettingsPane: View {
                         .disabled(!runtime.coordinator.canRestartOnboarding)
                 }
             }
-        }
-        // An alert rather than a confirmation: it answers a question rather than
-        // asking one, and nothing here is destructive enough to confirm.
-        .alert("Scriber was installed with Homebrew", isPresented: $showingHomebrewUpdate) {
-            Button("Copy Command") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(HomebrewInstall.upgradeCommand, forType: .string)
-            }
-            Button("Close", role: .cancel) {}
-        } message: {
-            // The command and nothing else. Someone who installed with Homebrew
-            // does not need telling that Homebrew is how they update.
-            Text("Update it from the terminal:\n\n" + HomebrewInstall.upgradeCommand)
         }
         .confirmationDialog("Go through setup again?", isPresented: $confirmRestartSetup) {
             Button("Redo Setup") {
@@ -627,6 +612,20 @@ private struct GeneralSettingsPane: View {
             .accessibilityIdentifier("update-status")
     }
 
+    private var updateStatusLine: UpdateStatusLine {
+        UpdateStatusLine.resolve(
+            offer: runtime.softwareUpdater.offer,
+            checkError: runtime.softwareUpdater.checkError,
+            recentUpdate: runtime.preferences.recentUpdate,
+            lastCheck: runtime.preferences.lastUpdateCheck,
+            now: Date()
+        )
+    }
+
+    private var isDownloadingUpdate: Bool {
+        if case .downloading = runtime.softwareUpdater.offer { true } else { false }
+    }
+
     /// Never claims to be current on the strength of a check that has not
     /// happened: an install that has never reached GitHub says so.
     ///
@@ -634,16 +633,22 @@ private struct GeneralSettingsPane: View {
     /// pressing Check for Updates on an install that is already current changes
     /// nothing on screen and cannot be told from a button that does nothing.
     private var updateStatusText: String {
-        if let error = runtime.coordinator.updateCheckError {
-            return error
+        switch updateStatusLine {
+        case .ready(let version):
+            "\(AppCoordinator.displayVersion(version)) is ready."
+        case .available(let version):
+            "\(AppCoordinator.displayVersion(version)) is available."
+        case .downloading(let version):
+            "Downloading \(AppCoordinator.displayVersion(version))…"
+        case .updated(let version, let day):
+            "Updated to \(AppCoordinator.displayVersion(version)) \(day)."
+        case .failed(let message):
+            message
+        case .current(let lastCheck):
+            "You're on the latest version. Last checked: \(Self.lastCheckedDescription(lastCheck))."
+        case .neverChecked:
+            "No check has run yet."
         }
-        if let update = runtime.preferences.availableUpdate {
-            return "Scriber \(AppCoordinator.displayVersion(update.version)) is available."
-        }
-        guard let lastCheck = runtime.preferences.lastUpdateCheck else {
-            return "No check has run yet."
-        }
-        return "You're on the latest version. Last checked: \(Self.lastCheckedDescription(lastCheck))."
     }
 
     /// Relative, and "just now" under a minute — `.relative` renders that span as

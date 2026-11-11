@@ -49,6 +49,12 @@ Two files inside `Scriber/` are deliberately not members: `Info.plist` and `Scri
 
 The project file is written in the format the installed Xcode uses, currently `objectVersion = 70`. An Xcode beta writes a higher number and the release toolchain rewrites it back on its next write, so a project file carrying one churns on every open. Anything that opens the project — Xcode itself, or the Xcode MCP server, which writes on open — can produce that diff without being asked, so read `Scriber.xcodeproj/project.pbxproj` before staging a commit that did not mean to touch it. Anything else you put in either folder is compiled into the app on the next build, whether or not you meant it to be. That includes a helper written only for tests: `ScriberCore` is built into the app as well as into the package, so a test-only file there is dead code inside the app people download. Put those in `ScriberCoreTests/`, which the app target does not read.
 
+## Dependencies
+
+Scriber depends on one Swift package, [Sparkle](https://sparkle-project.org), which installs its updates. The project pins it to an exact version, and `Scriber.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` records the commit; Xcode fetches it on the first build, which needs a network connection. A **Sign Sparkle** build phase removes the framework's XPC services, which an app that is not sandboxed never uses, and signs its helpers with the app's own identity.
+
+To move to another Sparkle version, change the version in the project, rebuild, replace the license text in `Scriber/ThirdPartyNotices.txt` with the new release's `LICENSE`, and run `./scripts/check-update.sh` — it is the only check that an update still installs.
+
 ## Build with Xcode
 
 1. Open `Scriber.xcodeproj` and select the `Scriber` scheme.

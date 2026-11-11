@@ -4,6 +4,19 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Added
+
+- **Scriber now installs its own updates.** It still checks GitHub once a day, but instead of pointing you at a download page it fetches the new version quietly and installs it the next time your Mac locks or you quit Scriber. Your Mac being locked is when you cannot dictate anyway, so the few seconds it takes to restart go unnoticed. If Scriber was force-quit or crashed with an update waiting, the update installs the next time Scriber opens. Nothing pops up afterwards; Settings → General says **Updated to vX today**, with **What's New** linking to the release notes. Every update is checked against Scriber's own signature before it installs.
+- **Automatically update**, in Settings → General, replaces **Check for updates automatically**. Switched off, Scriber still checks daily but asks first: Settings shows **vX is available** with **What's New** and **Install**, and the menu bar menu offers **Update to vX**. Either one downloads, installs and relaunches in one go. If you had switched the old setting off, the new one starts off too. An update never installs while a dictation is still recording, transcribing or pasting.
+
+### Changed
+
+- **Homebrew installs update like every other.** Scriber no longer tells Homebrew users to run `brew upgrade`; it updates itself, and Homebrew keeps listing it.
+
+### Removed
+
+- **The Homebrew update dialog in Settings**, and the release-page link that **Get vX** opened. Updates install from inside Scriber now.
+
 ## 0.9.7 (build 400) — 2026-10-29
 
 ### Added

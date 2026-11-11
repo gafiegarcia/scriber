@@ -2,7 +2,7 @@
 # Inspects the exact Release bundle that will be installed or shipped. Run it
 # after a Release build and before replacing /Applications or notarizing.
 #
-# Four things must hold, and each has caught a real mistake. This script asserts
+# Each thing below must hold, and each defends a real mistake. This script asserts
 # them rather than printing them for someone to read past.
 set -euo pipefail
 
@@ -52,5 +52,46 @@ unexpected="$(echo "$entitlements" | grep -c "com.apple.security" || true)"
 [ -e "$APP_PATH/Contents/embedded.provisionprofile" ] \
   && fail "a provisioning profile is embedded"
 
+# Sparkle ships its helpers ad-hoc signed. The Sign Sparkle build phase signs
+# them with this team's identity and removes the XPC services; a helper that
+# escaped it is rejected by the notary service, and an XPC service left behind
+# is unsigned code nothing uses.
+SPARKLE="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+[ -d "$SPARKLE" ] || fail "Sparkle.framework is not embedded"
+[ -e "$SPARKLE/Versions/B/XPCServices" ] && fail "Sparkle's XPC services are still embedded"
+for nested in "$SPARKLE/Versions/B/Autoupdate" "$SPARKLE/Versions/B/Updater.app" "$SPARKLE"; do
+  nested_details="$(codesign -d --verbose=4 "$nested" 2>&1)"
+  echo "$nested_details" | grep -q "TeamIdentifier=$TEAM" \
+    || fail "${nested#"$APP_PATH"/} is not signed by team $TEAM"
+  echo "$nested_details" | grep -q "flags=.*runtime" \
+    || fail "${nested#"$APP_PATH"/} is not signed with the hardened runtime"
+done
+codesign --verify --deep --strict "$APP_PATH" 2>/dev/null \
+  || fail "nested code does not verify"
+
+# The test-appcast option is compiled into Debug alone. Its string in the
+# Release binary means the gate became a runtime check, and the shipped app can
+# be pointed at another feed. Every file in MacOS, because a Debug build keeps
+# its code in a dylib beside the executable.
+for binary in "$APP_PATH"/Contents/MacOS/*; do
+  strings -a "$binary" | grep -q -- "--debug-appcast" \
+    && fail "${binary#"$APP_PATH"/} contains --debug-appcast"
+done
+
+# Installed copies update from this feed, signed with this key, and nothing
+# else. A key that changes strands every install that holds the old one.
+plist="$APP_PATH/Contents/Info.plist"
+feed="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$plist" 2>/dev/null || true)"
+[ "$feed" = "https://github.com/gafiegarcia/scriber/releases/latest/download/appcast.xml" ] \
+  || fail "SUFeedURL is '$feed', not the published appcast"
+key="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$plist" 2>/dev/null || true)"
+[ "$key" = "qtc3YwvRV9VeGSjKronQmpKQAvRuSgYYCO1avljjlyc=" ] \
+  || fail "SUPublicEDKey is '$key', not Scriber's signing key"
+
+# Sparkle's license requires its notice in every copy of the app.
+[ -s "$APP_PATH/Contents/Resources/ThirdPartyNotices.txt" ] \
+  || fail "ThirdPartyNotices.txt is missing from the bundle"
+
 echo
 echo "Developer ID anchor for $TEAM, hardened runtime, audio-input only, no profile."
+echo "Sparkle signed by $TEAM without XPC services, no test-appcast option, published feed and key, notices shipped."

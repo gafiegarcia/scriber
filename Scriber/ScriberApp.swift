@@ -7,26 +7,42 @@ import SwiftUI
 enum AppLaunchConfiguration {
     static var isUITesting: Bool {
 #if DEBUG
-        ProcessInfo.processInfo.arguments.contains("--ui-testing")
+        launchArguments.contains("--ui-testing")
 #else
         false
 #endif
     }
 
+    /// The launch's arguments, and in Debug any a test build carries in its
+    /// Info.plist under `ScriberTestLaunchArguments`. Sparkle relaunches an
+    /// updated app with no arguments at all, so an update test whose options were
+    /// only on the command line would come back as an ordinary Debug build,
+    /// reading the real history, preferences and key. `check-update.sh` writes
+    /// the key into both of its builds.
+    static let launchArguments: [String] = {
+        var arguments = ProcessInfo.processInfo.arguments
+#if DEBUG
+        if let carried = Bundle.main.object(forInfoDictionaryKey: "ScriberTestLaunchArguments") as? [String] {
+            arguments += carried
+        }
+#endif
+        return arguments
+    }()
+
     static var keepsRegularActivationPolicy: Bool {
         isUITesting
-            && !ProcessInfo.processInfo.arguments.contains("--ui-testing-accessory-lifecycle")
+            && !launchArguments.contains("--ui-testing-accessory-lifecycle")
             && !launchesWithoutActivating
     }
 
     static var presentsInvalidKeyPill: Bool {
-        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-invalid-key-pill")
+        isUITesting && launchArguments.contains("--ui-testing-invalid-key-pill")
     }
 
     /// Walks every pill after launch and logs whether each one's content fits
     /// its glass. See `PillFitAudit`.
     static var auditsPillFit: Bool {
-        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-pill-fit")
+        isUITesting && launchArguments.contains("--ui-testing-pill-fit")
     }
 
     /// Raises one limit-stopped ending and leaves it up, named as in
@@ -36,13 +52,13 @@ enum AppLaunchConfiguration {
     }
 
     static var simulatesMissingPermissions: Bool {
-        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-missing-permissions")
+        isUITesting && launchArguments.contains("--ui-testing-missing-permissions")
     }
 
     /// Fills the in-memory history so the Dictation list can be checked without
     /// touching the user's real entries. See `UITestingHistoryFixture`.
     static var seedsDictationHistory: Bool {
-        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-history")
+        isUITesting && launchArguments.contains("--ui-testing-seed-history")
     }
 
     /// Fills the in-memory history with several hundred synthetic records spread
@@ -50,13 +66,13 @@ enum AppLaunchConfiguration {
     /// history far longer than the curated fixture provides. Mutually exclusive in
     /// practice with `seedsDictationHistory` — pass only one seeding flag.
     static var seedsLargeDictationHistory: Bool {
-        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-seed-history-large")
+        isUITesting && launchArguments.contains("--ui-testing-seed-history-large")
     }
 
     /// Opens onboarding under `--ui-testing`, which otherwise marks setup
     /// complete so every other check starts in the app proper.
     static var showsOnboarding: Bool {
-        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding")
+        isUITesting && launchArguments.contains("--ui-testing-onboarding")
     }
 
     /// Lets every setup step be advanced past without satisfying its gate, so the
@@ -64,19 +80,7 @@ enum AppLaunchConfiguration {
     /// which writes that build's identity into the Mac's privacy lists. The gates
     /// still render; only the Continue button stops obeying them.
     static var unlocksOnboardingSteps: Bool {
-        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-onboarding-unlocked")
-    }
-
-    /// An update offer to put in preferences before the coordinator is built,
-    /// which is where a stored offer is checked against the running version and
-    /// dropped when it no longer names an update.
-    ///
-    /// Seeded because the state cannot occur in a test launch: the throwaway
-    /// suite is wiped at every launch, and an offer only lands after a check
-    /// that runs later. Pass a version at or below this build's to exercise the
-    /// discard, above it to prove an offer that still stands is left alone.
-    static var seededUpdateOffer: String? {
-        value(after: "--ui-testing-seed-update-offer")
+        isUITesting && launchArguments.contains("--ui-testing-onboarding-unlocked")
     }
 
     /// The argument after a flag that carries one, where every other
@@ -85,7 +89,7 @@ enum AppLaunchConfiguration {
     /// nothing can parse and swallow the flag that was mistyped past.
     private static func value(after flag: String) -> String? {
         guard isUITesting else { return nil }
-        let arguments = ProcessInfo.processInfo.arguments
+        let arguments = launchArguments
         guard let index = arguments.firstIndex(of: flag) else { return nil }
         let next = arguments.index(after: index)
         guard next < arguments.endIndex, !arguments[next].hasPrefix("--") else { return nil }
@@ -98,19 +102,29 @@ enum AppLaunchConfiguration {
     /// drag a test build's item out of the menu bar, because the list macOS keeps
     /// is per bundle identifier and shared with the real app.
     static var showsMenuBarWhileUITesting: Bool {
-        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-menu-bar")
+        isUITesting && launchArguments.contains("--ui-testing-menu-bar")
     }
 
-    /// A version to run as, so the update-available state can be reached without
-    /// a release newer than this build. `--ui-testing-pretend-version 0.8.0` makes
-    /// the live 0.9.0 read as an update; a value above the latest release proves
-    /// the opposite case. Until a second release existed there was no way to see
-    /// either, and the running version is what the check compares.
+    /// An appcast to update from instead of the published one, so an old build
+    /// can update itself to a new one with nothing public involved:
+    /// `--debug-appcast http://127.0.0.1:8000/appcast.xml`. It also keeps the
+    /// launch's preferences between launches, which an update test needs and an
+    /// ordinary `--ui-testing` launch wipes.
     ///
-    /// Reads the argument after the flag. Gated on `isUITesting`, which is false
-    /// in Release, so the shipped app always reports its real version.
-    static var pretendedVersion: String? {
-        value(after: "--ui-testing-pretend-version")
+    /// Compiled into Debug only, so the shipped app does not contain the flag at
+    /// all — `inspect-release.sh` checks the Release binary for its absence.
+    /// Sparkle still refuses an update not signed with Scriber's EdDSA key,
+    /// wherever it was fetched from.
+    static var debugAppcastURL: String? {
+#if DEBUG
+        let arguments = launchArguments
+        guard let index = arguments.firstIndex(of: "--debug-appcast") else { return nil }
+        let next = arguments.index(after: index)
+        guard next < arguments.endIndex, !arguments[next].hasPrefix("--") else { return nil }
+        return arguments[next]
+#else
+        nil
+#endif
     }
 
     /// The launch smoke check's flag. The app still builds and renders its window —
@@ -118,7 +132,7 @@ enum AppLaunchConfiguration {
     /// does not steal the front from whatever the user is doing. Only the smoke check
     /// passes it; a visual-inspection launch wants the real activation behavior.
     static var launchesWithoutActivating: Bool {
-        isUITesting && ProcessInfo.processInfo.arguments.contains("--ui-testing-no-activate")
+        isUITesting && launchArguments.contains("--ui-testing-no-activate")
     }
 
     /// Treats the launch as one macOS made at login, so the background start can
@@ -127,7 +141,7 @@ enum AppLaunchConfiguration {
     /// app otherwise behaving normally. Debug builds only.
     static var simulatesLoginLaunch: Bool {
 #if DEBUG
-        ProcessInfo.processInfo.arguments.contains("--simulate-login-launch")
+        launchArguments.contains("--simulate-login-launch")
 #else
         false
 #endif
@@ -330,6 +344,7 @@ final class AppRuntime: ObservableObject {
     let container: ModelContainer
     var preferences: Preferences
     let coordinator: AppCoordinator
+    let softwareUpdater: SoftwareUpdater
     private var cancellables = Set<AnyCancellable>()
 
     init() {
@@ -364,35 +379,30 @@ final class AppRuntime: ObservableObject {
 #endif
 
         if isUITesting {
-            let suiteName = "com.gafiegarcia.scriber.ui-testing"
+            // An update test spans the old build and the new one, and the new one
+            // reads what the old one left — that an update was staged, which build
+            // ran last — so its suite is kept, and kept apart from the ordinary one.
+            let keepsDefaults = AppLaunchConfiguration.debugAppcastURL != nil
+            let suiteName = keepsDefaults ? "com.gafiegarcia.scriber.update-test" : "com.gafiegarcia.scriber.ui-testing"
             let defaults = UserDefaults(suiteName: suiteName)!
-            defaults.removePersistentDomain(forName: suiteName)
+            if !keepsDefaults { defaults.removePersistentDomain(forName: suiteName) }
             preferences = Preferences(defaults: defaults, defaultAudioInputSelection: .automatic)
         } else {
             let inputDevices = AudioRecorder.availableInputDevices()
             preferences = Preferences(defaultAudioInputSelection: .initialSelection(from: inputDevices))
         }
 
-#if DEBUG
-        // Before the coordinator, which is the only thing that reads a stored
-        // offer back. Assigned rather than written to defaults: the published
-        // property persists itself, and this has to land while preferences
-        // exists and the coordinator does not.
-        if let version = AppLaunchConfiguration.seededUpdateOffer {
-            let releases = "https://github.com/gafiegarcia/scriber/releases"
-            preferences.availableUpdate = AvailableUpdate(
-                version: version,
-                url: URL(string: "\(releases)/tag/v\(version)") ?? URL(string: releases)!
-            )
-        }
-#endif
-
-        coordinator = AppCoordinator(
+        let coordinator = AppCoordinator(
             preferences: preferences,
             modelContext: container.mainContext,
             persistenceAvailable: persistenceAvailable,
             permissionReadinessOverride: AppLaunchConfiguration.permissionReadinessOverride,
             servicesAllowed: !isUITesting
+        )
+        self.coordinator = coordinator
+        softwareUpdater = SoftwareUpdater(
+            preferences: preferences,
+            dictationWorkInFlight: { [coordinator] in coordinator.hasDictationWorkInFlight }
         )
         if isUITesting {
             preferences.onboardingDismissed = !AppLaunchConfiguration.showsOnboarding
@@ -439,6 +449,9 @@ final class AppRuntime: ObservableObject {
         coordinator.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
+        softwareUpdater.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
         // Deferred by one main-actor turn, never called directly. `@StateObject`
         // builds this object in the middle of SwiftUI's scene-graph update, and
         // `startServices` can present the recovery pill, which resizes an AppKit
@@ -447,11 +460,12 @@ final class AppRuntime: ObservableObject {
         // is genuinely missing. `startServices` is re-entrant, so the wait is free.
         if !isUITesting {
             Task { @MainActor [coordinator] in coordinator.startServices() }
-        } else if AppLaunchConfiguration.pretendedVersion != nil {
-            // `startServices` is what checks for updates, and a `--ui-testing`
-            // launch never runs it. Ask directly, so the offer is already on
-            // screen when the window opens rather than waiting for a button.
-            Task { @MainActor [coordinator] in coordinator.checkForUpdates() }
+        }
+        // A `--ui-testing` launch reaches no network, so it runs no updater —
+        // unless it was pointed at a local appcast, which is the whole of what an
+        // update test needs from the network.
+        if !isUITesting || AppLaunchConfiguration.debugAppcastURL != nil {
+            Task { @MainActor [softwareUpdater] in softwareUpdater.start() }
         }
     }
 }

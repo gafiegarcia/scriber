@@ -10,6 +10,17 @@ Every tag on `main` ships a build, so do not tag until you intend to finish this
 
   It was issued by the G2 Sub-CA (`Developer ID Certification Authority`, `OU=G2`) and expires **17 Sep 2031**. Releases already notarized keep validating after expiry because they are timestamped, so what expiry actually stops is signing anything new. The Release configuration pins `CODE_SIGN_IDENTITY` to the certificate's SHA-1 fingerprint rather than its name: every Developer ID certificate the account holds carries the same common name, so selection by name turns ambiguous the moment a second one exists. To replace it, create the new certificate on the G2 Sub-CA through the developer portal, back up its `.p12`, and change the fingerprint in the Release configuration and in `Signing.local.xcconfig`; `security find-identity -v -p codesigning` lists the fingerprints. Never revoke the outgoing certificate — revocation can stop already-shipped releases from launching; let it expire. Users keep their permissions across the change: the designated requirement matches on the team identifier and Apple's Developer ID markers, which a G2 certificate carries too.
 
+- The **Sparkle EdDSA private key** in the login Keychain under the account `scriber`. Every update is signed with it, and every installed Scriber refuses one that is not, so it is generated once and never again: a new key strands every install that holds the old public key, which is `SUPublicEDKey` in `Scriber/Info.plist`. Its backup is the note **Scriber — Sparkle EdDSA update-signing private key** in the **Dev** vault of Proton Pass. To restore it onto a Mac, write the key line from that note to a file, import it, and destroy the file:
+
+```bash
+SPARKLE_BIN=.build/xcode-release/SourcePackages/artifacts/sparkle/Sparkle/bin
+"$SPARKLE_BIN/generate_keys" --account scriber -f <file holding the key>
+rm -P <file holding the key>
+"$SPARKLE_BIN/generate_keys" --account scriber -p
+```
+
+  The last command must print the public key in `Info.plist`. The Sparkle tools arrive with the package, so the folder exists once any Release build has resolved it. The first time `generate_appcast` uses the key, macOS asks whether it may; **Always Allow** saves every later release the same prompt.
+
 - `create-dmg`, which arranges the disk image window. `brew install create-dmg`. Build-time only — nothing from it ships inside the app.
 
 - A notary credential profile in the Keychain. Create it once:
@@ -32,7 +43,9 @@ xcodebuild -project Scriber.xcodeproj -scheme Scriber -configuration Release \
   clean build
 ```
 
-Run the Release bundle inspection in [Automated checks](AUTOMATED_CHECKS.md) before going further. A build that is not correctly signed and hardened will be rejected by the notary service several minutes later, with a worse error message than `codesign` gives immediately.
+Run the Release bundle inspection in [Automated checks](AUTOMATED_CHECKS.md) before going further. A build that is not correctly signed and hardened will be rejected by the notary service several minutes later, with a worse error message than `codesign` gives immediately. That includes Sparkle's helpers, which the **Sign Sparkle** build phase signs with the same identity.
+
+Run `./scripts/check-update.sh` too, whenever the release changes the updater, the Sparkle version, or how the app is signed or packaged. It is the only proof before publishing that one build can install the next.
 
 ## 3. Notarize the app, then staple it
 
@@ -112,7 +125,7 @@ Do this before tagging whenever the hardware is available, because a fault found
 
 **When the hardware is not available, tag anyway.** The oldest-macOS machine is borrowed rather than owned, and holding a release until it can be borrowed has already meant holding fixes that were worth shipping. Accept that a fault found later becomes a patch release, and say so in the tag message: name the checks that were skipped and why, so the next reader can tell a deliberate gap from an oversight.
 
-Only the three things step 7 produces can still be wrong after tagging, and none of them needs a new version: a bad asset is replaced with `gh release upload --clobber`, wrong notes with `gh release edit`, and a wrong cask checksum in the tap repository alone. A **Known issue** callout under `## What's new` is the honest way to publish a fault found after the fact but before its fix.
+Only the things step 7 produces can still be wrong after tagging, and none of them needs a new version: a bad asset — the disk image or the appcast — is replaced with `gh release upload --clobber`, wrong notes with `gh release edit`, and a wrong cask checksum in the tap repository alone. A replaced disk image needs its appcast regenerated and replaced with it, since the appcast carries the image's signature and length. A **Known issue** callout under `## What's new` is the honest way to publish a fault found after the fact but before its fix.
 
 ## 7. Publish
 
@@ -120,22 +133,12 @@ Merge to `main` fast-forward only and tag there, never on the branch. Then:
 
 Release notes are their own document, not the changelog pasted in. Take the version's Added, Changed, Fixed and Removed lists from the [changelog](../CHANGELOG.md) and nothing else from it — the build number and signing state belong in the changelog and the tag message, where someone is looking for them, and read as ceremony on a page whose job is to get an app onto a Mac.
 
-**Two readers arrive here and the notes serve both.** The in-app offer sends someone who already has Scriber, cold, having read nothing else. The README's download link points at `/releases/latest`, which resolves to whatever the newest release is — so the newest notes are also the install page for every newcomer who does not use Homebrew, permanently and without being written for it. Written for the upgrader alone, the newest release tells a first-time reader to quit an app they do not have and to answer a Replace prompt they will never see.
-
-This shape serves both by letting each skip what is not theirs, in one pass down the page:
+**Two readers arrive here and the notes serve both.** Settings' **What's New** sends someone who already has the version, having read nothing else, to see what changed. The README's download link points at `/releases/latest`, which resolves to whatever the newest release is — so the newest notes are also the install page for every newcomer who does not use Homebrew, permanently and without being written for it. Scriber installs its own updates, so nobody needs the page to update with:
 
 ```markdown
-> **Installed with Homebrew?** Upgrade with `brew upgrade --cask scriber` instead. …why…
-
 ## Download
 
-**[Scriber-X.Y.Z.dmg](direct asset URL)** — Apple silicon, macOS 26 Tahoe or newer.
-
-### If you're updating
-
-1. Quit Scriber if it is already running.
-2. Open the downloaded `.dmg` and drag Scriber to **Applications** — choose **Replace**.
-3. Open Scriber.
+**[Scriber-X.Y.Z.dmg](direct asset URL)** — Apple silicon, macOS 26 Tahoe or newer. Open it and drag Scriber to **Applications**.
 
 ## What's new
 
@@ -146,21 +149,48 @@ This shape serves both by letting each skip what is not theirs, in one pass down
 ### Fixed
 ```
 
+**0.10.0 alone** keeps the shape before it, because it is the last update anyone installs by hand: above `## Download`, the callout `> **Installed with Homebrew?** Upgrade with brew upgrade --cask scriber instead.`, and under the download link an `### If you're updating` heading with three steps — quit Scriber if it is running, open the `.dmg` and drag Scriber to **Applications** choosing **Replace**, open Scriber. Do not say *from the menu bar icon*: that icon can be switched off. From 0.10.1 on, use the shape above and nothing else.
+
 What each part is for, since none of it is decoration:
 
-- **Homebrew leads** because it is the only reader for whom everything below is wrong, and Scriber sends them here anyway until the version that fixed that is the one they are running.
 - **Link the asset directly.** GitHub puts Assets below the notes, so a release with anything to say buries its own disk image under prose. A named link at the top costs a reader no scrolling and no guessing which file is the app.
 - **State the requirements beside the download**, because that link is now the first thing anyone can click and nothing above it mentions them. A Mac that cannot run Scriber says so only when macOS refuses to open it.
-- **Say to quit, and to choose Replace**, under a heading an updater reads and a newcomer skips. Do not say *from the menu bar icon*: that icon can be switched off.
 - **Summarize before the lists.** Someone who came to see what changed should not have to read fourteen bullets to find out whether it matters.
 
 Do not explain that permissions, history and the key survive an update. They do, because the app was built that way; describing seamlessness adds a seam.
 
+### The appcast
+
+Installed copies learn about the release from `appcast.xml`, a release asset like the disk image and fetched at `releases/latest/download/appcast.xml`, so publishing a release is what moves every copy forward. Sparkle's `generate_appcast` writes it from the notarized image and signs it with the key from the prerequisites. Give it the release notes minus the `## Download` section — What's new and its lists — as Markdown named after the image, which it embeds in the appcast:
+
+```bash
+SPARKLE_BIN=.build/xcode-release/SourcePackages/artifacts/sparkle/Sparkle/bin
+FEED=".build/appcast-$VERSION"
+rm -rf "$FEED" && mkdir -p "$FEED"
+cp ".build/Scriber-$VERSION.dmg" "$FEED/"
+cp <What's new and its lists, as Markdown> "$FEED/Scriber-$VERSION.md"
+"$SPARKLE_BIN/generate_appcast" --account scriber --embed-release-notes \
+  --download-url-prefix "https://github.com/gafiegarcia/scriber/releases/download/v$VERSION/" "$FEED"
+grep -E 'sparkle:shortVersionString|sparkle:version|sparkle:edSignature|url=' "$FEED/appcast.xml"
+```
+
+That last line must show this version and build, an `edSignature`, and a URL ending in `v$VERSION/Scriber-$VERSION.dmg`. Upload exactly the image the appcast was generated from: the signature covers its bytes, and any other copy — even one rebuilt from the same commit — fails verification on every Mac that downloads it.
+
 ```bash
 shasum -a 256 ".build/Scriber-$VERSION.dmg"
-gh release create "v$VERSION" ".build/Scriber-$VERSION.dmg" --title "v$VERSION" --notes-file <(…the shape above…)
+gh release create "v$VERSION" ".build/Scriber-$VERSION.dmg" "$FEED/appcast.xml" --title "v$VERSION" --notes-file <(…the shape above…)
 ```
 
 Read the published page back before moving on — `gh release view "v$VERSION" --json body --jq .body | grep '^#'` should print the headings above and no others. Notes assembled by extracting from the changelog can pick up every later version's `### Added` as well, which reads as a normal release page until someone scrolls.
 
-Finally update `Casks/scriber.rb` in the [tap repository](https://github.com/gafiegarcia/homebrew-scriber) with the new `version` and that `sha256`. The cask points at the release asset by version, so it breaks until this lands — do it in the same sitting.
+Then read the appcast the way an installed copy will, through `latest`:
+
+```bash
+curl -sL https://github.com/gafiegarcia/scriber/releases/latest/download/appcast.xml | grep -E 'sparkle:shortVersionString|url='
+```
+
+It must name this version. An older one means `latest` still resolves to another release — a draft or a prerelease does not count as latest — and no installed copy will update until it does.
+
+Finally update `Casks/scriber.rb` in the [tap repository](https://github.com/gafiegarcia/homebrew-scriber) with the new `version` and that `sha256`. The cask points at the release asset by version, so it breaks until this lands — do it in the same sitting. The sitting matters twice over now that Scriber updates itself: a named `brew upgrade --cask scriber` reinstalls whatever version the tap declares whenever Homebrew's record differs, so a tap that lags a release downgrades anyone who runs it.
+
+The cask declares `auto_updates true`, which tells Homebrew the app updates itself; a bare `brew upgrade` then still upgrades an install older than the tap and never downgrades one. Add it in the same commit that moves the cask to 0.10.0, the first version that updates itself, and never before: on an older version it would tell Homebrew that an app which cannot update itself does.

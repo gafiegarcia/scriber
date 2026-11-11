@@ -17,6 +17,7 @@ Every check a machine can run lives in `scripts/`. This document says what each 
 | `./scripts/smoke.sh` | After any change to startup, the pill, or an `NSViewRepresentable`. |
 | `./scripts/check-docs.sh` | After any change to a document or to a symbol a document names. |
 | `./scripts/inspect-release.sh` | After a Release build, before installing or notarizing. |
+| `./scripts/check-update.sh` | After any change to the updater, the Sparkle version, or how a release is signed or packaged. |
 | `./scripts/check-cask.sh <version>` | After publishing a release. |
 
 ## Routine pass
@@ -37,12 +38,28 @@ It proves a spec fragment exists. It cannot prove it is the *right* rule: an anc
 
 Build instructions are in the [build guide](BUILDING.md). After building Release, `./scripts/inspect-release.sh` inspects the exact bundle that will be installed — pass a path to inspect a different one.
 
-Four things must hold, the script asserts all four, and each has caught a real mistake:
+The script asserts each of these, and each defends a real mistake:
 
 - The requirement anchors to Apple's Developer ID chain for team `24U8BM54A3`. Anything else is a different app to macOS, and its permission grants will not carry over.
 - `CodeDirectory` flags include `runtime`. Without the hardened runtime, notarization refuses the build.
 - The entitlements are exactly `com.apple.security.device.audio-input`. An entitlement Scriber does not use is a notarization rejection waiting to happen; a missing one takes the microphone away at runtime rather than at build time.
 - No provisioning profile is embedded. Scriber uses no entitlement that requires one, so a profile appearing means something turned on automatic signing.
+- Sparkle's framework, `Autoupdate` and `Updater.app` are signed by the same team under the hardened runtime, and its XPC services are gone. Sparkle ships them ad-hoc signed; the **Sign Sparkle** build phase is what fixes that, and a helper it missed is a notarization rejection.
+- No file in `Contents/MacOS` contains `--debug-appcast`. The option is compiled into Debug alone; its string in a Release build means the gate became a runtime check. Run against a Debug build, this assertion fails on `Scriber.debug.dylib`, which is how to see it bite.
+- `SUFeedURL` is the published appcast and `SUPublicEDKey` is Scriber's key. A changed key strands every install holding the old one.
+- `ThirdPartyNotices.txt` ships in the bundle, which Sparkle's license requires.
+
+## An update installing itself
+
+`./scripts/check-update.sh` proves one build can install the next, with nothing published. It builds an old and a new Debug build, puts the new one in a disk image, writes an appcast for it with Sparkle's own `generate_appcast` signed by the real key in the login Keychain, serves it on 127.0.0.1, and points the old build at it through `--debug-appcast`, the Debug-only option `debugAppcastURL` (`ScriberApp.swift`) reads. Then it stages the update in the old build and kills it, launches a fresh old build with that update still on record and requires it to install by itself and be relaunched by Sparkle as the new build, and confirms the relaunched build records the update and no longer holds one staged.
+
+What failure looks like: phase A never stages (no download, or a signature Sparkle refused), phase B leaves the old build running past two minutes, quits without the new build arriving, or is never relaunched, or phase C finds no `recentUpdate` in the test suite. Phase A also says whether Sparkle's own installer replaced the app the moment it was killed; either answer passes, since the design requires only that the next launch ends up on the new version, and phase B is what proves Scriber's half of that.
+
+Both builds carry the bundle identifier `com.gafiegarcia.scriber.sparkle-test`, so Sparkle's preferences, cache and installer job never touch the installed app's, and both run under `--ui-testing`, so neither reads real history, preferences or the key. Their preferences live in the `com.gafiegarcia.scriber.update-test` suite, which `--debug-appcast` keeps between launches rather than wiping, because the new build reads what the old one wrote. The launch options travel in each build's Info.plist under `ScriberTestLaunchArguments`, which `launchArguments` (`ScriberApp.swift`) reads in Debug alone: Sparkle relaunches an updated app with no arguments, and a relaunched build without them would be an ordinary Debug build on the real history, preferences and key. `KEEP_RUNNING=1` leaves the relaunched build up for its Settings to be read through the accessibility tree.
+
+The first run may raise a Keychain prompt for `generate_appcast` to use the signing key; allow it. Nothing else here needs a permission. A prompt asking to let Python find devices on local networks means the server is doing a host-name lookup the script exists to avoid — decline it, and see the `Do not:` note above the server in the script.
+
+It cannot exercise an install at a screen lock, which would lock the user's Mac, nor judge how the status line looks. [Manual checks](MANUAL_CHECKS.md) holds both.
 
 ## The published cask
 
@@ -310,73 +327,9 @@ Do not combine it with `--ui-testing-no-activate`, which is for launches nobody 
 
 This shows the menu and what is in it. It proves nothing about menu-bar *behavior* that depends on real state — the warning symbol tracking a real key, or the recording indicator — which stays on the installed app.
 
-### An update being available
+### The update status line
 
-`--ui-testing-pretend-version <version>` runs the app as that version, so the check compares it against the real latest release on GitHub. It is the only way to reach the update-available state: the state depends on a release newer than the running build, and no build can produce one for itself. Throwaway defaults hold the result, so an offer raised here never reaches the installed app — which matters, because a bogus `availableUpdate` in the real suite would be shown by it.
-
-The launch performs the check itself, so the offer is on screen when the window opens rather than waiting for a button. It reaches GitHub and spends no API credit.
-
-```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-before_pid="$(pgrep -n -x Scriber || true)"
-APP_PATH="$REPO_ROOT/.build/xcode-debug/Build/Products/Debug/Scriber.app"
-
-open -n -a "$APP_PATH" --args --ui-testing --ui-testing-pretend-version 0.8.0
-sleep 6
-pid="$(pgrep -n -x Scriber || true)"
-[ -n "$pid" ] && [ "$pid" != "$before_pid" ] || { echo "REFUSING: never launched" >&2; exit 1; }
-# … inspect, then …
-kill "$pid"
-```
-
-Both directions are worth running, and the second is the one no test can show in the app itself:
-
-Both are written against whatever release is currently newest, called `LATEST` here — the check compares against GitHub, so it stops naming a fixed version the moment one ships.
-
-- Below `LATEST` — `0.8.0` serves until a release passes it — offers it. Settings' Updates section reads **Scriber vLATEST is available.** with **Get vLATEST** beside it, the menu bar menu carries **Update to vLATEST**, and both open the release page. Every version on screen carries the `v` that tags carry. **Check for Updates** ignores the once-a-day interval, so pressing it repeats the check rather than doing nothing.
-- Above `LATEST` — raise the minor, so `0.10.0` against a `0.9.x` release — offers nothing, and the status reads **You're on the latest version.** followed by when the check last ran. Pick the pretended version so it sorts *below* `LATEST` as text while being above it numerically, which is what `0.10.0` against `0.9.x` does: that is the ordering the app depends on, and a string comparison fails it by going on offering an update to a version older than itself.
-
-The version in the **Scriber v0.8.0 (build)** line is the pretended one, which is what says a run is simulated. The build number beside it is the real one.
-
-#### The Homebrew route
-
-Scriber offers a Homebrew install the `brew upgrade` command instead of the release page, and recognizes one by resolving the Caskroom's symlink against its own bundle. Reaching that state on a Mac whose Scriber is not Homebrew-managed means building the link by hand, pointed at **the Debug build**, which is what will be running:
-
-```bash
-DEBUG_APP="$(git rev-parse --show-toplevel)/.build/xcode-debug/Build/Products/Debug/Scriber.app"
-mkdir -p /opt/homebrew/Caskroom/scriber/0.0.0-fake
-ln -sfn "$DEBUG_APP" /opt/homebrew/Caskroom/scriber/0.0.0-fake/Scriber.app
-```
-
-The version folder is named arbitrarily above: detection searches every version folder a cask holds and matches on the resolved path, never on the folder's name, so a name that could not be a real release makes it obvious the layout is hand-built.
-
-Launch with `--ui-testing-pretend-version 0.8.0`. The button reads **Update…**, opens a dialog carrying `brew upgrade --cask scriber`, and **Copy Command** writes it to the real pasteboard. In the menu bar, the item reads **Update to vLATEST…** and opens Settings rather than a browser. Remove the link, relaunch, and the button must go back to **Get vLATEST** opening the release page, with the menu bar's item losing its ellipsis and opening it too — without that half, a detector stuck at yes would pass.
-
-**Clean up, and treat it as required rather than tidy:**
-
-```bash
-trash /opt/homebrew/Caskroom/scriber
-brew list --cask | grep scriber || echo "no longer listed"
-```
-
-That directory alone is enough for `brew list --cask` to report scriber as installed, with none of the metadata a real install leaves. It is harmless while the cask's version matches what the folder claims and becomes an upgrade Homebrew will attempt once the published cask moves ahead of it — which is a bad surprise on a Mac that runs `brew upgrade` on a schedule.
-
-#### An offer that has already been taken
-
-`--ui-testing-seed-update-offer <version>` puts an offer in preferences before the coordinator is built, which is the only thing that reads a stored one back. That state cannot occur here otherwise — the throwaway suite is wiped at every launch, and an offer only lands after a check that runs later — so without the flag the discard has nothing to act on and goes unexercised.
-
-Pass no pretend version with it. The build then runs as itself, and no check runs to overwrite what was seeded, which is what isolates the discard from the check. Read the result from the throwaway suite rather than the screen:
-
-```bash
-defaults read com.gafiegarcia.scriber.ui-testing availableUpdate
-```
-
-Three runs, and the third is the one that stops a passing result meaning nothing:
-
-- Seeded at the running version — discarded. This is the real case: the offer was taken, and the version it named is the one now running.
-- Seeded below the running version — discarded.
-- Seeded above the running version — **kept**. An offer that still stands must survive, or a discard that deletes everything would pass the first two.
-
+`./scripts/check-update.sh` with `KEEP_RUNNING=1` leaves the new build up after an update, holding the test suite's record of it. Open its Settings by pid and read the General tab: the version row reads **Scriber v0.99.1 (99001)**, and `update-status` reads **Updated to v0.99.1 today.** with **What's New** beside it. That is the only status line a machine can reach without a feed newer than the running build; the offer lines are read on the release itself, in [Manual checks](MANUAL_CHECKS.md).
 
 ### Simulated recovery
 

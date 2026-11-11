@@ -6,6 +6,10 @@
 	objectVersion = 70;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000002 /* Sparkle */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		B10000000000000000000011 /* Scriber.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scriber.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000017 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
@@ -31,6 +35,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000001 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 				C10000000000000000000002 /* Sources */,
 				C10000000000000000000001 /* Frameworks */,
 				C10000000000000000000003 /* Resources */,
+				C10000000000000000000004 /* Sign Sparkle */,
 			);
 			buildRules = (
 			);
@@ -75,6 +81,9 @@
 				D10000000000000000000004 /* ScriberCore */,
 			);
 			name = Scriber;
+			packageProductDependencies = (
+				A10000000000000000000002 /* Sparkle */,
+			);
 			productName = Scriber;
 			productReference = B10000000000000000000011 /* Scriber.app */;
 			productType = "com.apple.product-type.application";
@@ -108,6 +117,9 @@
 				Base,
 			);
 			mainGroup = D10000000000000000000001;
+			packageReferences = (
+				A10000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			productRefGroup = D10000000000000000000003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -126,6 +138,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C10000000000000000000004 /* Sign Sparkle */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Sign Sparkle";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "# Platform: Sparkle ships its helpers ad-hoc signed, and embedding re-signs\n# only the framework's own binary, so the notary service rejects the app.\n# Scriber is not sandboxed, so Sparkle runs in process and never uses its XPC\n# services: they are removed rather than signed.\nset -euo pipefail\n[ -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ] || exit 0\nFRAMEWORK=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework\"\nif [ ! -d \"$FRAMEWORK\" ]; then\n  echo \"error: Sparkle.framework is not embedded yet; this phase must run after it is\"\n  exit 1\nfi\nrm -rf \"$FRAMEWORK/Versions/B/XPCServices\" \"$FRAMEWORK/XPCServices\"\nfor item in \"$FRAMEWORK/Versions/B/Autoupdate\" \"$FRAMEWORK/Versions/B/Updater.app\" \"$FRAMEWORK\"; do\n  codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --options runtime ${OTHER_CODE_SIGN_FLAGS:-} \"$item\"\ndone\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		C10000000000000000000002 /* Sources */ = {
@@ -236,6 +267,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A10000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.10.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A10000000000000000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E10000000000000000000002 /* Project object */;
 }

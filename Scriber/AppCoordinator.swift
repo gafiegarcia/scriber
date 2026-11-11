@@ -25,10 +25,6 @@ enum MainWindowDestination: Hashable {
     /// tab and leaves the one already showing alone: a route that exists to fix
     /// something lands on the tab that owns it, an ordinary opening does not.
     case permissions
-    /// Settings, on the General tab, where the Updates section lives. The route
-    /// a Homebrew install takes instead of the release page — the command it
-    /// needs is there and nowhere else.
-    case updates
 }
 
 struct MainWindowRequest: Equatable {
@@ -104,8 +100,6 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var subscriptionUsageUnavailable = false
     @Published private(set) var isRefreshingSubscriptionUsage = false
     @Published private(set) var subscriptionUsageError: String?
-    @Published private(set) var isCheckingForUpdates = false
-    @Published private(set) var updateCheckError: String?
     @Published private(set) var mainWindowRequest: MainWindowRequest?
     private var settingsWindowOpener: (@MainActor () -> Void)?
     @Published private(set) var otherAudioMuteStatus: OtherAudioMuteStatus?
@@ -127,7 +121,6 @@ final class AppCoordinator: ObservableObject {
     /// it, so none of them has to read a `phase` that has not caught up.
     private var gate = RecordingStartGate()
     private let scribe = ScribeClient()
-    private let updateChecker = UpdateChecker()
     private let paste = PasteService()
     /// Measurement only; delete with the delivery roadmap item.
     private let stalls = MainThreadStallMonitor()
@@ -235,11 +228,6 @@ final class AppCoordinator: ObservableObject {
     private var checkedStoredAPIKeyThisLaunch = false
     @Published private(set) var isCheckingStoredAPIKey = false
     private var storedAPIKeyValidationTask: Task<Void, Never>?
-    /// Separate from `preferences.lastUpdateCheck`, which records only a check
-    /// that got an answer. `startServices` runs again every time the menu bar
-    /// opens, so without an in-session stamp a failed check starts a new
-    /// twenty-second request each time.
-    private var lastUpdateAttempt: Date?
     private var credentialRevision = CredentialRevision()
     /// Whether setup is being walked a second time. `onboardingDismissed` cannot
     /// answer it — Redo Setup clears that — and the two differ in what a step
@@ -272,15 +260,6 @@ final class AppCoordinator: ObservableObject {
             servicesAllowed: servicesAllowed
         )
         shortcuts = GlobalShortcutService(dictation: preferences.dictationShortcut)
-
-        // Before anything reads it. A stored offer survives the update it
-        // describes: only a check that comes back empty clears one, and the
-        // check that found it ran minutes before the user installed it, so the
-        // once-a-day interval leaves the new version offering itself.
-        if let offer = preferences.availableUpdate,
-           !UpdateChecker.stillDescribesAnUpdate(offer, currentVersion: Self.runningVersion) {
-            preferences.availableUpdate = nil
-        }
 
         stalls.start()
 
@@ -551,9 +530,6 @@ final class AppCoordinator: ObservableObject {
             refreshAudioInputs: true,
             source: .startServices
         )
-        // Above the guards below, because a user whose Accessibility grant is
-        // missing is exactly the one an update might be fixing.
-        checkForUpdates()
         guard shortcutMonitoringAllowed else {
             shortcuts.stop()
             shortcutMonitorAvailable = false
@@ -917,6 +893,15 @@ final class AppCoordinator: ObservableObject {
     /// drift apart.
     var canRestartOnboarding: Bool { !phase.isBusy }
 
+    /// Whether anything a dictation started is still running: the recording, a
+    /// transcription — one canceled and still finishing included, since it writes
+    /// its row when it answers — a History retry, or the paste that follows. An
+    /// update relaunches Scriber, so it waits for all of them.
+    var hasDictationWorkInFlight: Bool {
+        phase.isBusy || !gate.isIdle || liveTranscriptionRun != nil
+            || retryingRecordID != nil || isDeliveringTranscript
+    }
+
     /// Sends the user back through onboarding. Only the flag is cleared — the key,
     /// grants, and history stay, and onboarding reads current state, so each step
     /// presents as already satisfied rather than asking again.
@@ -1008,63 +993,16 @@ final class AppCoordinator: ObservableObject {
     }
 
     static let runningVersion =
-        AppLaunchConfiguration.pretendedVersion
-            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-            ?? "0.0.0"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
 
     /// Carries the `v` that tags and releases carry, so what Scriber says matches
-    /// what GitHub shows to anyone who follows an offer. Display only — the bare
-    /// string is what the update check compares and what the User-Agent sends.
+    /// what GitHub shows on the release page What's New opens. Display only.
     static func displayVersion(_ version: String) -> String { "v\(version)" }
-
-    /// Whether Homebrew installed this copy, which changes what taking an update
-    /// means: a manual install over a cask leaves Homebrew's record describing an
-    /// app it no longer put there. Read once — an install cannot move while it
-    /// runs.
-    static let isHomebrewManaged = HomebrewInstall.manages(bundlePath: Bundle.main.bundlePath)
 
     /// Shown beside the version because two installs can share a version and
     /// differ, which is exactly the pair a bug report has to tell apart.
     static let runningBuild =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
-
-    /// Lifted for the update check alone, and only for a launch carrying a
-    /// pretend version: reaching the update-available state needs a real answer
-    /// from GitHub, which `servicesAllowed` otherwise withholds. Nil in Release,
-    /// so the gate is unchanged there. This spends no API credit — the releases
-    /// endpoint is GitHub's, not ElevenLabs'.
-    private var updateChecksAllowed: Bool {
-        servicesAllowed || AppLaunchConfiguration.pretendedVersion != nil
-    }
-
-    /// `force` is the Check for Updates button: it ignores the once-a-day interval
-    /// but not the gate above, so an ordinary `--ui-testing` launch still reaches
-    /// no network from either path.
-    func checkForUpdates(force: Bool = false) {
-        guard updateChecksAllowed else { return }
-        guard force || preferences.automaticUpdateChecks else { return }
-        guard force || (UpdateChecker.isDue(lastCheck: preferences.lastUpdateCheck)
-            && UpdateChecker.isDue(lastCheck: lastUpdateAttempt)) else { return }
-        guard !isCheckingForUpdates else { return }
-
-        isCheckingForUpdates = true
-        lastUpdateAttempt = Date()
-        Task { [weak self] in
-            guard let self else { return }
-            defer { isCheckingForUpdates = false }
-            do {
-                let update = try await updateChecker.check(currentVersion: Self.runningVersion)
-                // Only a check that got an answer is persisted, so a run that
-                // has never reached GitHub can still say so rather than
-                // claiming to be current.
-                preferences.lastUpdateCheck = Date()
-                if preferences.availableUpdate != update { preferences.availableUpdate = update }
-                if updateCheckError != nil { updateCheckError = nil }
-            } catch {
-                updateCheckError = "Could not reach GitHub to check for updates."
-            }
-        }
-    }
 
     func refreshSubscriptionUsage() async {
         guard !isRefreshingSubscriptionUsage else { return }
