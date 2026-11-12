@@ -1,8 +1,6 @@
 import Foundation
 import os
 
-// Direct ElevenLabs Scribe v2 client shared with the app target.
-
 public struct ScribeResult: Decodable, Sendable {
     public let text: String
     public let languageCode: String?
@@ -281,6 +279,22 @@ public struct ScribeClient: Sendable {
 
     public init() {}
 
+    /// The most keyterms the user can add. Scribe accepts 1,000, but past 100 it
+    /// bills every request as at least 20 seconds of audio, which a dictation of
+    /// a few seconds pays several times over.
+    public static let keytermLimit = 100
+
+    /// The user's keyterms with `term` added, validated as Settings stores them.
+    public static func addingKeyterm(_ term: String, to keyterms: [String]) throws -> [String] {
+        let validated = try validateKeyterms(keyterms + [term])
+        guard validated.count <= keytermLimit else {
+            throw ScribeError.invalidRequest("Scriber accepts at most \(keytermLimit) keyterms.")
+        }
+        return validated
+    }
+
+    /// Validates keyterms against what Scribe itself accepts, which is looser
+    /// than `keytermLimit`.
     public static func validateKeyterms(_ keyterms: [String]) throws -> [String] {
         guard keyterms.count <= 1_000 else {
             throw ScribeError.invalidRequest("Scribe accepts at most 1,000 keyterms.")
@@ -289,7 +303,7 @@ public struct ScribeClient: Sendable {
         return try keyterms.compactMap { value in
             let term = value.trimmingCharacters(in: .whitespacesAndNewlines)
             if term.isEmpty { return nil }
-            guard term.count < 50,
+            guard term.count <= 50,
                   term.split(whereSeparator: { $0.isWhitespace }).count <= 5,
                   term.rangeOfCharacter(from: unsupported) == nil else {
                 throw ScribeError.invalidKeyterm(term)
@@ -392,6 +406,10 @@ public struct ScribeClient: Sendable {
         onAttempt: @escaping @Sendable (Int, TimeInterval?) async -> Void,
         permitsRetry: @escaping @Sendable () async -> Bool = { true }
     ) async throws -> ScribeResult {
+        // Legacy: builds before `keytermLimit` let the user save up to 1,000
+        // keyterms, so transcription holds a list only to Scribe's own limits.
+        // Holding it to `keytermLimit` would fail every dictation of anyone who
+        // saved more. The live code can no longer produce such a list.
         let keyterms = try Self.validateKeyterms(input.keyterms)
         let delays: [TimeInterval] = [3, 5]
         var lastError: Error?
@@ -490,7 +508,7 @@ public struct ScribeClient: Sendable {
             append("\(value)\r\n")
         }
 
-        field("model_id", "scribe_v2")
+        field("model_id", "scribe_v3")
         field("timestamps_granularity", "none")
         field("diarize", "false")
         field("tag_audio_events", "false")

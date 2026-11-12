@@ -830,8 +830,7 @@ private struct DictationSettingsPane: View {
 
     private func addKeyterm() {
         do {
-            let validated = try ScribeClient.validateKeyterms(runtime.preferences.keyterms + [newKeyterm])
-            runtime.preferences.keyterms = validated
+            runtime.preferences.keyterms = try ScribeClient.addingKeyterm(newKeyterm, to: runtime.preferences.keyterms)
             newKeyterm = ""
             keytermError = nil
         } catch { keytermError = error.localizedDescription }

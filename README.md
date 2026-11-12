@@ -16,7 +16,7 @@ If you're looking for a macOS dictation app to daily-drive, you may be intereste
 
 I asked Codex and Claude to build a Wispr Flow alternative (didn't like its RAM usage). It turns out to be good enough that I uninstalled the others for the time being.
 
-**Scriber** is a native macOS dictation app that lives in the menu bar by default, built with Swift, SwiftUI, and AppKit. Let me rephrase: Scriber is an ElevenLabs Scribe v2 API wrapper written in Swift that works just like Wispr Flow (kinda).
+**Scriber** is a native macOS dictation app that lives in the menu bar by default, built with Swift, SwiftUI, and AppKit. Let me rephrase: Scriber is an ElevenLabs Scribe v3 API wrapper written in Swift that works just like Wispr Flow (kinda).
 
 - **~66-100MB of RAM usage when idle** (depending on how many saved dictations you have in history; sitting comfortably at ~80-90MB with ~1900 rows).
 - **<5MB of bundle size** (native Swift app).

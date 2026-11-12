@@ -82,7 +82,7 @@ private struct KeychainStorageBackend: CredentialStorageBackend {
         let attributes: [String: Any] = [
             kSecValueData as String: data,
             kSecAttrLabel as String: label,
-            kSecAttrDescription as String: "Stored locally for Scribe v2 transcription",
+            kSecAttrDescription as String: "Stored locally for Scribe transcription",
         ]
         let update = SecItemUpdate(match as CFDictionary, attributes as CFDictionary)
         if update == errSecItemNotFound {

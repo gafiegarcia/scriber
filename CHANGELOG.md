@@ -4,6 +4,12 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Changed
+
+- **Dictations are transcribed by Scribe v3.** ElevenLabs' newest model makes fewer word errors than Scribe v2, at the same price per hour. **Remove filler words and false starts** still does more than its name says: besides dropping fillers, it tidies casual speech toward written form, so switch it off if you want your words kept as you said them.
+- **Keyterms stop at 100.** Past 100, ElevenLabs bills every dictation as at least 20 seconds long, so a short one would cost several times what it should. A list you saved before this keeps working.
+- **A keyterm can be 50 characters long.** Scriber used to refuse one of exactly 50, which ElevenLabs accepts.
+
 ### Fixed
 
 - **Updating no longer opens Scriber's window.** When Scriber installed an update at the lock screen and restarted itself, it came back with its main window open, waiting for you when you unlocked. It now comes back quietly, the way it does when your Mac starts up: menu bar and shortcut only. Settings → General still says **Updated to vX today** if you want to know.

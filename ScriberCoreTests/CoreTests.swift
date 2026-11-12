@@ -656,6 +656,31 @@ struct ScribeValidationTests {
         #expect(result == ["Scriber", "Studio Delapan"])
     }
 
+    @Test("Accepts a keyterm of exactly 50 characters and rejects 51")
+    func keytermLength() throws {
+        let fifty = String(repeating: "a", count: 50)
+        #expect(try ScribeClient.validateKeyterms([fifty]) == [fifty])
+        #expect(throws: ScribeError.self) {
+            try ScribeClient.validateKeyterms([fifty + "a"])
+        }
+    }
+
+    @Test("Adding stops at the keyterm limit")
+    func addingStopsAtLimit() throws {
+        let full = (1...ScribeClient.keytermLimit).map { "term\($0)" }
+        let almostFull = Array(full.dropLast())
+        #expect(try ScribeClient.addingKeyterm("last", to: almostFull).count == ScribeClient.keytermLimit)
+        #expect(throws: ScribeError.self) {
+            try ScribeClient.addingKeyterm("one more", to: full)
+        }
+    }
+
+    @Test("Transcription still accepts a list saved above the keyterm limit")
+    func transcriptionAcceptsLegacyList() throws {
+        let legacy = (1...(ScribeClient.keytermLimit + 1)).map { "term\($0)" }
+        #expect(try ScribeClient.validateKeyterms(legacy).count == legacy.count)
+    }
+
     @Test("Rejects unsupported characters")
     func rejectsUnsupportedCharacters() {
         #expect(throws: ScribeError.self) {
