@@ -9,11 +9,12 @@
 #
 #   A. The old build checks, downloads and stages the update, and is killed
 #      with it staged, the way a crash or a force quit ends it.
-#   B. A fresh old build is launched with that staged update still on record.
-#      It must install it by itself and be relaunched by Sparkle as the new
-#      build, with no window or button involved.
-#   C. The relaunched build must record that it follows an update, and must no
-#      longer hold one staged.
+#   B. A fresh old build, with no window open, is launched with that staged
+#      update still on record. It must install it by itself and be relaunched
+#      by Sparkle as the new build, which records the update and comes back
+#      with no window.
+#   C. Again with the old build's main window open. The new build must put the
+#      main window back, behind other apps, without taking the front.
 #
 # Both builds carry the bundle identifier com.gafiegarcia.scriber.sparkle-test,
 # so Sparkle's preferences, cache and installer job never touch the installed
@@ -138,7 +139,8 @@ defaults delete "$SUITE" >/dev/null 2>&1 || true
 defaults write "$TEST_ID" SUHasLaunchedBefore -bool YES
 defaults write "$TEST_ID" SULastCheckTime -date "2020-01-01 00:00:00 +0000"
 
-# Prints the pid of the old build it launched.
+# Prints the pid of the old build it launched. Arguments are passed to it as
+# launch options of its own, which the build Sparkle relaunches does not get.
 launch_old() {
   # Do not: ditto onto a bundle already there. It merges, and leaves a new
   # build's files inside what claims to be the old one.
@@ -146,7 +148,7 @@ launch_old() {
   ditto "$WORK/old/Scriber.app" "$APP"
   [ "$(build_of "$APP")" = "$OLD_BUILD" ] || fail "could not put the old build in place"
   [ -z "$(test_build_pid)" ] || fail "a test build is already running"
-  open -g -n -a "$APP"
+  open -g -n -a "$APP" --args "$@"
   # Measured: polled, not slept. With an update staged, the old build installed
   # and Sparkle had relaunched the new one 1.3 s after launch, so a fixed wait
   # finds the new build and takes it for the old.
@@ -171,6 +173,32 @@ wait_for_build() {
   return 1
 }
 
+# Waits for the old build in $old_pid to install the staged update and quit,
+# and for Sparkle to relaunch the new one, whose pid lands in $new_pid.
+await_install_and_relaunch() {
+  for _ in $(seq 120); do
+    kill -0 "$old_pid" 2>/dev/null || break
+    sleep 1
+  done
+  kill -0 "$old_pid" 2>/dev/null && fail "the old build was still running after two minutes; it never installed"
+  wait_for_build "$NEW_BUILD" 30 || fail "the old build quit but the new build never arrived"
+  codesign --verify --strict "$APP" || fail "the installed build does not verify"
+  new_pid=""
+  for _ in $(seq 30); do
+    new_pid="$(test_build_pid)"
+    [ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ] && break
+    new_pid=""
+    sleep 1
+  done
+  [ -n "$new_pid" ] || fail "Sparkle never relaunched the new build"
+  sleep 3
+}
+
+window_log() {
+  /usr/bin/log show --last 5m --style compact --predicate \
+    "subsystem == \"com.gafiegarcia.scriber\" AND processIdentifier == $1 AND category == \"window-lifecycle\""
+}
+
 echo
 echo "==> A. Stage the update, then kill the old build"
 old_pid="$(launch_old)"
@@ -190,47 +218,57 @@ sleep 2
 pkill -f "^$EXECUTABLE" 2>/dev/null || true
 
 echo
-echo "==> B. Launch an old build with the update still staged"
-old_pid="$(launch_old)"
-echo "    old build is pid $old_pid"
-for _ in $(seq 120); do
-  kill -0 "$old_pid" 2>/dev/null || break
-  sleep 1
-done
-kill -0 "$old_pid" 2>/dev/null && fail "the old build was still running after two minutes; it never installed"
-wait_for_build "$NEW_BUILD" 30 || fail "the old build quit but the new build never arrived"
-echo "    installed by itself at launch: build $(build_of "$APP")"
-codesign --verify --strict "$APP" || fail "the installed build does not verify"
-new_pid=""
-for _ in $(seq 30); do
-  new_pid="$(test_build_pid)"
-  [ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ] && break
-  new_pid=""
-  sleep 1
-done
-[ -n "$new_pid" ] || fail "Sparkle never relaunched the new build"
-echo "    Sparkle relaunched it as pid $new_pid"
-
-echo
-echo "==> C. Read what the relaunched build recorded"
-sleep 3
+# An update never changes which windows are on screen. The relaunched build's
+# own log states the decision and what it put back; "showWindow: ordering front"
+# is the ordinary launch path, which also activates, so it must never appear.
+echo "==> B. With no window open, launch an old build with the update still staged"
+# --simulate-login-launch starts this old build with no window. The relaunched
+# build does not get it: Sparkle relaunches with no arguments.
+old_pid="$(launch_old --simulate-login-launch)"
+echo "    old build is pid $old_pid, no window"
+await_install_and_relaunch
+echo "    installed by itself at launch; Sparkle relaunched build $(build_of "$APP") as pid $new_pid"
 defaults read "$SUITE" recentUpdate >/dev/null 2>&1 || fail "the new build did not record that it follows an update"
 defaults read "$SUITE" stagedUpdate >/dev/null 2>&1 && fail "the new build still has the update recorded as staged"
 [ "$(defaults read "$SUITE" lastLaunchedBuild 2>/dev/null || true)" = "$NEW_BUILD" ] \
   || fail "the running build did not record itself as $NEW_BUILD"
-# An update arrives unannounced: the relaunch comes up as a login launch would,
-# with no window. Read from the build's own launch log, which states the
-# decision, and from what it actually ordered on screen.
-launch_log="$(/usr/bin/log show --last 5m --style compact --predicate \
-  "subsystem == \"com.gafiegarcia.scriber\" AND processIdentifier == $new_pid AND category == \"window-lifecycle\"")"
+launch_log="$(window_log "$new_pid")"
 grep -q "afterUpdate=true startsInBackground=true" <<<"$launch_log" \
-  || fail "the relaunched build did not recognise it was installed by an update, so it may show a window"
-grep -q "showWindow: ordering front" <<<"$launch_log" \
-  && fail "the relaunched build put a window on screen"
-echo "    came back with no window"
+  || fail "the relaunched build did not recognise it was installed by an update"
+grep -q "restoreAfterUpdate: windows=\[\]" <<<"$launch_log" \
+  || fail "the relaunched build did not report restoring nothing"
+grep -qE "showWindow: ordering front|restoreAfterUpdate: ordered back" <<<"$launch_log" \
+  && fail "the relaunched build put a window on screen that was not open before"
+echo "    came back with no window, as none was open"
+pkill -f "^$EXECUTABLE" 2>/dev/null || true
+sleep 2
 
 echo
-echo "Staged, killed, installed at the next launch, relaunched by Sparkle as $NEW_VERSION ($NEW_BUILD) with no window."
+echo "==> C. With the main window open, launch an old build with the update staged"
+# Recorded by hand, in the shape `StagedUpdate` stores, because phase B's new
+# build cleared the one phase A left.
+defaults write "$SUITE" stagedUpdate -data \
+  "$(printf '{"version":"%s","build":"%s"}' "$NEW_VERSION" "$NEW_BUILD" | xxd -p | tr -d '\n')"
+old_pid="$(launch_old)"
+echo "    old build is pid $old_pid, main window open"
+await_install_and_relaunch
+echo "    installed by itself at launch; Sparkle relaunched build $(build_of "$APP") as pid $new_pid"
+launch_log="$(window_log "$new_pid")"
+grep -q "afterUpdate=true startsInBackground=true" <<<"$launch_log" \
+  || fail "the relaunched build did not recognise it was installed by an update"
+grep -q "restoreAfterUpdate: windows=\[main\]" <<<"$launch_log" \
+  || fail "the relaunched build did not report the main window as open before the update"
+grep -q "restoreAfterUpdate: ordered back main" <<<"$launch_log" \
+  || fail "the relaunched build did not put the main window back"
+grep -q "showWindow: ordering front" <<<"$launch_log" \
+  && fail "the relaunched build brought its window forward instead of putting it back"
+frontmost="$(osascript -e "tell application \"System Events\" to get frontmost of (first process whose unix id is $new_pid)" 2>&1)" \
+  || fail "could not ask whether the relaunched build is frontmost: $frontmost"
+[ "$frontmost" = "false" ] || fail "the relaunched build took the front after the update"
+echo "    came back with its main window, behind, and not frontmost"
+
+echo
+echo "Staged, killed, installed at the next launch, and relaunched by Sparkle as $NEW_VERSION ($NEW_BUILD), with exactly the windows that were open."
 if [ "${KEEP_RUNNING:-}" = "1" ]; then
   # Left up for its Settings to be read through the accessibility tree.
   trap - EXIT

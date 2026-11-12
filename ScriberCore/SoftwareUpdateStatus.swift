@@ -37,6 +37,32 @@ public struct StagedUpdate: Codable, Equatable, Sendable {
     }
 }
 
+/// What was on screen when an update relaunched Scriber, so the new version puts
+/// back exactly that and nothing more.
+public struct UpdateRelaunch: Codable, Equatable, Sendable {
+    public enum Window: String, Codable, Sendable, CaseIterable {
+        case main
+        case settings
+    }
+
+    /// The build being installed, so a record left by an update that never
+    /// relaunched is not taken up by some later, unrelated launch.
+    public let build: String
+    public let windows: [Window]
+
+    /// Keeps one of each window, in a fixed order, whatever order AppKit listed
+    /// them in.
+    public init(build: String, windows: [Window]) {
+        self.build = build
+        self.windows = Window.allCases.filter(windows.contains)
+    }
+
+    /// Whether this launch is the relaunch the record was written for.
+    public func applies(toRunningBuild runningBuild: String) -> Bool {
+        !BuildNumber.isNewer(build, than: runningBuild) && !BuildNumber.isNewer(runningBuild, than: build)
+    }
+}
+
 /// A launch that found itself newer than the launch before it.
 public struct RecentUpdate: Codable, Equatable, Sendable {
     public let version: String

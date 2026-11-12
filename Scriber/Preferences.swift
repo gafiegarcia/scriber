@@ -42,6 +42,7 @@ final class Preferences: ObservableObject {
         static let lastUpdateCheck = "lastUpdateCheck"
         static let stagedUpdate = "stagedUpdate"
         static let recentUpdate = "recentUpdate"
+        static let updateRelaunch = "updateRelaunch"
         static let lastLaunchedBuild = "lastLaunchedBuild"
         /// The offer the GitHub check stored. Removed at launch; never read.
         static let legacyAvailableUpdate = "availableUpdate"
@@ -115,6 +116,12 @@ final class Preferences: ObservableObject {
     @Published var lastUpdateCheck: Date? { didSet { defaults.set(lastUpdateCheck, forKey: Keys.lastUpdateCheck) } }
     @Published var stagedUpdate: StagedUpdate? { didSet { save(stagedUpdate, key: Keys.stagedUpdate) } }
     @Published var recentUpdate: RecentUpdate? { didSet { save(recentUpdate, key: Keys.recentUpdate) } }
+    /// Which windows were open as an update relaunched Scriber, written by the
+    /// version being replaced and read once by the one replacing it.
+    var updateRelaunch: UpdateRelaunch? {
+        get { Self.storedUpdateRelaunch(in: defaults) }
+        set { save(newValue, key: Keys.updateRelaunch) }
+    }
     /// `CFBundleVersion` of the previous launch, which is how a launch knows it
     /// follows an update.
     var lastLaunchedBuild: String? {
@@ -211,6 +218,11 @@ final class Preferences: ObservableObject {
     /// how a launch presents itself before `Preferences` exists.
     static func storedStagedUpdate(in defaults: UserDefaults) -> StagedUpdate? {
         decode(StagedUpdate.self, key: Keys.stagedUpdate, defaults: defaults)
+    }
+
+    /// The update relaunch record as stored, for the same reader.
+    static func storedUpdateRelaunch(in defaults: UserDefaults) -> UpdateRelaunch? {
+        decode(UpdateRelaunch.self, key: Keys.updateRelaunch, defaults: defaults)
     }
 
     /// Takes an optional because several of these are one: `JSONEncoder` refuses

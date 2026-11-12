@@ -4,6 +4,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+### Changed
+
+- **An update leaves your windows as they were.** When Scriber updates and restarts, it now brings back exactly the windows you had open — the main window, Settings, both or neither — whether it updated by itself at the lock screen or because you chose **Update** or **Install**. They return behind whatever you are working in, and the app you were typing in keeps the keyboard. Before, choosing **Update** always brought the main window back, even if you had closed it. This takes effect from the update after this one, since it is the version being replaced that notes which windows were open.
+
 ## 0.10.1 (build 404) — 2026-11-12
 
 The first update Scriber installs by itself. Dictations now go to ElevenLabs' Scribe v3, which makes fewer word errors at the same price, and an update no longer leaves Scriber's window open behind the lock screen.

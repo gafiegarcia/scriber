@@ -38,6 +38,27 @@ struct StagedUpdateTests {
     }
 }
 
+@Suite("Update relaunch")
+struct UpdateRelaunchTests {
+    @Test("The relaunch into the recorded build restores what was recorded")
+    func appliesToItsBuild() {
+        #expect(UpdateRelaunch(build: "405", windows: [.main]).applies(toRunningBuild: "405"))
+    }
+
+    @Test("A record from an update that never relaunched is ignored by any other build")
+    func ignoredElsewhere() {
+        let record = UpdateRelaunch(build: "405", windows: [.main])
+        #expect(!record.applies(toRunningBuild: "404"))
+        #expect(!record.applies(toRunningBuild: "406"))
+    }
+
+    @Test("Each window is recorded once, in a fixed order")
+    func normalizesWindows() {
+        let record = UpdateRelaunch(build: "405", windows: [.settings, .main, .settings])
+        #expect(record.windows == [.main, .settings])
+    }
+}
+
 @Suite("Automatically update migration")
 struct AutomaticUpdatePreferenceTests {
     @Test("Someone who switched update checks off starts with Automatically update off")

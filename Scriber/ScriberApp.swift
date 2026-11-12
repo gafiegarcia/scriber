@@ -157,9 +157,9 @@ enum AppLaunchConfiguration {
         // Ahead of the preference reads, so the check does not depend on how the
         // user has these set at the time.
         if simulatesLoginLaunch { return true }
-        // An update installs itself unasked, so it comes back unannounced,
-        // whatever "Start in the background" says about login launches.
-        if relaunchesIntoStagedUpdate && !launchesIntoOnboarding { return true }
+        // An update decides for itself what comes back, whatever "Start in the
+        // background" says about login launches — see `restoreWindowsAfterUpdate`.
+        if relaunchesAfterUpdate && !launchesIntoOnboarding { return true }
         // Nothing here asks whether the login item is registered: macOS starting
         // Scriber at login is the proof, and `isLoginItemLaunch` is how that
         // arrives.
@@ -168,34 +168,59 @@ enum AppLaunchConfiguration {
             && UserDefaults.standard.bool(forKey: "onboardingComplete")
     }
 
-    /// Whether Sparkle is relaunching Scriber into the update an earlier launch
-    /// staged — at a screen lock, or at the launch after a crash or force quit.
-    /// Sparkle relaunches as an ordinary open, which presents the main window;
-    /// this is how such a launch knows to come back as quietly as a login launch.
+    /// Whether Sparkle is relaunching Scriber into an update. Sparkle relaunches
+    /// as an ordinary open, which presents the main window and brings Scriber to
+    /// the front; an update must instead leave the screen as it found it. Such a
+    /// launch starts as a login launch does and `restoreWindowsAfterUpdate`
+    /// (`AppDelegate`) puts back only what was open.
     ///
-    /// Recognized by the new build alone, from the staged record the old build
-    /// left, so it holds on an update from a build that knew nothing of it. A
-    /// version installed by hand was never staged, and opens its window as any
+    /// A version installed by hand is neither, and opens its window as any
     /// launch the user makes does.
+    @MainActor
+    static var relaunchesAfterUpdate: Bool { updateRelaunch != nil || relaunchesIntoStagedUpdate }
+
+    /// What the version being replaced recorded as it relaunched, when this is
+    /// the build it was relaunching into.
+    ///
+    /// Read once and kept, like `relaunchesIntoStagedUpdate`.
+    @MainActor
+    static let updateRelaunch: UpdateRelaunch? = {
+        guard let defaults = launchDefaults,
+              let record = Preferences.storedUpdateRelaunch(in: defaults),
+              record.applies(toRunningBuild: runningBuild)
+        else { return nil }
+        return record
+    }()
+
+    /// Whether this is the build an earlier launch staged — installed at a screen
+    /// lock, or at the launch after a crash or force quit.
+    ///
+    /// The answer for an update from a version that recorded no
+    /// `updateRelaunch`, which 0.10.1 and earlier do not. Such a version recorded
+    /// nothing about its windows either, so this launch restores none: an update
+    /// it installed by itself comes back with nothing on screen.
     ///
     /// Read once and kept: `noteLaunch` (`SoftwareUpdater.swift`) clears the
-    /// staged record early in this launch, after which a fresh read says no.
+    /// record early in this launch, after which a fresh read says no.
     @MainActor
     static let relaunchesIntoStagedUpdate: Bool = {
-        let defaults: UserDefaults?
-        if isUITesting {
-            // Only an update test keeps its preferences between launches, so
-            // only it can have staged anything.
-            defaults = debugAppcastURL == nil ? nil : UserDefaults(suiteName: updateTestSuiteName)
-        } else {
-            defaults = .standard
-        }
-        guard let defaults,
-              let staged = Preferences.storedStagedUpdate(in: defaults),
-              let running = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        guard let defaults = launchDefaults,
+              let staged = Preferences.storedStagedUpdate(in: defaults)
         else { return false }
-        return staged.build == running
+        return staged.build == runningBuild
     }()
+
+    private static var runningBuild: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+    }
+
+    /// Where an update's records are, read before `Preferences` exists.
+    private static var launchDefaults: UserDefaults? {
+        guard isUITesting else { return .standard }
+        // Only an update test keeps its preferences between launches, so only it
+        // can have recorded anything.
+        return debugAppcastURL == nil ? nil : UserDefaults(suiteName: updateTestSuiteName)
+    }
 
     /// The preferences suite an update test keeps between its launches.
     static let updateTestSuiteName = "com.gafiegarcia.scriber.update-test"
@@ -215,7 +240,16 @@ enum AppLaunchConfiguration {
     /// Whether SwiftUI should build and show the main window at launch. Suppressed
     /// during setup so the two do not stack; `finish()` opens it once setup is done.
     @MainActor
-    static var presentsMainWindowAtLaunch: Bool { !startsInBackground && !launchesIntoOnboarding }
+    static var presentsMainWindowAtLaunch: Bool {
+        (!startsInBackground || restoresAfterUpdate(.main)) && !launchesIntoOnboarding
+    }
+
+    /// Whether an update relaunch puts this window back. The main window is
+    /// presented by its scene like any launch's; Settings is opened afterwards.
+    @MainActor
+    static func restoresAfterUpdate(_ window: UpdateRelaunch.Window) -> Bool {
+        updateRelaunch?.windows.contains(window) ?? false
+    }
 
     /// Whether this launch puts any window on screen — setup's or the main one.
     ///
@@ -236,7 +270,9 @@ enum AppLaunchConfiguration {
     // Do not: read that asymmetry as a bug from source alone. It was filed as one
     // that way, against code these readings then found correct.
     @MainActor
-    static var presentsAnyWindowAtLaunch: Bool { !startsInBackground }
+    static var presentsAnyWindowAtLaunch: Bool {
+        !startsInBackground || !(updateRelaunch?.windows.isEmpty ?? true)
+    }
 
     /// `--ui-testing-limit-pill` reads as fully permitted, because a Debug build
     /// holds no grants of its own and its launch permission pill would replace
@@ -937,7 +973,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Self.windowLog.notice(
             """
             launch: loginItem=\(LoginItemLaunch.isLoginItemLaunch, privacy: .public) \
-            afterUpdate=\(AppLaunchConfiguration.relaunchesIntoStagedUpdate, privacy: .public) \
+            afterUpdate=\(AppLaunchConfiguration.relaunchesAfterUpdate, privacy: .public) \
             startsInBackground=\(startsInBackground, privacy: .public)
             """
         )
@@ -945,6 +981,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Nothing else will reconcile the policy this launch, and "Show in Dock"
             // is a standing request for a Dock icon whether or not a window is up.
             reconcileActivationPolicy()
+            if AppLaunchConfiguration.relaunchesAfterUpdate { restoreWindowsAfterUpdate() }
             return
         }
         Task { @MainActor [weak self] in
@@ -1026,6 +1063,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             Self.windowLog.notice("showMainWindow: never appeared")
         }
+    }
+
+    /// Puts back the windows an update found open, and nothing else, behind
+    /// whatever the user is working in. Sparkle's relaunch makes Scriber the
+    /// active app; handing activation back is what keeps an update from taking
+    /// the keyboard away from the app the user was typing in, window or none.
+    ///
+    /// The main window arrives through its scene at launch. Settings is opened
+    /// here, through the opener the menu bar icon hands over, retried for the
+    /// moment that takes.
+    // Known and unfixed: with the menu bar icon switched off there is no opener,
+    // so Settings is not restored; the main window still is.
+    private func restoreWindowsAfterUpdate() {
+        let windows = AppLaunchConfiguration.updateRelaunch?.windows ?? []
+        Self.windowLog.notice(
+            "restoreAfterUpdate: windows=[\(windows.map(\.rawValue).joined(separator: ","), privacy: .public)]"
+        )
+        Task { @MainActor [weak self] in
+            for window in windows {
+                await self?.orderBackAfterUpdate(window)
+            }
+            NSApp.deactivate()
+            self?.reconcileActivationPolicy()
+        }
+    }
+
+    private func orderBackAfterUpdate(_ kind: UpdateRelaunch.Window) async {
+        for attempt in 0..<40 {
+            if kind == .settings, attempt % 10 == 0 { SceneOpeners.shared.openSettingsWindow?() }
+            let window = NSApp.windows.first {
+                kind == .main ? AppWindowIdentity.isMainWindow($0) : AppWindowIdentity.isSettingsWindow($0)
+            }
+            if let window, window.isVisible {
+                window.orderBack(nil)
+                Self.windowLog.notice("restoreAfterUpdate: ordered back \(kind.rawValue, privacy: .public)")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        Self.windowLog.notice("restoreAfterUpdate: \(kind.rawValue, privacy: .public) never appeared")
     }
 
     /// Polls like onboarding does: the caller's `openWindow(id:)` may have just

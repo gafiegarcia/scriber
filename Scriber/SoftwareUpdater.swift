@@ -118,9 +118,11 @@ final class SoftwareUpdater: NSObject, ObservableObject {
     }
 
     private func noteLaunch() {
-        // Do not: move this below the clearing of `stagedUpdate`. The launch
-        // decides whether to show a window from that record, and reads it once.
+        // Do not: move these below the clearing of the records they read. The
+        // launch decides what to put on screen from them, and reads them once.
         _ = AppLaunchConfiguration.relaunchesIntoStagedUpdate
+        _ = AppLaunchConfiguration.updateRelaunch
+        preferences.updateRelaunch = nil
         let running = AppCoordinator.runningBuild
         if let previous = preferences.lastLaunchedBuild, BuildNumber.isNewer(running, than: previous) {
             preferences.recentUpdate = RecentUpdate(version: AppCoordinator.runningVersion, date: Date())
@@ -338,7 +340,9 @@ extension SoftwareUpdater: SPUUpdaterDelegate {
         immediateInstallationBlock immediateInstallHandler: @escaping () -> Void
     ) -> Bool {
         immediateInstall = immediateInstallHandler
-        markStaged(StagedUpdate(version: item.displayVersionString, build: item.versionString))
+        let update = StagedUpdate(version: item.displayVersionString, build: item.versionString)
+        sessionUpdate = update
+        markStaged(update)
         if installRequested || installsAtLaunch {
             installWhenIdle(lockBound: false) { [weak self] in self?.installNow() }
         }
@@ -358,6 +362,20 @@ extension SoftwareUpdater: SPUUpdaterDelegate {
         // A background check, which reaches no user driver method: an offer
         // whose release was pulled goes with it.
         if case .available = offer { offer = .none }
+    }
+
+    /// Records what is on screen as Sparkle relaunches into the update, for the
+    /// new version to put back: an update never changes which Scriber windows
+    /// are open, whether it installed itself or the user asked for it.
+    func updaterWillRelaunchApplication(_ updater: SPUUpdater) {
+        guard let build = sessionUpdate?.build ?? preferences.stagedUpdate?.build else { return }
+        let open = NSApp.windows.filter(\.isVisible).compactMap { window -> UpdateRelaunch.Window? in
+            if AppWindowIdentity.isMainWindow(window) { return .main }
+            if AppWindowIdentity.isSettingsWindow(window) { return .settings }
+            return nil
+        }
+        preferences.updateRelaunch = UpdateRelaunch(build: build, windows: open)
+        Self.log.notice("relaunching into \(build, privacy: .public) with [\(open.map(\.rawValue).joined(separator: ","), privacy: .public)] open")
     }
 
     // Do not: implement `updaterShouldRelaunchApplication` to keep a test build
