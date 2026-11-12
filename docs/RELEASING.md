@@ -19,7 +19,7 @@ rm -P <file holding the key>
 "$SPARKLE_BIN/generate_keys" --account scriber -p
 ```
 
-  The last command must print the public key in `Info.plist`. The Sparkle tools arrive with the package, so the folder exists once any Release build has resolved it. The first time `generate_appcast` uses the key, macOS asks whether it may; **Always Allow** saves every later release the same prompt.
+  The last command must print the public key in `Info.plist`. The Sparkle tools arrive with the package, so the folder exists once any Release build has resolved it. The first time `generate_appcast` uses the key, macOS asks for the login password and whether it may. Answer **Always Allow**, not **Allow**: Allow covers that one run, and the prompt then returns at every release. The answer belongs to that copy of the tool, which `check-update.sh` uses too, so it is asked again only when a new Sparkle version brings new tools. Do not run `sign_update --verify` on a finished appcast as an extra check: it reads the private key, so it costs a prompt of its own, and Sparkle verifies every update's signature before installing it anyway.
 
 - `create-dmg`, which arranges the disk image window. `brew install create-dmg`. Build-time only — nothing from it ships inside the app.
 

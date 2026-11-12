@@ -26,8 +26,9 @@
 # What it cannot show: an install at a screen lock, which would lock the user's
 # Mac, and what the status line looks like. MANUAL_CHECKS.md holds those.
 #
-# The first run raises a Keychain prompt for generate_appcast to use the
-# signing key. Allow it; Always Allow saves the next release the same prompt.
+# generate_appcast reads the signing key from the login Keychain, and macOS asks
+# first. Answer Always Allow: it then stays silent for that copy of the tool,
+# which is the copy releases use too — see SPARKLE_BIN below.
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -61,6 +62,17 @@ trap cleanup EXIT
 # place makes phase A pass without anything having installed.
 [ -d "$WORK" ] && trash "$WORK"
 mkdir -p "$DERIVED" "$FEED" "$INSTALL_DIR"
+
+# Platform: an Always Allow is recorded against the tool it was given to, and
+# this run's own derived data is a fresh copy every time. So the tools come
+# from the copy RELEASING.md uses, and one answer covers both. Resolving fetches
+# that copy if no Release build has yet.
+SPARKLE_BIN="$REPO_ROOT/.build/xcode-release/SourcePackages/artifacts/sparkle/Sparkle/bin"
+if [ ! -x "$SPARKLE_BIN/generate_appcast" ]; then
+  xcodebuild -project "$REPO_ROOT/Scriber.xcodeproj" -scheme Scriber \
+    -derivedDataPath "$REPO_ROOT/.build/xcode-release" -resolvePackageDependencies >/dev/null 2>&1 \
+    || fail "could not resolve Sparkle's tools into .build/xcode-release"
+fi
 
 IDENTITY="$(xcodebuild -project "$REPO_ROOT/Scriber.xcodeproj" -scheme Scriber -configuration Debug -showBuildSettings 2>/dev/null \
   | awk '$1 == "CODE_SIGN_IDENTITY" {print $3; exit}')"
@@ -97,7 +109,7 @@ echo "==> Writing the appcast"
 # exercised.
 hdiutil create -quiet -volname "Scriber $NEW_VERSION" -srcfolder "$WORK/new" -format UDZO \
   "$FEED/Scriber-$NEW_VERSION.dmg"
-"$DERIVED/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast" --account scriber \
+"$SPARKLE_BIN/generate_appcast" --account scriber \
   --download-url-prefix "http://127.0.0.1:$PORT/" "$FEED" >"$WORK/appcast.log" 2>&1 \
   || fail "generate_appcast failed; see $WORK/appcast.log"
 grep -q "sparkle:edSignature" "$FEED/appcast.xml" || fail "the appcast carries no EdDSA signature"
