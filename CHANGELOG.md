@@ -4,6 +4,10 @@ This file records intentionally identified Scriber releases and prerelease snaps
 
 ## Unreleased
 
+## 0.10.1 (build 404) — 2026-11-12
+
+The first update Scriber installs by itself. Dictations now go to ElevenLabs' Scribe v3, which makes fewer word errors at the same price, and an update no longer leaves Scriber's window open behind the lock screen.
+
 ### Changed
 
 - **Dictations are transcribed by Scribe v3.** ElevenLabs' newest model makes fewer word errors than Scribe v2, at the same price per hour. **Remove filler words and false starts** still does more than its name says: besides dropping fillers, it tidies casual speech toward written form, so switch it off if you want your words kept as you said them.

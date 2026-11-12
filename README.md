@@ -143,7 +143,7 @@ Some of these are even better than the closed-source options above; the ones I t
 ## Install
 
 Requirements:
-- **macOS 26 Tahoe or newer** with **Apple silicon.**
+- **macOS 26 Tahoe or newer** with **Apple silicon.** Scriber is built and tested on macOS 27; it supports macOS 26 but isn't regularly tested there.
 - An [ElevenLabs](https://elevenlabs.io/app/sign-up) API key.
 
 ```bash
